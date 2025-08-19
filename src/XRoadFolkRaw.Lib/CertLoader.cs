@@ -12,10 +12,13 @@ namespace XRoadFolkRaw.Lib
             string? envPemC = Environment.GetEnvironmentVariable("XR_PEM_CERT_PATH");
             string? envPemK = Environment.GetEnvironmentVariable("XR_PEM_KEY_PATH");
 
-            if (!string.IsNullOrWhiteSpace(envPfx)) return LoadFromPfx(envPfx, envPwd ?? cfg.PfxPassword);
-            if (!string.IsNullOrWhiteSpace(envPemC) && !string.IsNullOrWhiteSpace(envPemK)) return LoadFromPem(envPemC, envPemK);
-            if (!string.IsNullOrWhiteSpace(cfg.PfxPath)) return LoadFromPfx(cfg.PfxPath!, cfg.PfxPassword);
-            return !string.IsNullOrWhiteSpace(cfg.PemCertPath) && !string.IsNullOrWhiteSpace(cfg.PemKeyPath)
+            return !string.IsNullOrWhiteSpace(envPfx)
+                ? LoadFromPfx(envPfx, envPwd ?? cfg.PfxPassword)
+                : !string.IsNullOrWhiteSpace(envPemC) && !string.IsNullOrWhiteSpace(envPemK)
+                ? LoadFromPem(envPemC, envPemK)
+                : !string.IsNullOrWhiteSpace(cfg.PfxPath)
+                ? LoadFromPfx(cfg.PfxPath!, cfg.PfxPassword)
+                : !string.IsNullOrWhiteSpace(cfg.PemCertPath) && !string.IsNullOrWhiteSpace(cfg.PemKeyPath)
                 ? LoadFromPem(cfg.PemCertPath!, cfg.PemKeyPath!)
                 : throw new InvalidOperationException("No certificate configured.");
         }
@@ -27,8 +30,16 @@ namespace XRoadFolkRaw.Lib
         }
         public static X509Certificate2 LoadFromPem(string certPath, string keyPath)
         {
-            if (!File.Exists(certPath)) throw new FileNotFoundException($"PEM cert not found '{certPath}'", certPath);
-            if (!File.Exists(keyPath)) throw new FileNotFoundException($"PEM key not found '{keyPath}'", keyPath);
+            if (!File.Exists(certPath))
+            {
+                throw new FileNotFoundException($"PEM cert not found '{certPath}'", certPath);
+            }
+
+            if (!File.Exists(keyPath))
+            {
+                throw new FileNotFoundException($"PEM key not found '{keyPath}'", keyPath);
+            }
+
             X509Certificate2 cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
             return new X509Certificate2(cert.Export(X509ContentType.Pkcs12), (string?)null, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }

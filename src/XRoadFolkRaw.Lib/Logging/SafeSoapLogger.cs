@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
@@ -26,19 +23,27 @@ namespace XRoadFolkRaw.Lib.Logging
 
         /// <summary>Debug-level safe SOAP log.</summary>
         public static void SafeSoapDebug(this ILogger? logger, string? xml, string? title = null)
-            => LogSanitized(logger, LogLevel.Debug, xml, title, SoapGeneralEvent);
+        {
+            LogSanitized(logger, LogLevel.Debug, xml, title, SoapGeneralEvent);
+        }
 
         /// <summary>Information-level safe SOAP log.</summary>
         public static void SafeSoapInfo(this ILogger? logger, string? xml, string? title = null)
-            => LogSanitized(logger, LogLevel.Information, xml, title, SoapGeneralEvent);
+        {
+            LogSanitized(logger, LogLevel.Information, xml, title, SoapGeneralEvent);
+        }
 
         /// <summary>Log a request.</summary>
         public static void SafeSoapRequest(this ILogger? logger, string? xml, string? title = null)
-            => LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Request", SoapRequestEvent);
+        {
+            LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Request", SoapRequestEvent);
+        }
 
         /// <summary>Log a response.</summary>
         public static void SafeSoapResponse(this ILogger? logger, string? xml, string? title = null)
-            => LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Response", SoapResponseEvent);
+        {
+            LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Response", SoapResponseEvent);
+        }
 
         /// <summary>
         /// Logs an exchange (request, response) as two debug messages, both sanitized.
@@ -52,7 +57,11 @@ namespace XRoadFolkRaw.Lib.Logging
 
         private static void LogSanitized(ILogger? logger, LogLevel level, string? xml, string? title, EventId evt)
         {
-            if (logger == null || !logger.IsEnabled(level)) return;
+            if (logger == null || !logger.IsEnabled(level))
+            {
+                return;
+            }
+
             string safe = Sanitize(xml ?? string.Empty);
             if (!string.IsNullOrEmpty(title))
             {
@@ -80,7 +89,10 @@ namespace XRoadFolkRaw.Lib.Logging
         // Default sanitizer (prefix-agnostic, robust to invalid XML using regex fallback)
         private static string DefaultSanitize(string input)
         {
-            if (string.IsNullOrEmpty(input)) return input;
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
 
             // 1) Try XML route first
             try
@@ -119,11 +131,11 @@ namespace XRoadFolkRaw.Lib.Logging
                 string s = input;
                 // redact inner text between start/end tags for known names
                 string tagPattern = @"<(?:[\w\-]+:)?({N})(?:\b[^>]*)>(.*?)</(?:[\w\-]+:)?\1\s*>";
-                string[] names = {
+                string[] names = [
                     "username","user","password","pwd","token","authToken",
                     "ssn","socialsecuritynumber","nationalid","idcode","pin",
                     "publicid","personid","personalcode","secret","apikey","apiKey"
-                };
+                ];
                 foreach (string n in names)
                 {
                     Regex re = new(tagPattern.Replace("{N}", n), RegexOptions.IgnoreCase | RegexOptions.Singleline);
@@ -141,17 +153,35 @@ namespace XRoadFolkRaw.Lib.Logging
 
         private static bool LooksSensitive(string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return false;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
             // crude heuristic: longish base64 / hex-ish / number-ish strings
-            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Za-z0-9+/=]+$")) return true; // base64-like
-            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Fa-f0-9]+$")) return true;   // hex-like
-            if (value.Length >= 6 && Regex.IsMatch(value, @"^\d[\d\- ]+$")) return true;     // number-like
+            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Za-z0-9+/=]+$"))
+            {
+                return true; // base64-like
+            }
+
+            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Fa-f0-9]+$"))
+            {
+                return true;   // hex-like
+            }
+
+            if (value.Length >= 6 && Regex.IsMatch(value, @"^\d[\d\- ]+$"))
+            {
+                return true;     // number-like
+            }
+
             return false;
         }
 
         private static string Mask(string s)
         {
-            if (string.IsNullOrEmpty(s)) return s;
+            if (string.IsNullOrEmpty(s))
+            {
+                return s;
+            }
             // Show only last 2 chars to help correlate, mask the rest
             int visible = Math.Min(2, s.Length);
             return new string('*', Math.Max(0, s.Length - visible)) + s.Substring(s.Length - visible, visible);

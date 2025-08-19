@@ -2,8 +2,6 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using XRoad.Config;
-
-using XRoadFolkRaw;
 using XRoadFolkRaw.Lib; // for InputValidation + LoggingHelper
 
 // Top-level program
@@ -163,18 +161,109 @@ int httpAttempts = config.GetValue("Retry:Http:Attempts", 3);
 int httpBaseDelay = config.GetValue("Retry:Http:BaseDelayMs", 200);
 int httpJitter = config.GetValue("Retry:Http:JitterMs", 250);
 
-using (FolkRawClient client = new(
+using FolkRawClient client = new(
     xr.BaseUrl, cert, TimeSpan.FromSeconds(xr.Http.TimeoutSeconds),
     logger: log, verbose: verbose, maskTokens: maskTokens,
-    retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter))
+    retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
+// Token provider (project contains FolkTokenProviderRaw + LoginAsync on client)
+FolkTokenProviderRaw tokenProvider = new(client, ct => client.LoginAsync(
+    loginXmlPath: xr.Raw.LoginXmlPath,
+    xId: Guid.NewGuid().ToString("N"),
+    userId: xr.Auth.UserId,
+    username: xr.Auth.Username ?? string.Empty,
+    password: xr.Auth.Password ?? string.Empty,
+    protocolVersion: xr.Headers.ProtocolVersion,
+    clientXRoadInstance: xr.Client.XRoadInstance,
+    clientMemberClass: xr.Client.MemberClass,
+    clientMemberCode: xr.Client.MemberCode,
+    clientSubsystemCode: xr.Client.SubsystemCode,
+    serviceXRoadInstance: xr.Service.XRoadInstance,
+    serviceMemberClass: xr.Service.MemberClass,
+    serviceMemberCode: xr.Service.MemberCode,
+    serviceSubsystemCode: xr.Service.SubsystemCode,
+    serviceCode: xr.Service.ServiceCode,
+    serviceVersion: xr.Service.ServiceVersion ?? "v1",
+    ct: ct
+), refreshSkew: TimeSpan.FromSeconds(60));
+
+string token = await tokenProvider.GetTokenAsync();
+if (string.IsNullOrWhiteSpace(token))
 {
-    // Token provider (project contains FolkTokenProviderRaw + LoginAsync on client)
-    FolkTokenProviderRaw tokenProvider = new(client, ct => client.LoginAsync(
-        loginXmlPath: xr.Raw.LoginXmlPath,
+    throw new InvalidOperationException("Token provider returned null/empty token.");
+}
+
+log.LogInformation("Token acquired (len={Len})", token.Length);
+
+// === Inputs banner ===
+Console.WriteLine();
+Console.WriteLine("==============================================");
+Console.WriteLine("INPUTS MODE: Strict");
+Console.WriteLine("Provide: SSN  OR  FirstName + LastName + DateOfBirth.");
+Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01");
+Console.WriteLine("Type 'q' at any prompt to quit.");
+Console.WriteLine("==============================================");
+
+// === Prompt loop ===
+while (true)
+{
+    Console.WriteLine();
+    Console.WriteLine("Enter GetPeoplePublicInfo search criteria (leave blank to skip):");
+    string ssnInput = Prompt("SSN");
+    if (IsQuit(ssnInput))
+    {
+        break;
+    }
+
+    string fnInput = Prompt("FirstName");
+    if (IsQuit(fnInput))
+    {
+        break;
+    }
+
+    string lnInput = Prompt("LastName");
+    if (IsQuit(lnInput))
+    {
+        break;
+    }
+
+    string dobInput = Prompt("DateOfBirth (YYYY-MM-DD)");
+    if (IsQuit(dobInput))
+    {
+        break;
+    }
+
+    (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
+    if (!Ok)
+    {
+        Console.WriteLine("? Input not valid:");
+        foreach (string e in Errors)
+        {
+            Console.WriteLine(" - " + e);
+        }
+
+        Console.WriteLine("Please try again.");
+        continue;
+    }
+
+    // Echo what will be used
+    if (!string.IsNullOrWhiteSpace(SsnNorm))
+    {
+        Console.WriteLine($"→ Using SSN = {MaskSsn(SsnNorm)}");
+    }
+    else
+    {
+        Console.WriteLine($"→ Using Name = \"{fnInput} {lnInput}\", DOB = {Dob:yyyy-MM-dd}");
+    }
+
+    // Call GetPeoplePublicInfo
+    string opXml = config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
+
+
+    string responseXml = await client.GetPeoplePublicInfoAsync(
+        xmlPath: opXml,
         xId: Guid.NewGuid().ToString("N"),
         userId: xr.Auth.UserId,
-        username: xr.Auth.Username ?? string.Empty,
-        password: xr.Auth.Password ?? string.Empty,
+        token: token!,
         protocolVersion: xr.Headers.ProtocolVersion,
         clientXRoadInstance: xr.Client.XRoadInstance,
         clientMemberClass: xr.Client.MemberClass,
@@ -184,206 +273,113 @@ using (FolkRawClient client = new(
         serviceMemberClass: xr.Service.MemberClass,
         serviceMemberCode: xr.Service.MemberCode,
         serviceSubsystemCode: xr.Service.SubsystemCode,
-        serviceCode: xr.Service.ServiceCode,
-        serviceVersion: xr.Service.ServiceVersion ?? "v1",
-        ct: ct
-    ), refreshSkew: TimeSpan.FromSeconds(60));
+        serviceCode: "GetPeoplePublicInfo",
+        serviceVersion: "v1",
+        ssn: SsnNorm,
+        firstName: fnInput,
+        lastName: lnInput,
+        dateOfBirth: Dob
+    );
 
-    string token = await tokenProvider.GetTokenAsync();
-    if (string.IsNullOrWhiteSpace(token))
+
+
+    if (string.IsNullOrWhiteSpace(responseXml))
     {
-        throw new InvalidOperationException("Token provider returned null/empty token.");
+        Console.WriteLine("No response received. Please try again.");
+        continue;
     }
 
-    log.LogInformation("Token acquired (len={Len})", token.Length);
 
-    // === Inputs banner ===
-    Console.WriteLine();
-    Console.WriteLine("==============================================");
-    Console.WriteLine("INPUTS MODE: Strict");
-    Console.WriteLine("Provide: SSN  OR  FirstName + LastName + DateOfBirth.");
-    Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01");
-    Console.WriteLine("Type 'q' at any prompt to quit.");
-    Console.WriteLine("==============================================");
 
-    // === Prompt loop ===
-    while (true)
+
+
+
+    XDocument listDoc;
+    try { listDoc = XDocument.Parse(responseXml); }
+    catch (Exception ex)
     {
+        log.LogWarning(ex, "Failed to parse GetPeoplePublicInfo response; please try again.");
+        continue;
+    }
+
+    List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
+    if (people.Count == 0)
+    {
+        Console.WriteLine("No matches found. Please refine inputs.");
+        continue;
+    }
+
+    // Print table
+    PrintPeoplePublicInfoTable(listDoc, log, maxRows: config.GetValue("Output:MaxPeopleToPrint", 25));
+
+    // Chain: GetPerson for each
+    string personXmlPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
+    int maxChain = Math.Max(1, config.GetValue("Chaining:MaxPersons", 25));
+    int count = 0;
+    foreach (XElement p in people)
+    {
+        if (++count > maxChain)
+        {
+            break;
+        }
+
+        string? Get(string ln)
+        {
+            return p.Elements().FirstOrDefault(x => x.Name.LocalName == ln)?.Value?.Trim();
+        }
+
+        string? publicId = Get("PublicId") ?? Get("PersonId");
+        string? personSsn = Get("SSN");
+        string? fn = Get("FirstName");
+        string? ln = Get("LastName");
+        string? dob = Get("DateOfBirth") ?? Get("BirthDate");
+
         Console.WriteLine();
-        Console.WriteLine("Enter GetPeoplePublicInfo search criteria (leave blank to skip):");
-        string ssnInput = Prompt("SSN");
-        if (IsQuit(ssnInput))
-        {
-            break;
-        }
+        Console.WriteLine($"=== Fetching GetPerson for {publicId ?? personSsn ?? (fn + " " + ln)} {(string.IsNullOrWhiteSpace(dob) ? "" : " DOB:" + dob)} ===");
 
-        string fnInput = Prompt("FirstName");
-        if (IsQuit(fnInput))
+        try
         {
-            break;
-        }
+            string personResp = await client.GetPersonAsync(
+                xmlPath: personXmlPath,
+                xId: Guid.NewGuid().ToString("N"),
+                userId: xr.Auth.UserId,
+                token: token!,
+                protocolVersion: xr.Headers.ProtocolVersion,
+                clientXRoadInstance: xr.Client.XRoadInstance,
+                clientMemberClass: xr.Client.MemberClass,
+                clientMemberCode: xr.Client.MemberCode,
+                clientSubsystemCode: xr.Client.SubsystemCode,
+                serviceXRoadInstance: xr.Service.XRoadInstance,
+                serviceMemberClass: xr.Service.MemberClass,
+                serviceMemberCode: xr.Service.MemberCode,
+                serviceSubsystemCode: xr.Service.SubsystemCode,
+                serviceCode: "GetPerson",
+                serviceVersion: "v1",
+                publicId: publicId,
+                includeAddress: config.GetValue("GetPerson:Include:Address", true),
+                includeContact: config.GetValue("GetPerson:Include:Contact", true),
+                includeBirthDate: config.GetValue("GetPerson:Include:BirthDate", true),
+                includeDeathDate: config.GetValue("GetPerson:Include:DeathDate", false),
+                includeGender: config.GetValue("GetPerson:Include:Gender", true),
+                includeMaritalStatus: config.GetValue("GetPerson:Include:MaritalStatus", false),
+                includeCitizenship: config.GetValue("GetPerson:Include:Citizenship", true),
+                includeSsnHistory: config.GetValue("GetPerson:Include:SsnHistory", false)
+            );
 
-        string lnInput = Prompt("LastName");
-        if (IsQuit(lnInput))
-        {
-            break;
-        }
-
-        string dobInput = Prompt("DateOfBirth (YYYY-MM-DD)");
-        if (IsQuit(dobInput))
-        {
-            break;
-        }
-
-        (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
-        if (!Ok)
-        {
-            Console.WriteLine("? Input not valid:");
-            foreach (string e in Errors)
+            if (!string.IsNullOrWhiteSpace(personResp))
             {
-                Console.WriteLine(" - " + e);
+                XDocument doc = XDocument.Parse(personResp);
+                PrintGetPersonAllPairs(doc, log);
             }
-
-            Console.WriteLine("Please try again.");
-            continue;
         }
-
-        // Echo what will be used
-        if (!string.IsNullOrWhiteSpace(SsnNorm))
-        {
-            Console.WriteLine($"→ Using SSN = {MaskSsn(SsnNorm)}");
-        }
-        else
-        {
-            Console.WriteLine($"→ Using Name = \"{fnInput} {lnInput}\", DOB = {Dob:yyyy-MM-dd}");
-        }
-
-        // Call GetPeoplePublicInfo
-        string opXml = config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
-
-
-        string responseXml = await client.GetPeoplePublicInfoAsync(
-            xmlPath: opXml,
-            xId: Guid.NewGuid().ToString("N"),
-            userId: xr.Auth.UserId,
-            token: token!,
-            protocolVersion: xr.Headers.ProtocolVersion,
-            clientXRoadInstance: xr.Client.XRoadInstance,
-            clientMemberClass: xr.Client.MemberClass,
-            clientMemberCode: xr.Client.MemberCode,
-            clientSubsystemCode: xr.Client.SubsystemCode,
-            serviceXRoadInstance: xr.Service.XRoadInstance,
-            serviceMemberClass: xr.Service.MemberClass,
-            serviceMemberCode: xr.Service.MemberCode,
-            serviceSubsystemCode: xr.Service.SubsystemCode,
-            serviceCode: "GetPeoplePublicInfo",
-            serviceVersion: "v1",
-            ssn: SsnNorm,
-            firstName: fnInput,
-            lastName: lnInput,
-            dateOfBirth: Dob
-        );
-
-
-
-        if (string.IsNullOrWhiteSpace(responseXml))
-        {
-            Console.WriteLine("No response received. Please try again.");
-            continue;
-        }
-
-
-
-
-
-
-        XDocument listDoc;
-        try { listDoc = XDocument.Parse(responseXml); }
         catch (Exception ex)
         {
-            log.LogWarning(ex, "Failed to parse GetPeoplePublicInfo response; please try again.");
-            continue;
+            log.LogWarning(ex, "Failed to fetch/print GetPerson for the selected entry.");
         }
-
-        List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
-        if (people.Count == 0)
-        {
-            Console.WriteLine("No matches found. Please refine inputs.");
-            continue;
-        }
-
-        // Print table
-        PrintPeoplePublicInfoTable(listDoc, log, maxRows: config.GetValue("Output:MaxPeopleToPrint", 25));
-
-        // Chain: GetPerson for each
-        string personXmlPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
-        int maxChain = Math.Max(1, config.GetValue("Chaining:MaxPersons", 25));
-        int count = 0;
-        foreach (XElement p in people)
-        {
-            if (++count > maxChain)
-            {
-                break;
-            }
-
-            string? Get(string ln)
-            {
-                return p.Elements().FirstOrDefault(x => x.Name.LocalName == ln)?.Value?.Trim();
-            }
-
-            string? publicId = Get("PublicId") ?? Get("PersonId");
-            string? personSsn = Get("SSN");
-            string? fn = Get("FirstName");
-            string? ln = Get("LastName");
-            string? dob = Get("DateOfBirth") ?? Get("BirthDate");
-
-            Console.WriteLine();
-            Console.WriteLine($"=== Fetching GetPerson for {publicId ?? personSsn ?? (fn + " " + ln)} {(string.IsNullOrWhiteSpace(dob) ? "" : " DOB:" + dob)} ===");
-
-            try
-            {
-                string personResp = await client.GetPersonAsync(
-                    xmlPath: personXmlPath,
-                    xId: Guid.NewGuid().ToString("N"),
-                    userId: xr.Auth.UserId,
-                    token: token!,
-                    protocolVersion: xr.Headers.ProtocolVersion,
-                    clientXRoadInstance: xr.Client.XRoadInstance,
-                    clientMemberClass: xr.Client.MemberClass,
-                    clientMemberCode: xr.Client.MemberCode,
-                    clientSubsystemCode: xr.Client.SubsystemCode,
-                    serviceXRoadInstance: xr.Service.XRoadInstance,
-                    serviceMemberClass: xr.Service.MemberClass,
-                    serviceMemberCode: xr.Service.MemberCode,
-                    serviceSubsystemCode: xr.Service.SubsystemCode,
-                    serviceCode: "GetPerson",
-                    serviceVersion: "v1",
-                    publicId: publicId,
-                    includeAddress: config.GetValue("GetPerson:Include:Address", true),
-                    includeContact: config.GetValue("GetPerson:Include:Contact", true),
-                    includeBirthDate: config.GetValue("GetPerson:Include:BirthDate", true),
-                    includeDeathDate: config.GetValue("GetPerson:Include:DeathDate", false),
-                    includeGender: config.GetValue("GetPerson:Include:Gender", true),
-                    includeMaritalStatus: config.GetValue("GetPerson:Include:MaritalStatus", false),
-                    includeCitizenship: config.GetValue("GetPerson:Include:Citizenship", true),
-                    includeSsnHistory: config.GetValue("GetPerson:Include:SsnHistory", false)
-                );
-
-                if (!string.IsNullOrWhiteSpace(personResp))
-                {
-                    XDocument doc = XDocument.Parse(personResp);
-                    PrintGetPersonAllPairs(doc, log);
-                }
-            }
-            catch (Exception ex)
-            {
-                log.LogWarning(ex, "Failed to fetch/print GetPerson for the selected entry.");
-            }
-        }
-
-        // End after one cycle
-        break;
     }
+
+    // End after one cycle
+    break;
 }
 
 // ===== Helpers =====

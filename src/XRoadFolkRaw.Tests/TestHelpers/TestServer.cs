@@ -25,34 +25,38 @@ namespace XRoadFolkRaw.Tests.Helpers
 
         public static async Task<TestServer> StartAsync(string responseBody)
         {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
+            TcpListener listener = new(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
-            var serverTask = Task.Run(async () =>
+            Task serverTask = Task.Run(async () =>
             {
-                using var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
-                using var stream = client.GetStream();
+                using TcpClient client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                using NetworkStream stream = client.GetStream();
 
-                var buffer = new byte[8192];
+                byte[] buffer = new byte[8192];
                 int read;
-                var sb = new StringBuilder();
+                StringBuilder sb = new();
                 while ((read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false)) > 0)
                 {
                     sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
-                    var text = sb.ToString();
-                    var headEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+                    string text = sb.ToString();
+                    int headEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
                     if (headEnd >= 0)
                     {
                         // read exact body length if Content-Length present
-                        var headers = text.Substring(0, headEnd);
-                        var bodyStart = headEnd + 4;
-                        if (TryGetContentLength(headers, out var len))
+                        string headers = text.Substring(0, headEnd);
+                        int bodyStart = headEnd + 4;
+                        if (TryGetContentLength(headers, out int len))
                         {
                             while (text.Length - bodyStart < len)
                             {
                                 read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false);
-                                if (read <= 0) break;
+                                if (read <= 0)
+                                {
+                                    break;
+                                }
+
                                 sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                                 text = sb.ToString();
                             }
@@ -63,13 +67,13 @@ namespace XRoadFolkRaw.Tests.Helpers
 
                 // Capture request
                 _ = sb.ToString(); // keep for clarity
-                var captured = sb.ToString();
+                string captured = sb.ToString();
                 // Store in object
                 // (we can't set instance field here yet, so we will update after creating instance)
                 _capturedBacking = captured;
 
-                var bodyBytes = Encoding.UTF8.GetBytes(responseBody);
-                var headersOut = "HTTP/1.1 200 OK\r\n" +
+                byte[] bodyBytes = Encoding.UTF8.GetBytes(responseBody);
+                string headersOut = "HTTP/1.1 200 OK\r\n" +
                                  "Content-Type: text/xml; charset=utf-8\r\n" +
                                  $"Content-Length: {bodyBytes.Length}\r\n" +
                                  "Connection: close\r\n\r\n";
@@ -79,7 +83,7 @@ namespace XRoadFolkRaw.Tests.Helpers
                 listener.Stop();
             });
 
-            var server = new TestServer(listener, port, serverTask, responseBody);
+            TestServer server = new(listener, port, serverTask, responseBody);
             // connect captured backbuffer
             _capturedBackingTarget = server;
             return server;
@@ -93,11 +97,11 @@ namespace XRoadFolkRaw.Tests.Helpers
         private static bool TryGetContentLength(string headers, out int len)
         {
             len = 0;
-            foreach (var line in headers.Split(new[]{ "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (string line in headers.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries))
             {
                 if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                 {
-                    var v = line.Substring("Content-Length:".Length).Trim();
+                    string v = line.Substring("Content-Length:".Length).Trim();
                     return int.TryParse(v, out len);
                 }
             }

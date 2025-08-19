@@ -7,17 +7,27 @@ public class SafeSoapLoggerTests
 {
     private sealed class ListLogger : ILogger
     {
-        public readonly System.Collections.Generic.List<string> Lines = new();
-        public IDisposable BeginScope<TState>(TState state) => default!;
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public readonly System.Collections.Generic.List<string> Lines = [];
+        public IDisposable BeginScope<TState>(TState state)
+        {
+            return default!;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
-            => Lines.Add(formatter(state, exception));
+        {
+            Lines.Add(formatter(state, exception));
+        }
     }
 
     [Fact]
-    public void Masks_Username_Password_Token_By_Default()
+    public void MasksUsernamePasswordTokenByDefault()
     {
-        var xml = @"<Envelope>
+        string xml = @"<Envelope>
   <Header/>
   <Body>
     <Login>
@@ -28,10 +38,10 @@ public class SafeSoapLoggerTests
   </Body>
 </Envelope>";
 
-        var lg = new ListLogger();
+        ListLogger lg = new();
         lg.SafeSoapDebug(xml, "test");
 
-        var all = string.Join("\n", lg.Lines);
+        string all = string.Join("\n", lg.Lines);
         Assert.Contains("username>*****ce<", all, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("password>*******rd<", all, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("token>**********EN<", all, StringComparison.OrdinalIgnoreCase);
@@ -41,16 +51,16 @@ public class SafeSoapLoggerTests
     }
 
     [Fact]
-    public void Allows_Global_Sanitizer_Override()
+    public void AllowsGlobalSanitizerOverride()
     {
         try
         {
             SafeSoapLogger.GlobalSanitizer = s => s.Replace("SECRET", "***");
-            var xml = "<Envelope><token>SECRET</token></Envelope>";
-            var lg = new ListLogger();
+            string xml = "<Envelope><token>SECRET</token></Envelope>";
+            ListLogger lg = new();
             lg.SafeSoapInfo(xml, "custom");
 
-            var all = string.Join("\n", lg.Lines);
+            string all = string.Join("\n", lg.Lines);
             Assert.Contains("***", all);
             Assert.DoesNotContain("SECRET", all);
         }

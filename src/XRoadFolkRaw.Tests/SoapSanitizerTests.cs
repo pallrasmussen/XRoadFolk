@@ -3,9 +3,9 @@ using Xunit;
 public class SoapSanitizerTests
 {
     [Fact]
-    public void Masks_Username_Password_And_Token_By_Default()
+    public void MasksUsernamePasswordAndTokenByDefault()
     {
-        var xml = @"<Envelope>
+        string xml = @"<Envelope>
   <Body>
     <login>
       <username>alice</username>
@@ -15,7 +15,7 @@ public class SoapSanitizerTests
   </Body>
 </Envelope>";
 
-        var scrubbed = SoapSanitizer.Scrub(xml, maskTokens: true);
+        string scrubbed = SoapSanitizer.Scrub(xml, maskTokens: true);
 
         Assert.Contains("<username>********</username>", scrubbed);
         Assert.Contains("<password>********</password>", scrubbed);
@@ -25,19 +25,19 @@ public class SoapSanitizerTests
     }
 
     [Fact]
-    public void Token_Masking_Can_Be_Disabled()
+    public void TokenMaskingCanBeDisabled()
     {
-        var xml = @"<Envelope><Body><token>XYZ123456</token></Body></Envelope>";
+        string xml = @"<Envelope><Body><token>XYZ123456</token></Body></Envelope>";
 
-        var scrubbed = SoapSanitizer.Scrub(xml, maskTokens: false);
+        string scrubbed = SoapSanitizer.Scrub(xml, maskTokens: false);
 
         Assert.Contains("<token>XYZ123456</token>", scrubbed);
     }
 
     [Fact]
-    public void Handles_Multiline_Values()
+    public void HandlesMultilineValues()
     {
-        var xml = @"<Envelope>
+        string xml = @"<Envelope>
   <Body>
     <username>
       user-on-newline
@@ -47,9 +47,9 @@ line2</password>
   </Body>
 </Envelope>";
 
-        var scrubbed = SoapSanitizer.Scrub(xml, maskTokens: true);
+        string scrubbed = SoapSanitizer.Scrub(xml, maskTokens: true);
 
-        Assert.Contains("<username>********</username>", scrubbed.Replace("\r","").Replace("\n",""));
-        Assert.Contains("<password>********</password>", scrubbed.Replace("\r","").Replace("\n",""));
+        Assert.Contains("<username>********</username>", scrubbed.Replace("\r", "").Replace("\n", ""));
+        Assert.Contains("<password>********</password>", scrubbed.Replace("\r", "").Replace("\n", ""));
     }
 }

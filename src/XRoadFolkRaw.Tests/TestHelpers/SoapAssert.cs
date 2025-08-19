@@ -13,9 +13,9 @@ namespace XRoadFolkRaw.Tests.Helpers
         /// </summary>
         public static void HasElement(string xml, string localName, string? expectedValue = null)
         {
-            var doc = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
-            var els = doc.Descendants().Where(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase)).ToList();
-            Assert.True(els.Any(), $"Expected element with local-name '{localName}' to exist.");
+            XDocument doc = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+            System.Collections.Generic.List<XElement> els = [.. doc.Descendants().Where(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase))];
+            Assert.True(els.Count != 0, $"Expected element with local-name '{localName}' to exist.");
             if (expectedValue != null)
             {
                 Assert.Contains(els, e => (e.Value ?? string.Empty).Contains(expectedValue, StringComparison.Ordinal));
@@ -28,10 +28,12 @@ namespace XRoadFolkRaw.Tests.Helpers
         /// </summary>
         public static void LooksLikeLocalName(string xml, string localName, string? contains = null)
         {
-            var needle = localName + ">";
+            string needle = localName + ">";
             Assert.Contains(needle, xml);
             if (contains != null)
+            {
                 Assert.Contains(contains, xml);
+            }
         }
     }
 }

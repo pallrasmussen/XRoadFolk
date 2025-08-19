@@ -10,43 +10,51 @@ public class LoginRequestTests
 {
     private static async Task<(int Port, Task ServerTask, Func<string> GetCapturedRequest)> StartTestServerAsync(string responseBody)
     {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
+        TcpListener listener = new(IPAddress.Loopback, 0);
         listener.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
 
         string captured = "";
         async Task Server()
         {
-            using var client = await listener.AcceptTcpClientAsync();
-            using var stream = client.GetStream();
+            using TcpClient client = await listener.AcceptTcpClientAsync();
+            using NetworkStream stream = client.GetStream();
 
-            var buffer = new byte[8192];
+            byte[] buffer = new byte[8192];
             int read;
-            var sb = new StringBuilder();
+            StringBuilder sb = new();
             do
             {
                 read = await stream.ReadAsync(buffer, 0, buffer.Length);
-                if (read <= 0) break;
+                if (read <= 0)
+                {
+                    break;
+                }
+
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
-                var current = sb.ToString();
-                var headEnd = current.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+                string current = sb.ToString();
+                int headEnd = current.IndexOf("\r\n\r\n", StringComparison.Ordinal);
                 if (headEnd >= 0)
                 {
-                    var headers = current.Substring(0, headEnd);
-                    var bodyStart = headEnd + 4;
+                    string headers = current.Substring(0, headEnd);
+                    int bodyStart = headEnd + 4;
                     int contentLen = 0;
-                    foreach (var line in headers.Split(new[]{ "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (string line in headers.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries))
                     {
                         if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                         {
-                            var v = line.Substring("Content-Length:".Length).Trim();
+                            string v = line.Substring("Content-Length:".Length).Trim();
                             int.TryParse(v, out contentLen);
                         }
                     }
                     while (current.Length - bodyStart < contentLen)
                     {
                         read = await stream.ReadAsync(buffer, 0, buffer.Length);
-                        if (read <= 0) break;
+                        if (read <= 0)
+                        {
+                            break;
+                        }
+
                         sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                         current = sb.ToString();
                     }
@@ -56,8 +64,8 @@ public class LoginRequestTests
 
             captured = sb.ToString();
 
-            var bodyBytes = Encoding.UTF8.GetBytes(responseBody);
-            var headersOut = "HTTP/1.1 200 OK\r\n" +
+            byte[] bodyBytes = Encoding.UTF8.GetBytes(responseBody);
+            string headersOut = "HTTP/1.1 200 OK\r\n" +
                              "Content-Type: text/xml; charset=utf-8\r\n" +
                              $"Content-Length: {bodyBytes.Length}\r\n" +
                              "Connection: close\r\n\r\n";
@@ -72,7 +80,7 @@ public class LoginRequestTests
 
     private static string ExtractBody(string rawHttp)
     {
-        var idx = rawHttp.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        int idx = rawHttp.IndexOf("\r\n\r\n", StringComparison.Ordinal);
         return idx >= 0 ? rawHttp.Substring(idx + 4) : rawHttp;
     }
 
@@ -96,18 +104,18 @@ public class LoginRequestTests
     }
 
     [Fact]
-    public async Task Login_Composes_Header_And_Populates_Credentials()
+    public async Task LoginComposesHeaderAndPopulatesCredentials()
     {
-        var (port, serverTask, getReq) = await StartTestServerAsync(@"<Envelope><Body><loginResponse><token>TKN</token><expires>2099-01-01T00:00:00Z</expires></loginResponse></Body></Envelope>");
-        var url = $"http://127.0.0.1:{port}/";
+        (int port, Task serverTask, Func<string> getReq) = await StartTestServerAsync(@"<Envelope><Body><loginResponse><token>TKN</token><expires>2099-01-01T00:00:00Z</expires></loginResponse></Body></Envelope>");
+        string url = $"http://127.0.0.1:{port}/";
 
         // Template with correct namespace and structure
-        var tmp = Path.GetTempFileName();
+        string tmp = Path.GetTempFileName();
         File.WriteAllText(tmp, MinimalLoginTemplate(), Encoding.UTF8);
 
-        var client = new FolkRawClient(url, null, TimeSpan.FromSeconds(5), logger: null, verbose: false, maskTokens: false);
+        FolkRawClient client = new(url, null, TimeSpan.FromSeconds(5), logger: null, verbose: false, maskTokens: false);
 
-        var respXml = await client.LoginAsync(
+        string respXml = await client.LoginAsync(
             loginXmlPath: tmp,
             xId: "LOGIN-1",
             userId: "tester",
@@ -115,21 +123,21 @@ public class LoginRequestTests
             password: "hunter2",
             protocolVersion: "4.0",
             clientXRoadInstance: "EE",
-            clientMemberClass:   "GOV",
-            clientMemberCode:    "1234567",
+            clientMemberClass: "GOV",
+            clientMemberCode: "1234567",
             clientSubsystemCode: "MY-SUBSYS",
             serviceXRoadInstance: "EE",
-            serviceMemberClass:   "GOV",
-            serviceMemberCode:    "7654321",
+            serviceMemberClass: "GOV",
+            serviceMemberCode: "7654321",
             serviceSubsystemCode: "TARGET-SUBSYS",
-            serviceCode:          "login",
-            serviceVersion:       "v1",
+            serviceCode: "login",
+            serviceVersion: "v1",
             ct: default);
 
         await serverTask;
-        var req = getReq();
-        var body = ExtractBody(req);
-        var bodyLower = body.ToLowerInvariant();
+        string req = getReq();
+        string body = ExtractBody(req);
+        string bodyLower = body.ToLowerInvariant();
 
         // Assert credentials placed in request
         Assert.Contains("<username>bob</username>", bodyLower);

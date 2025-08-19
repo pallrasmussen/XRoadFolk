@@ -6,10 +6,10 @@ using Xunit;
 public class PositivePublicIdSelectionTests
 {
     [Fact]
-    public void Picks_PublicId_When_Present()
+    public void PicksPublicIdWhenPresent()
     {
         // Simulated GetPeoplePublicInfo response with ONE PublicId present
-        var response = @"<?xml version=""1.0""?>
+        string response = @"<?xml version=""1.0""?>
 <Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"">
   <Body>
     <GetPeoplePublicInfoResponse>
@@ -29,12 +29,11 @@ public class PositivePublicIdSelectionTests
   </Body>
 </Envelope>";
 
-        var doc = XDocument.Parse(response);
+        XDocument doc = XDocument.Parse(response);
 
-        var people = doc
+        System.Collections.Generic.List<XElement> people = [.. doc
             .Descendants()
-            .Where(e => e.Name.LocalName.Equals("PersonPublicInfo", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+            .Where(e => e.Name.LocalName.Equals("PersonPublicInfo", StringComparison.OrdinalIgnoreCase))];
         Assert.True(people.Count == 2, "Setup sanity check failed.");
 
         // This mirrors the Program.cs filter (accept PublicId, or PersonId as alt; then require non-empty)

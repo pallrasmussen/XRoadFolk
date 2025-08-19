@@ -1,7 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 
 public sealed class FolkTokenProviderRaw
@@ -27,13 +23,20 @@ public sealed class FolkTokenProviderRaw
 
     public async Task<string> GetTokenAsync(CancellationToken ct = default)
     {
-        if (!NeedsRefresh()) return _token!;
+        if (!NeedsRefresh())
+        {
+            return _token!;
+        }
 
         Task<string> refresh;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!NeedsRefresh()) return _token!;
+            if (!NeedsRefresh())
+            {
+                return _token!;
+            }
+
             _refreshTask ??= RefreshAsync(ct);
             refresh = _refreshTask;
         }
@@ -48,7 +51,10 @@ public sealed class FolkTokenProviderRaw
         try
         {
             if (ReferenceEquals(refresh, _refreshTask))
+            {
                 _refreshTask = null;
+            }
+
             return token;
         }
         finally
@@ -68,18 +74,27 @@ public sealed class FolkTokenProviderRaw
             e.Name.LocalName.Equals("expiry", StringComparison.OrdinalIgnoreCase) ||
             e.Name.LocalName.Equals("expiration", StringComparison.OrdinalIgnoreCase));
 
-        if (tokenEl == null) throw new InvalidOperationException("Login response did not contain <token>");
+        if (tokenEl == null)
+        {
+            throw new InvalidOperationException("Login response did not contain <token>");
+        }
 
         _token = tokenEl.Value.Trim();
 
         if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), out DateTimeOffset exp))
+        {
             _expiresUtc = exp.ToUniversalTime();
+        }
         else
+        {
             _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(5);
+        }
 
         return _token!;
     }
 
-    private bool NeedsRefresh() =>
-        string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow.Add(_skew) >= _expiresUtc;
+    private bool NeedsRefresh()
+    {
+        return string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow.Add(_skew) >= _expiresUtc;
+    }
 }

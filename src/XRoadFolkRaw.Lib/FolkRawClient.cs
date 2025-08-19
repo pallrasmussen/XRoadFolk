@@ -1,10 +1,5 @@
-using System;
-using System.IO;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Polly;
@@ -18,6 +13,7 @@ public sealed class FolkRawClient : IDisposable
     private readonly int _retryAttempts;
     private readonly int _retryBaseDelayMs;
     private readonly int _retryJitterMs;
+    private static readonly string[] sourceArray = ["service", "client", "id", "protocolVersion", "userId"];
 
     public FolkRawClient(string serviceUrl, X509Certificate2? clientCertificate = null, TimeSpan? timeout = null, ILogger? logger = null, bool verbose = false, bool maskTokens = true, int retryAttempts = 3, int retryBaseDelayMs = 200, int retryJitterMs = 250)
     {
@@ -28,7 +24,10 @@ public sealed class FolkRawClient : IDisposable
             ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
         };
 
-        if (clientCertificate != null) handler.ClientCertificates.Add(clientCertificate);
+        if (clientCertificate != null)
+        {
+            handler.ClientCertificates.Add(clientCertificate);
+        }
 
         _http = new HttpClient(handler)
         {
@@ -63,7 +62,9 @@ public sealed class FolkRawClient : IDisposable
         CancellationToken ct = default)
     {
         if (!File.Exists(loginXmlPath))
+        {
             throw new FileNotFoundException("Login.xml not found", loginXmlPath);
+        }
 
         XDocument doc = XDocument.Load(loginXmlPath);
 
@@ -131,7 +132,9 @@ public sealed class FolkRawClient : IDisposable
         CancellationToken ct = default)
     {
         if (!File.Exists(xmlPath))
+        {
             throw new FileNotFoundException("GetPeoplePublicInfo.xml not found", xmlPath);
+        }
 
         XDocument doc = XDocument.Load(xmlPath);
 
@@ -173,12 +176,31 @@ public sealed class FolkRawClient : IDisposable
         XElement? criteriaList = requestBodyEl.Element("ListOfPersonPublicInfoCriteria");
         if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
         // Clear any existing criteria to avoid mixing with template values
-        foreach (XElement? n in criteriaList.Elements().ToList()) n.Remove();
+        foreach (XElement? n in criteriaList.Elements().ToList())
+        {
+            n.Remove();
+        }
+
         XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
-        if (!string.IsNullOrWhiteSpace(ssn)) SetChildValue(criteria, "SSN", ssn);
-        if (!string.IsNullOrWhiteSpace(firstName)) SetChildValue(criteria, "FirstName", firstName);
-        if (!string.IsNullOrWhiteSpace(lastName)) SetChildValue(criteria, "LastName", lastName);
-        if (dateOfBirth.HasValue) SetChildValue(criteria, "DateOfBirth", dateOfBirth.Value.ToString("yyyy-MM-dd"));
+        if (!string.IsNullOrWhiteSpace(ssn))
+        {
+            SetChildValue(criteria, "SSN", ssn);
+        }
+
+        if (!string.IsNullOrWhiteSpace(firstName))
+        {
+            SetChildValue(criteria, "FirstName", firstName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(lastName))
+        {
+            SetChildValue(criteria, "LastName", lastName);
+        }
+
+        if (dateOfBirth.HasValue)
+        {
+            SetChildValue(criteria, "DateOfBirth", dateOfBirth.Value.ToString("yyyy-MM-dd"));
+        }
 
         XElement? requestHeader = requestEl.Element("requestHeader");
         if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
@@ -193,13 +215,16 @@ public sealed class FolkRawClient : IDisposable
 
     private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
     {
-        if (_verbose) _log?.LogInformation("[SOAP request] {Xml}", SoapSanitizer.Scrub(xmlString, _maskTokens));
+        if (_verbose)
+        {
+            _log?.LogInformation("[SOAP request] {Xml}", SoapSanitizer.Scrub(xmlString, _maskTokens));
+        }
 
         Random jitter = new();
         Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
                            .Or<TaskCanceledException>()
                            .WaitAndRetryAsync(_retryAttempts,
-                               i => TimeSpan.FromMilliseconds(_retryBaseDelayMs * (1 << (i - 1)) + jitter.Next(0, _retryJitterMs)),
+                               i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + jitter.Next(0, _retryJitterMs)),
                                (ex, ts, attempt, ctx) => _log?.LogWarning(ex, "HTTP retry {Attempt} after {Delay}ms", attempt, ts.TotalMilliseconds));
 
         string respText = await policy.ExecuteAsync(async () =>
@@ -214,15 +239,23 @@ public sealed class FolkRawClient : IDisposable
                 : text;
         });
 
-        if (_verbose) _log?.LogInformation("[SOAP response] {Xml}", SoapSanitizer.Scrub(respText, _maskTokens));
+        if (_verbose)
+        {
+            _log?.LogInformation("[SOAP response] {Xml}", SoapSanitizer.Scrub(respText, _maskTokens));
+        }
+
         return respText;
     }
 
-    private static void SetChildValue(System.Xml.Linq.XElement? parent, System.Xml.Linq.XName name, string value)
+    private static void SetChildValue(XElement? parent, XName name, string value)
     {
-        if (parent == null) return;
+        if (parent == null)
+        {
+            return;
+        }
+
         XElement? el = parent.Element(name);
-        if (el == null) { el = new System.Xml.Linq.XElement(name, value); parent.Add(el); }
+        if (el == null) { el = new XElement(name, value); parent.Add(el); }
         else { el.Value = value; }
     }
 
@@ -256,7 +289,9 @@ public sealed class FolkRawClient : IDisposable
         CancellationToken ct = default)
     {
         if (!File.Exists(xmlPath))
+        {
             throw new FileNotFoundException("GetPerson.xml not found", xmlPath);
+        }
 
         XDocument doc = XDocument.Load(xmlPath);
 
@@ -270,10 +305,16 @@ public sealed class FolkRawClient : IDisposable
         XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
 
         // Remove legacy x:* headers
-        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == x).ToList()) el.Remove();
+        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == x).ToList())
+        {
+            el.Remove();
+        }
 
         // Remove controlled xro:* headers and rebuild
-        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == xro && new[] { "service", "client", "id", "protocolVersion", "userId" }.Contains(e.Name.LocalName)).ToList()) el.Remove();
+        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == xro && sourceArray.Contains(e.Name.LocalName)).ToList())
+        {
+            el.Remove();
+        }
 
         XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
         header.Add(serviceEl);
@@ -305,12 +346,16 @@ public sealed class FolkRawClient : IDisposable
 
         // Preferred: PublicId; Fallback: SSN if provided
         if (!string.IsNullOrWhiteSpace(publicId))
+        {
             SetChildValue(requestBodyEl, "PublicId", publicId);
+        }
         else if (!string.IsNullOrWhiteSpace(ssnForPerson))
+        {
             SetChildValue(requestBodyEl, "SSN", ssnForPerson);
+        }
 
         // Optional include flags
-        void SetBool(string name, bool? val) { if (val.HasValue) SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); }
+        void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
         SetBool("IncludeAddress", includeAddress);
         SetBool("IncludeContact", includeContact);
         SetBool("IncludeBirthDate", includeBirthDate);
@@ -333,5 +378,8 @@ public sealed class FolkRawClient : IDisposable
     }
 
 
-    public void Dispose() => _http.Dispose();
+    public void Dispose()
+    {
+        _http.Dispose();
+    }
 }

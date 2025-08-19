@@ -11,10 +11,18 @@ public static class SoapSanitizer
         xml = TokenRx.Replace(xml, m => maskTokens ? $"<token>{MaskToken(m.Groups[1].Value)}</token>" : $"<token>{m.Groups[1].Value}</token>");
         return xml;
     }
-    private static string Mask(string s) => string.IsNullOrEmpty(s) ? s : new string('*', 8);
+    private static string Mask(string s)
+    {
+        return string.IsNullOrEmpty(s) ? s : new string('*', 8);
+    }
+
     private static string MaskToken(string s)
     {
-        if (string.IsNullOrEmpty(s)) return s;
+        if (string.IsNullOrEmpty(s))
+        {
+            return s;
+        }
+
         string head = s.Length <= 6 ? s : s.Substring(0, 6);
         return head + "...(masked)";
     }

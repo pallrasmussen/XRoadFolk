@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Xml.Linq;
 using Xunit;
@@ -6,10 +5,10 @@ using Xunit;
 public class PersonIdSelectionTests
 {
     [Fact]
-    public void Accepts_PersonId_When_PublicId_Missing()
+    public void AcceptsPersonIdWhenPublicIdMissing()
     {
         // Simulated response where only PersonId is present
-        var response = @"<?xml version=""1.0""?>
+        string response = @"<?xml version=""1.0""?>
 <Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"">
   <Body>
     <GetPeoplePublicInfoResponse>
@@ -29,8 +28,8 @@ public class PersonIdSelectionTests
   </Body>
 </Envelope>";
 
-        var doc = XDocument.Parse(response);
-        var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+        XDocument doc = XDocument.Parse(response);
+        System.Collections.Generic.List<XElement> people = [.. doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
         Assert.True(people.Count == 2, "Setup sanity check failed.");
 
         // Mirror Program.cs filter: prefer PublicId, otherwise PersonId; require non-empty

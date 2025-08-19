@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Xml.Linq;
 using Xunit;
@@ -6,10 +5,10 @@ using Xunit;
 public class NoFallbackWhenNoPublicIdTests
 {
     [Fact]
-    public void No_Default_Fallback_When_No_PublicId()
+    public void NoDefaultFallbackWhenNoPublicId()
     {
         // Simulate a GetPeoplePublicInfo response with NO PublicId/PersonId elements
-        var response = @"<?xml version=""1.0""?>
+        string response = @"<?xml version=""1.0""?>
 <Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"">
   <Body>
     <GetPeoplePublicInfoResponse>
@@ -29,13 +28,14 @@ public class NoFallbackWhenNoPublicIdTests
   </Body>
 </Envelope>";
 
-        var doc = XDocument.Parse(response);
-        var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+        XDocument doc = XDocument.Parse(response);
+        System.Collections.Generic.List<XElement> people = [.. doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
         Assert.True(people.Count == 2, "Setup sanity check failed");
 
         // This mirrors the Program.cs guard logic (prefix-agnostic)
         var peopleWithPublicId = people
-            .Select(p => new {
+            .Select(p => new
+            {
                 Elem = p,
                 PublicId = p.Elements().FirstOrDefault(x => x.Name.LocalName == "PublicId")?.Value?.Trim()
                            ?? p.Elements().FirstOrDefault(x => x.Name.LocalName == "PersonId")?.Value?.Trim()
