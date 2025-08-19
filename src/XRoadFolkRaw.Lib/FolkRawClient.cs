@@ -16,6 +16,7 @@ public sealed class FolkRawClient : IDisposable
     private readonly int _retryAttempts;
     private readonly int _retryBaseDelayMs;
     private readonly int _retryJitterMs;
+    private static readonly Random JitterRandom = Random.Shared;
     private static readonly HashSet<string> SourceHeaders =
         new(["service", "client", "id", "protocolVersion", "userId"]);
     private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
@@ -235,11 +236,10 @@ public sealed class FolkRawClient : IDisposable
             _log?.LogInformation("[SOAP request] {Xml}", SoapSanitizer.Scrub(xmlString, _maskTokens));
         }
 
-        Random jitter = new();
         Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
                            .Or<TaskCanceledException>()
                            .WaitAndRetryAsync(_retryAttempts,
-                               i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + jitter.Next(0, _retryJitterMs)),
+                               i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + JitterRandom.Next(0, _retryJitterMs)),
                                (ex, ts, attempt, ctx) => _log?.LogWarning(ex, "HTTP retry {Attempt} after {Delay}ms", attempt, ts.TotalMilliseconds));
 
         string respText = await policy.ExecuteAsync(async () =>
