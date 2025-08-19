@@ -11,6 +11,9 @@ public sealed class PeopleService
     private readonly XRoadSettings _settings;
     private readonly ILogger _log;
     private readonly FolkTokenProviderRaw _tokenProvider;
+    private readonly string _loginXmlPath;
+    private readonly string _peopleInfoXmlPath;
+    private readonly string _personXmlPath;
 
     public PeopleService(FolkRawClient client, IConfiguration config, XRoadSettings settings, ILogger log)
     {
@@ -19,8 +22,14 @@ public sealed class PeopleService
         _settings = settings;
         _log = log;
 
+        _loginXmlPath = settings.Raw.LoginXmlPath;
+        _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
+        _personXmlPath = _config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
+
+        _client.PreloadTemplates(new[] { _loginXmlPath, _peopleInfoXmlPath, _personXmlPath });
+
         _tokenProvider = new FolkTokenProviderRaw(client, ct => client.LoginAsync(
-            loginXmlPath: settings.Raw.LoginXmlPath,
+            loginXmlPath: _loginXmlPath,
             xId: Guid.NewGuid().ToString("N"),
             userId: settings.Auth.UserId,
             username: settings.Auth.Username ?? string.Empty,
@@ -54,9 +63,8 @@ public sealed class PeopleService
     public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
     {
         string token = await GetTokenAsync(ct);
-        string opXml = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
         return await _client.GetPeoplePublicInfoAsync(
-            xmlPath: opXml,
+            xmlPath: _peopleInfoXmlPath,
             xId: Guid.NewGuid().ToString("N"),
             userId: _settings.Auth.UserId,
             token: token,
@@ -81,9 +89,8 @@ public sealed class PeopleService
     public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
     {
         string token = await GetTokenAsync(ct);
-        string personXmlPath = _config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
         return await _client.GetPersonAsync(
-            xmlPath: personXmlPath,
+            xmlPath: _personXmlPath,
             xId: Guid.NewGuid().ToString("N"),
             userId: _settings.Auth.UserId,
             token: token,

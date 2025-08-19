@@ -150,4 +150,40 @@ public class FolkRawClientRequestTests
         Assert.Contains("<ListOfPersonPublicInfoCriteria>", body);
         Assert.Contains("<PersonPublicInfoCriteria", body); // allow self-closing tag e.g., <... />
     }
+
+    [Fact]
+    public async Task UsesCachedTemplateIfFileDeleted()
+    {
+        string tmp = Path.GetTempFileName();
+        File.WriteAllText(tmp, MinimalGetPeopleTemplate(), Encoding.UTF8);
+
+        (int port, Task serverTask, Func<string> _) = await StartTestServerAsync(@"<Envelope><Body><GetPeoplePublicInfoResponse><ok>true</ok></GetPeoplePublicInfoResponse></Body></Envelope>");
+        string url = $"http://127.0.0.1:{port}/";
+
+        FolkRawClient client = new(url, null, TimeSpan.FromSeconds(5), logger: null, verbose: false, maskTokens: false);
+        client.PreloadTemplates(new[] { tmp });
+        File.Delete(tmp);
+
+        string xml = await client.GetPeoplePublicInfoAsync(
+            xmlPath: tmp,
+            xId: "REQ-99",
+            userId: "inspect",
+            token: "ABC123TOKEN",
+            protocolVersion: "4.0",
+            clientXRoadInstance: "FO",
+            clientMemberClass: "GOV",
+            clientMemberCode: "123",
+            clientSubsystemCode: "CLI",
+            serviceXRoadInstance: "FO",
+            serviceMemberClass: "GOV",
+            serviceMemberCode: "321",
+            serviceSubsystemCode: "SRV",
+            serviceCode: "GetPeoplePublicInfo",
+            serviceVersion: "v1",
+            ct: default);
+
+        await serverTask;
+        Assert.NotNull(xml);
+        Assert.NotEqual(string.Empty, xml);
+    }
 }

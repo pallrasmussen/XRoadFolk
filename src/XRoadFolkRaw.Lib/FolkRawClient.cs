@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
@@ -17,6 +18,7 @@ public sealed class FolkRawClient : IDisposable
     private readonly int _retryJitterMs;
     private static readonly HashSet<string> SourceHeaders =
         new(["service", "client", "id", "protocolVersion", "userId"]);
+    private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
     public FolkRawClient(string serviceUrl, X509Certificate2? clientCertificate = null, TimeSpan? timeout = null, ILogger? logger = null, bool verbose = false, bool maskTokens = true, int retryAttempts = 3, int retryBaseDelayMs = 200, int retryJitterMs = 250)
     {
@@ -45,6 +47,26 @@ public sealed class FolkRawClient : IDisposable
         _retryJitterMs = retryJitterMs;
     }
 
+    public void PreloadTemplates(IEnumerable<string> paths)
+    {
+        foreach (string path in paths)
+        {
+            LoadTemplate(path);
+        }
+    }
+
+    private XDocument LoadTemplate(string path)
+    {
+        return _templateCache.GetOrAdd(path, p =>
+        {
+            if (!File.Exists(p))
+            {
+                throw new FileNotFoundException($"{p} not found", p);
+            }
+            return XDocument.Load(p);
+        });
+    }
+
     public async Task<string> LoginAsync(
         string loginXmlPath,
         string xId,
@@ -64,12 +86,7 @@ public sealed class FolkRawClient : IDisposable
         string serviceVersion,
         CancellationToken ct = default)
     {
-        if (!File.Exists(loginXmlPath))
-        {
-            throw new FileNotFoundException("Login.xml not found", loginXmlPath);
-        }
-
-        XDocument doc = XDocument.Load(loginXmlPath);
+        XDocument doc = new XDocument(LoadTemplate(loginXmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
@@ -134,12 +151,7 @@ public sealed class FolkRawClient : IDisposable
         DateTimeOffset? dateOfBirth = null,
         CancellationToken ct = default)
     {
-        if (!File.Exists(xmlPath))
-        {
-            throw new FileNotFoundException("GetPeoplePublicInfo.xml not found", xmlPath);
-        }
-
-        XDocument doc = XDocument.Load(xmlPath);
+        XDocument doc = new XDocument(LoadTemplate(xmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
@@ -291,12 +303,7 @@ public sealed class FolkRawClient : IDisposable
         bool? includeSsnHistory = null,
         CancellationToken ct = default)
     {
-        if (!File.Exists(xmlPath))
-        {
-            throw new FileNotFoundException("GetPerson.xml not found", xmlPath);
-        }
-
-        XDocument doc = XDocument.Load(xmlPath);
+        XDocument doc = new XDocument(LoadTemplate(xmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
