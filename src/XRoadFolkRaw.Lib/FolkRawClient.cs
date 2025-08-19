@@ -72,30 +72,29 @@ public sealed class FolkRawClient : IDisposable
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
         XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
         XNamespace iden = "http://x-road.eu/xsd/identifiers";
+        XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
 
         XElement? header = doc.Root?.Element(soapenv + "Header");
         XElement? body = doc.Root?.Element(soapenv + "Body");
 
-        SetChildValue(header, xro + "id", xId);
-        SetChildValue(header, xro + "protocolVersion", protocolVersion);
-
-        XElement? clientEl = header?.Element(xro + "client");
-        if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
-        clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
-        SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-        SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-        SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-        SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-        XElement? serviceEl = header?.Element(xro + "service");
-        if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
-        serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
-        SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-        SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-        SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-        SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-        SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-        SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
+        BuildSoapHeader(
+            header,
+            xro,
+            iden,
+            x,
+            xId,
+            userId,
+            protocolVersion,
+            clientXRoadInstance,
+            clientMemberClass,
+            clientMemberCode,
+            clientSubsystemCode,
+            serviceXRoadInstance,
+            serviceMemberClass,
+            serviceMemberCode,
+            serviceSubsystemCode,
+            serviceCode,
+            serviceVersion);
 
         XElement loginReq = body?.Element(prod + "Login")?.Element("request")
             ?? throw new InvalidOperationException("Cannot find prod:Login/request in Login.xml");
@@ -142,30 +141,29 @@ public sealed class FolkRawClient : IDisposable
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
         XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
         XNamespace iden = "http://x-road.eu/xsd/identifiers";
+        XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
 
         XElement? header = doc.Root?.Element(soapenv + "Header");
         XElement? body = doc.Root?.Element(soapenv + "Body");
 
-        SetChildValue(header, xro + "id", xId);
-        SetChildValue(header, xro + "protocolVersion", protocolVersion);
-
-        XElement? clientEl = header?.Element(xro + "client");
-        if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
-        clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
-        SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-        SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-        SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-        SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-        XElement? serviceEl = header?.Element(xro + "service");
-        if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
-        serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
-        SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-        SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-        SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-        SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-        SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-        SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
+        BuildSoapHeader(
+            header,
+            xro,
+            iden,
+            x,
+            xId,
+            userId,
+            protocolVersion,
+            clientXRoadInstance,
+            clientMemberClass,
+            clientMemberCode,
+            clientSubsystemCode,
+            serviceXRoadInstance,
+            serviceMemberClass,
+            serviceMemberCode,
+            serviceSubsystemCode,
+            serviceCode,
+            serviceVersion);
 
         XElement opEl = body?.Element(prod + "GetPeoplePublicInfo")
             ?? throw new InvalidOperationException("Cannot find prod:GetPeoplePublicInfo in body");
@@ -247,6 +245,56 @@ public sealed class FolkRawClient : IDisposable
         return respText;
     }
 
+    private static void BuildSoapHeader(
+        XElement? header,
+        XNamespace xro,
+        XNamespace iden,
+        XNamespace x,
+        string xId,
+        string userId,
+        string protocolVersion,
+        string clientXRoadInstance,
+        string clientMemberClass,
+        string clientMemberCode,
+        string clientSubsystemCode,
+        string serviceXRoadInstance,
+        string serviceMemberClass,
+        string serviceMemberCode,
+        string serviceSubsystemCode,
+        string serviceCode,
+        string serviceVersion)
+    {
+        if (header == null)
+        {
+            return;
+        }
+
+        XElement? clientEl = header.Element(xro + "client");
+        if (clientEl == null) { clientEl = new XElement(xro + "client"); header.Add(clientEl); }
+        clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
+        SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
+        SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
+        SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
+        SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
+
+        XElement? serviceEl = header.Element(xro + "service");
+        if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header.Add(serviceEl); }
+        serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
+        SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
+        SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
+        SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
+        SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
+        SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
+        SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
+
+        SetChildValue(header, xro + "id", xId);
+        SetChildValue(header, xro + "protocolVersion", protocolVersion);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            SetChildValue(header, x + "userId", userId);
+        }
+    }
+
     private static void SetChildValue(XElement? parent, XName name, string value)
     {
         if (parent == null)
@@ -316,25 +364,24 @@ public sealed class FolkRawClient : IDisposable
             el.Remove();
         }
 
-        XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
-        header.Add(serviceEl);
-        SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-        SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-        SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-        SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-        SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-        SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-
-        XElement clientEl = new(xro + "client", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM"));
-        header.Add(clientEl);
-        SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-        SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-        SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-        SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-        SetChildValue(header, xro + "id", xId);
-        SetChildValue(header, xro + "protocolVersion", protocolVersion);
-        SetChildValue(header, x + "userId", userId);
+        BuildSoapHeader(
+            header,
+            xro,
+            iden,
+            x,
+            xId,
+            userId,
+            protocolVersion,
+            clientXRoadInstance,
+            clientMemberClass,
+            clientMemberCode,
+            clientSubsystemCode,
+            serviceXRoadInstance,
+            serviceMemberClass,
+            serviceMemberCode,
+            serviceSubsystemCode,
+            serviceCode,
+            serviceVersion);
 
         // ----- BODY -----
         XElement opEl = body?.Element(prod + "GetPerson")
