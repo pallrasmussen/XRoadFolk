@@ -15,6 +15,10 @@ namespace XRoadFolkRaw.Lib.Logging
         public static readonly EventId SoapResponseEvent = new(41002, "SoapResponse");
         public static readonly EventId SoapGeneralEvent = new(41000, "Soap");
 
+        private static readonly Regex Base64Regex = new(@"^[A-Za-z0-9+/=]+$", RegexOptions.Compiled);
+        private static readonly Regex HexRegex = new(@"^[A-Fa-f0-9]+$", RegexOptions.Compiled);
+        private static readonly Regex NumberRegex = new(@"^\d[\d\- ]+$", RegexOptions.Compiled);
+
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
         /// You can set this once at app start to plug in your existing SoapSanitizer.
@@ -158,17 +162,17 @@ namespace XRoadFolkRaw.Lib.Logging
                 return false;
             }
             // crude heuristic: longish base64 / hex-ish / number-ish strings
-            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Za-z0-9+/=]+$"))
+            if (value.Length >= 8 && Base64Regex.IsMatch(value))
             {
                 return true; // base64-like
             }
 
-            if (value.Length >= 8 && Regex.IsMatch(value, @"^[A-Fa-f0-9]+$"))
+            if (value.Length >= 8 && HexRegex.IsMatch(value))
             {
                 return true;   // hex-like
             }
 
-            if (value.Length >= 6 && Regex.IsMatch(value, @"^\d[\d\- ]+$"))
+            if (value.Length >= 6 && NumberRegex.IsMatch(value))
             {
                 return true;     // number-like
             }
