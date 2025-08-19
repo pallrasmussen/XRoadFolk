@@ -15,7 +15,8 @@ public sealed class FolkRawClient : IDisposable
     private readonly int _retryAttempts;
     private readonly int _retryBaseDelayMs;
     private readonly int _retryJitterMs;
-    private static readonly string[] sourceArray = ["service", "client", "id", "protocolVersion", "userId"];
+    private static readonly HashSet<string> SourceHeaders =
+        new(["service", "client", "id", "protocolVersion", "userId"]);
 
     public FolkRawClient(string serviceUrl, X509Certificate2? clientCertificate = null, TimeSpan? timeout = null, ILogger? logger = null, bool verbose = false, bool maskTokens = true, int retryAttempts = 3, int retryBaseDelayMs = 200, int retryJitterMs = 250)
     {
@@ -313,7 +314,8 @@ public sealed class FolkRawClient : IDisposable
         }
 
         // Remove controlled xro:* headers and rebuild
-        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == xro && sourceArray.Contains(e.Name.LocalName)).ToList())
+        foreach (XElement? el in header.Elements()
+            .Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).ToList())
         {
             el.Remove();
         }
