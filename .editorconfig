@@ -1,0 +1,9 @@
+root = true
+
+[*.cs]
+dotnet_analyzer_diagnostic.severity = warning
+# Helpful but non-breaking rules (examples)
+dotnet_diagnostic.CA2000.severity = warning   # dispose objects
+dotnet_diagnostic.CA1062.severity = warning   # validate public args
+dotnet_diagnostic.CA1305.severity = suggestion # IFormatProvider
+dotnet_diagnostic.CA1822.severity = suggestion # mark members static

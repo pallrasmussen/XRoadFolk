@@ -1,0 +1,6 @@
+<Project>
+  <!-- Prevent test files from compiling into non-test projects -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'XRoadFolkRaw.Tests'">
+    <Compile Remove="**/*Tests.cs" />
+  </ItemGroup>
+</Project>
