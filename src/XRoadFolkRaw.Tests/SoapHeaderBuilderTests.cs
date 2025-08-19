@@ -16,7 +16,7 @@ public class SoapHeaderBuilderTests
     }
 
     private static string MinimalLoginTemplate() => $@"<?xml version=""1.0""?>
-<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:prod=\"{ProdNs}\">
+<soapenv:Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:prod=""{ProdNs}"">
   <soapenv:Header />
   <soapenv:Body>
     <prod:Login>
@@ -28,8 +28,8 @@ public class SoapHeaderBuilderTests
   </soapenv:Body>
 </soapenv:Envelope>";
 
-    private static string MinimalGetPeopleTemplate() => $@"<?xml version=\"1.0\"?>
-<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:prod=\"{ProdNs}\">
+    private static string MinimalGetPeopleTemplate() => $@"<?xml version=""1.0""?>
+<soapenv:Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:prod=""{ProdNs}"">
   <soapenv:Header />
   <soapenv:Body>
     <prod:GetPeoplePublicInfo>
@@ -45,8 +45,8 @@ public class SoapHeaderBuilderTests
   </soapenv:Body>
 </soapenv:Envelope>";
 
-    private static string MinimalGetPersonTemplate() => $@"<?xml version=\"1.0\"?>
-<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:prod=\"{ProdNs}\">
+    private static string MinimalGetPersonTemplate() => $@"<?xml version=""1.0""?>
+<soapenv:Envelope xmlns:soapenv=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:prod=""{ProdNs}\">
   <soapenv:Header />
   <soapenv:Body>
     <prod:GetPerson>
