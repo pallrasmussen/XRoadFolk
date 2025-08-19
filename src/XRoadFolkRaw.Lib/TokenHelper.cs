@@ -42,7 +42,7 @@ public sealed class FolkTokenProviderRaw
             _gate.Release();
         }
 
-        var token = await refresh.ConfigureAwait(false);
+        string token = await refresh.ConfigureAwait(false);
 
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -59,11 +59,11 @@ public sealed class FolkTokenProviderRaw
 
     private async Task<string> RefreshAsync(CancellationToken ct)
     {
-        var xml = await _loginCall(ct).ConfigureAwait(false);
+        string xml = await _loginCall(ct).ConfigureAwait(false);
 
-        var doc = XDocument.Parse(xml);
-        var tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
-        var expEl = doc.Descendants().FirstOrDefault(e =>
+        XDocument doc = XDocument.Parse(xml);
+        XElement? tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
+        XElement? expEl = doc.Descendants().FirstOrDefault(e =>
             e.Name.LocalName.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
             e.Name.LocalName.Equals("expiry", StringComparison.OrdinalIgnoreCase) ||
             e.Name.LocalName.Equals("expiration", StringComparison.OrdinalIgnoreCase));
@@ -72,7 +72,7 @@ public sealed class FolkTokenProviderRaw
 
         _token = tokenEl.Value.Trim();
 
-        if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), out var exp))
+        if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), out DateTimeOffset exp))
             _expiresUtc = exp.ToUniversalTime();
         else
             _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(5);

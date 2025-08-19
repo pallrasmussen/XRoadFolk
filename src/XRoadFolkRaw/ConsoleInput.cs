@@ -1,4 +1,4 @@
-using System;
+//using System;
 using System.Text;
 
 namespace XRoadFolkRaw
@@ -7,11 +7,11 @@ namespace XRoadFolkRaw
     {
         public static string? ReadLineOrCtrlQ(out bool quit)
         {
-            var buf = new StringBuilder();
+            StringBuilder buf = new();
             quit = false;
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
+                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
                 if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.Q)
                 {
                     Console.WriteLine();
@@ -32,19 +32,22 @@ namespace XRoadFolkRaw
                     }
                     continue;
                 }
-                if (char.IsControl(key.KeyChar)) continue;
-                buf.Append(key.KeyChar);
+                if (char.IsControl(key.KeyChar))
+                {
+                    continue;
+                }
+                _ = buf.Append(key.KeyChar); // IDE0058: Expression value is never used
                 Console.Write(key.KeyChar);
             }
         }
 
-        public static string? ReadPasswordOrCtrlQ(out bool quit, char maskChar='*')
+        public static string? ReadPasswordOrCtrlQ(out bool quit, char maskChar = '*')
         {
-            var buf = new StringBuilder();
+            StringBuilder buf = new();
             quit = false;
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
+                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
                 if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.Q)
                 {
                     Console.WriteLine();
@@ -65,8 +68,11 @@ namespace XRoadFolkRaw
                     }
                     continue;
                 }
-                if (char.IsControl(key.KeyChar)) continue;
-                buf.Append(key.KeyChar);
+                if (char.IsControl(key.KeyChar))
+                {
+                    continue;
+                }
+                _ = buf.Append(key.KeyChar);
                 Console.Write(maskChar);
             }
         }

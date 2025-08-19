@@ -15,10 +15,11 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <!--PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" /-->
     <PackageReference Include="Polly" Version="8.6.2" />
     <!-- Generic Host (Host, IHostedService, CreateApplicationBuilder, etc.) -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <!--PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" /-->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
     <!-- HttpClientFactory / AddHttpClient -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.8" />
     <!-- IConfiguration binding: services.Configure<T>(config.GetSection(...)) -->

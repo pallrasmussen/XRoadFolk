@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 public static class SoapSanitizer
 {
-    private static readonly Regex UserRx = new("<username>(.*?)</username>", RegexOptions.IgnoreCase|RegexOptions.Singleline|RegexOptions.Compiled);
-    private static readonly Regex PassRx = new("<password>(.*?)</password>", RegexOptions.IgnoreCase|RegexOptions.Singleline|RegexOptions.Compiled);
-    private static readonly Regex TokenRx = new("<token>(.*?)</token>", RegexOptions.IgnoreCase|RegexOptions.Singleline|RegexOptions.Compiled);
+    private static readonly Regex UserRx = new("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex PassRx = new("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex TokenRx = new("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
     public static string Scrub(string xml, bool maskTokens = true)
     {
         xml = UserRx.Replace(xml, m => $"<username>{Mask(m.Groups[1].Value)}</username>");
@@ -15,7 +15,7 @@ public static class SoapSanitizer
     private static string MaskToken(string s)
     {
         if (string.IsNullOrEmpty(s)) return s;
-        var head = s.Length <= 6 ? s : s.Substring(0, 6);
+        string head = s.Length <= 6 ? s : s.Substring(0, 6);
         return head + "...(masked)";
     }
 }

@@ -1,23 +1,19 @@
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace XRoadFolkRaw
+namespace XRoadFolkRaw.Lib
 {
     public static class InputValidation
     {
         public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob)
             ValidateCriteria(string? ssn, string? firstName, string? lastName, string? dobInput)
         {
-            var errs = new List<string>();
+            List<string> errs = new();
             string? ssnNorm = null;
             DateTimeOffset? dob = null;
 
             bool haveNames = IsValidName(firstName) && IsValidName(lastName);
             bool haveDob = TryParseDob(dobInput, out dob);
-            bool haveSsn = LooksLikeValidSsn(ssn, out var ssnDob);
+            bool haveSsn = LooksLikeValidSsn(ssn, out DateTimeOffset? ssnDob);
             bool ssnProvided = !string.IsNullOrWhiteSpace(ssn);
 
             // Strict presence rule: SSN OR (names + dob)
@@ -50,25 +46,25 @@ namespace XRoadFolkRaw
             return Regex.IsMatch(name, @"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$");
         }
 
-        public static string NormalizeDigits(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+        public static string NormalizeDigits(string? s) => new((s ?? "").Where(char.IsDigit).ToArray());
 
         public static bool LooksLikeValidSsn(string? s, out DateTimeOffset? embedded)
         {
             embedded = null;
             if (string.IsNullOrWhiteSpace(s)) return false;
-            var d = NormalizeDigits(s);
+            string d = NormalizeDigits(s);
             if (d.Length != 9) return false;
-            if (!int.TryParse(d.Substring(0, 2), out var DD)) return false;
-            if (!int.TryParse(d.Substring(2, 2), out var MM)) return false;
-            if (!int.TryParse(d.Substring(4, 2), out var YY)) return false;
+            if (!int.TryParse(d.Substring(0, 2), out int DD)) return false;
+            if (!int.TryParse(d.Substring(2, 2), out int MM)) return false;
+            if (!int.TryParse(d.Substring(4, 2), out int YY)) return false;
 
             // Infer century 1900/2000 based on current year
-            var currYY = DateTimeOffset.UtcNow.Year % 100;
+            int currYY = DateTimeOffset.UtcNow.Year % 100;
             int year = YY + (YY <= currYY ? 2000 : 1900);
 
             try
             {
-                var dt = new DateTimeOffset(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
+                DateTimeOffset dt = new(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
                 if (dt.Date > DateTimeOffset.UtcNow.Date) return false;
                 // validate last 3 digits numeric
                 if (!int.TryParse(d.Substring(6, 3), out _)) return false;
@@ -85,8 +81,8 @@ namespace XRoadFolkRaw
         {
             dval = null;
             if (string.IsNullOrWhiteSpace(s)) return false;
-            if (!DateTimeOffset.TryParse(s, out var dt)) return false;
-            var min = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            if (!DateTimeOffset.TryParse(s, out DateTimeOffset dt)) return false;
+            DateTimeOffset min = new(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
             if (dt < min) return false;
             if (dt.Date > DateTimeOffset.UtcNow.Date) return false;
             dval = dt.Date;
