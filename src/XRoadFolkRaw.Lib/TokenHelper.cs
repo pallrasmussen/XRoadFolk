@@ -45,22 +45,28 @@ public sealed class FolkTokenProviderRaw
             _gate.Release();
         }
 
-        string token = await refresh.ConfigureAwait(false);
-
-        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        string token;
         try
         {
-            if (ReferenceEquals(refresh, _refreshTask))
-            {
-                _refreshTask = null;
-            }
-
-            return token;
+            token = await refresh.ConfigureAwait(false);
         }
         finally
         {
-            _gate.Release();
+            await _gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (ReferenceEquals(refresh, _refreshTask))
+                {
+                    _refreshTask = null;
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
         }
+
+        return token;
     }
 
     private async Task<string> RefreshAsync(CancellationToken ct)
