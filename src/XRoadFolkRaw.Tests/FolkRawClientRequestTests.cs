@@ -4,6 +4,8 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
+using System.Linq;
 using Xunit;
 using XRoadFolkRaw.Lib;
 
@@ -185,5 +187,152 @@ public class FolkRawClientRequestTests
         await serverTask;
         Assert.NotNull(xml);
         Assert.NotEqual(string.Empty, xml);
+    }
+
+    [Fact]
+    public async Task GetPeoplePublicInfoClearsExistingCriteria()
+    {
+        string template = $@"<?xml version=\"1.0\"?>
+<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:prod=\"{ProdNs}\">
+  <soapenv:Header />
+  <soapenv:Body>
+    <prod:GetPeoplePublicInfo>
+      <request>
+        <requestHeader/>
+        <requestBody>
+          <ListOfPersonPublicInfoCriteria>
+            <PersonPublicInfoCriteria><SSN>123</SSN></PersonPublicInfoCriteria>
+            <PersonPublicInfoCriteria><FirstName>Old</FirstName></PersonPublicInfoCriteria>
+          </ListOfPersonPublicInfoCriteria>
+        </requestBody>
+      </request>
+    </prod:GetPeoplePublicInfo>
+  </soapenv:Body>
+</soapenv:Envelope>";
+
+        string tmp = Path.GetTempFileName();
+        File.WriteAllText(tmp, template, Encoding.UTF8);
+
+        (int port, Task serverTask, Func<string> getReq) = await StartTestServerAsync(@"<Envelope><Body><GetPeoplePublicInfoResponse><ok>true</ok></GetPeoplePublicInfoResponse></Body></Envelope>");
+        string url = $"http://127.0.0.1:{port}/";
+
+        FolkRawClient client = new(url, null, TimeSpan.FromSeconds(5), logger: null, verbose: false, maskTokens: false);
+
+        await client.GetPeoplePublicInfoAsync(
+            xmlPath: tmp,
+            xId: "REQ-1",
+            userId: "inspect",
+            token: "ABC123TOKEN",
+            protocolVersion: "4.0",
+            clientXRoadInstance: "FO",
+            clientMemberClass: "GOV",
+            clientMemberCode: "123",
+            clientSubsystemCode: "CLI",
+            serviceXRoadInstance: "FO",
+            serviceMemberClass: "GOV",
+            serviceMemberCode: "321",
+            serviceSubsystemCode: "SRV",
+            serviceCode: "GetPeoplePublicInfo",
+            serviceVersion: "v1",
+            ssn: "999",
+            ct: default);
+
+        await serverTask;
+        string req = getReq();
+        string body = ExtractBody(req);
+
+        XDocument doc = XDocument.Parse(body);
+        XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
+        XNamespace prod = ProdNs;
+
+        IEnumerable<XElement>? crits = doc.Root?
+            .Element(soapenv + "Body")?
+            .Element(prod + "GetPeoplePublicInfo")?
+            .Element("request")?
+            .Element("requestBody")?
+            .Element("ListOfPersonPublicInfoCriteria")?
+            .Elements("PersonPublicInfoCriteria");
+
+        Assert.NotNull(crits);
+        List<XElement> list = crits!.ToList();
+        Assert.Single(list);
+        Assert.Equal("999", list[0].Element("SSN")?.Value);
+        Assert.Null(list[0].Element("FirstName"));
+    }
+
+    [Fact]
+    public async Task GetPersonAsyncRemovesLegacyHeaders()
+    {
+        string template = $@"<?xml version=\"1.0\"?>
+<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"
+                  xmlns:prod=\"{ProdNs}\"
+                  xmlns:x=\"http://x-road.eu/xsd/x-road.xsd\"
+                  xmlns:xro=\"http://x-road.eu/xsd/xroad.xsd\"
+                  xmlns:iden=\"http://x-road.eu/xsd/identifiers\">
+  <soapenv:Header>
+    <x:legacy>remove</x:legacy>
+    <xro:service><iden:serviceCode>OLD</iden:serviceCode></xro:service>
+    <xro:client><iden:xRoadInstance>OLD</iden:xRoadInstance></xro:client>
+    <xro:id>OLDID</xro:id>
+    <xro:protocolVersion>OLDPV</xro:protocolVersion>
+  </soapenv:Header>
+  <soapenv:Body>
+    <prod:GetPerson>
+      <request>
+        <requestHeader/>
+        <requestBody/>
+      </request>
+    </prod:GetPerson>
+  </soapenv:Body>
+</soapenv:Envelope>";
+
+        string tmp = Path.GetTempFileName();
+        File.WriteAllText(tmp, template, Encoding.UTF8);
+
+        (int port, Task serverTask, Func<string> getReq) = await StartTestServerAsync(@"<Envelope><Body><GetPersonResponse><ok>true</ok></GetPersonResponse></Body></Envelope>");
+        string url = $"http://127.0.0.1:{port}/";
+
+        FolkRawClient client = new(url, null, TimeSpan.FromSeconds(5), logger: null, verbose: false, maskTokens: false);
+
+        await client.GetPersonAsync(
+            xmlPath: tmp,
+            xId: "REQ-1",
+            userId: "inspect",
+            token: "TOKEN",
+            protocolVersion: "4.0",
+            clientXRoadInstance: "FO",
+            clientMemberClass: "GOV",
+            clientMemberCode: "123",
+            clientSubsystemCode: "CLI",
+            serviceXRoadInstance: "FO",
+            serviceMemberClass: "GOV",
+            serviceMemberCode: "321",
+            serviceSubsystemCode: "SRV",
+            serviceCode: "GetPerson",
+            serviceVersion: "v1",
+            ct: default);
+
+        await serverTask;
+        string req = getReq();
+        string body = ExtractBody(req);
+
+        XDocument doc = XDocument.Parse(body);
+        XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
+        XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
+        XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+        XNamespace iden = "http://x-road.eu/xsd/identifiers";
+
+        XElement header = doc.Root!.Element(soapenv + "Header")!;
+        Assert.Null(header.Element(x + "legacy"));
+        Assert.Equal("REQ-1", header.Element(xro + "id")?.Value);
+        Assert.Equal("4.0", header.Element(xro + "protocolVersion")?.Value);
+        Assert.Equal("inspect", header.Element(x + "userId")?.Value);
+        XElement serviceEl = header.Element(xro + "service")!;
+        Assert.Equal("GetPerson", serviceEl.Element(iden + "serviceCode")?.Value);
+        XElement clientEl = header.Element(xro + "client")!;
+        Assert.Equal("FO", clientEl.Element(iden + "xRoadInstance")?.Value);
+        string headerString = header.ToString();
+        Assert.DoesNotContain("OLD", headerString);
+        Assert.DoesNotContain("OLDID", headerString);
     }
 }

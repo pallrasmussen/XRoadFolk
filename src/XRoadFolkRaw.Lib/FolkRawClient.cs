@@ -192,10 +192,7 @@ public sealed class FolkRawClient : IDisposable
         XElement? criteriaList = requestBodyEl.Element("ListOfPersonPublicInfoCriteria");
         if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
         // Clear any existing criteria to avoid mixing with template values
-        foreach (XElement? n in criteriaList.Elements().ToList())
-        {
-            n.Remove();
-        }
+        criteriaList.RemoveNodes();
 
         XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
         if (!string.IsNullOrWhiteSpace(ssn))
@@ -315,17 +312,10 @@ public sealed class FolkRawClient : IDisposable
         XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
 
         // Remove legacy x:* headers
-        foreach (XElement? el in header.Elements().Where(e => e.Name.Namespace == x).ToList())
-        {
-            el.Remove();
-        }
+        header.Elements().Where(e => e.Name.Namespace == x).Remove();
 
         // Remove controlled xro:* headers and rebuild
-        foreach (XElement? el in header.Elements()
-            .Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).ToList())
-        {
-            el.Remove();
-        }
+        header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
 
         XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
         header.Add(serviceEl);
