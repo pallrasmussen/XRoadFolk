@@ -15,7 +15,7 @@ public class SoapHeaderBuilderTests
         return idx >= 0 ? rawHttp[(idx + 4)..] : rawHttp;
     }
 
-    private static string MinimalLoginTemplate() => $@"<?xml version=\"1.0\"?>
+    private static string MinimalLoginTemplate() => $@"<?xml version=""1.0""?>
 <soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:prod=\"{ProdNs}\">
   <soapenv:Header />
   <soapenv:Body>
