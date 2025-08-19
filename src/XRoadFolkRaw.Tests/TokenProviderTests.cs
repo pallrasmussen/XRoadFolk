@@ -95,4 +95,31 @@ public class TokenProviderTests
         Assert.All(tokens, t => Assert.Equal("TKN-ALL", t));
         client.Dispose();
     }
+
+    [Fact]
+    public async Task FailedLoginIsClearedForNextAttempt()
+    {
+        int calls = 0;
+        async Task<string> LoginAsync(CancellationToken ct)
+        {
+            calls++;
+            if (calls == 1)
+            {
+                await Task.Delay(1, ct);
+                throw new InvalidOperationException("nope");
+            }
+
+            return MakeLoginXml("OK", DateTimeOffset.UtcNow.AddMinutes(1));
+        }
+
+        FolkRawClient client = new("http://example/", null, TimeSpan.FromSeconds(10), null, false, true);
+        FolkTokenProviderRaw provider = new(client, LoginAsync);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetTokenAsync());
+        string token = await provider.GetTokenAsync();
+
+        Assert.Equal("OK", token);
+        Assert.Equal(2, calls);
+        client.Dispose();
+    }
 }
