@@ -1,5 +1,7 @@
 using System.Xml.Linq;
 
+namespace XRoadFolkRaw.Lib;
+
 public sealed class FolkTokenProviderRaw
 {
     private readonly FolkRawClient _client;

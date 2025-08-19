@@ -1,4 +1,5 @@
 using Xunit;
+using XRoadFolkRaw.Lib;
 
 public class SoapSanitizerTests
 {

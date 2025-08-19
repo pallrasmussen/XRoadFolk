@@ -4,6 +4,8 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Polly;
 
+namespace XRoadFolkRaw.Lib;
+
 public sealed class FolkRawClient : IDisposable
 {
     private readonly HttpClient _http;

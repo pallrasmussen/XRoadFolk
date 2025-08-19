@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using XRoadFolkRaw.Lib;
 
 public class LoginRequestTests
 {

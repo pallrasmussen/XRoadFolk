@@ -1,4 +1,7 @@
 using System.Text.RegularExpressions;
+
+namespace XRoadFolkRaw.Lib;
+
 public static class SoapSanitizer
 {
     private static readonly Regex UserRx = new("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
