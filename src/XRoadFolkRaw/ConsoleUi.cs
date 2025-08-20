@@ -6,7 +6,7 @@ using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkRaw;
 
-internal sealed class ConsoleUi
+internal sealed partial class ConsoleUi
 {
     private readonly IConfiguration _config;
     private readonly PeopleService _service;
@@ -214,19 +214,25 @@ internal sealed class ConsoleUi
         }
     }
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "SOAP Body not found in GetPerson response.")]
+    public static partial void LogSoapBodyNotFound(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "GetPerson response element not found.")]
+    public static partial void LogGetPersonResponseNotFound(ILogger logger);
+
     private static void PrintGetPersonAllPairs(XDocument doc, ILogger log, IStringLocalizer loc)
     {
         PrintSeparator(loc["GetPersonAllPairs"]);
         XElement? body = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
         if (body == null)
         {
-            log.LogWarning("SOAP Body not found in GetPerson response.");
+            LogSoapBodyNotFound(log);
             return;
         }
         XElement? resp = body.Elements().FirstOrDefault(e => e.Name.LocalName.EndsWith("Response", StringComparison.OrdinalIgnoreCase));
         if (resp == null)
         {
-            log.LogWarning("GetPerson response element not found.");
+            LogGetPersonResponseNotFound(log);
             return;
         }
         foreach (XElement child in resp.Elements())
