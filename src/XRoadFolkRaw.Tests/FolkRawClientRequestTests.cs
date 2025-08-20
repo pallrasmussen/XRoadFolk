@@ -24,7 +24,7 @@ public class FolkRawClientRequestTests
             {
                 read = await stream.ReadAsync(buffer, 0, buffer.Length);
                 if (read <= 0) break;
-                sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                 var current = sb.ToString();
                 var headEnd = current.IndexOf("\r\n\r\n", StringComparison.Ordinal);
                 if (headEnd >= 0)
@@ -44,7 +44,7 @@ public class FolkRawClientRequestTests
                     {
                         read = await stream.ReadAsync(buffer, 0, buffer.Length);
                         if (read <= 0) break;
-                        sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                        _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                         current = sb.ToString();
                     }
                     break;
