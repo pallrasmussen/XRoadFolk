@@ -5,7 +5,7 @@ using XRoad.Config;
 
 namespace XRoadFolkRaw.Lib;
 
-public sealed class PeopleService
+public sealed partial class PeopleService
 {
     private readonly FolkRawClient _client;
     private readonly IConfiguration _config;
@@ -64,7 +64,7 @@ public sealed class PeopleService
         {
             throw new InvalidOperationException(_localizer["TokenMissing"]);
         }
-        _log.LogInformation("Token acquired (len={Len})", token.Length);
+        LogTokenAcquired(_log, token.Length);
         return token;
     }
 
@@ -124,4 +124,7 @@ public sealed class PeopleService
             includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", false),
             ct: ct);
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]
+    static partial void LogTokenAcquired(ILogger logger, int tokenLength);
 }
