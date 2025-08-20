@@ -37,7 +37,7 @@ namespace XRoadFolkRaw.Tests.Helpers
                 StringBuilder sb = new();
                 while ((read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false)) > 0)
                 {
-                    sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                    _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                     string text = sb.ToString();
                     int headEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
                     if (headEnd >= 0)
@@ -55,7 +55,7 @@ namespace XRoadFolkRaw.Tests.Helpers
                                     break;
                                 }
 
-                                sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                                _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                                 text = sb.ToString();
                             }
                         }
