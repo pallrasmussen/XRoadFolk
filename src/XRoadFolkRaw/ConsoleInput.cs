@@ -36,7 +36,7 @@ namespace XRoadFolkRaw
                 {
                     continue;
                 }
-                _ = buf.Append(key.KeyChar); // IDE0058: Expression value is never used
+                _ = buf.Append(key.KeyChar);
                 Console.Write(key.KeyChar);
             }
         }
