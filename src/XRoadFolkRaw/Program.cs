@@ -79,8 +79,15 @@ IStringLocalizer<InputValidation> valLocalizer = provider.GetRequiredService<ISt
 LocalizedString check = localizer["BannerSeparator"];
 if (check.ResourceNotFound)
 {
-    log.LogWarning("[culture] Resource 'BannerSeparator' not found for {Culture}", culture.Name);
+    LogMissingBannerSeparator(log, culture.Name);
 }
 
 ConsoleUi ui = new(config, service, log, localizer, valLocalizer);
 await ui.RunAsync();
+
+static partial class Program
+{
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
+                   Message = "[culture] Resource 'BannerSeparator' not found for {Culture}")]
+    public static partial void LogMissingBannerSeparator(ILogger logger, string culture);
+}

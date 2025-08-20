@@ -7,7 +7,7 @@ using Polly;
 
 namespace XRoadFolkRaw.Lib;
 
-public sealed class FolkRawClient : IDisposable
+public sealed partial class FolkRawClient : IDisposable
 {
     private readonly HttpClient _http;
     private readonly ILogger? _log;
@@ -241,7 +241,7 @@ public sealed class FolkRawClient : IDisposable
                            .Or<TaskCanceledException>()
                            .WaitAndRetryAsync(_retryAttempts,
                                i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + JitterRandom.Next(0, _retryJitterMs)),
-                               (ex, ts, attempt, ctx) => _log?.LogWarning(ex, "HTTP retry {Attempt} after {Delay}ms", attempt, ts.TotalMilliseconds));
+                               (ex, ts, attempt, ctx) => LogHttpRetryWarning(_log!, ex, attempt, ts.TotalMilliseconds));
 
         string respText = await policy.ExecuteAsync(async () =>
         {
@@ -274,6 +274,10 @@ public sealed class FolkRawClient : IDisposable
         if (el == null) { el = new XElement(name, value); parent.Add(el); }
         else { el.Value = value; }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
+                   Message = "HTTP retry {Attempt} after {Delay}ms")]
+    static partial void LogHttpRetryWarning(ILogger logger, Exception ex, int attempt, double delay);
 
 
     public async Task<string> GetPersonAsync(

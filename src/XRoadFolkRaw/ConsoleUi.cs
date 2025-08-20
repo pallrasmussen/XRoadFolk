@@ -73,10 +73,10 @@ internal sealed partial class ConsoleUi
                 responseXml = await _service.GetPeoplePublicInfoAsync(SsnNorm, fnInput, lnInput, Dob);
             }
             catch (Exception ex)
-            {
-                _log.LogWarning(ex, "Failed to call GetPeoplePublicInfo.");
-                continue;
-            }
+                {
+                    LogFailedGetPeoplePublicInfo(_log, ex);
+                    continue;
+                }
 
             if (string.IsNullOrWhiteSpace(responseXml))
             {
@@ -87,10 +87,10 @@ internal sealed partial class ConsoleUi
             XDocument listDoc;
             try { listDoc = XDocument.Parse(responseXml); }
             catch (Exception ex)
-            {
-                _log.LogWarning(ex, "Failed to parse GetPeoplePublicInfo response; please try again.");
-                continue;
-            }
+                {
+                    LogFailedParseGetPeoplePublicInfo(_log, ex);
+                    continue;
+                }
 
             List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
             if (people.Count == 0)
@@ -131,9 +131,9 @@ internal sealed partial class ConsoleUi
                     }
                 }
                 catch (Exception ex)
-                {
-                    _log.LogWarning(ex, "Failed to fetch/print GetPerson for the selected entry.");
-                }
+                    {
+                        LogFailedGetPerson(_log, ex);
+                    }
             }
         }
     }
@@ -284,9 +284,21 @@ internal sealed partial class ConsoleUi
         const int wSsn = 12, wName = 28, wDob = 12, wGen = 8, wL1 = 26, wL2 = 26;
         Console.WriteLine($"{Trunc(loc["SSN"], wSsn)} {Trunc(loc["Name"], wName)} {Trunc(loc["DOB"], wDob)} {Trunc(loc["Gender"], wGen)} {Trunc(loc["Addr1"], wL1)} {Trunc(loc["Addr2"], wL2)}");
         Console.WriteLine(new string('-', 12 + 1 + 28 + 1 + 12 + 1 + 8 + 1 + 26 + 1 + 26));
-        foreach ((string ssn, string name, string dob, string gender, string line1, string line2) in rows.Take(take))
-        {
-            Console.WriteLine($"{Trunc(ssn, wSsn)} {Trunc(name, wName)} {Trunc(dob, wDob)} {Trunc(gender, wGen)} {Trunc(line1, wL1)} {Trunc(line2, wL2)}");
-        }
-    }
+          foreach ((string ssn, string name, string dob, string gender, string line1, string line2) in rows.Take(take))
+          {
+              Console.WriteLine($"{Trunc(ssn, wSsn)} {Trunc(name, wName)} {Trunc(dob, wDob)} {Trunc(gender, wGen)} {Trunc(line1, wL1)} {Trunc(line2, wL2)}");
+          }
+      }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
+                   Message = "Failed to call GetPeoplePublicInfo.")]
+    static partial void LogFailedGetPeoplePublicInfo(ILogger logger, Exception ex);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning,
+                   Message = "Failed to parse GetPeoplePublicInfo response; please try again.")]
+    static partial void LogFailedParseGetPeoplePublicInfo(ILogger logger, Exception ex);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning,
+                   Message = "Failed to fetch/print GetPerson for the selected entry.")]
+    static partial void LogFailedGetPerson(ILogger logger, Exception ex);
 }
