@@ -214,6 +214,7 @@ internal sealed partial class ConsoleUi
         }
     }
 
+    // Logging helpers using source generators
     [LoggerMessage(Level = LogLevel.Warning, Message = "SOAP Body not found in GetPerson response.")]
     public static partial void LogSoapBodyNotFound(ILogger logger);
 
