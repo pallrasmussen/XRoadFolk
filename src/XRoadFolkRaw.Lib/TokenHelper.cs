@@ -28,7 +28,7 @@ public sealed class FolkTokenProviderRaw
     {
         if (!NeedsRefresh())
         {
-            return _token!;
+            return _token ?? throw new InvalidOperationException("Token not initialized.");
         }
 
         Task<string> refresh;
@@ -37,7 +37,7 @@ public sealed class FolkTokenProviderRaw
         {
             if (!NeedsRefresh())
             {
-                return _token!;
+                return _token ?? throw new InvalidOperationException("Token not initialized.");
             }
 
             _refreshTask ??= RefreshAsync(ct);
@@ -100,7 +100,8 @@ public sealed class FolkTokenProviderRaw
             _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(5);
         }
 
-        return _token!;
+        var token = _token ?? throw new InvalidOperationException("Token not parsed.");
+        return token;
     }
 
     private bool NeedsRefresh()
