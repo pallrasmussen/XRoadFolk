@@ -9,6 +9,7 @@ public static class SoapSanitizer
     private static readonly Regex TokenRx = new("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
     public static string Scrub(string xml, bool maskTokens = true)
     {
+        ArgumentNullException.ThrowIfNull(xml);
         xml = UserRx.Replace(xml, m => $"<username>{Mask(m.Groups[1].Value)}</username>");
         xml = PassRx.Replace(xml, m => $"<password>{Mask(m.Groups[1].Value)}</password>");
         xml = TokenRx.Replace(xml, m => maskTokens ? $"<token>{MaskToken(m.Groups[1].Value)}</token>" : $"<token>{m.Groups[1].Value}</token>");
