@@ -25,7 +25,11 @@ using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
 
 // Configuration
 ConfigurationLoader loader = new();
-(IConfigurationRoot config, XRoadSettings xr) = loader.Load(log);
+ServiceCollection preServices = new();
+preServices.AddLocalization(opts => opts.ResourcesPath = "Resources");
+using ServiceProvider preProvider = preServices.BuildServiceProvider();
+IStringLocalizer<ConfigurationLoader> cfgLocalizer = preProvider.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
+(IConfigurationRoot config, XRoadSettings xr) = loader.Load(log, cfgLocalizer);
 
 // Startup banner
 Console.WriteLine("Press Ctrl+Q at any time to quit.\n");

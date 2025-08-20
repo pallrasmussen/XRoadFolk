@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using XRoad.Config;
 
@@ -6,7 +7,37 @@ namespace XRoadFolkRaw.Lib;
 
 public sealed class ConfigurationLoader
 {
-    public (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log)
+    public static class Messages
+    {
+        public const string XRoadBaseUrlMissing = nameof(XRoadBaseUrlMissing);
+        public const string XRoadBaseUrlInvalidUri = nameof(XRoadBaseUrlInvalidUri);
+        public const string XRoadHeadersProtocolVersionMissing = nameof(XRoadHeadersProtocolVersionMissing);
+        public const string XRoadClientSectionMissing = nameof(XRoadClientSectionMissing);
+        public const string XRoadClientXRoadInstanceMissing = nameof(XRoadClientXRoadInstanceMissing);
+        public const string XRoadClientMemberClassMissing = nameof(XRoadClientMemberClassMissing);
+        public const string XRoadClientMemberCodeMissing = nameof(XRoadClientMemberCodeMissing);
+        public const string XRoadClientSubsystemCodeMissing = nameof(XRoadClientSubsystemCodeMissing);
+        public const string XRoadServiceSectionMissing = nameof(XRoadServiceSectionMissing);
+        public const string XRoadServiceXRoadInstanceMissing = nameof(XRoadServiceXRoadInstanceMissing);
+        public const string XRoadServiceMemberClassMissing = nameof(XRoadServiceMemberClassMissing);
+        public const string XRoadServiceMemberCodeMissing = nameof(XRoadServiceMemberCodeMissing);
+        public const string XRoadServiceSubsystemCodeMissing = nameof(XRoadServiceSubsystemCodeMissing);
+        public const string XRoadAuthUserIdMissing = nameof(XRoadAuthUserIdMissing);
+        public const string XRoadTokenInsertModeInvalid = nameof(XRoadTokenInsertModeInvalid);
+        public const string OperationsGetPeoplePublicInfoXmlPathNotFound = nameof(OperationsGetPeoplePublicInfoXmlPathNotFound);
+        public const string OperationsGetPersonXmlPathNotFound = nameof(OperationsGetPersonXmlPathNotFound);
+        public const string ConfigureClientCertificate = nameof(ConfigureClientCertificate);
+        public const string PfxFileNotFound = nameof(PfxFileNotFound);
+        public const string PemModeRequiresBothPemCertPathAndPemKeyPath = nameof(PemModeRequiresBothPemCertPathAndPemKeyPath);
+        public const string PemCertFileNotFound = nameof(PemCertFileNotFound);
+        public const string PemKeyFileNotFound = nameof(PemKeyFileNotFound);
+        public const string ConfigSanityCheckFailedLog = nameof(ConfigSanityCheckFailedLog);
+        public const string ConfigSanityCheckFailedException = nameof(ConfigSanityCheckFailedException);
+        public const string XRoadClientSubsystemLog = nameof(XRoadClientSubsystemLog);
+        public const string XRoadServiceSubsystemLog = nameof(XRoadServiceSubsystemLog);
+    }
+
+    public (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log, IStringLocalizer<ConfigurationLoader> loc)
     {
         IConfigurationRoot config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -37,46 +68,52 @@ public sealed class ConfigurationLoader
         }
 
         List<string> errs = [];
-        void Req(bool ok, string msg) { if (!ok) { errs.Add(msg); } }
-
-        Req(!string.IsNullOrWhiteSpace(xr.BaseUrl), "XRoad.BaseUrl is missing.");
-        if (!string.IsNullOrWhiteSpace(xr.BaseUrl) && !Uri.TryCreate(xr.BaseUrl, UriKind.Absolute, out _))
+        void Req(bool ok, string key, params object[] args)
         {
-            errs.Add($"XRoad.BaseUrl is not a valid absolute URI: {xr.BaseUrl}");
+            if (!ok)
+            {
+                errs.Add(loc[key, args]);
+            }
         }
 
-        Req(xr.Headers != null && !string.IsNullOrWhiteSpace(xr.Headers.ProtocolVersion), "XRoad.Headers.ProtocolVersion is missing.");
+        Req(!string.IsNullOrWhiteSpace(xr.BaseUrl), Messages.XRoadBaseUrlMissing);
+        if (!string.IsNullOrWhiteSpace(xr.BaseUrl) && !Uri.TryCreate(xr.BaseUrl, UriKind.Absolute, out _))
+        {
+            errs.Add(loc[Messages.XRoadBaseUrlInvalidUri, xr.BaseUrl]);
+        }
 
-        Req(xr.Client != null, "XRoad.Client section is missing.");
-        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.XRoadInstance), "XRoad.Client.XRoadInstance is missing.");
-        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberClass), "XRoad.Client.MemberClass is missing.");
-        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberCode), "XRoad.Client.MemberCode is missing.");
-        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.SubsystemCode), "XRoad.Client.SubsystemCode is missing.");
+        Req(xr.Headers != null && !string.IsNullOrWhiteSpace(xr.Headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
 
-        Req(xr.Service != null, "XRoad.Service section is missing.");
-        Req(!string.IsNullOrWhiteSpace(xr.Service.XRoadInstance), "XRoad.Service.XRoadInstance is missing.");
-        Req(!string.IsNullOrWhiteSpace(xr.Service.MemberClass), "XRoad.Service.MemberClass is missing.");
-        Req(!string.IsNullOrWhiteSpace(xr.Service.MemberCode), "XRoad.Service.MemberCode is missing.");
-        Req(!string.IsNullOrWhiteSpace(xr.Service.SubsystemCode), "XRoad.Service.SubsystemCode is missing.");
+        Req(xr.Client != null, Messages.XRoadClientSectionMissing);
+        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
+        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberClass), Messages.XRoadClientMemberClassMissing);
+        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberCode), Messages.XRoadClientMemberCodeMissing);
+        Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
 
-        Req(xr.Auth != null && !string.IsNullOrWhiteSpace(xr.Auth.UserId), "XRoad.Auth.UserId is missing.");
+        Req(xr.Service != null, Messages.XRoadServiceSectionMissing);
+        Req(!string.IsNullOrWhiteSpace(xr.Service.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
+        Req(!string.IsNullOrWhiteSpace(xr.Service.MemberClass), Messages.XRoadServiceMemberClassMissing);
+        Req(!string.IsNullOrWhiteSpace(xr.Service.MemberCode), Messages.XRoadServiceMemberCodeMissing);
+        Req(!string.IsNullOrWhiteSpace(xr.Service.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
+
+        Req(xr.Auth != null && !string.IsNullOrWhiteSpace(xr.Auth.UserId), Messages.XRoadAuthUserIdMissing);
 
         string tokenMode = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim().ToLowerInvariant();
         if (tokenMode is not "request" and not "header")
         {
-            errs.Add("XRoad.TokenInsert.Mode must be 'request' or 'header'.");
+            errs.Add(loc[Messages.XRoadTokenInsertModeInvalid]);
         }
 
         string gpPath = config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
         string personPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
         if (!File.Exists(gpPath))
         {
-            errs.Add($"Operations:GetPeoplePublicInfo:XmlPath file not found: {gpPath}");
+            errs.Add(loc[Messages.OperationsGetPeoplePublicInfoXmlPathNotFound, gpPath]);
         }
 
         if (!File.Exists(personPath))
         {
-            errs.Add($"Operations:GetPerson:XmlPath file not found: {personPath}");
+            errs.Add(loc[Messages.OperationsGetPersonXmlPathNotFound, personPath]);
         }
 
         string? pfx = xr.Certificate?.PfxPath;
@@ -86,46 +123,46 @@ public sealed class ConfigurationLoader
         bool hasPem = !string.IsNullOrWhiteSpace(pemCert) || !string.IsNullOrWhiteSpace(pemKey);
         if (!hasPfx && !hasPem)
         {
-            errs.Add("Configure a client certificate (PFX or PEM pair).");
+            errs.Add(loc[Messages.ConfigureClientCertificate]);
         }
 
         if (hasPfx && !File.Exists(pfx!))
         {
-            errs.Add($"PFX file not found: {pfx}");
+            errs.Add(loc[Messages.PfxFileNotFound, pfx]);
         }
 
         if (hasPem)
         {
             if (string.IsNullOrWhiteSpace(pemCert) || string.IsNullOrWhiteSpace(pemKey))
             {
-                errs.Add("PEM mode requires both PemCertPath and PemKeyPath.");
+                errs.Add(loc[Messages.PemModeRequiresBothPemCertPathAndPemKeyPath]);
             }
             else
             {
                 if (!File.Exists(pemCert!))
                 {
-                    errs.Add($"PEM cert file not found: {pemCert}");
+                    errs.Add(loc[Messages.PemCertFileNotFound, pemCert]);
                 }
 
                 if (!File.Exists(pemKey!))
                 {
-                    errs.Add($"PEM key file not found: {pemKey}");
+                    errs.Add(loc[Messages.PemKeyFileNotFound, pemKey]);
                 }
             }
         }
 
         if (errs.Count > 0)
         {
-            log.LogError("? Config sanity check failed:");
+            log.LogError(loc[Messages.ConfigSanityCheckFailedLog]);
             foreach (string e in errs)
             {
                 log.LogError(" - {Error}", e);
             }
-            throw new InvalidOperationException("Configuration sanity check failed.");
+            throw new InvalidOperationException(loc[Messages.ConfigSanityCheckFailedException]);
         }
 
-        log.LogInformation("X-Road client:  SUBSYSTEM:{Client}", $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
-        log.LogInformation("X-Road service: SUBSYSTEM:{Service}", $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
+        log.LogInformation(loc[Messages.XRoadClientSubsystemLog], $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
+        log.LogInformation(loc[Messages.XRoadServiceSubsystemLog], $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
 
         return (config, xr);
     }
