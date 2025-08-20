@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using XRoad.Config;
@@ -19,6 +20,23 @@ using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
 // Configuration
 ConfigurationLoader loader = new();
 (IConfigurationRoot config, XRoadSettings xr) = loader.Load(log);
+
+// Localization/globalization
+string? cultureName = config.GetValue<string>("Localization:Culture");
+if (!string.IsNullOrWhiteSpace(cultureName))
+{
+    try
+    {
+        CultureInfo culture = CultureInfo.GetCultureInfo(cultureName);
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        log.LogInformation("[culture] Using {Culture}", culture.Name);
+    }
+    catch (CultureNotFoundException)
+    {
+        log.LogWarning("[culture] Requested culture {Culture} not found, using defaults", cultureName);
+    }
+}
 
 // Startup banner
 Console.WriteLine("Press Ctrl+Q at any time to quit.\n");

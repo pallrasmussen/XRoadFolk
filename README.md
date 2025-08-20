@@ -22,6 +22,9 @@ Provide a client certificate either as a single PFX file or as a PEM certificate
 - `XR_PEM_CERT_PATH` / `XR_PEM_KEY_PATH` – PEM certificate and key paths.
 - `DOTNET_ENVIRONMENT` – select which appsettings file to use (e.g. `Development`, `Production`).
 
+### Localization
+Specify the UI culture by setting `Localization:Culture` in `appsettings.json` (e.g. `en-US`, `fr-FR`). This culture is applied at startup for date and number formatting.
+
 ## Building and Running
 Restore dependencies and run the console application:
 ```bash
