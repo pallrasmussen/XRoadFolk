@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ProvideSsnOrNameDob" xml:space="preserve">
+    <value>Enter either SSN (9 digits) OR FirstName + LastName + DateOfBirth.</value>
+  </data>
+  <data name="InvalidSsn" xml:space="preserve">
+    <value>SSN must be 9 digits (allowing spaces/hyphens) and start with a valid date (ddMMyy).</value>
+  </data>
+  <data name="InvalidFirstName" xml:space="preserve">
+    <value>FirstName must be 2–50 letters (Unicode), allowing spaces, hyphens, apostrophes.</value>
+  </data>
+  <data name="InvalidLastName" xml:space="preserve">
+    <value>LastName must be 2–50 letters (Unicode), allowing spaces, hyphens, apostrophes.</value>
+  </data>
+  <data name="DobSsnMismatch" xml:space="preserve">
+    <value>DateOfBirth ({0}) does not match SSN date ({1}).</value>
+  </data>
+</root>
