@@ -1,4 +1,3 @@
-using System;
 using Microsoft.Extensions.Logging;
 using XRoadFolkRaw.Lib.Logging;
 using Xunit;
