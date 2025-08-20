@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace XRoadFolkRaw.Lib
@@ -134,7 +135,8 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            if (!DateTimeOffset.TryParse(s, out DateTimeOffset dt))
+            if (!DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset dt))
             {
                 return false;
             }

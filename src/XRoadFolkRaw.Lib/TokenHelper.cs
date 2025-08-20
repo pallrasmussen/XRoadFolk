@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace XRoadFolkRaw.Lib;
@@ -89,7 +90,8 @@ public sealed class FolkTokenProviderRaw
 
         _token = tokenEl.Value.Trim();
 
-        if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), out DateTimeOffset exp))
+        if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
         {
             _expiresUtc = exp.ToUniversalTime();
         }
