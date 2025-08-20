@@ -6,6 +6,7 @@ namespace XRoadFolkRaw.Tests
 {
     public static class ValidatorMirror
     {
+        private static readonly string[] DobFormats = { "yyyy-MM-dd", "dd-MM-yyyy" };
         public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) ValidateCriteria(
             string? ssn, string? firstName, string? lastName, string? dobInput)
         {
@@ -68,7 +69,7 @@ namespace XRoadFolkRaw.Tests
 
                 if (!DateTimeOffset.TryParseExact(
                         s,
-                        new[] { "yyyy-MM-dd", "dd-MM-yyyy" },
+                        DobFormats,
                         CultureInfo.InvariantCulture,
                         DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                         out DateTimeOffset dt))
