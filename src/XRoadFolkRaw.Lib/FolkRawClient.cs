@@ -278,7 +278,11 @@ public sealed partial class FolkRawClient : IDisposable
                            .Or<TaskCanceledException>()
                            .WaitAndRetryAsync(_retryAttempts,
                                i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + JitterRandom.Next(0, _retryJitterMs)),
-                               (ex, ts, attempt, ctx) => LogHttpRetryWarning(_log!, ex, attempt, ts.TotalMilliseconds));
+                               (ex, ts, attempt, ctx) =>
+                               {
+                                   if (_log != null)
+                                       LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
+                               });
 
         string respText = await policy.ExecuteAsync(async () =>
         {
