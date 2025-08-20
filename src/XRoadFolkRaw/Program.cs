@@ -1,8 +1,12 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using XRoad.Config;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
@@ -22,23 +26,6 @@ using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
 // Configuration
 ConfigurationLoader loader = new();
 (IConfigurationRoot config, XRoadSettings xr) = loader.Load(log);
-
-// Localization/globalization
-string? cultureName = config.GetValue<string>("Localization:Culture");
-if (!string.IsNullOrWhiteSpace(cultureName))
-{
-    try
-    {
-        CultureInfo culture = CultureInfo.GetCultureInfo(cultureName);
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
-        log.LogInformation("[culture] Using {Culture}", culture.Name);
-    }
-    catch (CultureNotFoundException)
-    {
-        log.LogWarning("[culture] Requested culture {Culture} not found, using defaults", cultureName);
-    }
-}
 
 // Startup banner
 Console.WriteLine("Press Ctrl+Q at any time to quit.\n");
@@ -64,8 +51,28 @@ PeopleService service = new(client, config, xr, log);
 ServiceCollection services = new();
 services.AddSingleton<ILoggerFactory>(loggerFactory);
 services.AddLocalization(opts => opts.ResourcesPath = "Resources");
+string[] supportedCultureNames = config.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
+services.Configure<RequestLocalizationOptions>(opts =>
+{
+    List<CultureInfo> cultures = supportedCultureNames.Select(CultureInfo.GetCultureInfo).ToList();
+    string defaultName = config.GetValue<string>("Localization:Culture") ?? cultures.First().Name;
+    opts.SupportedCultures = cultures;
+    opts.SupportedUICultures = cultures;
+    opts.DefaultRequestCulture = new RequestCulture(defaultName);
+});
+
 using ServiceProvider provider = services.BuildServiceProvider();
+RequestLocalizationOptions locOpts = provider.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
+log.LogInformation("[culture] Using {Culture}", culture.Name);
 IStringLocalizer<ConsoleUi> localizer = provider.GetRequiredService<IStringLocalizer<ConsoleUi>>();
+LocalizedString check = localizer["BannerSeparator"];
+if (check.ResourceNotFound)
+{
+    log.LogWarning("[culture] Resource 'BannerSeparator' not found for {Culture}", culture.Name);
+}
 
 ConsoleUi ui = new(config, service, log, localizer);
 await ui.RunAsync();

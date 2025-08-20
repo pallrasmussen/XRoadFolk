@@ -23,7 +23,7 @@ Provide a client certificate either as a single PFX file or as a PEM certificate
 - `DOTNET_ENVIRONMENT` – select which appsettings file to use (e.g. `Development`, `Production`).
 
 ### Localization
-Specify the UI culture by setting `Localization:Culture` in `appsettings.json` (e.g. `en-US`, `fr-FR`). This culture is applied at startup for date and number formatting.
+Supported cultures are configured in `src/XRoadFolkRaw/appsettings.json` under `Localization:SupportedCultures`. Set `Localization:Culture` to choose the default. To add a new culture, append its code (e.g. `"fr-FR"`) to the array and supply corresponding `.resx` files in `src/XRoadFolkRaw/Resources`.
 
 ## Building and Running
 Restore dependencies and run the console application:
