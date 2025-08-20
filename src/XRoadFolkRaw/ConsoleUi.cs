@@ -24,7 +24,7 @@ internal sealed class ConsoleUi
         Console.WriteLine("==============================================");
         Console.WriteLine("INPUTS MODE: Strict");
         Console.WriteLine("Provide: SSN  OR  FirstName + LastName + DateOfBirth.");
-        Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01");
+        Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01 or 01-05-1990");
         Console.WriteLine("Type 'q' or press Ctrl+Q at any prompt to quit.");
         Console.WriteLine("==============================================");
 
@@ -38,7 +38,7 @@ internal sealed class ConsoleUi
             if (quit || IsQuit(fnInput)) { break; }
             string? lnInput = Prompt("LastName", out quit);
             if (quit || IsQuit(lnInput)) { break; }
-            string? dobInput = Prompt("DateOfBirth (YYYY-MM-DD)", out quit);
+            string? dobInput = Prompt("DateOfBirth (YYYY-MM-DD or DD-MM-YYYY)", out quit);
             if (quit || IsQuit(dobInput)) { break; }
 
             (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
