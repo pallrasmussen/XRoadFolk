@@ -8,9 +8,16 @@ public class SafeSoapLoggerTests
     private sealed class ListLogger : ILogger
     {
         public readonly System.Collections.Generic.List<string> Lines = [];
+        private sealed class NoOpDisposable : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
+
         public IDisposable BeginScope<TState>(TState state)
         {
-            return default!;
+            return new NoOpDisposable();
         }
 
         public bool IsEnabled(LogLevel logLevel)
@@ -18,7 +25,7 @@ public class SafeSoapLoggerTests
             return true;
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             Lines.Add(formatter(state, exception));
         }
