@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using XRoad.Config;
 
@@ -10,17 +11,24 @@ public sealed class PeopleService
     private readonly IConfiguration _config;
     private readonly XRoadSettings _settings;
     private readonly ILogger _log;
+    private readonly IStringLocalizer<PeopleService> _localizer;
     private readonly FolkTokenProviderRaw _tokenProvider;
     private readonly string _loginXmlPath;
     private readonly string _peopleInfoXmlPath;
     private readonly string _personXmlPath;
 
-    public PeopleService(FolkRawClient client, IConfiguration config, XRoadSettings settings, ILogger log)
+    public PeopleService(
+        FolkRawClient client,
+        IConfiguration config,
+        XRoadSettings settings,
+        ILogger log,
+        IStringLocalizer<PeopleService> localizer)
     {
         _client = client;
         _config = config;
         _settings = settings;
         _log = log;
+        _localizer = localizer;
 
         _loginXmlPath = settings.Raw.LoginXmlPath;
         _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
@@ -54,7 +62,7 @@ public sealed class PeopleService
         string token = await _tokenProvider.GetTokenAsync(ct);
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new InvalidOperationException("Token provider returned null/empty token.");
+            throw new InvalidOperationException(_localizer["TokenMissing"]);
         }
         _log.LogInformation("Token acquired (len={Len})", token.Length);
         return token;

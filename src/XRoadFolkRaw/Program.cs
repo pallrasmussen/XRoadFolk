@@ -30,6 +30,7 @@ preServices.AddLocalization(opts => opts.ResourcesPath = "Resources");
 using ServiceProvider preProvider = preServices.BuildServiceProvider();
 IStringLocalizer<ConfigurationLoader> cfgLocalizer = preProvider.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
 (IConfigurationRoot config, XRoadSettings xr) = loader.Load(log, cfgLocalizer);
+IStringLocalizer<PeopleService> serviceLocalizer = preProvider.GetRequiredService<IStringLocalizer<PeopleService>>();
 
 // Startup banner
 Console.WriteLine("Press Ctrl+Q at any time to quit.\n");
@@ -50,7 +51,7 @@ using FolkRawClient client = new(
     logger: log, verbose: verbose, maskTokens: maskTokens,
     retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
 
-PeopleService service = new(client, config, xr, log);
+PeopleService service = new(client, config, xr, log, serviceLocalizer);
 
 ServiceCollection services = new();
 services.AddSingleton<ILoggerFactory>(loggerFactory);
