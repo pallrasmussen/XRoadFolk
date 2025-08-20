@@ -129,8 +129,6 @@ internal sealed class ConsoleUi
                     _log.LogWarning(ex, "Failed to fetch/print GetPerson for the selected entry.");
                 }
             }
-
-            break;
         }
     }
 
