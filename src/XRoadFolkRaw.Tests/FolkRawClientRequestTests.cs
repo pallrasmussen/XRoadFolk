@@ -32,7 +32,7 @@ public class FolkRawClientRequestTests
                     var headers = current.Substring(0, headEnd);
                     var bodyStart = headEnd + 4;
                     int contentLen = 0;
-                    foreach (var line in headers.Split(new[]{ "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+                    foreach (var line in headers.Split("\r\n", StringSplitOptions.RemoveEmptyEntries))
                     {
                         if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                         {
