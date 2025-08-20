@@ -93,12 +93,14 @@ public sealed class FolkRawClient : IDisposable
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
         XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
         XNamespace iden = "http://x-road.eu/xsd/identifiers";
+        XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
 
         XElement? header = doc.Root?.Element(soapenv + "Header");
         XElement? body = doc.Root?.Element(soapenv + "Body");
 
         SetChildValue(header, xro + "id", xId);
         SetChildValue(header, xro + "protocolVersion", protocolVersion);
+        SetChildValue(header, x + "userId", userId);
 
         XElement? clientEl = header?.Element(xro + "client");
         if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
@@ -158,12 +160,14 @@ public sealed class FolkRawClient : IDisposable
         XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
         XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
         XNamespace iden = "http://x-road.eu/xsd/identifiers";
+        XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
 
         XElement? header = doc.Root?.Element(soapenv + "Header");
         XElement? body = doc.Root?.Element(soapenv + "Body");
 
         SetChildValue(header, xro + "id", xId);
         SetChildValue(header, xro + "protocolVersion", protocolVersion);
+        SetChildValue(header, x + "userId", userId);
 
         XElement? clientEl = header?.Element(xro + "client");
         if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
