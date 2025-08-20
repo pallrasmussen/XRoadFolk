@@ -1,5 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using XRoad.Config;
 using XRoadFolkRaw;
@@ -58,5 +60,12 @@ using FolkRawClient client = new(
     retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
 
 PeopleService service = new(client, config, xr, log);
-ConsoleUi ui = new(config, service, log);
+
+ServiceCollection services = new();
+services.AddSingleton<ILoggerFactory>(loggerFactory);
+services.AddLocalization(opts => opts.ResourcesPath = "Resources");
+using ServiceProvider provider = services.BuildServiceProvider();
+IStringLocalizer<ConsoleUi> localizer = provider.GetRequiredService<IStringLocalizer<ConsoleUi>>();
+
+ConsoleUi ui = new(config, service, log, localizer);
 await ui.RunAsync();
