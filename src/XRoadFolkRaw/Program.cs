@@ -27,6 +27,7 @@ using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
 // Configuration
 ConfigurationLoader loader = new();
 ServiceCollection preServices = new();
+preServices.AddSingleton<ILoggerFactory>(loggerFactory);
 preServices.AddLocalization(opts => opts.ResourcesPath = "Resources");
 using ServiceProvider preProvider = preServices.BuildServiceProvider();
 IStringLocalizer<ConfigurationLoader> cfgLocalizer = preProvider.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
