@@ -128,7 +128,7 @@ public sealed partial class ConfigurationLoader
             errs.Add(loc[Messages.ConfigureClientCertificate]);
         }
 
-        if (hasPfx && !File.Exists(pfx!))
+        if (pfx != null && !File.Exists(pfx))
         {
             errs.Add(loc[Messages.PfxFileNotFound, pfx]);
         }
@@ -141,12 +141,12 @@ public sealed partial class ConfigurationLoader
             }
             else
             {
-                if (!File.Exists(pemCert!))
+                if (pemCert != null && !File.Exists(pemCert))
                 {
                     errs.Add(loc[Messages.PemCertFileNotFound, pemCert]);
                 }
 
-                if (!File.Exists(pemKey!))
+                if (pemKey != null && !File.Exists(pemKey))
                 {
                     errs.Add(loc[Messages.PemKeyFileNotFound, pemKey]);
                 }
