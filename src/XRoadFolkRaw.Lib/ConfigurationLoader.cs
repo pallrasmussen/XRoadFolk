@@ -5,7 +5,7 @@ using XRoad.Config;
 
 namespace XRoadFolkRaw.Lib;
 
-public sealed class ConfigurationLoader
+public sealed partial class ConfigurationLoader
 {
     public static class Messages
     {
