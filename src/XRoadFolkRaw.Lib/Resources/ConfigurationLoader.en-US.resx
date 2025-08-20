@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="XRoadBaseUrlMissing" xml:space="preserve">
+    <value>XRoad.BaseUrl is missing.</value>
+  </data>
+  <data name="XRoadBaseUrlInvalidUri" xml:space="preserve">
+    <value>XRoad.BaseUrl is not a valid absolute URI: {0}</value>
+  </data>
+  <data name="XRoadHeadersProtocolVersionMissing" xml:space="preserve">
+    <value>XRoad.Headers.ProtocolVersion is missing.</value>
+  </data>
+  <data name="XRoadClientSectionMissing" xml:space="preserve">
+    <value>XRoad.Client section is missing.</value>
+  </data>
+  <data name="XRoadClientXRoadInstanceMissing" xml:space="preserve">
+    <value>XRoad.Client.XRoadInstance is missing.</value>
+  </data>
+  <data name="XRoadClientMemberClassMissing" xml:space="preserve">
+    <value>XRoad.Client.MemberClass is missing.</value>
+  </data>
+  <data name="XRoadClientMemberCodeMissing" xml:space="preserve">
+    <value>XRoad.Client.MemberCode is missing.</value>
+  </data>
+  <data name="XRoadClientSubsystemCodeMissing" xml:space="preserve">
+    <value>XRoad.Client.SubsystemCode is missing.</value>
+  </data>
+  <data name="XRoadServiceSectionMissing" xml:space="preserve">
+    <value>XRoad.Service section is missing.</value>
+  </data>
+  <data name="XRoadServiceXRoadInstanceMissing" xml:space="preserve">
+    <value>XRoad.Service.XRoadInstance is missing.</value>
+  </data>
+  <data name="XRoadServiceMemberClassMissing" xml:space="preserve">
+    <value>XRoad.Service.MemberClass is missing.</value>
+  </data>
+  <data name="XRoadServiceMemberCodeMissing" xml:space="preserve">
+    <value>XRoad.Service.MemberCode is missing.</value>
+  </data>
+  <data name="XRoadServiceSubsystemCodeMissing" xml:space="preserve">
+    <value>XRoad.Service.SubsystemCode is missing.</value>
+  </data>
+  <data name="XRoadAuthUserIdMissing" xml:space="preserve">
+    <value>XRoad.Auth.UserId is missing.</value>
+  </data>
+  <data name="XRoadTokenInsertModeInvalid" xml:space="preserve">
+    <value>XRoad.TokenInsert.Mode must be 'request' or 'header'.</value>
+  </data>
+  <data name="OperationsGetPeoplePublicInfoXmlPathNotFound" xml:space="preserve">
+    <value>Operations:GetPeoplePublicInfo:XmlPath file not found: {0}</value>
+  </data>
+  <data name="OperationsGetPersonXmlPathNotFound" xml:space="preserve">
+    <value>Operations:GetPerson:XmlPath file not found: {0}</value>
+  </data>
+  <data name="ConfigureClientCertificate" xml:space="preserve">
+    <value>Configure a client certificate (PFX or PEM pair).</value>
+  </data>
+  <data name="PfxFileNotFound" xml:space="preserve">
+    <value>PFX file not found: {0}</value>
+  </data>
+  <data name="PemModeRequiresBothPemCertPathAndPemKeyPath" xml:space="preserve">
+    <value>PEM mode requires both PemCertPath and PemKeyPath.</value>
+  </data>
+  <data name="PemCertFileNotFound" xml:space="preserve">
+    <value>PEM cert file not found: {0}</value>
+  </data>
+  <data name="PemKeyFileNotFound" xml:space="preserve">
+    <value>PEM key file not found: {0}</value>
+  </data>
+  <data name="ConfigSanityCheckFailedLog" xml:space="preserve">
+    <value>? Config sanity check failed:</value>
+  </data>
+  <data name="ConfigSanityCheckFailedException" xml:space="preserve">
+    <value>Configuration sanity check failed.</value>
+  </data>
+  <data name="XRoadClientSubsystemLog" xml:space="preserve">
+    <value>X-Road client:  SUBSYSTEM:{Client}</value>
+  </data>
+  <data name="XRoadServiceSubsystemLog" xml:space="preserve">
+    <value>X-Road service: SUBSYSTEM:{Service}</value>
+  </data>
+</root>
