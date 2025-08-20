@@ -135,8 +135,12 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            if (!DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset dt))
+            if (!DateTimeOffset.TryParseExact(
+                    s,
+                    new[] { "yyyy-MM-dd", "dd-MM-yyyy" },
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out DateTimeOffset dt))
             {
                 return false;
             }

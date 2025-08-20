@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using Xunit;
 
 namespace XRoadFolkRaw.Tests
@@ -69,7 +70,12 @@ namespace XRoadFolkRaw.Tests
                     return false;
                 }
 
-                if (!DateTimeOffset.TryParse(s, out DateTimeOffset dt))
+                if (!DateTimeOffset.TryParseExact(
+                        s,
+                        new[] { "yyyy-MM-dd", "dd-MM-yyyy" },
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                        out DateTimeOffset dt))
                 {
                     return false;
                 }
@@ -141,6 +147,15 @@ namespace XRoadFolkRaw.Tests
         public void AcceptsNameAndDob()
         {
             (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = ValidatorMirror.ValidateCriteria(null, "Páll", "Rasmussen", "1966-09-03");
+            Assert.True(Ok);
+            Assert.Null(SsnNorm);
+            Assert.NotNull(Dob);
+        }
+
+        [Fact]
+        public void AcceptsNameAndDobAlternateFormat()
+        {
+            (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = ValidatorMirror.ValidateCriteria(null, "Páll", "Rasmussen", "03-09-1966");
             Assert.True(Ok);
             Assert.Null(SsnNorm);
             Assert.NotNull(Dob);
