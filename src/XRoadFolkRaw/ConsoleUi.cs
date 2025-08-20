@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using XRoadFolkRaw.Lib;
 
@@ -10,56 +11,58 @@ internal sealed class ConsoleUi
     private readonly IConfiguration _config;
     private readonly PeopleService _service;
     private readonly ILogger _log;
+    private readonly IStringLocalizer<ConsoleUi> _loc;
 
-    public ConsoleUi(IConfiguration config, PeopleService service, ILogger log)
+    public ConsoleUi(IConfiguration config, PeopleService service, ILogger log, IStringLocalizer<ConsoleUi> loc)
     {
         _config = config;
         _service = service;
         _log = log;
+        _loc = loc;
     }
 
     public async Task RunAsync()
     {
         Console.WriteLine();
-        Console.WriteLine("==============================================");
-        Console.WriteLine("INPUTS MODE: Strict");
-        Console.WriteLine("Provide: SSN  OR  FirstName + LastName + DateOfBirth.");
-        Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01 or 01-05-1990");
-        Console.WriteLine("Type 'q' or press Ctrl+Q at any prompt to quit.");
-        Console.WriteLine("==============================================");
+        Console.WriteLine(_loc["BannerSeparator"]);
+        Console.WriteLine(_loc["InputModeStrict"]);
+        Console.WriteLine(_loc["ProvideInfo"]);
+        Console.WriteLine(_loc["ExampleInput"]);
+        Console.WriteLine(_loc["QuitPrompt"]);
+        Console.WriteLine(_loc["BannerSeparator"]);
 
         while (true)
         {
             Console.WriteLine();
-            Console.WriteLine("Enter GetPeoplePublicInfo search criteria (leave blank to skip):");
-            string? ssnInput = Prompt("SSN", out bool quit);
+            Console.WriteLine(_loc["EnterSearchCriteria"]);
+            string? ssnInput = Prompt(_loc["SSN"], out bool quit);
             if (quit || IsQuit(ssnInput)) { break; }
-            string? fnInput = Prompt("FirstName", out quit);
+            string? fnInput = Prompt(_loc["FirstName"], out quit);
             if (quit || IsQuit(fnInput)) { break; }
-            string? lnInput = Prompt("LastName", out quit);
+            string? lnInput = Prompt(_loc["LastName"], out quit);
             if (quit || IsQuit(lnInput)) { break; }
-            string? dobInput = Prompt("DateOfBirth (YYYY-MM-DD or DD-MM-YYYY)", out quit);
+            string? dobInput = Prompt(_loc["DateOfBirthPrompt"], out quit);
             if (quit || IsQuit(dobInput)) { break; }
 
             (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
             if (!Ok)
             {
-                Console.WriteLine("? Input not valid:");
+                Console.WriteLine(_loc["InputInvalid"]);
                 foreach (string e in Errors)
                 {
-                    Console.WriteLine(" - " + e);
+                    Console.WriteLine(_loc["ErrorBullet"] + e);
                 }
-                Console.WriteLine("Please try again.");
+                Console.WriteLine(_loc["PleaseTryAgain"]);
                 continue;
             }
 
             if (!string.IsNullOrWhiteSpace(SsnNorm))
             {
-                Console.WriteLine($"→ Using SSN = {MaskSsn(SsnNorm)}");
+                Console.WriteLine(_loc["UsingSsn", MaskSsn(SsnNorm)]);
             }
             else
             {
-                Console.WriteLine($"→ Using Name = \"{fnInput} {lnInput}\", DOB = {Dob:yyyy-MM-dd}");
+                Console.WriteLine(_loc["UsingNameDob", fnInput, lnInput, Dob?.ToString("yyyy-MM-dd")]);
             }
 
             string responseXml;
@@ -75,7 +78,7 @@ internal sealed class ConsoleUi
 
             if (string.IsNullOrWhiteSpace(responseXml))
             {
-                Console.WriteLine("No response received. Please try again.");
+                Console.WriteLine(_loc["NoResponse"]);
                 continue;
             }
 
@@ -90,11 +93,11 @@ internal sealed class ConsoleUi
             List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
             if (people.Count == 0)
             {
-                Console.WriteLine("No matches found. Please refine inputs.");
+                Console.WriteLine(_loc["NoMatches"]);
                 continue;
             }
 
-            PrintPeoplePublicInfoTable(listDoc, _log, maxRows: _config.GetValue("Output:MaxPeopleToPrint", 25));
+            PrintPeoplePublicInfoTable(listDoc, _log, _loc, maxRows: _config.GetValue("Output:MaxPeopleToPrint", 25));
 
             int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
             int count = 0;
@@ -113,7 +116,8 @@ internal sealed class ConsoleUi
                 string? dob = Get("DateOfBirth") ?? Get("BirthDate");
 
                 Console.WriteLine();
-                Console.WriteLine($"=== Fetching GetPerson for {publicId ?? personSsn ?? (fn + " " + ln)} {(string.IsNullOrWhiteSpace(dob) ? "" : " DOB:" + dob)} ===");
+                string dobPart = string.IsNullOrWhiteSpace(dob) ? "" : $" {_loc["DOB"]}:{dob}";
+                Console.WriteLine(_loc["FetchingGetPerson", publicId ?? personSsn ?? (fn + " " + ln), dobPart]);
 
                 try
                 {
@@ -121,7 +125,7 @@ internal sealed class ConsoleUi
                     if (!string.IsNullOrWhiteSpace(personResp))
                     {
                         XDocument doc = XDocument.Parse(personResp);
-                        PrintGetPersonAllPairs(doc, _log);
+                        PrintGetPersonAllPairs(doc, _log, _loc);
                     }
                 }
                 catch (Exception ex)
@@ -208,9 +212,9 @@ internal sealed class ConsoleUi
         }
     }
 
-    private static void PrintGetPersonAllPairs(XDocument doc, ILogger log)
+    private static void PrintGetPersonAllPairs(XDocument doc, ILogger log, IStringLocalizer loc)
     {
-        PrintSeparator("GetPerson (all pairs)");
+        PrintSeparator(loc["GetPersonAllPairs"]);
         XElement? body = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
         if (body == null)
         {
@@ -241,7 +245,7 @@ internal sealed class ConsoleUi
     private static IEnumerable<XElement> DescByLocal(XContainer doc, string localName)
         => doc.Descendants().Where(e => e.Name.LocalName == localName);
 
-    private static void PrintPeoplePublicInfoTable(XDocument doc, ILogger log, int maxRows = 25)
+    private static void PrintPeoplePublicInfoTable(XDocument doc, ILogger log, IStringLocalizer loc, int maxRows = 25)
     {
         List<(string ssn, string name, string dob, string gender, string line1, string line2)> rows = [];
         foreach (XElement p in DescByLocal(doc, "PersonPublicInfo"))
@@ -264,13 +268,12 @@ internal sealed class ConsoleUi
         int take = Math.Min(maxRows, rows.Count);
         if (take == 0)
         {
-            Console.WriteLine("(no rows)");
+            Console.WriteLine(loc["NoRows"]);
             return;
         }
-
-        PrintSeparator("GetPeoplePublicInfo (table)");
+        PrintSeparator(loc["GetPeoplePublicInfoTable"]);
         const int wSsn = 12, wName = 28, wDob = 12, wGen = 8, wL1 = 26, wL2 = 26;
-        Console.WriteLine($"{Trunc("SSN", wSsn)} {Trunc("Name", wName)} {Trunc("DOB", wDob)} {Trunc("Gender", wGen)} {Trunc("Addr 1", wL1)} {Trunc("Addr 2", wL2)}");
+        Console.WriteLine($"{Trunc(loc["SSN"], wSsn)} {Trunc(loc["Name"], wName)} {Trunc(loc["DOB"], wDob)} {Trunc(loc["Gender"], wGen)} {Trunc(loc["Addr1"], wL1)} {Trunc(loc["Addr2"], wL2)}");
         Console.WriteLine(new string('-', 12 + 1 + 28 + 1 + 12 + 1 + 8 + 1 + 26 + 1 + 26));
         foreach ((string ssn, string name, string dob, string gender, string line1, string line2) in rows.Take(take))
         {
