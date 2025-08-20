@@ -153,17 +153,29 @@ public sealed class ConfigurationLoader
 
         if (errs.Count > 0)
         {
-            log.LogError(loc[Messages.ConfigSanityCheckFailedLog]);
+            ConfigSanityCheckFailed(log);
             foreach (string e in errs)
             {
-                log.LogError(" - {Error}", e);
+                ConfigSanityCheckError(log, e);
             }
             throw new InvalidOperationException(loc[Messages.ConfigSanityCheckFailedException]);
         }
 
-        log.LogInformation(loc[Messages.XRoadClientSubsystemLog], $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
-        log.LogInformation(loc[Messages.XRoadServiceSubsystemLog], $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
+        ClientSubsystem(log, $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
+        ServiceSubsystem(log, $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
 
         return (config, xr);
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Config sanity check failed:")]
+    static partial void ConfigSanityCheckFailed(ILogger logger);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = " - {Error}")]
+    static partial void ConfigSanityCheckError(ILogger logger, string error);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "X-Road client:  SUBSYSTEM:{Client}")]
+    static partial void ClientSubsystem(ILogger logger, string client);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "X-Road service: SUBSYSTEM:{Service}")]
+    static partial void ServiceSubsystem(ILogger logger, string service);
 }
