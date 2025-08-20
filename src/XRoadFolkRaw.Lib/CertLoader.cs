@@ -7,6 +7,7 @@ namespace XRoadFolkRaw.Lib
     {
         public static X509Certificate2 LoadFromConfig(CertificateSettings cfg)
         {
+            ArgumentNullException.ThrowIfNull(cfg);
             string? envPfx = Environment.GetEnvironmentVariable("XR_PFX_PATH");
             string? envPwd = Environment.GetEnvironmentVariable("XR_PFX_PASSWORD");
             string? envPemC = Environment.GetEnvironmentVariable("XR_PEM_CERT_PATH");
@@ -24,12 +25,15 @@ namespace XRoadFolkRaw.Lib
         }
         public static X509Certificate2 LoadFromPfx(string path, string? password = null)
         {
+            ArgumentNullException.ThrowIfNull(path);
             return !File.Exists(path)
                 ? throw new FileNotFoundException($"PFX not found '{path}'", path)
                 : new X509Certificate2(path, password ?? string.Empty, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
         public static X509Certificate2 LoadFromPem(string certPath, string keyPath)
         {
+            ArgumentNullException.ThrowIfNull(certPath);
+            ArgumentNullException.ThrowIfNull(keyPath);
             if (!File.Exists(certPath))
             {
                 throw new FileNotFoundException($"PEM cert not found '{certPath}'", certPath);
