@@ -25,21 +25,21 @@ internal sealed class ConsoleUi
         Console.WriteLine("INPUTS MODE: Strict");
         Console.WriteLine("Provide: SSN  OR  FirstName + LastName + DateOfBirth.");
         Console.WriteLine("Example: FirstName=Anna, LastName=Olsen, DateOfBirth=1990-05-01");
-        Console.WriteLine("Type 'q' at any prompt to quit.");
+        Console.WriteLine("Type 'q' or press Ctrl+Q at any prompt to quit.");
         Console.WriteLine("==============================================");
 
         while (true)
         {
             Console.WriteLine();
             Console.WriteLine("Enter GetPeoplePublicInfo search criteria (leave blank to skip):");
-            string ssnInput = Prompt("SSN");
-            if (IsQuit(ssnInput)) { break; }
-            string fnInput = Prompt("FirstName");
-            if (IsQuit(fnInput)) { break; }
-            string lnInput = Prompt("LastName");
-            if (IsQuit(lnInput)) { break; }
-            string dobInput = Prompt("DateOfBirth (YYYY-MM-DD)");
-            if (IsQuit(dobInput)) { break; }
+            string? ssnInput = Prompt("SSN", out bool quit);
+            if (quit || IsQuit(ssnInput)) { break; }
+            string? fnInput = Prompt("FirstName", out quit);
+            if (quit || IsQuit(fnInput)) { break; }
+            string? lnInput = Prompt("LastName", out quit);
+            if (quit || IsQuit(lnInput)) { break; }
+            string? dobInput = Prompt("DateOfBirth (YYYY-MM-DD)", out quit);
+            if (quit || IsQuit(dobInput)) { break; }
 
             (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
             if (!Ok)
@@ -136,10 +136,15 @@ internal sealed class ConsoleUi
 
     private static bool IsQuit(string? s) => string.Equals(s?.Trim(), "q", StringComparison.OrdinalIgnoreCase);
 
-    private static string Prompt(string label)
+    private static string? Prompt(string label, out bool quit)
     {
         Console.Write($"{label}: ");
-        string? input = Console.ReadLine();
+        string? input = ConsoleInput.ReadLineOrCtrlQ(out quit);
+        if (quit)
+        {
+            return null; // special value indicating Ctrl+Q
+        }
+
         return string.IsNullOrWhiteSpace(input) ? "" : input.Trim();
     }
 
