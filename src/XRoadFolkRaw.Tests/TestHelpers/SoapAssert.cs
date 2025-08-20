@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using System.Xml.Linq;
 using Xunit;
 
@@ -14,11 +12,11 @@ namespace XRoadFolkRaw.Tests.Helpers
         public static void HasElement(string xml, string localName, string? expectedValue = null)
         {
             XDocument doc = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
-            System.Collections.Generic.List<XElement> els = [.. doc.Descendants().Where(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase))];
+            System.Collections.Generic.List<XElement> els = [.. System.Linq.Enumerable.Where(doc.Descendants(), e => e.Name.LocalName.Equals(localName, System.StringComparison.OrdinalIgnoreCase))];
             Assert.True(els.Count != 0, $"Expected element with local-name '{localName}' to exist.");
             if (expectedValue != null)
             {
-                Assert.Contains(els, e => (e.Value ?? string.Empty).Contains(expectedValue, StringComparison.Ordinal));
+                Assert.Contains(els, e => (e.Value ?? string.Empty).Contains(expectedValue, System.StringComparison.Ordinal));
             }
         }
 
