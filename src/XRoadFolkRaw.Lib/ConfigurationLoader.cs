@@ -39,6 +39,8 @@ public sealed partial class ConfigurationLoader
 
     public (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log, IStringLocalizer<ConfigurationLoader> loc)
     {
+        ArgumentNullException.ThrowIfNull(log);
+        ArgumentNullException.ThrowIfNull(loc);
         IConfigurationRoot config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
