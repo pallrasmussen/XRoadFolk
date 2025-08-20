@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -7,8 +8,17 @@ namespace XRoadFolkRaw.Lib
     {
         private static readonly Regex NameRegex = new(@"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$", RegexOptions.Compiled);
 
+        public static class Errors
+        {
+            public const string ProvideSsnOrNameDob = "ProvideSsnOrNameDob";
+            public const string InvalidSsn = "InvalidSsn";
+            public const string InvalidFirstName = "InvalidFirstName";
+            public const string InvalidLastName = "InvalidLastName";
+            public const string DobSsnMismatch = "DobSsnMismatch";
+        }
+
         public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob)
-            ValidateCriteria(string? ssn, string? firstName, string? lastName, string? dobInput)
+            ValidateCriteria(string? ssn, string? firstName, string? lastName, string? dobInput, IStringLocalizer<InputValidation> loc)
         {
             List<string> errs = [];
             string? ssnNorm = null;
@@ -21,30 +31,30 @@ namespace XRoadFolkRaw.Lib
             // Strict presence rule: SSN OR (names + dob)
             if (!haveSsn && !(haveNames && haveDob))
             {
-                errs.Add("Enter either SSN (9 digits) OR FirstName + LastName + DateOfBirth.");
+                errs.Add(loc[Errors.ProvideSsnOrNameDob]);
             }
 
             // Only validate SSN if provided
             if (ssnProvided && !haveSsn)
             {
-                errs.Add("SSN must be 9 digits (allowing spaces/hyphens) and start with a valid date (ddMMyy).");
+                errs.Add(loc[Errors.InvalidSsn]);
             }
 
             // Name errors (only if provided)
             if (!string.IsNullOrWhiteSpace(firstName) && !IsValidName(firstName))
             {
-                errs.Add("FirstName must be 2–50 letters (Unicode), allowing spaces, hyphens, apostrophes.");
+                errs.Add(loc[Errors.InvalidFirstName]);
             }
 
             if (!string.IsNullOrWhiteSpace(lastName) && !IsValidName(lastName))
             {
-                errs.Add("LastName must be 2–50 letters (Unicode), allowing spaces, hyphens, apostrophes.");
+                errs.Add(loc[Errors.InvalidLastName]);
             }
 
             // Cross-check DOB vs SSN-embedded date
             if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
             {
-                errs.Add($"DateOfBirth ({dob:yyyy-MM-dd}) does not match SSN date ({ssnDob:yyyy-MM-dd}).");
+                errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
             }
 
             if (haveSsn)

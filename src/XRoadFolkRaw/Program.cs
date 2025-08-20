@@ -68,11 +68,12 @@ CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 log.LogInformation("[culture] Using {Culture}", culture.Name);
 IStringLocalizer<ConsoleUi> localizer = provider.GetRequiredService<IStringLocalizer<ConsoleUi>>();
+IStringLocalizer<InputValidation> valLocalizer = provider.GetRequiredService<IStringLocalizer<InputValidation>>();
 LocalizedString check = localizer["BannerSeparator"];
 if (check.ResourceNotFound)
 {
     log.LogWarning("[culture] Resource 'BannerSeparator' not found for {Culture}", culture.Name);
 }
 
-ConsoleUi ui = new(config, service, log, localizer);
+ConsoleUi ui = new(config, service, log, localizer, valLocalizer);
 await ui.RunAsync();

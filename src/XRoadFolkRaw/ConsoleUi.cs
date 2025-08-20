@@ -12,13 +12,15 @@ internal sealed class ConsoleUi
     private readonly PeopleService _service;
     private readonly ILogger _log;
     private readonly IStringLocalizer<ConsoleUi> _loc;
+    private readonly IStringLocalizer<InputValidation> _valLoc;
 
-    public ConsoleUi(IConfiguration config, PeopleService service, ILogger log, IStringLocalizer<ConsoleUi> loc)
+    public ConsoleUi(IConfiguration config, PeopleService service, ILogger log, IStringLocalizer<ConsoleUi> loc, IStringLocalizer<InputValidation> valLoc)
     {
         _config = config;
         _service = service;
         _log = log;
         _loc = loc;
+        _valLoc = valLoc;
     }
 
     public async Task RunAsync()
@@ -44,7 +46,7 @@ internal sealed class ConsoleUi
             string? dobInput = Prompt(_loc["DateOfBirthPrompt"], out quit);
             if (quit || IsQuit(dobInput)) { break; }
 
-            (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput);
+            (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput, _valLoc);
             if (!Ok)
             {
                 Console.WriteLine(_loc["InputInvalid"]);
