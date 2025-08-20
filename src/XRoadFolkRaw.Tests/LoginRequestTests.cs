@@ -29,7 +29,7 @@ public class LoginRequestTests
                     break;
                 }
 
-                sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                 string current = sb.ToString();
                 int headEnd = current.IndexOf("\r\n\r\n", StringComparison.Ordinal);
                 if (headEnd >= 0)
@@ -53,7 +53,7 @@ public class LoginRequestTests
                             break;
                         }
 
-                        sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                        _ = sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
                         current = sb.ToString();
                     }
                     break;
