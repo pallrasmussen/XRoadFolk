@@ -7,6 +7,7 @@ namespace XRoadFolkRaw.Lib
     public class InputValidation
     {
         private static readonly Regex NameRegex = new(@"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$", RegexOptions.Compiled);
+        private static readonly string[] DobFormats = { "yyyy-MM-dd", "dd-MM-yyyy" };
 
         public static class Errors
         {
@@ -149,7 +150,7 @@ namespace XRoadFolkRaw.Lib
 
             if (!DateTimeOffset.TryParseExact(
                     s,
-                    new[] { "yyyy-MM-dd", "dd-MM-yyyy" },
+                    DobFormats,
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                     out DateTimeOffset dt))
