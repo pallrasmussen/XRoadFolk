@@ -23,6 +23,8 @@ public sealed partial class FolkRawClient : IDisposable
 
     public FolkRawClient(string serviceUrl, X509Certificate2? clientCertificate = null, TimeSpan? timeout = null, ILogger? logger = null, bool verbose = false, bool maskTokens = true, int retryAttempts = 3, int retryBaseDelayMs = 200, int retryJitterMs = 250)
     {
+        ArgumentNullException.ThrowIfNull(serviceUrl);
+
         //var handler = new HttpClientHandler();
 
         HttpClientHandler handler = new()
@@ -50,6 +52,8 @@ public sealed partial class FolkRawClient : IDisposable
 
     public void PreloadTemplates(IEnumerable<string> paths)
     {
+        ArgumentNullException.ThrowIfNull(paths);
+
         foreach (string path in paths)
         {
             LoadTemplate(path);
@@ -87,6 +91,23 @@ public sealed partial class FolkRawClient : IDisposable
         string serviceVersion,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(loginXmlPath);
+        ArgumentNullException.ThrowIfNull(xId);
+        ArgumentNullException.ThrowIfNull(userId);
+        ArgumentNullException.ThrowIfNull(username);
+        ArgumentNullException.ThrowIfNull(password);
+        ArgumentNullException.ThrowIfNull(protocolVersion);
+        ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+        ArgumentNullException.ThrowIfNull(clientMemberClass);
+        ArgumentNullException.ThrowIfNull(clientMemberCode);
+        ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+        ArgumentNullException.ThrowIfNull(serviceMemberClass);
+        ArgumentNullException.ThrowIfNull(serviceMemberCode);
+        ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceCode);
+        ArgumentNullException.ThrowIfNull(serviceVersion);
+
         XDocument doc = new XDocument(LoadTemplate(loginXmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
@@ -154,6 +175,22 @@ public sealed partial class FolkRawClient : IDisposable
         DateTimeOffset? dateOfBirth = null,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(xmlPath);
+        ArgumentNullException.ThrowIfNull(xId);
+        ArgumentNullException.ThrowIfNull(userId);
+        ArgumentNullException.ThrowIfNull(token);
+        ArgumentNullException.ThrowIfNull(protocolVersion);
+        ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+        ArgumentNullException.ThrowIfNull(clientMemberClass);
+        ArgumentNullException.ThrowIfNull(clientMemberCode);
+        ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+        ArgumentNullException.ThrowIfNull(serviceMemberClass);
+        ArgumentNullException.ThrowIfNull(serviceMemberCode);
+        ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceCode);
+        ArgumentNullException.ThrowIfNull(serviceVersion);
+
         XDocument doc = new XDocument(LoadTemplate(xmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
@@ -316,6 +353,22 @@ public sealed partial class FolkRawClient : IDisposable
         bool? includeSsnHistory = null,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(xmlPath);
+        ArgumentNullException.ThrowIfNull(xId);
+        ArgumentNullException.ThrowIfNull(userId);
+        ArgumentNullException.ThrowIfNull(token);
+        ArgumentNullException.ThrowIfNull(protocolVersion);
+        ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+        ArgumentNullException.ThrowIfNull(clientMemberClass);
+        ArgumentNullException.ThrowIfNull(clientMemberCode);
+        ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+        ArgumentNullException.ThrowIfNull(serviceMemberClass);
+        ArgumentNullException.ThrowIfNull(serviceMemberCode);
+        ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+        ArgumentNullException.ThrowIfNull(serviceCode);
+        ArgumentNullException.ThrowIfNull(serviceVersion);
+
         XDocument doc = new XDocument(LoadTemplate(xmlPath));
 
         XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
