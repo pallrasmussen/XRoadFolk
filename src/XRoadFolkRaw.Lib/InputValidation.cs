@@ -4,7 +4,7 @@ using Microsoft.Extensions.Localization;
 
 namespace XRoadFolkRaw.Lib
 {
-    public static class InputValidation
+    public class InputValidation
     {
         private static readonly Regex NameRegex = new(@"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$", RegexOptions.Compiled);
 
