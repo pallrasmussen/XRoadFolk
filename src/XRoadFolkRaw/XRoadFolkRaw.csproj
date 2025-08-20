@@ -38,13 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources/*.resx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
+    <ProjectReference Include="..\\XRoadFolkRaw.Lib\\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
 
   <ItemGroup>
