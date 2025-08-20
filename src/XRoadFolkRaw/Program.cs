@@ -39,7 +39,7 @@ Console.WriteLine("Press Ctrl+Q at any time to quit.\n");
 
 // Load certificate
 System.Security.Cryptography.X509Certificates.X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
-log.LogInformation("[cert] Using {Subject} thumbprint {Thumbprint}", cert.Subject, cert.Thumbprint);
+LogCertificateDetails(log, cert.Subject, cert.Thumbprint);
 
 // Create raw client
 bool verbose = config.GetValue("Logging:Verbose", false);
@@ -73,7 +73,7 @@ RequestLocalizationOptions locOpts = provider.GetRequiredService<IOptions<Reques
 CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
-log.LogInformation("[culture] Using {Culture}", culture.Name);
+LogCultureSelection(log, culture.Name);
 IStringLocalizer<ConsoleUi> localizer = provider.GetRequiredService<IStringLocalizer<ConsoleUi>>();
 IStringLocalizer<InputValidation> valLocalizer = provider.GetRequiredService<IStringLocalizer<InputValidation>>();
 LocalizedString check = localizer["BannerSeparator"];
@@ -90,4 +90,12 @@ static partial class Program
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
                    Message = "[culture] Resource 'BannerSeparator' not found for {Culture}")]
     public static partial void LogMissingBannerSeparator(ILogger logger, string culture);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information,
+                   Message = "[cert] Using {Subject} thumbprint {Thumbprint}")]
+    public static partial void LogCertificateDetails(ILogger logger, string subject, string thumbprint);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information,
+                   Message = "[culture] Using {Culture}")]
+    public static partial void LogCultureSelection(ILogger logger, string culture);
 }
