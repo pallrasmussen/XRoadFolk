@@ -24,6 +24,12 @@ public sealed partial class PeopleService
         ILogger log,
         IStringLocalizer<PeopleService> localizer)
     {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(log);
+        ArgumentNullException.ThrowIfNull(localizer);
+
         _client = client;
         _config = config;
         _settings = settings;
