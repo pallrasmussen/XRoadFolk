@@ -13,15 +13,33 @@ namespace XRoadFolkRaw.Lib
             string? envPemC = Environment.GetEnvironmentVariable("XR_PEM_CERT_PATH");
             string? envPemK = Environment.GetEnvironmentVariable("XR_PEM_KEY_PATH");
 
-            return !string.IsNullOrWhiteSpace(envPfx)
-                ? LoadFromPfx(envPfx, envPwd ?? cfg.PfxPassword)
-                : !string.IsNullOrWhiteSpace(envPemC) && !string.IsNullOrWhiteSpace(envPemK)
-                ? LoadFromPem(envPemC, envPemK)
-                : !string.IsNullOrWhiteSpace(cfg.PfxPath)
-                ? LoadFromPfx(cfg.PfxPath!, cfg.PfxPassword)
-                : !string.IsNullOrWhiteSpace(cfg.PemCertPath) && !string.IsNullOrWhiteSpace(cfg.PemKeyPath)
-                ? LoadFromPem(cfg.PemCertPath!, cfg.PemKeyPath!)
-                : throw new InvalidOperationException("No certificate configured.");
+            if (!string.IsNullOrWhiteSpace(envPfx))
+            {
+                var pfxPath = envPfx;
+                return LoadFromPfx(pfxPath, envPwd ?? cfg.PfxPassword);
+            }
+
+            if (!string.IsNullOrWhiteSpace(envPemC) && !string.IsNullOrWhiteSpace(envPemK))
+            {
+                var pemCertPath = envPemC;
+                var pemKeyPath = envPemK;
+                return LoadFromPem(pemCertPath, pemKeyPath);
+            }
+
+            if (!string.IsNullOrWhiteSpace(cfg.PfxPath))
+            {
+                var pfxPath = cfg.PfxPath;
+                return LoadFromPfx(pfxPath, cfg.PfxPassword);
+            }
+
+            if (!string.IsNullOrWhiteSpace(cfg.PemCertPath) && !string.IsNullOrWhiteSpace(cfg.PemKeyPath))
+            {
+                var pemCertPath = cfg.PemCertPath;
+                var pemKeyPath = cfg.PemKeyPath;
+                return LoadFromPem(pemCertPath, pemKeyPath);
+            }
+
+            throw new InvalidOperationException("No certificate configured.");
         }
         public static X509Certificate2 LoadFromPfx(string path, string? password = null)
         {
