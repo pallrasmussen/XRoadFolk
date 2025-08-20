@@ -20,6 +20,8 @@ namespace XRoadFolkRaw.Lib
         public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob)
             ValidateCriteria(string? ssn, string? firstName, string? lastName, string? dobInput, IStringLocalizer<InputValidation> loc)
         {
+            ArgumentNullException.ThrowIfNull(loc);
+
             List<string> errs = [];
             string? ssnNorm = null;
 
