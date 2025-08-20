@@ -232,9 +232,9 @@ public sealed partial class FolkRawClient : IDisposable
 
     private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
     {
-        if (_verbose)
+        if (_verbose && _log is not null)
         {
-            _log?.LogInformation("[SOAP request] {Xml}", SoapSanitizer.Scrub(xmlString, _maskTokens));
+            LogSoapRequest(_log, SoapSanitizer.Scrub(xmlString, _maskTokens));
         }
 
         Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
@@ -255,9 +255,9 @@ public sealed partial class FolkRawClient : IDisposable
                 : text;
         });
 
-        if (_verbose)
+        if (_verbose && _log is not null)
         {
-            _log?.LogInformation("[SOAP response] {Xml}", SoapSanitizer.Scrub(respText, _maskTokens));
+            LogSoapResponse(_log, SoapSanitizer.Scrub(respText, _maskTokens));
         }
 
         return respText;
@@ -278,6 +278,14 @@ public sealed partial class FolkRawClient : IDisposable
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
                    Message = "HTTP retry {Attempt} after {Delay}ms")]
     static partial void LogHttpRetryWarning(ILogger logger, Exception ex, int attempt, double delay);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information,
+                   Message = "[SOAP request] {Xml}")]
+    static partial void LogSoapRequest(ILogger logger, string xml);
+
+    [LoggerMessage(EventId = 3, Level = LogLevel.Information,
+                   Message = "[SOAP response] {Xml}")]
+    static partial void LogSoapResponse(ILogger logger, string xml);
 
 
     public async Task<string> GetPersonAsync(
