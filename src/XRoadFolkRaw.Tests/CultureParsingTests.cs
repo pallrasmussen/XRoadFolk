@@ -54,7 +54,8 @@ public class CultureParsingTests
         }
 
         FieldInfo? field = typeof(FolkTokenProviderRaw).GetField("_expiresUtc", BindingFlags.NonPublic | BindingFlags.Instance);
-        DateTimeOffset expires = (DateTimeOffset)field!.GetValue(provider)!;
+        Assert.NotNull(field);
+        var expires = (DateTimeOffset)field.GetValue(provider)!;
         Assert.Equal(new DateTimeOffset(2025, 1, 2, 3, 4, 5, TimeSpan.Zero), expires);
     }
 }
