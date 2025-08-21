@@ -32,7 +32,7 @@ namespace XRoadFolkRaw.Lib
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
-            bool bypassCertificateValidation = false)
+            bool bypassCertificateValidation = true)
         {
             ArgumentNullException.ThrowIfNull(serviceUrl);
 
@@ -41,16 +41,15 @@ namespace XRoadFolkRaw.Lib
             {
                 handler = new HttpClientHandler
                 {
+
                     // If certificate validation is bypassed, we should not use the handler's default certificate validation, Pll 21-08-2025
-                    ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
+                    //ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
                 };
 
-                /*
                 if (bypassCertificateValidation)
                 {
                     handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
                 }
-                */
 
 
                 if (clientCertificate != null)
