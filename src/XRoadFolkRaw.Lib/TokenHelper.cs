@@ -100,7 +100,7 @@ public sealed class FolkTokenProviderRaw : IDisposable
             _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(5);
         }
 
-        var token = _token ?? throw new InvalidOperationException("Token not parsed.");
+        string token = _token ?? throw new InvalidOperationException("Token not parsed.");
         return token;
     }
 
