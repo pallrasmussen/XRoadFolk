@@ -69,9 +69,6 @@
   <data name="NoRows" xml:space="preserve">
     <value>(no rows)</value>
   </data>
-  <data name="GetPeoplePublicInfoTable" xml:space="preserve">
-    <value>GetPeoplePublicInfo (table)</value>
-  </data>
   <data name="GetPersonAllPairs" xml:space="preserve">
     <value>GetPerson (all pairs)</value>
   </data>
