@@ -145,10 +145,10 @@
     <value>Eftirnavn</value>
   </data>
   <data name="DateOfBirthPrompt" xml:space="preserve">
-    <value>Føðingardagur (YYYY-MM-DD or DD-MM-YYYY)</value>
+    <value>Føðingardagur (YYYY-MM-DD ella DD-MM-YYYY)</value>
   </data>
   <data name="InputInvalid" xml:space="preserve">
-    <value>? Tú hevur skriva ógyldugt input:</value>
+    <value>? Tú hevur skrivað ógyldugt input:</value>
   </data>
   <data name="ErrorBullet" xml:space="preserve">
     <value> - </value>
@@ -157,10 +157,10 @@
     <value>Vinarliga royn aftur.</value>
   </data>
   <data name="UsingSsn" xml:space="preserve">
-    <value>→ Leita var eftir Ptal = {0}</value>
+    <value>→ Leita varð eftir Ptal = {0}</value>
   </data>
   <data name="UsingNameDob" xml:space="preserve">
-    <value>→ Leita var eftir Navn = "{0} {1}", Føðingardagur = {2}</value>
+    <value>→ Leita varð eftir Navn = "{0} {1}", Føðingardagur = {2}</value>
   </data>
   <data name="NoResponse" xml:space="preserve">
     <value>Onki svar. Royn umaftur.</value>
