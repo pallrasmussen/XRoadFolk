@@ -35,22 +35,31 @@ public sealed partial class FolkRawClient : IDisposable
     {
         ArgumentNullException.ThrowIfNull(serviceUrl);
 
-        HttpClientHandler handler = new();
-        if (bypassCertificateValidation)
+        HttpClientHandler? handler = null;
+        try
         {
-            handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
-        }
+            handler = new HttpClientHandler();
+            if (bypassCertificateValidation)
+            {
+                handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+            }
 
-        if (clientCertificate != null)
-        {
-            handler.ClientCertificates.Add(clientCertificate);
-        }
+            if (clientCertificate != null)
+            {
+                handler.ClientCertificates.Add(clientCertificate);
+            }
 
-        _http = new HttpClient(handler)
+            _http = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
+                Timeout = timeout ?? TimeSpan.FromSeconds(60)
+            };
+            handler = null; // ownership transferred to _http
+        }
+        finally
         {
-            BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
-            Timeout = timeout ?? TimeSpan.FromSeconds(60)
-        };
+            handler?.Dispose();
+        }
         _log = logger;
         _verbose = verbose;
         _maskTokens = maskTokens;
