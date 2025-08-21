@@ -74,10 +74,10 @@ namespace XRoadFolkRaw
                     responseXml = await _service.GetPeoplePublicInfoAsync(SsnNorm, fnInput, lnInput, Dob);
                 }
                 catch (Exception ex)
-                    {
-                        LogFailedGetPeoplePublicInfo(_log, ex);
-                        continue;
-                    }
+                {
+                    LogFailedGetPeoplePublicInfo(_log, ex);
+                    continue;
+                }
     
                 if (string.IsNullOrWhiteSpace(responseXml))
                 {
@@ -88,10 +88,10 @@ namespace XRoadFolkRaw
                 XDocument listDoc;
                 try { listDoc = XDocument.Parse(responseXml); }
                 catch (Exception ex)
-                    {
-                        LogFailedParseGetPeoplePublicInfo(_log, ex);
-                        continue;
-                    }
+                {
+                    LogFailedParseGetPeoplePublicInfo(_log, ex);
+                    continue;
+                }
     
                 List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
                 if (people.Count == 0)
@@ -132,9 +132,9 @@ namespace XRoadFolkRaw
                         }
                     }
                     catch (Exception ex)
-                        {
-                            LogFailedGetPerson(_log, ex);
-                        }
+                    {
+                        LogFailedGetPerson(_log, ex);
+                    }
                 }
             }
         }
