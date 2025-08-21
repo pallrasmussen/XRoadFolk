@@ -281,7 +281,6 @@ namespace XRoadFolkRaw
                 Console.WriteLine(loc["NoRows"]);
                 return;
             }
-            PrintSeparator(loc["GetPeoplePublicInfoTable"]);
             const int wSsn = 12, wName = 28, wDob = 12, wGen = 8, wL1 = 26, wL2 = 26;
             Console.WriteLine($"{Trunc(loc["SSN"], wSsn)} {Trunc(loc["Name"], wName)} {Trunc(loc["DOB"], wDob)} {Trunc(loc["Gender"], wGen)} {Trunc(loc["Addr1"], wL1)} {Trunc(loc["Addr2"], wL2)}");
             Console.WriteLine(new string('-', 12 + 1 + 28 + 1 + 12 + 1 + 8 + 1 + 26 + 1 + 26));
