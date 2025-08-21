@@ -64,7 +64,7 @@ internal sealed partial class ConsoleUi
             }
             else
             {
-                Console.WriteLine(_loc["UsingNameDob", fnInput, lnInput, Dob?.ToString("yyyy-MM-dd")]);
+                Console.WriteLine(_loc["UsingNameDob", fnInput ?? "", lnInput ?? "", Dob?.ToString("yyyy-MM-dd") ?? ""]);
             }
 
             string responseXml;
