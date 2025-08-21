@@ -30,13 +30,13 @@ namespace XRoadFolkRaw
                 Console.WriteLine();
                 Console.WriteLine(_loc["EnterSearchCriteria"]);
                 string? ssnInput = Prompt(_loc["SSN"], out bool quit);
-                if (quit || IsQuit(ssnInput)) { break; }
+                if (quit) { break; }
                 string? fnInput = Prompt(_loc["FirstName"], out quit);
-                if (quit || IsQuit(fnInput)) { break; }
+                if (quit) { break; }
                 string? lnInput = Prompt(_loc["LastName"], out quit);
-                if (quit || IsQuit(lnInput)) { break; }
+                if (quit) { break; }
                 string? dobInput = Prompt(_loc["DateOfBirthPrompt"], out quit);
-                if (quit || IsQuit(dobInput)) { break; }
+                if (quit) { break; }
 
                 (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput, _valLoc);
                 if (!Ok)
@@ -132,11 +132,6 @@ namespace XRoadFolkRaw
                     }
                 }
             }
-        }
-
-        private static bool IsQuit(string? s)
-        {
-            return string.Equals(s?.Trim(), "q", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string? Prompt(string label, out bool quit)
