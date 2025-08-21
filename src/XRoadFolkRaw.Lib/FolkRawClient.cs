@@ -39,10 +39,17 @@ public sealed partial class FolkRawClient : IDisposable
         try
         {
             handler = new HttpClientHandler();
+
+            // If certificate validation is bypassed, we should not use the handler's default certificate validation, Páll 21-08-2025
+            handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+
+            /*
             if (bypassCertificateValidation)
             {
                 handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
             }
+            */
+
 
             if (clientCertificate != null)
             {
