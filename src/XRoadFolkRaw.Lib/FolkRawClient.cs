@@ -7,7 +7,7 @@ using Polly;
 
 namespace XRoadFolkRaw.Lib
 {
-    
+
     public sealed partial class FolkRawClient : IDisposable
     {
         private readonly HttpClient _http;
@@ -21,7 +21,7 @@ namespace XRoadFolkRaw.Lib
         private static readonly HashSet<string> SourceHeaders =
             new(["service", "client", "id", "protocolVersion", "userId"]);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
-    
+
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -35,28 +35,29 @@ namespace XRoadFolkRaw.Lib
             bool bypassCertificateValidation = false)
         {
             ArgumentNullException.ThrowIfNull(serviceUrl);
-    
+
             HttpClientHandler? handler = null;
             try
             {
-                handler = new HttpClientHandler();
-    
-                // If certificate validation is bypassed, we should not use the handler's default certificate validation, Pll 21-08-2025
-                handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
-    
+                handler = new HttpClientHandler
+                {
+                    // If certificate validation is bypassed, we should not use the handler's default certificate validation, Pll 21-08-2025
+                    ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
+                };
+
                 /*
                 if (bypassCertificateValidation)
                 {
                     handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
                 }
                 */
-    
-    
+
+
                 if (clientCertificate != null)
                 {
-                    handler.ClientCertificates.Add(clientCertificate);
+                    _ = handler.ClientCertificates.Add(clientCertificate);
                 }
-    
+
                 _http = new HttpClient(handler)
                 {
                     BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
@@ -75,29 +76,25 @@ namespace XRoadFolkRaw.Lib
             _retryBaseDelayMs = retryBaseDelayMs;
             _retryJitterMs = retryJitterMs;
         }
-    
+
         public void PreloadTemplates(IEnumerable<string> paths)
         {
             ArgumentNullException.ThrowIfNull(paths);
-    
+
             foreach (string path in paths)
             {
-                LoadTemplate(path);
+                _ = LoadTemplate(path);
             }
         }
-    
+
         private XDocument LoadTemplate(string path)
         {
             return _templateCache.GetOrAdd(path, p =>
             {
-                if (!File.Exists(p))
-                {
-                    throw new FileNotFoundException($"{p} not found", p);
-                }
-                return XDocument.Load(p);
+                return !File.Exists(p) ? throw new FileNotFoundException($"{p} not found", p) : XDocument.Load(p);
             });
         }
-    
+
         public async Task<string> LoginAsync(
             string loginXmlPath,
             string xId,
@@ -133,22 +130,22 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
             ArgumentNullException.ThrowIfNull(serviceCode);
             ArgumentNullException.ThrowIfNull(serviceVersion);
-    
-            XDocument doc = new XDocument(LoadTemplate(loginXmlPath));
-    
+
+            XDocument doc = new(LoadTemplate(loginXmlPath));
+
             XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
             XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
             XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
             XNamespace iden = "http://x-road.eu/xsd/identifiers";
             XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-    
+
             XElement? header = doc.Root?.Element(soapenv + "Header");
             XElement? body = doc.Root?.Element(soapenv + "Body");
-    
+
             SetChildValue(header, xro + "id", xId);
             SetChildValue(header, xro + "protocolVersion", protocolVersion);
             SetChildValue(header, x + "userId", userId);
-    
+
             XElement? clientEl = header?.Element(xro + "client");
             if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
             clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
@@ -156,7 +153,7 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
             SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
             SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-    
+
             XElement? serviceEl = header?.Element(xro + "service");
             if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
             serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
@@ -166,19 +163,19 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
             SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
             SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-    
+
             XElement loginReq = body?.Element(prod + "Login")?.Element("request")
                 ?? throw new InvalidOperationException("Cannot find prod:Login/request in Login.xml");
             SetChildValue(loginReq, "username", username);
             SetChildValue(loginReq, "password", password);
-    
+
             string xmlString = doc.Declaration != null
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
-    
+
             return await SendAsync(xmlString, "Login", ct);
         }
-    
+
         public async Task<string> GetPeoplePublicInfoAsync(
             string xmlPath,
             string xId,
@@ -216,22 +213,22 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
             ArgumentNullException.ThrowIfNull(serviceCode);
             ArgumentNullException.ThrowIfNull(serviceVersion);
-    
-            XDocument doc = new XDocument(LoadTemplate(xmlPath));
-    
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+
             XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
             XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
             XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
             XNamespace iden = "http://x-road.eu/xsd/identifiers";
             XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-    
+
             XElement? header = doc.Root?.Element(soapenv + "Header");
             XElement? body = doc.Root?.Element(soapenv + "Body");
-    
+
             SetChildValue(header, xro + "id", xId);
             SetChildValue(header, xro + "protocolVersion", protocolVersion);
             SetChildValue(header, x + "userId", userId);
-    
+
             XElement? clientEl = header?.Element(xro + "client");
             if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
             clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
@@ -239,7 +236,7 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
             SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
             SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-    
+
             XElement? serviceEl = header?.Element(xro + "service");
             if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
             serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
@@ -249,7 +246,7 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
             SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
             SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-    
+
             XElement opEl = body?.Element(prod + "GetPeoplePublicInfo")
                 ?? throw new InvalidOperationException("Cannot find prod:GetPeoplePublicInfo in body");
             XElement requestEl = opEl.Element("request")
@@ -260,46 +257,46 @@ namespace XRoadFolkRaw.Lib
             if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
             // Clear any existing criteria to avoid mixing with template values
             criteriaList.RemoveNodes();
-    
+
             XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
             if (!string.IsNullOrWhiteSpace(ssn))
             {
                 SetChildValue(criteria, "SSN", ssn);
             }
-    
+
             if (!string.IsNullOrWhiteSpace(firstName))
             {
                 SetChildValue(criteria, "FirstName", firstName);
             }
-    
+
             if (!string.IsNullOrWhiteSpace(lastName))
             {
                 SetChildValue(criteria, "LastName", lastName);
             }
-    
+
             if (dateOfBirth.HasValue)
             {
                 SetChildValue(criteria, "DateOfBirth", dateOfBirth.Value.ToString("yyyy-MM-dd"));
             }
-    
+
             XElement? requestHeader = requestEl.Element("requestHeader");
             if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
             SetChildValue(requestHeader, "token", token);
-    
+
             string xmlString = doc.Declaration != null
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
-    
+
             return await SendAsync(xmlString, "GetPeoplePublicInfo", ct);
         }
-    
+
         private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
         {
             if (_verbose && _log is not null)
             {
                 LogSoapRequest(_log, SoapSanitizer.Scrub(xmlString, _maskTokens));
             }
-    
+
             Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
                                .Or<TaskCanceledException>()
                                .WaitAndRetryAsync(_retryAttempts,
@@ -307,9 +304,11 @@ namespace XRoadFolkRaw.Lib
                                    (ex, ts, attempt, ctx) =>
                                    {
                                        if (_log != null)
+                                       {
                                            LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
+                                       }
                                    });
-    
+
             string respText = await policy.ExecuteAsync(async () =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
@@ -321,40 +320,40 @@ namespace XRoadFolkRaw.Lib
                     ? throw new HttpRequestException($"{opName} failed. HTTP {(int)response.StatusCode} {response.ReasonPhrase}\n{text}")
                     : text;
             });
-    
+
             if (_verbose && _log is not null)
             {
                 LogSoapResponse(_log, SoapSanitizer.Scrub(respText, _maskTokens));
             }
-    
+
             return respText;
         }
-    
+
         private static void SetChildValue(XElement? parent, XName name, string value)
         {
             if (parent == null)
             {
                 return;
             }
-    
+
             XElement? el = parent.Element(name);
             if (el == null) { el = new XElement(name, value); parent.Add(el); }
             else { el.Value = value; }
         }
-    
+
         [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
                        Message = "HTTP retry {Attempt} after {Delay}ms")]
         static partial void LogHttpRetryWarning(ILogger logger, Exception ex, int attempt, double delay);
-    
+
         [LoggerMessage(EventId = 2, Level = LogLevel.Information,
                        Message = "[SOAP request] {Xml}")]
         static partial void LogSoapRequest(ILogger logger, string xml);
-    
+
         [LoggerMessage(EventId = 3, Level = LogLevel.Information,
                        Message = "[SOAP response] {Xml}")]
         static partial void LogSoapResponse(ILogger logger, string xml);
-    
-    
+
+
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -398,24 +397,24 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
             ArgumentNullException.ThrowIfNull(serviceCode);
             ArgumentNullException.ThrowIfNull(serviceVersion);
-    
-            XDocument doc = new XDocument(LoadTemplate(xmlPath));
-    
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+
             XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
             XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
             XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
             XNamespace iden = "http://x-road.eu/xsd/identifiers";
             XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-    
+
             XElement header = doc.Root?.Element(soapenv + "Header") ?? throw new InvalidOperationException("Missing SOAP Header");
             XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
-    
+
             // Remove legacy x:* headers
             header.Elements().Where(e => e.Name.Namespace == x).Remove();
-    
+
             // Remove controlled xro:* headers and rebuild
             header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
-    
+
             XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
             header.Add(serviceEl);
             SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
@@ -424,18 +423,18 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
             SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
             SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-    
+
             XElement clientEl = new(xro + "client", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM"));
             header.Add(clientEl);
             SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
             SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
             SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
             SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-    
+
             SetChildValue(header, xro + "id", xId);
             SetChildValue(header, xro + "protocolVersion", protocolVersion);
             SetChildValue(header, x + "userId", userId);
-    
+
             // ----- BODY -----
             XElement opEl = body?.Element(prod + "GetPerson")
                 ?? throw new InvalidOperationException("Cannot find prod:GetPerson in body");
@@ -443,7 +442,7 @@ namespace XRoadFolkRaw.Lib
                 ?? throw new InvalidOperationException("Cannot find request under prod:GetPerson");
             XElement requestBodyEl = requestEl.Element("requestBody")
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
-    
+
             // Preferred: PublicId; Fallback: SSN if provided
             if (!string.IsNullOrWhiteSpace(publicId))
             {
@@ -453,7 +452,7 @@ namespace XRoadFolkRaw.Lib
             {
                 SetChildValue(requestBodyEl, "SSN", ssnForPerson);
             }
-    
+
             // Optional include flags
             void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
             SetBool("IncludeAddress", includeAddress);
@@ -464,20 +463,20 @@ namespace XRoadFolkRaw.Lib
             SetBool("IncludeMaritalStatus", includeMaritalStatus);
             SetBool("IncludeCitizenship", includeCitizenship);
             SetBool("IncludeSsnHistory", includeSsnHistory);
-    
+
             // Token
             XElement? requestHeader = requestEl.Element("requestHeader");
             if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
             SetChildValue(requestHeader, "token", token);
-    
+
             string xmlString = doc.Declaration != null
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
-    
+
             return await SendAsync(xmlString, "GetPerson", ct);
         }
-    
-    
+
+
         public void Dispose()
         {
             _http.Dispose();
