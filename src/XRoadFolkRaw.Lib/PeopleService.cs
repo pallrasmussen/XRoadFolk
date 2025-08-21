@@ -123,11 +123,11 @@ namespace XRoadFolkRaw.Lib
                 includeAddress: _config.GetValue("GetPerson:Include:Address", true),
                 includeContact: _config.GetValue("GetPerson:Include:Contact", true),
                 includeBirthDate: _config.GetValue("GetPerson:Include:BirthDate", true),
-                includeDeathDate: _config.GetValue("GetPerson:Include:DeathDate", false),
+                includeDeathDate: _config.GetValue("GetPerson:Include:DeathDate", true),
                 includeGender: _config.GetValue("GetPerson:Include:Gender", true),
-                includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", false),
+                includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", true),
                 includeCitizenship: _config.GetValue("GetPerson:Include:Citizenship", true),
-                includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", false),
+                includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", true),
                 ct: ct);
         }
 
