@@ -91,15 +91,13 @@ namespace XRoadFolkRaw.Lib
     
             _token = tokenEl.Value.Trim();
     
-            if (expEl != null && DateTimeOffset.TryParse(expEl.Value.Trim(), CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
-            {
-                _expiresUtc = exp.ToUniversalTime();
-            }
-            else
-            {
-                _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(5);
-            }
+            _expiresUtc =
+                expEl != null &&
+                DateTimeOffset.TryParse(expEl.Value.Trim(), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out DateTimeOffset exp)
+                    ? exp.ToUniversalTime()
+                    : DateTimeOffset.UtcNow.AddMinutes(5);
     
             string token = _token ?? throw new InvalidOperationException("Token not parsed.");
             return token;
