@@ -90,6 +90,7 @@ namespace XRoadFolkRaw.Lib
         public static bool LooksLikeValidSsn(string? s, out DateTimeOffset? embedded)
         {
             embedded = null;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
             if (string.IsNullOrWhiteSpace(s))
             {
                 return false;
@@ -117,13 +118,13 @@ namespace XRoadFolkRaw.Lib
             }
 
             // Infer century 1900/2000 based on current year
-            int currYY = DateTimeOffset.UtcNow.Year % 100;
+            int currYY = now.Year % 100;
             int year = YY + (YY <= currYY ? 2000 : 1900);
 
             try
             {
                 DateTimeOffset dt = new(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
-                if (dt.Date > DateTimeOffset.UtcNow.Date)
+                if (dt.Date > now.Date)
                 {
                     return false;
                 }
