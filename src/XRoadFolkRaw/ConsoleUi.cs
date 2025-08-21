@@ -282,8 +282,6 @@ namespace XRoadFolkRaw
                 return;
             }
             const int wSsn = 12, wName = 28, wDob = 12, wGen = 8, wL1 = 26, wL2 = 26;
-            Console.WriteLine($"{Trunc(loc["SSN"], wSsn)} {Trunc(loc["Name"], wName)} {Trunc(loc["DOB"], wDob)} {Trunc(loc["Gender"], wGen)} {Trunc(loc["Addr1"], wL1)} {Trunc(loc["Addr2"], wL2)}");
-            Console.WriteLine(new string('-', 12 + 1 + 28 + 1 + 12 + 1 + 8 + 1 + 26 + 1 + 26));
             foreach ((string ssn, string name, string dob, string gender, string line1, string line2) in rows.Take(take))
             {
                 Console.WriteLine($"{Trunc(ssn, wSsn)} {Trunc(name, wName)} {Trunc(dob, wDob)} {Trunc(gender, wGen)} {Trunc(line1, wL1)} {Trunc(line2, wL2)}");
