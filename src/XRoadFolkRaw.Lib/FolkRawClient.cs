@@ -21,16 +21,25 @@ public sealed partial class FolkRawClient : IDisposable
         new(["service", "client", "id", "protocolVersion", "userId"]);
     private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public FolkRawClient(string serviceUrl, X509Certificate2? clientCertificate = null, TimeSpan? timeout = null, ILogger? logger = null, bool verbose = false, bool maskTokens = true, int retryAttempts = 3, int retryBaseDelayMs = 200, int retryJitterMs = 250)
+    public FolkRawClient(
+        string serviceUrl,
+        X509Certificate2? clientCertificate = null,
+        TimeSpan? timeout = null,
+        ILogger? logger = null,
+        bool verbose = false,
+        bool maskTokens = true,
+        int retryAttempts = 3,
+        int retryBaseDelayMs = 200,
+        int retryJitterMs = 250,
+        bool bypassCertificateValidation = false)
     {
         ArgumentNullException.ThrowIfNull(serviceUrl);
 
-        //var handler = new HttpClientHandler();
-
-        HttpClientHandler handler = new()
+        HttpClientHandler handler = new();
+        if (bypassCertificateValidation)
         {
-            ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
-        };
+            handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+        }
 
         if (clientCertificate != null)
         {
