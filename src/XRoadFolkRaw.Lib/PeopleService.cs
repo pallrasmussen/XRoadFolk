@@ -29,7 +29,7 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(settings);
             ArgumentNullException.ThrowIfNull(log);
             ArgumentNullException.ThrowIfNull(localizer);
-            _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
+
             _client = client;
             _config = config;
             _settings = settings;
@@ -65,7 +65,7 @@ namespace XRoadFolkRaw.Lib
 
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
-            string token = await _tokenProvider.GetTokenAsync(ct);
+            string token = await _tokenProvider.GetTokenAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new InvalidOperationException(_localizer["TokenMissing"]);
@@ -76,7 +76,7 @@ namespace XRoadFolkRaw.Lib
 
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
-            string token = await GetTokenAsync(ct);
+            string token = await GetTokenAsync(ct).ConfigureAwait(false);
             return await _client.GetPeoplePublicInfoAsync(
                 xmlPath: _peopleInfoXmlPath,
                 xId: Guid.NewGuid().ToString("N"),
@@ -97,12 +97,12 @@ namespace XRoadFolkRaw.Lib
                 firstName: firstName,
                 lastName: lastName,
                 dateOfBirth: dateOfBirth,
-                ct: ct);
+                ct: ct).ConfigureAwait(false);
         }
 
         public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
         {
-            string token = await GetTokenAsync(ct);
+            string token = await GetTokenAsync(ct).ConfigureAwait(false);
             return await _client.GetPersonAsync(
                 xmlPath: _personXmlPath,
                 xId: Guid.NewGuid().ToString("N"),
@@ -128,7 +128,7 @@ namespace XRoadFolkRaw.Lib
                 includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", true),
                 includeCitizenship: _config.GetValue("GetPerson:Include:Citizenship", true),
                 includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", true),
-                ct: ct);
+                ct: ct).ConfigureAwait(false);
         }
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]
@@ -136,7 +136,7 @@ namespace XRoadFolkRaw.Lib
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            _tokenProvider.Dispose();
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Polly;
+using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -11,6 +12,7 @@ namespace XRoadFolkRaw.Lib
     public sealed partial class FolkRawClient : IDisposable
     {
         private readonly HttpClient _http;
+        private readonly bool _disposeHttpClient;
         private readonly ILogger? _log;
         private readonly bool _verbose;
         private readonly bool _maskTokens;
@@ -22,6 +24,27 @@ namespace XRoadFolkRaw.Lib
             new(["service", "client", "id", "protocolVersion", "userId"]);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
+        // Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient)
+        public FolkRawClient(
+            HttpClient httpClient,
+            ILogger? logger = null,
+            bool verbose = false,
+            bool maskTokens = true,
+            int retryAttempts = 3,
+            int retryBaseDelayMs = 200,
+            int retryJitterMs = 250)
+        {
+            _http = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _disposeHttpClient = false;
+            _log = logger;
+            _verbose = verbose;
+            _maskTokens = maskTokens;
+            _retryAttempts = retryAttempts;
+            _retryBaseDelayMs = retryBaseDelayMs;
+            _retryJitterMs = retryJitterMs;
+        }
+
+        // Backwards-compatible constructor (this instance OWNS the HttpClient)
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -51,7 +74,6 @@ namespace XRoadFolkRaw.Lib
                     handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
                 }
 
-
                 if (clientCertificate != null)
                 {
                     _ = handler.ClientCertificates.Add(clientCertificate);
@@ -62,6 +84,7 @@ namespace XRoadFolkRaw.Lib
                     BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
                     Timeout = timeout ?? TimeSpan.FromSeconds(60)
                 };
+                _disposeHttpClient = true; // this instance owns _http
                 handler = null; // ownership transferred to _http
             }
             finally
@@ -172,7 +195,7 @@ namespace XRoadFolkRaw.Lib
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
-            return await SendAsync(xmlString, "Login", ct);
+            return await SendAsync(xmlString, "Login", ct).ConfigureAwait(false);
         }
 
         public async Task<string> GetPeoplePublicInfoAsync(
@@ -254,7 +277,6 @@ namespace XRoadFolkRaw.Lib
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
             XElement? criteriaList = requestBodyEl.Element("ListOfPersonPublicInfoCriteria");
             if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
-            // Clear any existing criteria to avoid mixing with template values
             criteriaList.RemoveNodes();
 
             XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
@@ -262,17 +284,14 @@ namespace XRoadFolkRaw.Lib
             {
                 SetChildValue(criteria, "SSN", ssn);
             }
-
             if (!string.IsNullOrWhiteSpace(firstName))
             {
                 SetChildValue(criteria, "FirstName", firstName);
             }
-
             if (!string.IsNullOrWhiteSpace(lastName))
             {
                 SetChildValue(criteria, "LastName", lastName);
             }
-
             if (dateOfBirth.HasValue)
             {
                 SetChildValue(criteria, "DateOfBirth", dateOfBirth.Value.ToString("yyyy-MM-dd"));
@@ -286,14 +305,15 @@ namespace XRoadFolkRaw.Lib
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
-            return await SendAsync(xmlString, "GetPeoplePublicInfo", ct);
+            return await SendAsync(xmlString, "GetPeoplePublicInfo", ct).ConfigureAwait(false);
         }
 
         private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
         {
             if (_verbose && _log is not null)
             {
-                LogSoapRequest(_log, SoapSanitizer.Scrub(xmlString, _maskTokens));
+                // Log at Information to ensure visibility with default filters
+                _log.SafeSoapInfo(xmlString, $"SOAP Request [{opName}]");
             }
 
             Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
@@ -313,16 +333,16 @@ namespace XRoadFolkRaw.Lib
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
                 request.Content = new StringContent(xmlString);
                 request.Content.Headers.ContentType = new MediaTypeHeaderValue("text/xml") { CharSet = "utf-8" };
-                using HttpResponseMessage response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                string text = await response.Content.ReadAsStringAsync(ct);
+                using HttpResponseMessage response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                string text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return !response.IsSuccessStatusCode
                     ? throw new HttpRequestException($"{opName} failed. HTTP {(int)response.StatusCode} {response.ReasonPhrase}\n{text}")
                     : text;
-            });
+            }).ConfigureAwait(false);
 
             if (_verbose && _log is not null)
             {
-                LogSoapResponse(_log, SoapSanitizer.Scrub(respText, _maskTokens));
+                _log.SafeSoapInfo(respText, $"SOAP Response [{opName}]");
             }
 
             return respText;
@@ -351,7 +371,6 @@ namespace XRoadFolkRaw.Lib
         [LoggerMessage(EventId = 3, Level = LogLevel.Information,
                        Message = "[SOAP response] {Xml}")]
         static partial void LogSoapResponse(ILogger logger, string xml);
-
 
         public async Task<string> GetPersonAsync(
             string xmlPath,
@@ -408,10 +427,7 @@ namespace XRoadFolkRaw.Lib
             XElement header = doc.Root?.Element(soapenv + "Header") ?? throw new InvalidOperationException("Missing SOAP Header");
             XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
 
-            // Remove legacy x:* headers
             header.Elements().Where(e => e.Name.Namespace == x).Remove();
-
-            // Remove controlled xro:* headers and rebuild
             header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
 
             XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
@@ -434,7 +450,6 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(header, xro + "protocolVersion", protocolVersion);
             SetChildValue(header, x + "userId", userId);
 
-            // ----- BODY -----
             XElement opEl = body?.Element(prod + "GetPerson")
                 ?? throw new InvalidOperationException("Cannot find prod:GetPerson in body");
             XElement requestEl = opEl.Element("request")
@@ -442,7 +457,6 @@ namespace XRoadFolkRaw.Lib
             XElement requestBodyEl = requestEl.Element("requestBody")
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
 
-            // Preferred: PublicId; Fallback: SSN if provided
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 SetChildValue(requestBodyEl, "PublicId", publicId);
@@ -452,7 +466,6 @@ namespace XRoadFolkRaw.Lib
                 SetChildValue(requestBodyEl, "SSN", ssnForPerson);
             }
 
-            // Optional include flags
             void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
             SetBool("IncludeAddress", includeAddress);
             SetBool("IncludeContact", includeContact);
@@ -463,7 +476,6 @@ namespace XRoadFolkRaw.Lib
             SetBool("IncludeCitizenship", includeCitizenship);
             SetBool("IncludeSsnHistory", includeSsnHistory);
 
-            // Token
             XElement? requestHeader = requestEl.Element("requestHeader");
             if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
             SetChildValue(requestHeader, "token", token);
@@ -472,13 +484,15 @@ namespace XRoadFolkRaw.Lib
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
-            return await SendAsync(xmlString, "GetPerson", ct);
+            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
-
 
         public void Dispose()
         {
-            _http.Dispose();
+            if (_disposeHttpClient)
+            {
+                _http.Dispose();
+            }
         }
     }
 }

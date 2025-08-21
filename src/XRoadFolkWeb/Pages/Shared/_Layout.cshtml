@@ -1,0 +1,102 @@
+﻿@using System.Globalization
+@using Microsoft.AspNetCore.Localization
+@using Microsoft.Extensions.Options
+@inject IOptions<RequestLocalizationOptions> LocOpts
+@inject Microsoft.Extensions.Localization.IStringLocalizer<XRoadFolkWeb.SharedResource> SR
+@{
+    Layout = null;
+    var currentUi = CultureInfo.CurrentUICulture.Name;
+    var supported = LocOpts.Value.SupportedUICultures ?? new List<CultureInfo> { CultureInfo.GetCultureInfo("en-US") };
+}
+<!DOCTYPE html>
+<html lang="@currentUi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>@ViewData["Title"] - @SR["AppName"]</title>
+
+    <script>
+        // Set theme before paint to avoid flash
+        (function () {
+            const key = 'theme';
+            const light = 'brand';
+            const dark = 'brand-dark';
+            const saved = localStorage.getItem(key);
+            const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = saved || (preferDark ? dark : light);
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        })();
+    </script>
+
+    <!-- Bootswatch "Flatly" theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom overrides -->
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Branded navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">@SR["AppName"]</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                    aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div id="mainNav" class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link @(Context.Request.Path == "/" ? "active" : null)" href="/">@SR["Nav_Home"]</a>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Theme toggle -->
+                    <button id="theme-toggle" type="button" class="btn btn-sm btn-outline-light" aria-pressed="false" title="@SR["ToggleTheme"]">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <span class="ms-1 d-none d-sm-inline">@SR["Theme"]</span>
+                    </button>
+
+                    <!-- Culture switcher -->
+                    <form class="d-flex align-items-center" method="post" action="/set-culture" asp-antiforgery="true">
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <select class="form-select form-select-sm me-2" name="culture" onchange="this.form.submit()">
+                            @foreach (var c in supported)
+                            {
+                                <option value="@c.Name" selected="@(c.Name == currentUi)">@c.NativeName (@c.Name)</option>
+                            }
+                        </select>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main role="main" class="flex-grow-1">
+        <div class="container my-4">
+            @RenderBody()
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-top py-3">
+        <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between small text-muted">
+            <span>&copy; @DateTime.UtcNow.Year @SR["AppName"]</span>
+            <span>@SR["BuiltWith"]</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="~/js/site.js"></script>
+
+    <environment include="Development">
+        <script src="/_framework/aspnetcore-browser-refresh.js"></script>
+    </environment>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>
