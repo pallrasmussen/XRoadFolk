@@ -4,10 +4,12 @@ using Microsoft.Extensions.Localization;
 
 namespace XRoadFolkRaw.Lib
 {
-    public class InputValidation
+    public partial class InputValidation
     {
-        private static readonly Regex NameRegex = new(@"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$", RegexOptions.Compiled);
         private static readonly string[] DobFormats = { "yyyy-MM-dd", "dd-MM-yyyy" };
+
+        [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
+        private static partial Regex NameRegex();
 
         public static class Errors
         {
@@ -77,7 +79,7 @@ namespace XRoadFolkRaw.Lib
 
             name = name.Trim();
             // Unicode letters + marks, spaces, hyphen, apostrophe; 2-50 chars
-            return NameRegex.IsMatch(name);
+            return NameRegex().IsMatch(name);
         }
 
         public static string NormalizeDigits(string? s)
