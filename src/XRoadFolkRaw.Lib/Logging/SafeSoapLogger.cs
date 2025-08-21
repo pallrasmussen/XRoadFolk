@@ -15,6 +15,19 @@ namespace XRoadFolkRaw.Lib.Logging
         public static readonly EventId SoapResponseEvent = new(41002, "SoapResponse");
         public static readonly EventId SoapGeneralEvent = new(41000, "Soap");
 
+        private static readonly Action<ILogger, string, Exception?> _logGeneral =
+            LoggerMessage.Define<string>(LogLevel.Debug, SoapGeneralEvent, "{Xml}");
+        private static readonly Action<ILogger, string, string, Exception?> _logGeneralWithTitle =
+            LoggerMessage.Define<string, string>(LogLevel.Debug, SoapGeneralEvent, "{Title}\n{Xml}");
+        private static readonly Action<ILogger, string, Exception?> _logInfo =
+            LoggerMessage.Define<string>(LogLevel.Information, SoapGeneralEvent, "{Xml}");
+        private static readonly Action<ILogger, string, string, Exception?> _logInfoWithTitle =
+            LoggerMessage.Define<string, string>(LogLevel.Information, SoapGeneralEvent, "{Title}\n{Xml}");
+        private static readonly Action<ILogger, string, string, Exception?> _logRequestWithTitle =
+            LoggerMessage.Define<string, string>(LogLevel.Debug, SoapRequestEvent, "{Title}\n{Xml}");
+        private static readonly Action<ILogger, string, string, Exception?> _logResponseWithTitle =
+            LoggerMessage.Define<string, string>(LogLevel.Debug, SoapResponseEvent, "{Title}\n{Xml}");
+
         [GeneratedRegex(@"^[A-Za-z0-9+/=]+$", RegexOptions.Compiled)]
         private static partial Regex Base64Regex();
 
@@ -77,11 +90,33 @@ namespace XRoadFolkRaw.Lib.Logging
             string safe = Sanitize(xml ?? string.Empty);
             if (!string.IsNullOrEmpty(title))
             {
-                logger.Log(level, evt, "{Title}\n{Xml}", title, safe);
+                if (evt == SoapRequestEvent)
+                {
+                    _logRequestWithTitle(logger, title, safe, null);
+                }
+                else if (evt == SoapResponseEvent)
+                {
+                    _logResponseWithTitle(logger, title, safe, null);
+                }
+                else if (level == LogLevel.Information)
+                {
+                    _logInfoWithTitle(logger, title, safe, null);
+                }
+                else
+                {
+                    _logGeneralWithTitle(logger, title, safe, null);
+                }
             }
             else
             {
-                logger.Log(level, evt, "{Xml}", safe);
+                if (level == LogLevel.Information)
+                {
+                    _logInfo(logger, safe, null);
+                }
+                else
+                {
+                    _logGeneral(logger, safe, null);
+                }
             }
         }
 
