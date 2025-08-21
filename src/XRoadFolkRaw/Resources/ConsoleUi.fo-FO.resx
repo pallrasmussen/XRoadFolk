@@ -169,7 +169,7 @@
     <value>Onki funnið.</value>
   </data>
   <data name="FetchingGetPerson" xml:space="preserve">
-    <value>=== Finnur GetPerson hjá {0}{1} ===</value>
+    <value>=== GetPerson við PublicId {0}{1} ===</value>
   </data>
   <data name="NoRows" xml:space="preserve">
     <value>(no rows)</value>

@@ -91,8 +91,6 @@ namespace XRoadFolkRaw
                     continue;
                 }
 
-                PrintPeoplePublicInfoTable(listDoc, _log, _loc, maxRows: _config.GetValue("Output:MaxPeopleToPrint", 25));
-
                 int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
                 int count = 0;
                 foreach (XElement p in people)
@@ -236,55 +234,6 @@ namespace XRoadFolkRaw
             foreach (XElement child in resp.Elements())
             {
                 PrintAllPairs(child);
-            }
-        }
-
-        private static string Trunc(string? s, int width)
-        {
-            string t = s ?? "";
-            return width <= 0 ? "" : t.Length <= width ? t.PadRight(width) : string.Concat(t.AsSpan(0, Math.Max(0, width - 1)), "…");
-        }
-
-        private static string? GetLocal(XElement? parent, string localName)
-        {
-            return parent?.Elements().FirstOrDefault(e => e.Name.LocalName == localName)?.Value?.Trim();
-        }
-
-        private static IEnumerable<XElement> DescByLocal(XContainer doc, string localName)
-        {
-            return doc.Descendants().Where(e => e.Name.LocalName == localName);
-        }
-
-        private static void PrintPeoplePublicInfoTable(XDocument doc, ILogger log, IStringLocalizer loc, int maxRows = 25)
-        {
-            List<(string ssn, string name, string dob, string gender, string line1, string line2)> rows = [];
-            foreach (XElement p in DescByLocal(doc, "PersonPublicInfo"))
-            {
-                string ssn = GetLocal(p, "SSN") ?? "";
-                string first = GetLocal(p, "FirstName") ?? "";
-                string last = GetLocal(p, "LastName") ?? "";
-                string dob = GetLocal(p, "DateOfBirth") ?? "";
-                string gender = GetLocal(p, "Gender") ?? "";
-
-                XElement? addr = p.Elements().FirstOrDefault(x => x.Name.LocalName == "Address");
-                string street = GetLocal(addr, "Street") ?? "";
-                string bnum = GetLocal(addr, "BuildingNumber") ?? "";
-                string line1 = string.IsNullOrWhiteSpace(bnum) ? street : (street + " " + bnum).Trim();
-                string line2 = string.Join(" ", new[] { GetLocal(addr, "PostalCode"), GetLocal(addr, "City") }.Where(s => !string.IsNullOrWhiteSpace(s)));
-
-                rows.Add((ssn, $"{first} {last}".Trim(), dob, gender, line1, line2));
-            }
-
-            int take = Math.Min(maxRows, rows.Count);
-            if (take == 0)
-            {
-                Console.WriteLine(loc["NoRows"]);
-                return;
-            }
-            const int wSsn = 12, wName = 28, wDob = 12, wGen = 8, wL1 = 26, wL2 = 26;
-            foreach ((string ssn, string name, string dob, string gender, string line1, string line2) in rows.Take(take))
-            {
-                Console.WriteLine($"{Trunc(ssn, wSsn)} {Trunc(name, wName)} {Trunc(dob, wDob)} {Trunc(gender, wGen)} {Trunc(line1, wL1)} {Trunc(line2, wL2)}");
             }
         }
 
