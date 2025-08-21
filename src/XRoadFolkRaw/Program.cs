@@ -50,6 +50,8 @@ using FolkRawClient client = new(
     logger: log, verbose: verbose, maskTokens: maskTokens,
     retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
 
+PeopleService service = new(client, config, xr, log, serviceLocalizer);
+
 ServiceCollection services = new();
 services.AddSingleton(loggerFactory);
 services.AddLocalization(opts => opts.ResourcesPath = "Resources");
@@ -77,8 +79,6 @@ if (check.ResourceNotFound)
     LogMissingBannerSeparator(log, culture.Name);
 }
 
-
-PeopleService service = new(client, config, xr, log, serviceLocalizer);
 ConsoleUi ui = new(config, service, log, localizer, valLocalizer);
 await ui.RunAsync();
 
