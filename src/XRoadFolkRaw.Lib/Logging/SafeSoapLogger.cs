@@ -229,7 +229,8 @@ namespace XRoadFolkRaw.Lib.Logging
             }
             // Show only last 2 chars to help correlate, mask the rest
             int visible = Math.Min(2, s.Length);
-            return new string('*', Math.Max(0, s.Length - visible)) + s.Substring(s.Length - visible, visible);
+            int masked = Math.Max(0, s.Length - visible);
+            return string.Concat(new string('*', masked), s.AsSpan(s.Length - visible, visible));
         }
     }
 }
