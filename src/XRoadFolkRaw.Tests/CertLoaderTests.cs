@@ -29,8 +29,8 @@ public class CertLoaderTests
     [Fact]
     public void EnvironmentPfxOverridesConfig()
     {
-        var cfgCert = CreateTestCertificate("ConfigPfx");
-        var envCert = CreateTestCertificate("EnvPfx");
+        (string pfx, string cert, string key, string subject) cfgCert = CreateTestCertificate("ConfigPfx");
+        (string pfx, string cert, string key, string subject) envCert = CreateTestCertificate("EnvPfx");
 
         CertificateSettings cfg = new() { PfxPath = cfgCert.pfx };
 
@@ -50,8 +50,8 @@ public class CertLoaderTests
     [Fact]
     public void EnvironmentPemOverridesConfig()
     {
-        var cfgCert = CreateTestCertificate("ConfigPfx");
-        var envCert = CreateTestCertificate("EnvPem");
+        (string pfx, string cert, string key, string subject) cfgCert = CreateTestCertificate("ConfigPfx");
+        (string pfx, string cert, string key, string subject) envCert = CreateTestCertificate("EnvPem");
 
         CertificateSettings cfg = new() { PfxPath = cfgCert.pfx };
 
