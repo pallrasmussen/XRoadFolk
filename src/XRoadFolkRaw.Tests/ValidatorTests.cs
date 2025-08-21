@@ -4,9 +4,11 @@ using Xunit;
 
 namespace XRoadFolkRaw.Tests
 {
-    public static class ValidatorMirror
+    public static partial class ValidatorMirror
     {
         private static readonly string[] DobFormats = { "yyyy-MM-dd", "dd-MM-yyyy" };
+        [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
+        private static partial Regex NameRegex();
         public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) ValidateCriteria(
             string? ssn, string? firstName, string? lastName, string? dobInput)
         {
@@ -21,7 +23,7 @@ namespace XRoadFolkRaw.Tests
                 }
 
                 name = name.Trim();
-                return Regex.IsMatch(name, @"^[\p{L}][\p{L}\p{M}\s\-']{1,49}$");
+                return NameRegex().IsMatch(name);
             }
 
             string NormalizeDigits(string? s) => new([.. (s ?? "").Where(char.IsDigit)]);
