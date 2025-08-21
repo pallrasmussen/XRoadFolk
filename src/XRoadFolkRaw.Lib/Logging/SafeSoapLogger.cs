@@ -40,6 +40,26 @@ namespace XRoadFolkRaw.Lib.Logging
         [GeneratedRegex(@"(\b(?:password|pwd|token|apikey|apiKey)\s*=\s*['""])([^'""]+)(['""])", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex AttributeRegex();
 
+        private static readonly string[] SensitiveElementNames =
+        [
+            "username", "user", "password", "pwd", "token", "authToken",
+            "ssn", "socialsecuritynumber", "nationalid", "idcode", "pin",
+            "publicid", "personid", "personalcode", "secret", "apikey", "apiKey"
+        ];
+
+        private static readonly HashSet<string> SensitiveNames =
+            new(SensitiveElementNames, StringComparer.OrdinalIgnoreCase);
+
+        private const string TagPatternTemplate =
+            "<(?:[\\w\\-]+:)?({N})(?:\\b[^>]*)>(.*?)</(?:[\\w\\-]+:)?\\1\\s*>";
+
+        private static readonly Dictionary<string, Regex> TagRegexCache =
+            SensitiveElementNames.ToDictionary(
+                n => n,
+                n => new Regex(
+                    TagPatternTemplate.Replace("{N}", n),
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
+
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
         /// You can set this once at app start to plug in your existing SoapSanitizer.
@@ -145,17 +165,10 @@ namespace XRoadFolkRaw.Lib.Logging
             try
             {
                 XDocument doc = XDocument.Parse(input, LoadOptions.PreserveWhitespace);
-                // Element local-names to redact
-                HashSet<string> sensitiveNames = new(StringComparer.OrdinalIgnoreCase)
-                {
-                    "username","user","password","pwd","token","authToken",
-                    "ssn","socialsecuritynumber","nationalid","idcode","pin",
-                    "publicid","personid","personalcode","secret","apikey","apiKey"
-                };
 
                 foreach (XElement? el in doc.Descendants().ToList())
                 {
-                    if (sensitiveNames.Contains(el.Name.LocalName))
+                    if (SensitiveNames.Contains(el.Name.LocalName))
                     {
                         el.Value = Mask(el.Value);
                     }
@@ -163,7 +176,7 @@ namespace XRoadFolkRaw.Lib.Logging
                     // also mask any attributes on any node that look sensitive
                     foreach (XAttribute? attr in el.Attributes().ToList())
                     {
-                        if (sensitiveNames.Contains(attr.Name.LocalName) ||
+                        if (SensitiveNames.Contains(attr.Name.LocalName) ||
                             LooksSensitive(attr.Value))
                         {
                             attr.Value = Mask(attr.Value);
@@ -176,16 +189,9 @@ namespace XRoadFolkRaw.Lib.Logging
             {
                 // 2) Regex fallback (case-insensitive, prefix-agnostic)
                 string s = input;
-                // redact inner text between start/end tags for known names
-                string tagPattern = @"<(?:[\w\-]+:)?({N})(?:\b[^>]*)>(.*?)</(?:[\w\-]+:)?\1\s*>";
-                string[] names = [
-                    "username","user","password","pwd","token","authToken",
-                    "ssn","socialsecuritynumber","nationalid","idcode","pin",
-                    "publicid","personid","personalcode","secret","apikey","apiKey"
-                ];
-                foreach (string n in names)
+
+                foreach (Regex re in TagRegexCache.Values)
                 {
-                    Regex re = new(tagPattern.Replace("{N}", n), RegexOptions.IgnoreCase | RegexOptions.Singleline);
                     s = re.Replace(s, m => m.Value.Replace(m.Groups[2].Value, Mask(m.Groups[2].Value)));
                 }
 
