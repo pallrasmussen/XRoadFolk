@@ -3,35 +3,38 @@ using System.Xml.Linq;
 
 namespace XRoadFolkRaw.Lib
 {
-    
-    public sealed class FolkTokenProviderRaw : IDisposable
+
+    public sealed class FolkTokenProviderRaw(FolkRawClient client, Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
     {
-        private readonly FolkRawClient _client;
-        private readonly TimeSpan _skew;
+        //private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
+
+        // Remove the unused private member '_client' to fix IDE0052
+        // Original line:
+        // private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
+
+        // No replacement needed; simply delete the line.
+        // Remove the unused private member '_client' to fix IDE0052
+        // Original line:
+        // private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
+
+        // No replacement needed; simply delete the line.
+        private readonly TimeSpan _skew = refreshSkew ?? TimeSpan.Zero;
         private readonly SemaphoreSlim _gate = new(1, 1);
-        private readonly Func<CancellationToken, Task<string>> _loginCall;
-    
+        private readonly Func<CancellationToken, Task<string>> _loginCall = loginCall ?? throw new ArgumentNullException(nameof(loginCall));
+
         private string? _token;
         private DateTimeOffset _expiresUtc = DateTimeOffset.MinValue;
-    
+
         // Coalesce concurrent refreshes
         private Task<string>? _refreshTask;
-    
-        // Default skew set to ZERO to avoid immediate re-refresh in quick successive calls.
-        public FolkTokenProviderRaw(FolkRawClient client, Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null)
-        {
-            _client = client ?? throw new ArgumentNullException(nameof(client));
-            _loginCall = loginCall ?? throw new ArgumentNullException(nameof(loginCall));
-            _skew = refreshSkew ?? TimeSpan.Zero;
-        }
-    
+
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
             if (!NeedsRefresh())
             {
                 return _token ?? throw new InvalidOperationException("Token not initialized.");
             }
-    
+
             Task<string> refresh;
             await _gate.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -40,15 +43,15 @@ namespace XRoadFolkRaw.Lib
                 {
                     return _token ?? throw new InvalidOperationException("Token not initialized.");
                 }
-    
+
                 _refreshTask ??= RefreshAsync(ct);
                 refresh = _refreshTask;
             }
             finally
             {
-                _gate.Release();
+                _ = _gate.Release();
             }
-    
+
             string token;
             try
             {
@@ -66,31 +69,31 @@ namespace XRoadFolkRaw.Lib
                 }
                 finally
                 {
-                    _gate.Release();
+                    _ = _gate.Release();
                 }
             }
-    
+
             return token;
         }
-    
+
         private async Task<string> RefreshAsync(CancellationToken ct)
         {
             string xml = await _loginCall(ct).ConfigureAwait(false);
-    
+
             XDocument doc = XDocument.Parse(xml);
             XElement? tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
             XElement? expEl = doc.Descendants().FirstOrDefault(e =>
                 e.Name.LocalName.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
                 e.Name.LocalName.Equals("expiry", StringComparison.OrdinalIgnoreCase) ||
                 e.Name.LocalName.Equals("expiration", StringComparison.OrdinalIgnoreCase));
-    
+
             if (tokenEl == null)
             {
                 throw new InvalidOperationException("Login response did not contain <token>");
             }
-    
+
             _token = tokenEl.Value.Trim();
-    
+
             _expiresUtc =
                 expEl != null &&
                 DateTimeOffset.TryParse(expEl.Value.Trim(), CultureInfo.InvariantCulture,
@@ -98,16 +101,16 @@ namespace XRoadFolkRaw.Lib
                     out DateTimeOffset exp)
                     ? exp.ToUniversalTime()
                     : DateTimeOffset.UtcNow.AddMinutes(5);
-    
+
             string token = _token ?? throw new InvalidOperationException("Token not parsed.");
             return token;
         }
-    
+
         private bool NeedsRefresh()
         {
             return string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow.Add(_skew) >= _expiresUtc;
         }
-    
+
         public void Dispose()
         {
             _gate.Dispose();

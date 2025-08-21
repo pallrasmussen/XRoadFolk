@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
-using XRoad.Config;
 
 namespace XRoadFolkRaw.Lib
 {
-    
-    public sealed partial class PeopleService
+
+    public sealed partial class PeopleService : IDisposable
     {
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
@@ -17,7 +16,7 @@ namespace XRoadFolkRaw.Lib
         private readonly string _loginXmlPath;
         private readonly string _peopleInfoXmlPath;
         private readonly string _personXmlPath;
-    
+
         public PeopleService(
             FolkRawClient client,
             IConfiguration config,
@@ -30,19 +29,19 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(settings);
             ArgumentNullException.ThrowIfNull(log);
             ArgumentNullException.ThrowIfNull(localizer);
-    
+            _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
             _client = client;
             _config = config;
             _settings = settings;
             _log = log;
             _localizer = localizer;
-    
-            _loginXmlPath = settings.Raw.LoginXmlPath;
+
+            _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
             _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
             _personXmlPath = _config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
-    
+
             _client.PreloadTemplates(new[] { _loginXmlPath, _peopleInfoXmlPath, _personXmlPath });
-    
+
             _tokenProvider = new FolkTokenProviderRaw(client, ct => client.LoginAsync(
                 loginXmlPath: _loginXmlPath,
                 xId: Guid.NewGuid().ToString("N"),
@@ -63,7 +62,7 @@ namespace XRoadFolkRaw.Lib
                 ct: ct
             ), refreshSkew: TimeSpan.FromSeconds(60));
         }
-    
+
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
             string token = await _tokenProvider.GetTokenAsync(ct);
@@ -74,7 +73,7 @@ namespace XRoadFolkRaw.Lib
             LogTokenAcquired(_log, token.Length);
             return token;
         }
-    
+
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct);
@@ -100,7 +99,7 @@ namespace XRoadFolkRaw.Lib
                 dateOfBirth: dateOfBirth,
                 ct: ct);
         }
-    
+
         public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct);
@@ -131,8 +130,13 @@ namespace XRoadFolkRaw.Lib
                 includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", false),
                 ct: ct);
         }
-    
+
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]
         static partial void LogTokenAcquired(ILogger logger, int tokenLength);
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

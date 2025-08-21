@@ -6,7 +6,7 @@ namespace XRoadFolkRaw.Lib
 {
     public partial class InputValidation
     {
-        private static readonly string[] DobFormats = { "yyyy-MM-dd", "dd-MM-yyyy" };
+        private static readonly string[] DobFormats = ["yyyy-MM-dd", "dd-MM-yyyy"];
 
         [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
         private static partial Regex NameRegex();

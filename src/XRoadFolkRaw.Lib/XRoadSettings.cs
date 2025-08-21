@@ -1,4 +1,4 @@
-namespace XRoad.Config
+namespace XRoadFolkRaw.Lib
 {
     public sealed class XRoadSettings
     {

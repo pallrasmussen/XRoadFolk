@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using XRoad.Config;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
 
@@ -25,7 +24,7 @@ using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
 // Configuration
 ConfigurationLoader loader = new();
 ServiceCollection preServices = new();
-preServices.AddSingleton<ILoggerFactory>(loggerFactory);
+preServices.AddSingleton(loggerFactory);
 preServices.AddLocalization(opts => opts.ResourcesPath = "Resources");
 using ServiceProvider preProvider = preServices.BuildServiceProvider();
 IStringLocalizer<ConfigurationLoader> cfgLocalizer = preProvider.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
@@ -51,15 +50,13 @@ using FolkRawClient client = new(
     logger: log, verbose: verbose, maskTokens: maskTokens,
     retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
 
-PeopleService service = new(client, config, xr, log, serviceLocalizer);
-
 ServiceCollection services = new();
-services.AddSingleton<ILoggerFactory>(loggerFactory);
+services.AddSingleton(loggerFactory);
 services.AddLocalization(opts => opts.ResourcesPath = "Resources");
 string[] supportedCultureNames = config.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
 services.Configure<RequestLocalizationOptions>(opts =>
 {
-    List<CultureInfo> cultures = supportedCultureNames.Select(CultureInfo.GetCultureInfo).ToList();
+    List<CultureInfo> cultures = [.. supportedCultureNames.Select(CultureInfo.GetCultureInfo)];
     string defaultName = config.GetValue<string>("Localization:Culture") ?? cultures.First().Name;
     opts.SupportedCultures = cultures;
     opts.SupportedUICultures = cultures;
@@ -80,10 +77,12 @@ if (check.ResourceNotFound)
     LogMissingBannerSeparator(log, culture.Name);
 }
 
+
+PeopleService service = new(client, config, xr, log, serviceLocalizer);
 ConsoleUi ui = new(config, service, log, localizer, valLocalizer);
 await ui.RunAsync();
 
-static partial class Program
+internal static partial class Program
 {
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
                    Message = "[culture] Resource 'BannerSeparator' not found for {Culture}")]

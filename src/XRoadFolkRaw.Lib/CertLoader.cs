@@ -1,5 +1,4 @@
 using System.Security.Cryptography.X509Certificates;
-using XRoad.Config;
 
 namespace XRoadFolkRaw.Lib
 {

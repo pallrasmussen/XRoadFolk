@@ -1,11 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
-using XRoad.Config;
 
 namespace XRoadFolkRaw.Lib
 {
-    
+
     public sealed partial class ConfigurationLoader
     {
         public static class Messages
@@ -37,7 +36,7 @@ namespace XRoadFolkRaw.Lib
             public const string XRoadClientSubsystemLog = nameof(XRoadClientSubsystemLog);
             public const string XRoadServiceSubsystemLog = nameof(XRoadServiceSubsystemLog);
         }
-    
+
         public (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log, IStringLocalizer<ConfigurationLoader> loc)
         {
             ArgumentNullException.ThrowIfNull(log);
@@ -47,9 +46,9 @@ namespace XRoadFolkRaw.Lib
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables()
                 .Build();
-    
+
             XRoadSettings xr = config.GetSection("XRoad").Get<XRoadSettings>() ?? new();
-    
+
             string? envBase = Environment.GetEnvironmentVariable("XR_BASE_URL");
             string? envUser = Environment.GetEnvironmentVariable("XR_USER");
             string? envPass = Environment.GetEnvironmentVariable("XR_PASSWORD");
@@ -57,19 +56,19 @@ namespace XRoadFolkRaw.Lib
             {
                 xr.BaseUrl = envBase.Trim();
             }
-    
+
             if (!string.IsNullOrWhiteSpace(envUser))
             {
                 xr.Auth ??= new AuthSettings();
                 xr.Auth.Username = envUser.Trim();
             }
-    
+
             if (!string.IsNullOrWhiteSpace(envPass))
             {
                 xr.Auth ??= new AuthSettings();
                 xr.Auth.Password = envPass;
             }
-    
+
             List<string> errs = [];
             void Req(bool ok, string key, params object[] args)
             {
@@ -78,47 +77,47 @@ namespace XRoadFolkRaw.Lib
                     errs.Add(loc[key, args]);
                 }
             }
-    
+
             Req(!string.IsNullOrWhiteSpace(xr.BaseUrl), Messages.XRoadBaseUrlMissing);
             if (!string.IsNullOrWhiteSpace(xr.BaseUrl) && !Uri.TryCreate(xr.BaseUrl, UriKind.Absolute, out _))
             {
                 errs.Add(loc[Messages.XRoadBaseUrlInvalidUri, xr.BaseUrl]);
             }
-    
+
             Req(xr.Headers != null && !string.IsNullOrWhiteSpace(xr.Headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
-    
+
             Req(xr.Client != null, Messages.XRoadClientSectionMissing);
             Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
             Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberClass), Messages.XRoadClientMemberClassMissing);
             Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberCode), Messages.XRoadClientMemberCodeMissing);
             Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
-    
+
             Req(xr.Service != null, Messages.XRoadServiceSectionMissing);
             Req(!string.IsNullOrWhiteSpace(xr.Service.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
             Req(!string.IsNullOrWhiteSpace(xr.Service.MemberClass), Messages.XRoadServiceMemberClassMissing);
             Req(!string.IsNullOrWhiteSpace(xr.Service.MemberCode), Messages.XRoadServiceMemberCodeMissing);
             Req(!string.IsNullOrWhiteSpace(xr.Service.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
-    
+
             Req(xr.Auth != null && !string.IsNullOrWhiteSpace(xr.Auth.UserId), Messages.XRoadAuthUserIdMissing);
-    
+
             string tokenMode = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim().ToLowerInvariant();
             if (tokenMode is not "request" and not "header")
             {
                 errs.Add(loc[Messages.XRoadTokenInsertModeInvalid]);
             }
-    
+
             string gpPath = config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
             string personPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
             if (!File.Exists(gpPath))
             {
                 errs.Add(loc[Messages.OperationsGetPeoplePublicInfoXmlPathNotFound, gpPath]);
             }
-    
+
             if (!File.Exists(personPath))
             {
                 errs.Add(loc[Messages.OperationsGetPersonXmlPathNotFound, personPath]);
             }
-    
+
             string? pfx = xr.Certificate?.PfxPath;
             string? pemCert = xr.Certificate?.PemCertPath;
             string? pemKey = xr.Certificate?.PemKeyPath;
@@ -128,12 +127,12 @@ namespace XRoadFolkRaw.Lib
             {
                 errs.Add(loc[Messages.ConfigureClientCertificate]);
             }
-    
+
             if (pfx != null && !File.Exists(pfx))
             {
                 errs.Add(loc[Messages.PfxFileNotFound, pfx]);
             }
-    
+
             if (hasPem)
             {
                 if (string.IsNullOrWhiteSpace(pemCert) || string.IsNullOrWhiteSpace(pemKey))
@@ -146,14 +145,14 @@ namespace XRoadFolkRaw.Lib
                     {
                         errs.Add(loc[Messages.PemCertFileNotFound, pemCert]);
                     }
-    
+
                     if (pemKey != null && !File.Exists(pemKey))
                     {
                         errs.Add(loc[Messages.PemKeyFileNotFound, pemKey]);
                     }
                 }
             }
-    
+
             if (errs.Count > 0)
             {
                 ConfigSanityCheckFailed(log);
@@ -163,22 +162,22 @@ namespace XRoadFolkRaw.Lib
                 }
                 throw new InvalidOperationException(loc[Messages.ConfigSanityCheckFailedException]);
             }
-    
+
             ClientSubsystem(log, $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
             ServiceSubsystem(log, $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
-    
+
             return (config, xr);
         }
-    
+
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Config sanity check failed:")]
         static partial void ConfigSanityCheckFailed(ILogger logger);
-    
+
         [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = " - {Error}")]
         static partial void ConfigSanityCheckError(ILogger logger, string error);
-    
+
         [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "X-Road client:  SUBSYSTEM:{Client}")]
         static partial void ClientSubsystem(ILogger logger, string client);
-    
+
         [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "X-Road service: SUBSYSTEM:{Service}")]
         static partial void ServiceSubsystem(ILogger logger, string service);
     }

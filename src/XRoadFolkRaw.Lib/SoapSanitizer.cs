@@ -2,18 +2,18 @@ using System.Text.RegularExpressions;
 
 namespace XRoadFolkRaw.Lib
 {
-    
+
     public static partial class SoapSanitizer
     {
         [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex UserRegex();
-    
+
         [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex PassRegex();
-    
+
         [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex TokenRegex();
-    
+
         public static string Scrub(string xml, bool maskTokens = true)
         {
             ArgumentNullException.ThrowIfNull(xml);
@@ -26,15 +26,15 @@ namespace XRoadFolkRaw.Lib
         {
             return string.IsNullOrEmpty(s) ? s : new string('*', 8);
         }
-    
+
         private static string MaskToken(string s)
         {
             if (string.IsNullOrEmpty(s))
             {
                 return s;
             }
-    
-            string head = s.Length <= 6 ? s : s.Substring(0, 6);
+
+            string head = s.Length <= 6 ? s : s[..6];
             return head + "...(masked)";
         }
     }
