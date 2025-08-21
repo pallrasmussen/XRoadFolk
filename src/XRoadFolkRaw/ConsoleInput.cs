@@ -5,13 +5,15 @@ namespace XRoadFolkRaw
 {
     internal static class ConsoleInput
     {
+        internal static Func<ConsoleKeyInfo> ReadKey { get; set; } = () => Console.ReadKey(intercept: true);
+
         public static string? ReadLineOrCtrlQ(out bool quit)
         {
             StringBuilder buf = new();
             quit = false;
             while (true)
             {
-                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+                ConsoleKeyInfo key = ReadKey();
                 if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.Q)
                 {
                     Console.WriteLine();
@@ -47,7 +49,7 @@ namespace XRoadFolkRaw
             quit = false;
             while (true)
             {
-                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+                ConsoleKeyInfo key = ReadKey();
                 if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.Q)
                 {
                     Console.WriteLine();
