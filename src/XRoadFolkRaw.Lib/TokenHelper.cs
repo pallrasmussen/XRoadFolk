@@ -3,7 +3,7 @@ using System.Xml.Linq;
 
 namespace XRoadFolkRaw.Lib;
 
-public sealed class FolkTokenProviderRaw
+public sealed class FolkTokenProviderRaw : IDisposable
 {
     private readonly FolkRawClient _client;
     private readonly TimeSpan _skew;
@@ -107,5 +107,10 @@ public sealed class FolkTokenProviderRaw
     private bool NeedsRefresh()
     {
         return string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow.Add(_skew) >= _expiresUtc;
+    }
+
+    public void Dispose()
+    {
+        _gate.Dispose();
     }
 }
