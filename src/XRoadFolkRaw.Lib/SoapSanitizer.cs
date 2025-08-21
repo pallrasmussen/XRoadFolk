@@ -2,17 +2,23 @@ using System.Text.RegularExpressions;
 
 namespace XRoadFolkRaw.Lib;
 
-public static class SoapSanitizer
+public static partial class SoapSanitizer
 {
-    private static readonly Regex UserRx = new("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-    private static readonly Regex PassRx = new("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-    private static readonly Regex TokenRx = new("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+    [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex UserRegex();
+
+    [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex PassRegex();
+
+    [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex TokenRegex();
+
     public static string Scrub(string xml, bool maskTokens = true)
     {
         ArgumentNullException.ThrowIfNull(xml);
-        xml = UserRx.Replace(xml, m => $"<username>{Mask(m.Groups[1].Value)}</username>");
-        xml = PassRx.Replace(xml, m => $"<password>{Mask(m.Groups[1].Value)}</password>");
-        xml = TokenRx.Replace(xml, m => maskTokens ? $"<token>{MaskToken(m.Groups[1].Value)}</token>" : $"<token>{m.Groups[1].Value}</token>");
+        xml = UserRegex().Replace(xml, m => $"<username>{Mask(m.Groups[1].Value)}</username>");
+        xml = PassRegex().Replace(xml, m => $"<password>{Mask(m.Groups[1].Value)}</password>");
+        xml = TokenRegex().Replace(xml, m => maskTokens ? $"<token>{MaskToken(m.Groups[1].Value)}</token>" : $"<token>{m.Groups[1].Value}</token>");
         return xml;
     }
     private static string Mask(string s)
