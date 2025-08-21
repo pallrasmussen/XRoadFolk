@@ -8,16 +8,24 @@ namespace XRoadFolkRaw.Lib.Logging
     /// Extension methods to safely log SOAP/XML by sanitizing secrets first.
     /// Drop-in: call logger.SafeSoapDebug(xml) instead of logger.LogDebug(xml).
     /// </summary>
-    public static class SafeSoapLogger
+    public static partial class SafeSoapLogger
     {
         // EventIds to make logs greppable in prod
         public static readonly EventId SoapRequestEvent = new(41001, "SoapRequest");
         public static readonly EventId SoapResponseEvent = new(41002, "SoapResponse");
         public static readonly EventId SoapGeneralEvent = new(41000, "Soap");
 
-        private static readonly Regex Base64Regex = new(@"^[A-Za-z0-9+/=]+$", RegexOptions.Compiled);
-        private static readonly Regex HexRegex = new(@"^[A-Fa-f0-9]+$", RegexOptions.Compiled);
-        private static readonly Regex NumberRegex = new(@"^\d[\d\- ]+$", RegexOptions.Compiled);
+        [GeneratedRegex(@"^[A-Za-z0-9+/=]+$", RegexOptions.Compiled)]
+        private static partial Regex Base64Regex();
+
+        [GeneratedRegex(@"^[A-Fa-f0-9]+$", RegexOptions.Compiled)]
+        private static partial Regex HexRegex();
+
+        [GeneratedRegex(@"^\d[\d\- ]+$", RegexOptions.Compiled)]
+        private static partial Regex NumberRegex();
+
+        [GeneratedRegex(@"(\b(?:password|pwd|token|apikey|apiKey)\s*=\s*['""])([^'""]+)(['""])", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        private static partial Regex AttributeRegex();
 
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
@@ -147,9 +155,7 @@ namespace XRoadFolkRaw.Lib.Logging
                 }
 
                 // redact attribute values that look sensitive
-                Regex attrRe = new(@"(\b(?:password|pwd|token|apikey|apiKey)\s*=\s*[""'])([^""']+)([""'])",
-                                       RegexOptions.IgnoreCase | RegexOptions.Singleline);
-                s = attrRe.Replace(s, m => m.Groups[1].Value + Mask(m.Groups[2].Value) + m.Groups[3].Value);
+                s = AttributeRegex().Replace(s, m => m.Groups[1].Value + Mask(m.Groups[2].Value) + m.Groups[3].Value);
 
                 return s;
             }
@@ -162,17 +168,17 @@ namespace XRoadFolkRaw.Lib.Logging
                 return false;
             }
             // crude heuristic: longish base64 / hex-ish / number-ish strings
-            if (value.Length >= 8 && Base64Regex.IsMatch(value))
+            if (value.Length >= 8 && Base64Regex().IsMatch(value))
             {
                 return true; // base64-like
             }
 
-            if (value.Length >= 8 && HexRegex.IsMatch(value))
+            if (value.Length >= 8 && HexRegex().IsMatch(value))
             {
                 return true;   // hex-like
             }
 
-            if (value.Length >= 6 && NumberRegex.IsMatch(value))
+            if (value.Length >= 6 && NumberRegex().IsMatch(value))
             {
                 return true;     // number-like
             }
