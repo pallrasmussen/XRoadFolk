@@ -15,27 +15,27 @@ namespace XRoadFolkRaw.Lib
 
             if (!string.IsNullOrWhiteSpace(envPfx))
             {
-                var pfxPath = envPfx;
+                string pfxPath = envPfx;
                 return LoadFromPfx(pfxPath, envPwd ?? cfg.PfxPassword);
             }
 
             if (!string.IsNullOrWhiteSpace(envPemC) && !string.IsNullOrWhiteSpace(envPemK))
             {
-                var pemCertPath = envPemC;
-                var pemKeyPath = envPemK;
+                string pemCertPath = envPemC;
+                string pemKeyPath = envPemK;
                 return LoadFromPem(pemCertPath, pemKeyPath);
             }
 
             if (!string.IsNullOrWhiteSpace(cfg.PfxPath))
             {
-                var pfxPath = cfg.PfxPath;
+                string pfxPath = cfg.PfxPath;
                 return LoadFromPfx(pfxPath, cfg.PfxPassword);
             }
 
             if (!string.IsNullOrWhiteSpace(cfg.PemCertPath) && !string.IsNullOrWhiteSpace(cfg.PemKeyPath))
             {
-                var pemCertPath = cfg.PemCertPath;
-                var pemKeyPath = cfg.PemKeyPath;
+                string pemCertPath = cfg.PemCertPath;
+                string pemKeyPath = cfg.PemKeyPath;
                 return LoadFromPem(pemCertPath, pemKeyPath);
             }
 
