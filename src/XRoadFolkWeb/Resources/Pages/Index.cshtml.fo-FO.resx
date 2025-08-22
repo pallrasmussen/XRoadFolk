@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="Title"><value>X-Road Folk Leiting</value></data>
+  <data name="SearchCriteria"><value>Leitingarkrøv</value></data>
+  <data name="ProvideCriteria"><value>Skriva P-tal ella Fornavn + Eftirnavn + Føðingardag.</value></data>
+  <data name="SSN"><value>P-tal</value></data>
+  <data name="OrSeparator"><value>— ella —</value></data>
+  <data name="FirstName"><value>Fornavn</value></data>
+  <data name="LastName"><value>Eftirnavn</value></data>
+  <data name="DateOfBirthPrompt"><value>Føðingardagur (yyyy-MM-dd ella dd-MM-yyyy)</value></data>
+  <data name="Search"><value>Leita</value></data>
+  <data name="InputErrors"><value>Inntøppufeilir:</value></data>
+  <data name="Matches"><value>Niðurstøður</value></data>
+  <data name="PublicId"><value>Alment ID</value></data>
+  <data name="First"><value>Fornavn</value></data>
+  <data name="Last"><value>Eftirnavn</value></data>
+  <data name="DOB"><value>FD</value></data>
+  <data name="Details"><value>Upplýsingar</value></data>
+  <data name="PersonDetails"><value>Persónsupplýsingar</value></data>
+</root>

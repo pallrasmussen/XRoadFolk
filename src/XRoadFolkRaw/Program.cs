@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
+using XRoadFolkRaw.Lib.Logging;
 
 // Top-level program
 
@@ -41,12 +42,43 @@ LogCertificateDetails(log, cert.Subject, cert.Thumbprint);
 // Create raw client
 bool verbose = config.GetValue("Logging:Verbose", false);
 bool maskTokens = config.GetValue("Logging:MaskTokens", true);
+
+// Ensure SafeSoapLogger uses the same sanitizer everywhere
+SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
+
 int httpAttempts = config.GetValue("Retry:Http:Attempts", 3);
 int httpBaseDelay = config.GetValue("Retry:Http:BaseDelayMs", 200);
 int httpJitter = config.GetValue("Retry:Http:JitterMs", 250);
 
+// Build a minimal service provider for IHttpClientFactory to supply a configured HttpClient
+ServiceCollection httpServices = new();
+httpServices.AddHttpClient("XRoadFolk", c =>
+{
+    c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
+    c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    HttpClientHandler handler = new();
+    if (cert is not null)
+    {
+        _ = handler.ClientCertificates.Add(cert);
+    }
+
+    // Optional: allow opt-in bypass for dev/local only
+    bool bypass = config.GetValue("Http:BypassServerCertificateValidation", true);
+    if (bypass)
+    {
+        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+    }
+    return handler;
+});
+using ServiceProvider httpProvider = httpServices.BuildServiceProvider();
+System.Net.Http.IHttpClientFactory httpFactory = httpProvider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+System.Net.Http.HttpClient httpClient = httpFactory.CreateClient("XRoadFolk");
+
 using FolkRawClient client = new(
-    xr.BaseUrl, cert, TimeSpan.FromSeconds(xr.Http.TimeoutSeconds),
+    httpClient,
     logger: log, verbose: verbose, maskTokens: maskTokens,
     retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
 

@@ -1,0 +1,121 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+/* Brand tokens (Bootstrap 5.3+ honors these custom properties) */
+:root,
+[data-bs-theme="brand"] {
+  /* Colors */
+  --bs-primary: #005eb8;
+  --bs-secondary: #6c757d;
+  --bs-success: #2e8540;
+  --bs-info: #0ea5b5;
+  --bs-warning: #f59e0b;
+  --bs-danger: #d92d20;
+  --bs-light: #f8f9fa;
+  --bs-dark: #111827;
+
+  /* Base text + links */
+  --bs-body-color: #1f2937; /* slate-800 */
+  --bs-link-color: var(--bs-primary);
+  --bs-link-hover-color: #004a90;
+
+  /* Radius + shadows */
+  --bs-border-radius: .6rem;
+  --bs-border-radius-sm: .4rem;
+  --bs-border-radius-lg: .8rem;
+
+  /* Typography */
+  --bs-body-font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+  --bs-body-font-size: 1rem;
+  --bs-body-line-height: 1.6;
+}
+
+/* Optional: import Inter font (ensure allowed by your CSP/policy) */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
+/* Buttons (adjust tokens for primary button) */
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #004a90;
+  --bs-btn-hover-border-color: #004686;
+  --bs-btn-active-bg: #004686;
+  --bs-btn-active-border-color: #004279;
+  --bs-btn-focus-shadow-rgb: 0, 94, 184;
+}
+
+/* Card polish */
+.card { border: 1px solid rgba(0,0,0,.06); box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.05); }
+/* Table polish */
+.table > :not(caption) > * > * { padding-block: .6rem; }
+/* Navbar brand style */
+.navbar-brand { font-weight: 700; letter-spacing: .2px; }
+/* Utility: subdued separators */
+.text-muted-sep { color: #6b7280; /* slate-500 */ }
+/* Dark theme variables */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #0b1220;
+  --bs-body-color: #e5e7eb;
+  --bs-border-color: #1f2937;
+
+  --bs-primary: #60a5fa;            /* lighter blue for dark bg */
+  --bs-link-color: #60a5fa;
+  --bs-link-hover-color: #93c5fd;
+
+  --bs-card-bg: #0f172a;            /* card surfaces */
+  --bs-card-color: var(--bs-body-color);
+  --bs-card-border-color: var(--bs-border-color);
+
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--bs-body-color);
+  --bs-table-border-color: #2a3446;
+  --bs-table-striped-bg: rgba(255,255,255,.03);
+  --bs-table-striped-color: var(--bs-body-color);
+  --bs-table-hover-bg: rgba(255,255,255,.06);
+  --bs-table-hover-color: var(--bs-body-color);
+}
+
+/* Optional: subtle borders/shadows adapt in dark mode */
+[data-bs-theme="brand-dark"] .card {
+  border: 1px solid var(--bs-card-border-color);
+  box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.3);
+}
+
+[data-bs-theme="brand-dark"] .btn-outline-secondary {
+  --bs-btn-color: #cbd5e1;
+  --bs-btn-border-color: #3b4253;
+  --bs-btn-hover-bg: #1f2937;
+  --bs-btn-hover-border-color: #50586b;
+}
+
+/* Inputs in both themes */
+.form-control,
+.form-select { border-color: #cbd5e1; }
+[data-bs-theme="brand-dark"] .form-control,
+[data-bs-theme="brand-dark"] .form-select { border-color: #3b4253; }
+[data-bs-theme="brand-dark"] .form-control:focus,
+[data-bs-theme="brand-dark"] .form-select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 .25rem rgba(96,165,250,.2);
+}

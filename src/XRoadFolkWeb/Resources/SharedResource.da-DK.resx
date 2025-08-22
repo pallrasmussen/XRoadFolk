@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppName"><value>X-Road Folk</value></data>
+  <data name="Nav_Home"><value>Hjem</value></data>
+  <data name="Theme"><value>Tema</value></data>
+  <data name="ToggleTheme"><value>Skift tema</value></data>
+  <data name="BuiltWith"><value>Bygget med ASP.NET Core + Bootstrap</value></data>
+</root>

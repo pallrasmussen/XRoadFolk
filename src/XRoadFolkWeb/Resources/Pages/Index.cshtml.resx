@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+
+  <data name="Title"><value>X-Road Folk Search</value></data>
+  <data name="SearchCriteria"><value>Search criteria</value></data>
+  <data name="ProvideCriteria"><value>Provide SSN or First name + Last name + Date of birth.</value></data>
+  <data name="SSN"><value>SSN</value></data>
+  <data name="OrSeparator"><value>— or —</value></data>
+  <data name="FirstName"><value>First name</value></data>
+  <data name="LastName"><value>Last name</value></data>
+  <data name="DateOfBirthPrompt"><value>Date of birth (yyyy-MM-dd or dd-MM-yyyy)</value></data>
+  <data name="Search"><value>Search</value></data>
+  <data name="InputErrors"><value>Input errors:</value></data>
+  <data name="Matches"><value>Matches</value></data>
+  <data name="PublicId"><value>PublicId</value></data>
+  <data name="First"><value>First</value></data>
+  <data name="Last"><value>Last</value></data>
+  <data name="DOB"><value>DOB</value></data>
+  <data name="Details"><value>Details</value></data>
+  <data name="PersonDetails"><value>Person Details</value></data>
+</root>
