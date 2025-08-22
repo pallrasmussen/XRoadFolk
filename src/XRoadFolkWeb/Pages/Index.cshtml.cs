@@ -7,10 +7,11 @@ using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkWeb.Pages
 {
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc) : PageModel
+    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
+        private readonly IStringLocalizer<IndexModel> _loc = loc;
 
         [BindProperty] public string? Ssn { get; set; }
         [BindProperty] public string? FirstName { get; set; }
@@ -36,7 +37,7 @@ namespace XRoadFolkWeb.Pages
                     string? last = PersonDetails
                         ?.FirstOrDefault(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
                     SelectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
-                        ? $" ({string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)) )})"
+                        ? _loc["SelectedNameSuffixFormat", string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                         : string.Empty;
                 }
                 catch (Exception ex)
