@@ -10,4 +10,8 @@
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/**/*.resx" />
+  </ItemGroup>
+
 </Project>
