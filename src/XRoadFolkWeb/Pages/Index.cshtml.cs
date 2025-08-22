@@ -19,17 +19,25 @@ namespace XRoadFolkWeb.Pages
 
         public List<PersonRow> Results { get; private set; } = [];
         public List<(string Key, string Value)>? PersonDetails { get; private set; }
+        public string SelectedNameSuffix { get; private set; } = string.Empty;
         public List<string> Errors { get; private set; } = [];
 
         public async Task OnGetAsync(string? publicId = null)
         {
             if (!string.IsNullOrWhiteSpace(publicId))
             {
-                // Drill-down details
                 try
                 {
                     string xml = await _service.GetPersonAsync(publicId);
                     PersonDetails = FlattenResponse(xml);
+
+                    string? first = PersonDetails
+                        ?.FirstOrDefault(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
+                    string? last = PersonDetails
+                        ?.FirstOrDefault(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
+                    SelectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
+                        ? $" ({string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)) )})"
+                        : string.Empty;
                 }
                 catch (Exception ex)
                 {
@@ -51,6 +59,7 @@ namespace XRoadFolkWeb.Pages
             {
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
                 Results = ParsePeopleList(xml);
+                SelectedNameSuffix = string.Empty;
             }
             catch (Exception ex)
             {
@@ -66,6 +75,7 @@ namespace XRoadFolkWeb.Pages
             Results = [];
             PersonDetails = null;
             Errors = [];
+            SelectedNameSuffix = string.Empty;
 
             // PRG: remove ?handler=Clear and avoid stale ModelState
             return RedirectToPage();
