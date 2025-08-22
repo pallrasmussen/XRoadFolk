@@ -91,6 +91,12 @@ namespace XRoadFolkRaw
                     continue;
                 }
 
+                // Print all pairs for each PersonPublicInfo
+                PrintGetPeoplePublicInfoAllPairs(listDoc, _log, _loc);
+
+                // Print summary only for each PersonPublicInfo
+                PrintGetPeoplePublicInfoSummary(listDoc, _log, _loc);
+
                 int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
                 int count = 0;
                 foreach (XElement p in people)
@@ -234,6 +240,75 @@ namespace XRoadFolkRaw
             foreach (XElement child in resp.Elements())
             {
                 PrintAllPairs(child);
+            }
+        }
+
+        private static void PrintGetPeoplePublicInfoAllPairs(XDocument doc, ILogger log, IStringLocalizer loc)
+        {
+            PrintSeparator(loc["GetPeoplePublicInfoAllPairs"]);
+            // Find all PersonPublicInfo elements in the document
+            var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+            if (people.Count == 0)
+            {
+                log.LogWarning("No PersonPublicInfo elements found in response.");
+                return;
+            }
+            int idx = 0;
+            foreach (var person in people)
+            {
+                PrintSeparator($"{loc["Person"]} #{++idx}");
+                PrintAllPairs(person);
+            }
+        }
+
+        private static void PrintGetPeoplePublicInfoSummary(XDocument doc, ILogger log, IStringLocalizer loc)
+        {
+            PrintSeparator(loc["GetPeoplePublicInfoSummary"]);
+            var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+            if (people.Count == 0)
+            {
+                log.LogWarning("No PersonPublicInfo elements found in response.");
+                return;
+            }
+
+            // Print header
+            Console.WriteLine($"{loc["PublicId"],-18} {loc["SSN"],-14} {loc["FirstName"],-16} {loc["LastName"],-16} {loc["DateOfBirth"],-14}");
+            Console.WriteLine(new string('-', 78));
+
+            foreach (var person in people)
+            {
+                string? publicId = person.Element(person.Name.Namespace + "PublicId")?.Value?.Trim()
+                                ?? person.Element(person.Name.Namespace + "PersonId")?.Value?.Trim();
+
+                // SSN is in the request, not in the response, so may be missing
+                string? ssn = person.Element(person.Name.Namespace + "SSN")?.Value?.Trim();
+
+                // Names are nested under <Names><Name> with <Type>FirstName</Type> and <Type>LastName</Type>
+                string? first = person
+                    .Element(person.Name.Namespace + "Names")?
+                    .Elements(person.Name.Namespace + "Name")
+                    .FirstOrDefault(n => n.Element(person.Name.Namespace + "Type")?.Value == "FirstName")?
+                    .Element(person.Name.Namespace + "Value")?.Value?.Trim();
+
+                string? last = person
+                    .Element(person.Name.Namespace + "Names")?
+                    .Elements(person.Name.Namespace + "Name")
+                    .FirstOrDefault(n => n.Element(person.Name.Namespace + "Type")?.Value == "LastName")?
+                    .Element(person.Name.Namespace + "Value")?.Value?.Trim();
+
+                // Date of birth is in the Created field of the OfficialName or FirstName, or in CivilStatusDate
+                string? dob = person
+                    .Element(person.Name.Namespace + "Names")?
+                    .Elements(person.Name.Namespace + "Name")
+                    .FirstOrDefault(n => n.Element(person.Name.Namespace + "Type")?.Value == "OfficialName")?
+                    .Element(person.Name.Namespace + "Created")?.Value?.Substring(0, 10);
+
+                if (string.IsNullOrWhiteSpace(dob))
+                {
+                    dob = person.Element(person.Name.Namespace + "CivilStatusDate")?.Value?.Substring(0, 10);
+                }
+
+                Console.WriteLine($"{publicId,-18} {ssn,-14} {first,-16} {last,-16} {dob,-14}");
             }
         }
 

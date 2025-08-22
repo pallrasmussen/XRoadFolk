@@ -62,18 +62,21 @@ SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
     string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
-    List<string> supported = [.. supportedFromConfig];
-    if (!supported.Contains("fo-FO", StringComparer.OrdinalIgnoreCase))
-    {
-        supported.Add("fo-FO");
-    }
+    var supported = supportedFromConfig.ToList();
+    if (!supported.Contains("fo-FO", StringComparer.OrdinalIgnoreCase)) supported.Add("fo-FO");
 
-    List<CultureInfo> cultures = [.. supported.Select(CultureInfo.GetCultureInfo)];
+    var cultures = supported.Select(CultureInfo.GetCultureInfo).ToList();
     opts.SupportedCultures = cultures;
     opts.SupportedUICultures = cultures;
-
-    // Default to Faroese
     opts.DefaultRequestCulture = new RequestCulture("fo-FO");
+
+    // Explicit provider order: cookie -> query -> Accept-Language
+    opts.RequestCultureProviders = new IRequestCultureProvider[]
+    {
+        new CookieRequestCultureProvider(),
+        new QueryStringRequestCultureProvider(),
+        new AcceptLanguageHeaderRequestCultureProvider()
+    };
 });
 
 // Register IHttpClientFactory + handler with client certificate
@@ -136,6 +139,9 @@ builder.Services.AddScoped(sp =>
 
 var app = builder.Build();
 
+// Redirect to HTTPS in dev so secure cookies work
+app.UseHttpsRedirection();
+
 // Localization middleware
 var locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
 app.UseRequestLocalization(locOpts);
@@ -156,10 +162,17 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
     ctx.Response.Cookies.Append(
         CookieRequestCultureProvider.DefaultCookieName,
         cookieValue,
-        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, Secure = true, SameSite = SameSiteMode.Lax });
+        new CookieOptions
+        {
+            Expires = DateTimeOffset.UtcNow.AddYears(1),
+            IsEssential = true,
+            Secure = ctx.Request.IsHttps, // allow in dev over HTTP
+            SameSite = SameSiteMode.Lax,
+            Path = "/"
+        });
 
     return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
-});   
+});
 
 app.MapRazorPages();
 

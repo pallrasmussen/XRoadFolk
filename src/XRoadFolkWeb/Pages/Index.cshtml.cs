@@ -50,23 +50,94 @@ namespace XRoadFolkWeb.Pages
             return Page();
         }
 
+        public IActionResult OnPostClear()
+        {
+            // Reset server-side state (not strictly needed with redirect, but harmless)
+            Ssn = FirstName = LastName = DateOfBirth = null;
+            Results = new();
+            PersonDetails = null;
+            Errors = new();
+
+            // PRG: remove ?handler=Clear and avoid stale ModelState
+            return RedirectToPage();
+        }
+
+        public IActionResult OnGetClear()
+        {
+            return RedirectToPage();
+        }
+
         private static List<PersonRow> ParsePeopleList(string xml)
         {
             List<PersonRow> rows = new();
             if (string.IsNullOrWhiteSpace(xml)) return rows;
 
             XDocument doc = XDocument.Parse(xml);
-            var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo");
+
+            // Collect people first (used for count/fallbacks)
+            var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+
+            // Optional: SSN may only appear in the request criteria; use as fallback if single result
+            string? requestSsn = doc
+                .Descendants().FirstOrDefault(e => e.Name.LocalName == "ListOfPersonPublicInfoCriteria")?
+                .Descendants().FirstOrDefault(e => e.Name.LocalName == "PersonPublicInfoCriteria")?
+                .Elements().FirstOrDefault(e => e.Name.LocalName == "SSN")?
+                .Value?.Trim();
+
             foreach (var p in people)
             {
-                string? Get(string ln) => p.Elements().FirstOrDefault(x => x.Name.LocalName == ln)?.Value?.Trim();
+                string? publicId = p.Elements().FirstOrDefault(x => x.Name.LocalName == "PublicId")?.Value?.Trim()
+                                ?? p.Elements().FirstOrDefault(x => x.Name.LocalName == "PersonId")?.Value?.Trim();
+
+                // Names are under Names/Name with Type and Value
+                var nameItems = p.Elements().FirstOrDefault(x => x.Name.LocalName == "Names")?
+                               .Elements().Where(x => x.Name.LocalName == "Name")
+                            ?? Enumerable.Empty<XElement>();
+
+                // FirstName(s): order by <Order>, join if multiple
+                var firstNames = nameItems
+                    .Where(n => string.Equals(
+                        n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
+                        "FirstName", StringComparison.OrdinalIgnoreCase))
+                    .Select(n => new
+                    {
+                        OrderText = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Order")?.Value,
+                        Value = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim()
+                    })
+                    .OrderBy(n => int.TryParse(n.OrderText, out var o) ? o : int.MaxValue)
+                    .Select(n => n.Value)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .ToList();
+
+                string? firstName = firstNames.Count > 0 ? string.Join(" ", firstNames) : null;
+
+                string? lastName = nameItems
+                    .Where(n => string.Equals(
+                        n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
+                        "LastName", StringComparison.OrdinalIgnoreCase))
+                    .Select(n => n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim())
+                    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+                // Date of birth is provided as CivilStatusDate with Born status
+                string? civilStatusDate = p.Elements().FirstOrDefault(x => x.Name.LocalName == "CivilStatusDate")?.Value?.Trim();
+                string? dateOfBirth = !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
+                    ? civilStatusDate[..10]
+                    : civilStatusDate;
+
+                // SSN usually not present in PersonPublicInfo; fallback to request SSN if single result
+                string? ssn = p.Elements().FirstOrDefault(x => x.Name.LocalName == "SSN")?.Value?.Trim();
+                if (string.IsNullOrWhiteSpace(ssn) && people.Count == 1 && !string.IsNullOrWhiteSpace(requestSsn))
+                {
+                    ssn = requestSsn;
+                }
+
                 rows.Add(new PersonRow
                 {
-                    PublicId = Get("PublicId") ?? Get("PersonId"),
-                    SSN = Get("SSN"),
-                    FirstName = Get("FirstName"),
-                    LastName = Get("LastName"),
-                    DateOfBirth = Get("DateOfBirth") ?? Get("BirthDate")
+                    PublicId = publicId,
+                    SSN = ssn,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    DateOfBirth = dateOfBirth
                 });
             }
             return rows;

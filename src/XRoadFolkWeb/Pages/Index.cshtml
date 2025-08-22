@@ -39,6 +39,7 @@
 
                     <div class="col-12 d-grid d-sm-flex gap-2 mt-2">
                         <button type="submit" class="btn btn-primary">@L["Search"]</button>
+                        <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@L["Clear"]</button>
                     </div>
                 </form>
 
@@ -59,6 +60,7 @@
     </div>
 
     <div class="col-12 col-lg-6">
+        @* Matches section (kept) *@
         @if (Model.Results?.Count > 0)
         {
             <div class="card shadow-sm mb-4">
@@ -100,15 +102,76 @@
             </div>
         }
 
+        @* Person Details section (always below Matches) *@
         @if (Model.PersonDetails is not null)
         {
-            <div class="card shadow-sm">
+            <div class="card shadow-sm mt-4">
                 <div class="card-body">
-                    <h5 class="card-title">@L["PersonDetails"]</h5>
-                    <pre class="mb-0" style="white-space: pre-wrap;">@foreach (var (k, v) in Model.PersonDetails){
-                    @: @k : "@v"
-}
-</pre>
+                    @{
+                        // Show FirstName/LastName from Results when a row is selected
+                        var qPublicId = Request.Query["publicId"].ToString();
+                        var selected = !string.IsNullOrWhiteSpace(qPublicId)
+                            ? Model.Results?.FirstOrDefault(r => string.Equals(r.PublicId, qPublicId, StringComparison.OrdinalIgnoreCase))
+                            : null;
+
+                        var nameSuffix = (selected is not null && (!string.IsNullOrWhiteSpace(selected.FirstName) || !string.IsNullOrWhiteSpace(selected.LastName)))
+                            ? $" ({string.Join(" ", new[] { selected.FirstName, selected.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)))})"
+                            : string.Empty;
+                    }
+
+                    <h5 class="card-title">@L["PersonDetails"]@nameSuffix</h5>
+
+                    @{
+                        var groups = Model.PersonDetails
+                            .GroupBy(p => p.Key.Contains('.') ? p.Key[..p.Key.IndexOf('.')] : p.Key)
+                            .OrderBy(g => g.Key)
+                            .ToList();
+                        var accId = "personDetailsAcc";
+                        var gIndex = 0;
+                    }
+
+                    <div class="accordion" id="@accId">
+                        @foreach (var grp in groups)
+                        {
+                            var headingId = $"pd-h-{gIndex}";
+                            var collapseId = $"pd-c-{gIndex}";
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="@headingId">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#@collapseId"
+                                            aria-expanded="false" aria-controls="@collapseId">
+                                        @grp.Key
+                                    </button>
+                                </h2>
+                                <div id="@collapseId" class="accordion-collapse collapse"
+                                     aria-labelledby="@headingId" data-bs-parent="#@accId">
+                                    <div class="accordion-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle mb-0">
+                                                <tbody>
+                                                @foreach (var (k, v) in grp.OrderBy(x => x.Key))
+                                                {
+                                                    var lastDot = k.LastIndexOf('.');
+                                                    var subKey = lastDot >= 0 ? k[(lastDot + 1)..] : k;
+                                                    var bracketPos = subKey.IndexOf('[');
+                                                    if (bracketPos >= 0) subKey = subKey[..bracketPos];
+
+                                                    <tr>
+                                                        <th class="text-muted fw-normal" style="width: 35%; word-break: break-word;">
+                                                            @subKey
+                                                        </th>
+                                                        <td style="word-break: break-word;">@v</td>
+                                                    </tr>
+                                                }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            gIndex++;
+                        }
+                    </div>
                 </div>
             </div>
         }

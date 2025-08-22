@@ -22,4 +22,5 @@
   <data name="DOB"><value>FD</value></data>
   <data name="Details"><value>Upplýsingar</value></data>
   <data name="PersonDetails"><value>Persónsupplýsingar</value></data>
+  <data name="Clear"><value>Hreinsa</value></data>
 </root>
