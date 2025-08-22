@@ -10,4 +10,7 @@
   <data name="Theme"><value>Tema</value></data>
   <data name="ToggleTheme"><value>Skift tema</value></data>
   <data name="BuiltWith"><value>Bygget med ASP.NET Core + Bootstrap</value></data>
+  <data name="Culture_en-US"><value>Engelsk</value></data>
+  <data name="Culture_fo-FO"><value>Færøsk</value></data>
+  <data name="Culture_da-DK"><value>Dansk</value></data>
 </root>
