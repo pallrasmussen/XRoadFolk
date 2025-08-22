@@ -1,20 +1,14 @@
 using System.Globalization;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc; // added
-using Microsoft.AspNetCore.Antiforgery; // NEW: for RequireAntiforgery()
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Logging
 builder.Logging.ClearProviders();
@@ -40,19 +34,22 @@ builder.Services
     .AddViewLocalization()
     .AddDataAnnotationsLocalization();
 
-// Build a tiny pre-provider to load X-Road settings using existing loader
-using var pre = new ServiceCollection()
-    .AddLogging(lb => lb.AddConsole().SetMinimumLevel(LogLevel.Information).AddFilter("Microsoft", LogLevel.Warning))
-    .AddLocalization(opts => opts.ResourcesPath = "Resources")
-    .BuildServiceProvider();
+// Register ConfigurationLoader
+builder.Services.AddSingleton<ConfigurationLoader>();
 
-var preLogger = pre.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadFolkWeb");
-var cfgLoc = pre.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
-var loader = new ConfigurationLoader();
-var (configRoot, xr) = loader.Load(preLogger, cfgLoc);
+// Register a factory for XRoadSettings that resolves dependencies from DI at runtime:
+IServiceCollection serviceCollection = builder.Services.AddSingleton(sp =>
+{
+    ConfigurationLoader loader = sp.GetRequiredService<ConfigurationLoader>();
+    ILogger preLogger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadFolkWeb");
+    IStringLocalizer<ConfigurationLoader> cfgLoc = sp.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
+    (IConfigurationRoot configRoot, XRoadSettings xr) = loader.Load(preLogger, cfgLoc);
 
-// Make the loaded configuration the app configuration for consistency
-builder.Configuration.AddConfiguration(configRoot);
+    // Make the loaded configuration available to the app
+    _ = builder.Configuration.AddConfiguration(configRoot);
+
+    return xr;
+});
 
 // Safe SOAP sanitization hook, same behavior as console app
 bool maskTokens = builder.Configuration.GetValue("Logging:MaskTokens", true);
@@ -62,10 +59,13 @@ SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
     string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
-    var supported = supportedFromConfig.ToList();
-    if (!supported.Contains("fo-FO", StringComparer.OrdinalIgnoreCase)) supported.Add("fo-FO");
+    List<string> supported = [.. supportedFromConfig];
+    if (!supported.Contains("fo-FO", StringComparer.OrdinalIgnoreCase))
+    {
+        supported.Add("fo-FO");
+    }
 
-    var cultures = supported.Select(CultureInfo.GetCultureInfo).ToList();
+    List<CultureInfo> cultures = [.. supported.Select(CultureInfo.GetCultureInfo)];
     opts.SupportedCultures = cultures;
     opts.SupportedUICultures = cultures;
     opts.DefaultRequestCulture = new RequestCulture("fo-FO");
@@ -79,16 +79,17 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
     };
 });
 
-// Register IHttpClientFactory + handler with client certificate
-builder.Services.AddHttpClient("XRoadFolk", c =>
+// Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)
+builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
 {
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
     c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
     c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
     c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/xml"));
 })
-.ConfigurePrimaryHttpMessageHandler(() =>
+.ConfigurePrimaryHttpMessageHandler(sp =>
 {
-    var handler = new SocketsHttpHandler
+    SocketsHttpHandler handler = new()
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
@@ -96,14 +97,16 @@ builder.Services.AddHttpClient("XRoadFolk", c =>
         AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
     };
 
-    var cert = CertLoader.LoadFromConfig(xr.Certificate);
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+    System.Security.Cryptography.X509Certificates.X509Certificate2? cert = CertLoader.LoadFromConfig(xr.Certificate);
     if (cert is not null)
     {
-        handler.SslOptions.ClientCertificates ??= new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
-        handler.SslOptions.ClientCertificates.Add(cert);
+        handler.SslOptions.ClientCertificates ??= [];
+        _ = handler.SslOptions.ClientCertificates.Add(cert);
     }
 
-    bool bypass = builder.Configuration.GetValue("Http:BypassServerCertificateValidation", true);
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+    bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", true);
     if (bypass)
     {
         handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
@@ -111,12 +114,12 @@ builder.Services.AddHttpClient("XRoadFolk", c =>
     return handler;
 });
 
-// FolkRawClient via factory (reuses your HttpClient-aware constructor)
-builder.Services.AddScoped<FolkRawClient>(sp =>
+// FolkRawClient via factory
+builder.Services.AddScoped(sp =>
 {
-    var http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("XRoadFolk");
-    var logger = sp.GetRequiredService<ILogger<FolkRawClient>>();
-    var cfg = sp.GetRequiredService<IConfiguration>();
+    HttpClient http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("XRoadFolk");
+    ILogger<FolkRawClient> logger = sp.GetRequiredService<ILogger<FolkRawClient>>();
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
     return new FolkRawClient(
         httpClient: http,
         logger: logger,
@@ -127,23 +130,25 @@ builder.Services.AddScoped<FolkRawClient>(sp =>
         retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
-// PeopleService (reuses existing implementation)
+// PeopleService (resolve XRoadSettings from DI, not a captured local)
 builder.Services.AddScoped(sp =>
 {
-    var client = sp.GetRequiredService<FolkRawClient>();
-    var cfg = sp.GetRequiredService<IConfiguration>();
-    var logger = sp.GetRequiredService<ILogger<PeopleService>>();
-    var loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+    FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+    ILogger<PeopleService> logger = sp.GetRequiredService<ILogger<PeopleService>>();
+    IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
     return new PeopleService(client, cfg, xr, logger, loc);
 });
 
-var app = builder.Build();
+// Build AFTER all service registrations
+WebApplication app = builder.Build();
 
 // Redirect to HTTPS in dev so secure cookies work
 app.UseHttpsRedirection();
 
 // Localization middleware
-var locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
 app.UseRequestLocalization(locOpts);
 
 // Static files + routing + pages
@@ -158,7 +163,7 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
 {
     await af.ValidateRequestAsync(ctx);
 
-    var cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
+    string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
     ctx.Response.Cookies.Append(
         CookieRequestCultureProvider.DefaultCookieName,
         cookieValue,
@@ -177,7 +182,7 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
 app.MapRazorPages();
 
 // Culture defaults for threads (optional)
-var culture = locOpts.DefaultRequestCulture.Culture;
+CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
