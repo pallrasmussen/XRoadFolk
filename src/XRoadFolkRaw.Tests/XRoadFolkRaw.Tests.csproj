@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
+    <ProjectReference Include="..\XRoadFolkWeb\XRoadFolkWeb.csproj" />
   </ItemGroup>
 </Project>
