@@ -6,7 +6,13 @@ namespace XRoadFolkRaw.Lib
 {
     public partial class InputValidation
     {
-        private static readonly string[] DobFormats = ["yyyy-MM-dd", "dd-MM-yyyy"];
+        private static readonly string[] DobFormats = [
+            "yyyy-MM-dd",
+            "dd-MM-yyyy",
+            "yyyy/MM/dd",
+            "dd.MM.yyyy",
+            "MM/dd/yyyy"
+        ];
 
         [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
         private static partial Regex NameRegex();
@@ -151,12 +157,23 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            if (!DateTimeOffset.TryParseExact(
+            bool ok = DateTimeOffset.TryParseExact(
+                s,
+                DobFormats,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out DateTimeOffset dt);
+
+            if (!ok)
+            {
+                ok = DateTimeOffset.TryParse(
                     s,
-                    DobFormats,
-                    CultureInfo.InvariantCulture,
+                    CultureInfo.CurrentCulture,
                     DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                    out DateTimeOffset dt))
+                    out dt);
+            }
+
+            if (!ok)
             {
                 return false;
             }
