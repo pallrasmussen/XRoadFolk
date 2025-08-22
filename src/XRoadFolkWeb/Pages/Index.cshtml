@@ -1,52 +1,52 @@
 @page
 @model XRoadFolkWeb.Pages.IndexModel
-@inject Microsoft.Extensions.Localization.IStringLocalizer<XRoadFolkWeb.SharedResource> SR
+@inject IViewLocalizer Localizer
 @{
-    ViewData["Title"] = SR["Title"];
+    ViewData["Title"] = Localizer["Title"];
 }
 
-<h1 class="mb-4">@SR["Title"]</h1>
+<h1 class="mb-4">@Localizer["Title"]</h1>
 
 <div class="row g-4">
     <div class="col-12 col-lg-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5 class="card-title">@SR["SearchCriteria"]</h5>
-                <p class="text-muted mb-3">@SR["ProvideCriteria"]</p>
+                <h5 class="card-title">@Localizer["SearchCriteria"]</h5>
+                <p class="text-muted mb-3">@Localizer["ProvideCriteria"]</p>
 
                 <form method="post" class="row gy-3">
                     <div class="col-12">
-                        <label for="Ssn" class="form-label">@SR["SSN"]</label>
+                        <label for="Ssn" class="form-label">@Localizer["SSN"]</label>
                         <input id="Ssn" name="Ssn" value="@Model.Ssn" class="form-control" />
                     </div>
 
                     <div class="col-12">
-                        <div class="text-center text-muted-sep">@SR["OrSeparator"]</div>
+                        <div class="text-center text-muted-sep">@Localizer["OrSeparator"]</div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="FirstName" class="form-label">@SR["FirstName"]</label>
+                        <label for="FirstName" class="form-label">@Localizer["FirstName"]</label>
                         <input id="FirstName" name="FirstName" value="@Model.FirstName" class="form-control" />
                     </div>
                     <div class="col-md-6">
-                        <label for="LastName" class="form-label">@SR["LastName"]</label>
+                        <label for="LastName" class="form-label">@Localizer["LastName"]</label>
                         <input id="LastName" name="LastName" value="@Model.LastName" class="form-control" />
                     </div>
                     <div class="col-12">
-                        <label for="DateOfBirth" class="form-label">@SR["DateOfBirthPrompt"]</label>
+                        <label for="DateOfBirth" class="form-label">@Localizer["DateOfBirthPrompt"]</label>
                         <input id="DateOfBirth" name="DateOfBirth" value="@Model.DateOfBirth" class="form-control" />
                     </div>
 
                     <div class="col-12 d-grid d-sm-flex gap-2 mt-2">
-                        <button type="submit" class="btn btn-primary">@SR["Search"]</button>
-                        <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@SR["Clear"]</button>
+                        <button type="submit" class="btn btn-primary">@Localizer["Search"]</button>
+                        <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@Localizer["Clear"]</button>
                     </div>
                 </form>
 
                 @if (Model.Errors?.Count > 0)
                 {
                     <div class="alert alert-danger mt-3" role="alert">
-                        <strong>@SR["InputErrors"]</strong>
+                        <strong>@Localizer["InputErrors"]</strong>
                         <ul class="mb-0">
                             @foreach (var e in Model.Errors)
                             {
@@ -64,16 +64,16 @@
         {
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">@SR["Matches"]</h5>
+                    <h5 class="card-title">@Localizer["Matches"]</h5>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>@SR["PublicId"]</th>
-                                    <th>@SR["SSN"]</th>
-                                    <th>@SR["First"]</th>
-                                    <th>@SR["Last"]</th>
-                                    <th>@SR["DOB"]</th>
+                                    <th>@Localizer["PublicId"]</th>
+                                    <th>@Localizer["SSN"]</th>
+                                    <th>@Localizer["First"]</th>
+                                    <th>@Localizer["Last"]</th>
+                                    <th>@Localizer["DOB"]</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -89,7 +89,7 @@
                                         <td class="text-end">
                                             @if (!string.IsNullOrWhiteSpace(r.PublicId))
                                             {
-                                                <a class="btn btn-outline-secondary btn-sm" href="?publicId=@Uri.EscapeDataString(r.PublicId)">@SR["Details"]</a>
+                                                <a class="btn btn-outline-secondary btn-sm" href="?publicId=@Uri.EscapeDataString(r.PublicId)">@Localizer["Details"]</a>
                                             }
                                         </td>
                                     </tr>
@@ -105,7 +105,7 @@
         {
             <div class="card shadow-sm mt-4">
                 <div class="card-body">
-                    <h5 class="card-title">@SR["PersonDetails"]@Model.SelectedNameSuffix</h5>
+                    <h5 class="card-title">@Localizer["PersonDetails"]@Model.SelectedNameSuffix</h5>
 
                     @{
                         var groups = Model.PersonDetails
@@ -165,7 +165,7 @@
 </div>
 
 @{ 
-    var t = SR["Title"]; 
+    var t = Localizer["Title"];
 }
 
 <environment include="Development">
