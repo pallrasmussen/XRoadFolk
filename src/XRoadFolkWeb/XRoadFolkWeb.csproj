@@ -9,4 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exclude dot-named view resources to avoid duplicate logical names -->
+    <EmbeddedResource Remove="Resources\Pages.Index.*.resx" />
+  </ItemGroup>
 </Project>

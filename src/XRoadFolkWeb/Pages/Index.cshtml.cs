@@ -50,6 +50,23 @@ namespace XRoadFolkWeb.Pages
             return Page();
         }
 
+        public IActionResult OnPostClear()
+        {
+            // Reset server-side state (not strictly needed with redirect, but harmless)
+            Ssn = FirstName = LastName = DateOfBirth = null;
+            Results = new();
+            PersonDetails = null;
+            Errors = new();
+
+            // PRG: remove ?handler=Clear and avoid stale ModelState
+            return RedirectToPage();
+        }
+
+        public IActionResult OnGetClear()
+        {
+            return RedirectToPage();
+        }
+
         private static List<PersonRow> ParsePeopleList(string xml)
         {
             List<PersonRow> rows = new();

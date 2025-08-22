@@ -22,4 +22,5 @@
   <data name="DOB"><value>DOB</value></data>
   <data name="Details"><value>Details</value></data>
   <data name="PersonDetails"><value>Person Details</value></data>
+  <data name="Clear"><value>Clear</value></data>
 </root>
