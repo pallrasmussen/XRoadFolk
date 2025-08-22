@@ -6,7 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
   <data name="Title"><value>X-Road Folk Leiting</value></data>
-  <data name="SearchCriteria"><value>Leitingarkrøv</value></data>
+  <data name="SearchCriteria"><value>Leitikrøv</value></data>
   <data name="ProvideCriteria"><value>Skriva P-tal ella Fornavn + Eftirnavn + Føðingardag.</value></data>
   <data name="SSN"><value>P-tal</value></data>
   <data name="OrSeparator"><value>— ella —</value></data>
