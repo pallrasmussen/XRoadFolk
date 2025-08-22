@@ -55,20 +55,21 @@ IServiceCollection serviceCollection = builder.Services.AddSingleton(sp =>
 bool maskTokens = builder.Configuration.GetValue("Logging:MaskTokens", true);
 SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
-// Localization options (force fo-FO as default and ensure it's supported)
+// Localization options (respect configured default culture and ensure it's supported)
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
     string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
     List<string> supported = [.. supportedFromConfig];
-    if (!supported.Contains("fo-FO", StringComparer.OrdinalIgnoreCase))
+    string defaultCulture = builder.Configuration.GetValue<string>("Localization:Culture") ?? supported.FirstOrDefault() ?? "en-US";
+    if (!supported.Contains(defaultCulture, StringComparer.OrdinalIgnoreCase))
     {
-        supported.Add("fo-FO");
+        supported.Add(defaultCulture);
     }
 
     List<CultureInfo> cultures = [.. supported.Select(CultureInfo.GetCultureInfo)];
     opts.SupportedCultures = cultures;
     opts.SupportedUICultures = cultures;
-    opts.DefaultRequestCulture = new RequestCulture("fo-FO");
+    opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
 
     // Explicit provider order: cookie -> query -> Accept-Language
     opts.RequestCultureProviders = new IRequestCultureProvider[]
