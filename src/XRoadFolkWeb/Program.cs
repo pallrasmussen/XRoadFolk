@@ -164,6 +164,13 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
 {
     await af.ValidateRequestAsync(ctx);
 
+    // Ensure the requested culture is one of the supported UI cultures
+    bool supported = locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
+    if (!supported)
+    {
+        return Results.BadRequest();
+    }
+
     string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
     ctx.Response.Cookies.Append(
         CookieRequestCultureProvider.DefaultCookieName,
