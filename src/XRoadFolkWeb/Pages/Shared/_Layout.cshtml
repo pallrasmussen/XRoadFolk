@@ -88,7 +88,15 @@
                             {
                                 var loc = SR[$"Culture_{c!.Name}"];
                                 var label = loc.ResourceNotFound ? c!.NativeName : loc.Value;
-                                <option value="@c!.Name" @(c!.Name == currentUi ? "selected" : null)>@($"{label} ({c!.Name})")</option>
+
+                                if (string.Equals(c!.Name, currentUi, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <option value="@c!.Name" selected>@($"{label} ({c!.Name})")</option>
+                                }
+                                else
+                                {
+                                    <option value="@c!.Name">@($"{label} ({c!.Name})")</option>
+                                }
                             }
                         </select>
                     </form>
