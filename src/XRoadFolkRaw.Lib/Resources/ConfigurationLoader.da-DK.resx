@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="XRoadBaseUrlMissing" xml:space="preserve">
+    <value>XRoad.BaseUrl mangler.</value>
+  </data>
+  <data name="XRoadBaseUrlInvalidUri" xml:space="preserve">
+    <value>XRoad.BaseUrl er ikke en gyldig absolut URI: {0}</value>
+  </data>
+  <data name="XRoadHeadersProtocolVersionMissing" xml:space="preserve">
+    <value>XRoad.Headers.ProtocolVersion mangler.</value>
+  </data>
+  <data name="XRoadClientSectionMissing" xml:space="preserve">
+    <value>Sektionen XRoad.Client mangler.</value>
+  </data>
+  <data name="XRoadClientXRoadInstanceMissing" xml:space="preserve">
+    <value>XRoad.Client.XRoadInstance mangler.</value>
+  </data>
+  <data name="XRoadClientMemberClassMissing" xml:space="preserve">
+    <value>XRoad.Client.MemberClass mangler.</value>
+  </data>
+  <data name="XRoadClientMemberCodeMissing" xml:space="preserve">
+    <value>XRoad.Client.MemberCode mangler.</value>
+  </data>
+  <data name="XRoadClientSubsystemCodeMissing" xml:space="preserve">
+    <value>XRoad.Client.SubsystemCode mangler.</value>
+  </data>
+  <data name="XRoadServiceSectionMissing" xml:space="preserve">
+    <value>Sektionen XRoad.Service mangler.</value>
+  </data>
+  <data name="XRoadServiceXRoadInstanceMissing" xml:space="preserve">
+    <value>XRoad.Service.XRoadInstance mangler.</value>
+  </data>
+  <data name="XRoadServiceMemberClassMissing" xml:space="preserve">
+    <value>XRoad.Service.MemberClass mangler.</value>
+  </data>
+  <data name="XRoadServiceMemberCodeMissing" xml:space="preserve">
+    <value>XRoad.Service.MemberCode mangler.</value>
+  </data>
+  <data name="XRoadServiceSubsystemCodeMissing" xml:space="preserve">
+    <value>XRoad.Service.SubsystemCode mangler.</value>
+  </data>
+  <data name="XRoadAuthUserIdMissing" xml:space="preserve">
+    <value>XRoad.Auth.UserId mangler.</value>
+  </data>
+  <data name="XRoadTokenInsertModeInvalid" xml:space="preserve">
+    <value>XRoad.TokenInsert.Mode skal være 'request' eller 'header'.</value>
+  </data>
+  <data name="OperationsGetPeoplePublicInfoXmlPathNotFound" xml:space="preserve">
+    <value>Operations:GetPeoplePublicInfo:XmlPath fil ikke fundet: {0}</value>
+  </data>
+  <data name="OperationsGetPersonXmlPathNotFound" xml:space="preserve">
+    <value>Operations:GetPerson:XmlPath fil ikke fundet: {0}</value>
+  </data>
+  <data name="ConfigureClientCertificate" xml:space="preserve">
+    <value>Konfigurer et klientcertifikat (PFX eller PEM par).</value>
+  </data>
+  <data name="PfxFileNotFound" xml:space="preserve">
+    <value>PFX-fil ikke fundet: {0}</value>
+  </data>
+  <data name="PemModeRequiresBothPemCertPathAndPemKeyPath" xml:space="preserve">
+    <value>PEM-tilstand kræver både PemCertPath og PemKeyPath.</value>
+  </data>
+  <data name="PemCertFileNotFound" xml:space="preserve">
+    <value>PEM-certifikatfil ikke fundet: {0}</value>
+  </data>
+  <data name="PemKeyFileNotFound" xml:space="preserve">
+    <value>PEM-nøglefil ikke fundet: {0}</value>
+  </data>
+  <data name="ConfigSanityCheckFailedLog" xml:space="preserve">
+    <value>? Konfigurations-sanity-check mislykkedes:</value>
+  </data>
+  <data name="ConfigSanityCheckFailedException" xml:space="preserve">
+    <value>Konfigurations-sanity-check mislykkedes.</value>
+  </data>
+  <data name="XRoadClientSubsystemLog" xml:space="preserve">
+    <value>X-Road klient:  SUBSYSTEM:{Client}</value>
+  </data>
+  <data name="XRoadServiceSubsystemLog" xml:space="preserve">
+    <value>X-Road tjeneste: SUBSYSTEM:{Service}</value>
+  </data>
+</root>
