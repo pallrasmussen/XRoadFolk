@@ -60,7 +60,6 @@
     </div>
 
     <div class="col-12 col-lg-6">
-        @* Matches section (kept) *@
         @if (Model.Results?.Count > 0)
         {
             <div class="card shadow-sm mb-4">
@@ -102,24 +101,11 @@
             </div>
         }
 
-        @* Person Details section (always below Matches) *@
         @if (Model.PersonDetails is not null)
         {
             <div class="card shadow-sm mt-4">
                 <div class="card-body">
-                    @{
-                        // Show FirstName/LastName from Results when a row is selected
-                        var qPublicId = Request.Query["publicId"].ToString();
-                        var selected = !string.IsNullOrWhiteSpace(qPublicId)
-                            ? Model.Results?.FirstOrDefault(r => string.Equals(r.PublicId, qPublicId, StringComparison.OrdinalIgnoreCase))
-                            : null;
-
-                        var nameSuffix = (selected is not null && (!string.IsNullOrWhiteSpace(selected.FirstName) || !string.IsNullOrWhiteSpace(selected.LastName)))
-                            ? $" ({string.Join(" ", new[] { selected.FirstName, selected.LastName }.Where(s => !string.IsNullOrWhiteSpace(s)))})"
-                            : string.Empty;
-                    }
-
-                    <h5 class="card-title">@L["PersonDetails"]@nameSuffix</h5>
+                    <h5 class="card-title">@L["PersonDetails"]@Model.SelectedNameSuffix</h5>
 
                     @{
                         var groups = Model.PersonDetails
@@ -178,10 +164,9 @@
     </div>
 </div>
 
-@{
-    var t = L["Title"];
+@{ 
+    var t = L["Title"]; 
 }
-<!-- Removed invalid check for t.ResourceNotFound -->
 
 <environment include="Development">
     <script src="/_framework/aspnetcore-browser-refresh.js"></script>
