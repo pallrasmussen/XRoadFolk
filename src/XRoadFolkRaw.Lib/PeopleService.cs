@@ -77,58 +77,74 @@ namespace XRoadFolkRaw.Lib
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
-            return await _client.GetPeoplePublicInfoAsync(
-                xmlPath: _peopleInfoXmlPath,
-                xId: Guid.NewGuid().ToString("N"),
-                userId: _settings.Auth.UserId,
-                token: token,
-                protocolVersion: _settings.Headers.ProtocolVersion,
-                clientXRoadInstance: _settings.Client.XRoadInstance,
-                clientMemberClass: _settings.Client.MemberClass,
-                clientMemberCode: _settings.Client.MemberCode,
-                clientSubsystemCode: _settings.Client.SubsystemCode,
-                serviceXRoadInstance: _settings.Service.XRoadInstance,
-                serviceMemberClass: _settings.Service.MemberClass,
-                serviceMemberCode: _settings.Service.MemberCode,
-                serviceSubsystemCode: _settings.Service.SubsystemCode,
-                serviceCode: "GetPeoplePublicInfo",
-                serviceVersion: "v1",
-                ssn: ssn,
-                firstName: firstName,
-                lastName: lastName,
-                dateOfBirth: dateOfBirth,
-                ct: ct).ConfigureAwait(false);
+            try
+            {
+                return await _client.GetPeoplePublicInfoAsync(
+                    xmlPath: _peopleInfoXmlPath,
+                    xId: Guid.NewGuid().ToString("N"),
+                    userId: _settings.Auth.UserId,
+                    token: token,
+                    protocolVersion: _settings.Headers.ProtocolVersion,
+                    clientXRoadInstance: _settings.Client.XRoadInstance,
+                    clientMemberClass: _settings.Client.MemberClass,
+                    clientMemberCode: _settings.Client.MemberCode,
+                    clientSubsystemCode: _settings.Client.SubsystemCode,
+                    serviceXRoadInstance: _settings.Service.XRoadInstance,
+                    serviceMemberClass: _settings.Service.MemberClass,
+                    serviceMemberCode: _settings.Service.MemberCode,
+                    serviceSubsystemCode: _settings.Service.SubsystemCode,
+                    serviceCode: "GetPeoplePublicInfo",
+                    serviceVersion: "v1",
+                    ssn: ssn,
+                    firstName: firstName,
+                    lastName: lastName,
+                    dateOfBirth: dateOfBirth,
+                    ct: ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Error fetching people public info");
+                throw new InvalidOperationException(_localizer["PeoplePublicInfoError"], ex);
+            }
         }
 
         public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
-            return await _client.GetPersonAsync(
-                xmlPath: _personXmlPath,
-                xId: Guid.NewGuid().ToString("N"),
-                userId: _settings.Auth.UserId,
-                token: token,
-                protocolVersion: _settings.Headers.ProtocolVersion,
-                clientXRoadInstance: _settings.Client.XRoadInstance,
-                clientMemberClass: _settings.Client.MemberClass,
-                clientMemberCode: _settings.Client.MemberCode,
-                clientSubsystemCode: _settings.Client.SubsystemCode,
-                serviceXRoadInstance: _settings.Service.XRoadInstance,
-                serviceMemberClass: _settings.Service.MemberClass,
-                serviceMemberCode: _settings.Service.MemberCode,
-                serviceSubsystemCode: _settings.Service.SubsystemCode,
-                serviceCode: "GetPerson",
-                serviceVersion: "v1",
-                publicId: publicId,
-                includeAddress: _config.GetValue("GetPerson:Include:Address", true),
-                includeContact: _config.GetValue("GetPerson:Include:Contact", true),
-                includeBirthDate: _config.GetValue("GetPerson:Include:BirthDate", true),
-                includeDeathDate: _config.GetValue("GetPerson:Include:DeathDate", true),
-                includeGender: _config.GetValue("GetPerson:Include:Gender", true),
-                includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", true),
-                includeCitizenship: _config.GetValue("GetPerson:Include:Citizenship", true),
-                includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", true),
-                ct: ct).ConfigureAwait(false);
+            try
+            {
+                return await _client.GetPersonAsync(
+                    xmlPath: _personXmlPath,
+                    xId: Guid.NewGuid().ToString("N"),
+                    userId: _settings.Auth.UserId,
+                    token: token,
+                    protocolVersion: _settings.Headers.ProtocolVersion,
+                    clientXRoadInstance: _settings.Client.XRoadInstance,
+                    clientMemberClass: _settings.Client.MemberClass,
+                    clientMemberCode: _settings.Client.MemberCode,
+                    clientSubsystemCode: _settings.Client.SubsystemCode,
+                    serviceXRoadInstance: _settings.Service.XRoadInstance,
+                    serviceMemberClass: _settings.Service.MemberClass,
+                    serviceMemberCode: _settings.Service.MemberCode,
+                    serviceSubsystemCode: _settings.Service.SubsystemCode,
+                    serviceCode: "GetPerson",
+                    serviceVersion: "v1",
+                    publicId: publicId,
+                    includeAddress: _config.GetValue("GetPerson:Include:Address", true),
+                    includeContact: _config.GetValue("GetPerson:Include:Contact", true),
+                    includeBirthDate: _config.GetValue("GetPerson:Include:BirthDate", true),
+                    includeDeathDate: _config.GetValue("GetPerson:Include:DeathDate", true),
+                    includeGender: _config.GetValue("GetPerson:Include:Gender", true),
+                    includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", true),
+                    includeCitizenship: _config.GetValue("GetPerson:Include:Citizenship", true),
+                    includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", true),
+                    ct: ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Error fetching person");
+                throw new InvalidOperationException(_localizer["PersonInfoError"], ex);
+            }
         }
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]
