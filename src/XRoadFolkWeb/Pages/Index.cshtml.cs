@@ -1,3 +1,4 @@
+using System;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -25,8 +26,15 @@ namespace XRoadFolkWeb.Pages
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 // Drill-down details
-                string xml = await _service.GetPersonAsync(publicId);
-                PersonDetails = FlattenResponse(xml);
+                try
+                {
+                    string xml = await _service.GetPersonAsync(publicId);
+                    PersonDetails = FlattenResponse(xml);
+                }
+                catch (Exception ex)
+                {
+                    Errors.Add(ex.Message);
+                }
             }
         }
 
@@ -39,8 +47,15 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
-            Results = ParsePeopleList(xml);
+            try
+            {
+                string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                Results = ParsePeopleList(xml);
+            }
+            catch (Exception ex)
+            {
+                Errors.Add(ex.Message);
+            }
             return Page();
         }
 
