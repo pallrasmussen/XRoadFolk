@@ -9,20 +9,24 @@
     var currentUi = CultureInfo.CurrentUICulture.Name;
     var supported = LocOpts.Value.SupportedUICultures ?? new List<CultureInfo> { CultureInfo.GetCultureInfo("en-US") };
 
-    // Show only these cultures (in this order) if they are supported by the app
-    var allowedOrder = new[] { "fo-FO", "da-DK", "en-US" };
-    var culturesToShow = allowedOrder
-        .Select(code => supported.FirstOrDefault(s => string.Equals(s.Name, code, StringComparison.OrdinalIgnoreCase)))
-        .Where(ci => ci is not null)
-        .ToList();
-
-    // Friendly display labels; fallback to NativeName if missing
-    var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    // Optional: order cultures according to configuration to ensure predictable display order
+    List<CultureInfo> culturesToShow;
+    string[]? order = Config.GetSection("Localization:SupportedCultures").Get<string[]>();
+    if (order?.Length > 0)
     {
-        ["fo-FO"] = "Føroyskt (FO)",
-        ["da-DK"] = "Dansk (DA)",
-        ["en-US"] = "English (EN)"
-    };
+        culturesToShow = order
+            .Select(code => supported.FirstOrDefault(s => string.Equals(s.Name, code, StringComparison.OrdinalIgnoreCase)))
+            .Where(ci => ci is not null)
+            .Select(ci => ci!)
+            .ToList();
+
+        // Append any cultures not explicitly ordered
+        culturesToShow.AddRange(supported.Where(s => !culturesToShow.Contains(s)));
+    }
+    else
+    {
+        culturesToShow = supported.ToList();
+    }
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -82,8 +86,9 @@
                         <select class="form-select form-select-sm me-2" name="culture" onchange="this.form.submit()">
                             @foreach (var c in culturesToShow)
                             {
-                                var display = labels.TryGetValue(c!.Name, out var label) ? label : $"{c!.NativeName} ({c.Name})";
-                                <option value="@c!.Name" selected="@(c!.Name == currentUi)">@display</option>
+                                var loc = SR[$"Culture_{c!.Name}"];
+                                var label = loc.ResourceNotFound ? c!.NativeName : loc.Value;
+                                <option value="@c!.Name" selected="@(c!.Name == currentUi)">@($"{label} ({c!.Name})")</option>
                             }
                         </select>
                     </form>
