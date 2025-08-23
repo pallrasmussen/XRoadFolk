@@ -65,26 +65,11 @@ string[] DefaultSupportedCultures = ["fo-FO"];
 
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? DefaultSupportedCultures;
-    List<string> supported = [.. supportedFromConfig];
-    string defaultCulture = builder.Configuration.GetValue<string>("Localization:Culture") ?? supported.FirstOrDefault() ?? "fo-FO";
-    if (!supported.Contains(defaultCulture, StringComparer.OrdinalIgnoreCase))
-    {
-        supported.Add(defaultCulture);
-    }
-
-    List<CultureInfo> cultures = [.. supported.Select(CultureInfo.GetCultureInfo)];
-    opts.SupportedCultures = cultures;
-    opts.SupportedUICultures = cultures;
-    opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
-
-    // Force default (fo-FO) unless cookie/query is present
-    opts.RequestCultureProviders = new IRequestCultureProvider[]
-    {
-        new CookieRequestCultureProvider(),
-        new QueryStringRequestCultureProvider()
-        // Removed AcceptLanguageHeaderRequestCultureProvider to avoid browser override
-    };
+    var cultures = new[] { "fo-FO", "da-DK", "en-US" };
+    var supported = cultures.Select(c => new CultureInfo(c)).ToList();
+    opts.DefaultRequestCulture = new RequestCulture(cultures[0]);
+    opts.SupportedCultures = supported;
+    opts.SupportedUICultures = supported;
 });
 
 // Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)

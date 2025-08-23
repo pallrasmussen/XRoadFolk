@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="DateFormatPlaceholder" xml:space="preserve">
+    <value>ÅÅÅÅ-MM-DD</value>
+  </data>
+</root>

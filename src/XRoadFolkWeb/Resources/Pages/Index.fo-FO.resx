@@ -171,4 +171,7 @@
   <data name="PersonDetails" xml:space="preserve">
     <value>Persónsupplýsingar</value>
   </data>
+  <data name="DateFormatPlaceholder" xml:space="preserve">
+    <value>DD-MM-ÁÁÁÁ</value>
+  </data>
 </root>
