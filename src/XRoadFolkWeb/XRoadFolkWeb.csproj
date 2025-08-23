@@ -10,8 +10,5 @@
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="Resources/**/*.resx" />
-  </ItemGroup>
-
+  <!-- Removed explicit EmbeddedResource include; the SDK already includes .resx files -->
 </Project>

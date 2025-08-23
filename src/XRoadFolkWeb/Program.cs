@@ -55,12 +55,15 @@ IServiceCollection serviceCollection = builder.Services.AddSingleton(sp =>
 bool maskTokens = builder.Configuration.GetValue("Logging:MaskTokens", true);
 SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
-// Localization options (respect configured default culture and ensure it's supported)
+// Move this field inside a class or make it local to the method to fix CS0116.
+// Simplify collection initialization to fix IDE0300.
+string[] DefaultSupportedCultures = ["fo-FO"];
+
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
+    string[] supportedFromConfig = builder.Configuration.GetSection("Localization:SupportedCultures").Get<string[]>() ?? DefaultSupportedCultures;
     List<string> supported = [.. supportedFromConfig];
-    string defaultCulture = builder.Configuration.GetValue<string>("Localization:Culture") ?? supported.FirstOrDefault() ?? "en-US";
+    string defaultCulture = builder.Configuration.GetValue<string>("Localization:Culture") ?? supported.FirstOrDefault() ?? "fo-FO";
     if (!supported.Contains(defaultCulture, StringComparer.OrdinalIgnoreCase))
     {
         supported.Add(defaultCulture);
@@ -71,12 +74,12 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
     opts.SupportedUICultures = cultures;
     opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
 
-    // Explicit provider order: cookie -> query -> Accept-Language
+    // Force default (fo-FO) unless cookie/query is present
     opts.RequestCultureProviders = new IRequestCultureProvider[]
     {
         new CookieRequestCultureProvider(),
-        new QueryStringRequestCultureProvider(),
-        new AcceptLanguageHeaderRequestCultureProvider()
+        new QueryStringRequestCultureProvider()
+        // Removed AcceptLanguageHeaderRequestCultureProvider to avoid browser override
     };
 });
 
@@ -165,7 +168,8 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
     await af.ValidateRequestAsync(ctx);
 
     // Ensure the requested culture is one of the supported UI cultures
-    bool supported = locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
+    bool supported = locOpts.SupportedUICultures != null &&
+        locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
     if (!supported)
     {
         return Results.BadRequest();

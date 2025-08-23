@@ -5,12 +5,14 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
 
-  <data name="AppName"><value>X-Road Folk</value></data>
-  <data name="Nav_Home"><value>Home</value></data>
-  <data name="Theme"><value>Theme</value></data>
-  <data name="ToggleTheme"><value>Toggle theme</value></data>
-  <data name="BuiltWith"><value>Built with ASP.NET Core + Bootstrap</value></data>
-  <data name="Culture_en-US"><value>English</value></data>
-  <data name="Culture_fo-FO"><value>Faroese</value></data>
-  <data name="Culture_da-DK"><value>Danish</value></data>
+  <data name="AppName" xml:space="preserve"><value>XRoad Folk</value></data>
+  <data name="Nav_Home" xml:space="preserve"><value>Home</value></data>
+  <data name="ToggleTheme" xml:space="preserve"><value>Toggle theme</value></data>
+  <data name="Theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="BuiltWith" xml:space="preserve"><value>Built with ASP.NET Core</value></data>
+
+  <!-- Labels for culture dropdown -->
+  <data name="Culture_en-US" xml:space="preserve"><value>English (United States)</value></data>
+  <data name="Culture_da-DK" xml:space="preserve"><value>Danish (Denmark)</value></data>
+  <data name="Culture_fo-FO" xml:space="preserve"><value>Faroese (Faroe Islands)</value></data>
 </root>

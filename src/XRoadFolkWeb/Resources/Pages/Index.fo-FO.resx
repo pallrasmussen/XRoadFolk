@@ -117,14 +117,58 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="TokenMissing" xml:space="preserve">
-    <value>Token provider returned null/empty token.</value>
-    <comment>Thrown when token provider returns a null or empty token.</comment>
+  <data name="Title" xml:space="preserve">
+    <value>Fólkayvirlit</value>
   </data>
-  <data name="PeoplePublicInfoError" xml:space="preserve">
-    <value>Error fetching PeoplePublicInfo</value>
+  <data name="SearchCriteria" xml:space="preserve">
+    <value>Leitikrøv</value>
   </data>
-  <data name="PersonInfoError" xml:space="preserve">
-    <value>Error fetching Person</value>
+  <data name="ProvideCriteria" xml:space="preserve">
+    <value>Skriva í eitt av fylgjandi</value>
+  </data>
+  <data name="SSN" xml:space="preserve">
+    <value>P-tal</value>
+  </data>
+  <data name="OrSeparator" xml:space="preserve">
+    <value>— ella —</value>
+  </data>
+  <data name="FirstName" xml:space="preserve">
+    <value>Fornavn</value>
+  </data>
+  <data name="LastName" xml:space="preserve">
+    <value>Eftirnavn</value>
+  </data>
+  <data name="DateOfBirthPrompt" xml:space="preserve">
+    <value>Føðingardagur</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Leita</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Rudda</value>
+  </data>
+  <data name="InputErrors" xml:space="preserve">
+    <value>Feilir í innskriving:</value>
+  </data>
+  <data name="Matches" xml:space="preserve">
+    <value>Leitiúrslit</value>
+  </data>
+  <data name="PublicId" xml:space="preserve">
+    <value>Alment ID</value>
+  </data>
+  <data name="First" xml:space="preserve">
+    <value>Fornavn</value>
+  </data>
+  <data name="Last" xml:space="preserve">
+    <value>Eftirnavn</value>
+  </data>
+  <data name="DOB" xml:space="preserve">
+    <value>Føðingardagur</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Upplýsingar</value>
+  </data>
+  <data name="PersonDetails" xml:space="preserve">
+    <value>Persónsupplýsingar</value>
   </data>
 </root>
