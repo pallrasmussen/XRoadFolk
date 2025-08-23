@@ -128,5 +128,9 @@
     </environment>
 
     @RenderSection("Scripts", required: false)
+    @section Scripts {
+        <partial name="_ValidationScriptsPartial" />
+        <script src="~/js/validation-ssn.js"></script>
+    }
 </body>
 </html>

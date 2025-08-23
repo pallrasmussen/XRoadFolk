@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <data name="Ssn_Invalid" xml:space="preserve"><value>SSN must be exactly 9 digits.</value></data>
+  <data name="FirstName_MaxLength" xml:space="preserve"><value>First name must be 100 characters or fewer.</value></data>
+  <data name="LastName_MaxLength" xml:space="preserve"><value>Last name must be 100 characters or fewer.</value></data>
+  <data name="Dob_Format" xml:space="preserve"><value>Date of birth must be YYYY-MM-DD and not in the future.</value></data>
+  <data name="ProvideSsnOrNameDob" xml:space="preserve"><value>Provide SSN or First/Last name with Date of birth.</value></data>
+  <data name="DobSsnMismatch" xml:space="preserve"><value>Date of birth {0} does not match SSN date {1}.</value></data>
+
+  <!-- Add missing per-field validation keys -->
+  <data name="Name_Invalid" xml:space="preserve"><value>Name contains invalid characters.</value></data>
+  <data name="FirstName_Invalid" xml:space="preserve"><value>First name contains invalid characters.</value></data>
+  <data name="LastName_Invalid" xml:space="preserve"><value>Last name contains invalid characters.</value></data>
+</root>

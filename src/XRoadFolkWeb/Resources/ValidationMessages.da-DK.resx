@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <data name="Ssn_Invalid" xml:space="preserve"><value>SSN skal bestå af præcis 9 cifre.</value></data>
+  <data name="FirstName_MaxLength" xml:space="preserve"><value>Fornavn må højst være 100 tegn.</value></data>
+  <data name="LastName_MaxLength" xml:space="preserve"><value>Efternavn må højst være 100 tegn.</value></data>
+  <data name="Dob_Format" xml:space="preserve"><value>Fødselsdato skal være i formatet ÅÅÅÅ-MM-DD og må ikke ligge i fremtiden.</value></data>
+  <data name="ProvideSsnOrNameDob" xml:space="preserve"><value>Angiv SSN eller fornavn/efternavn sammen med fødselsdato.</value></data>
+  <data name="DobSsnMismatch" xml:space="preserve"><value>Fødselsdatoen {0} matcher ikke datoen i SSN {1}.</value></data>
+
+  <data name="Name_Invalid" xml:space="preserve"><value>Navn indeholder ugyldige tegn.</value></data>
+  <data name="FirstName_Invalid" xml:space="preserve"><value>Fornavn indeholder ugyldige tegn.</value></data>
+  <data name="LastName_Invalid" xml:space="preserve"><value>Efternavn indeholder ugyldige tegn.</value></data>
+</root>

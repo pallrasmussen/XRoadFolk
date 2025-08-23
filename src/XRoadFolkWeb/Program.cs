@@ -16,6 +16,16 @@ builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 
+// Configure DataAnnotations to use a shared resource by default
+builder.Services
+    .AddRazorPages()
+    .AddViewLocalization()
+    .AddDataAnnotationsLocalization(opts =>
+    {
+        opts.DataAnnotationLocalizerProvider = (type, factory) =>
+            factory.Create(typeof(XRoadFolkWeb.SharedResource)); // base name: XRoadFolkWeb.Resources.SharedResource
+    });
+
 // Localization resources
 builder.Services.AddLocalization(opts => opts.ResourcesPath = "Resources");
 
@@ -27,12 +37,6 @@ builder.Services.AddAntiforgery(opts =>
     opts.Cookie.SameSite = SameSiteMode.Lax;
     opts.HeaderName = "RequestVerificationToken"; // for AJAX if needed
 });
-
-// Razor Pages + view localization (needed for IViewLocalizer)
-builder.Services
-    .AddRazorPages()
-    .AddViewLocalization()
-    .AddDataAnnotationsLocalization();
 
 // Register ConfigurationLoader
 builder.Services.AddSingleton<ConfigurationLoader>();
@@ -145,8 +149,20 @@ builder.Services.AddScoped(sp =>
     return new PeopleService(client, cfg, xr, logger, loc);
 });
 
-// Build AFTER all service registrations
-WebApplication app = builder.Build();
+// Response compression
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+    opts.MimeTypes = new[] { "text/plain", "text/xml", "application/xml", "application/soap+xml" };
+});
+
+builder.Services.AddControllers(options =>
+{
+    options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
+});
+
+var app = builder.Build();
+app.UseResponseCompression();
 
 // Redirect to HTTPS in dev so secure cookies work
 app.UseHttpsRedirection();
@@ -204,4 +220,10 @@ namespace XRoadFolkWeb
 {
     // Marker class for shared localization resources (layout, nav, etc.)
     public sealed class SharedResource { }
+}
+
+// add at the very end of the file (for WebApplicationFactory)
+namespace XRoadFolkWeb
+{
+    public partial class Program { }
 }

@@ -1,27 +1,62 @@
-//using System;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
 using XRoadFolkRaw.Lib;
+using XRoadFolkWeb.Validation;
 
 namespace XRoadFolkWeb.Pages
 {
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc) : PageModel
+    [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
+    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
+        private readonly IMemoryCache _cache = cache;
 
-        [BindProperty] public string? Ssn { get; set; }
-        [BindProperty] public string? FirstName { get; set; }
-        [BindProperty] public string? LastName { get; set; }
-        [BindProperty] public string? DateOfBirth { get; set; }
+        [BindProperty]
+        [Display(Name = "SSN", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Ssn]
+        public string? Ssn { get; set; }
+
+        [BindProperty]
+        [Display(Name = "FirstName", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Name(MessageKey = "FirstName_Invalid")]
+        [MaxLength(100,
+            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
+            ErrorMessageResourceName = "FirstName_MaxLength")]
+        public string? FirstName { get; set; }
+
+        [BindProperty]
+        [Display(Name = "LastName", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Name(MessageKey = "LastName_Invalid")]
+        [MaxLength(100,
+            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
+            ErrorMessageResourceName = "LastName_MaxLength")]
+        public string? LastName { get; set; }
+
+        [BindProperty]
+        [Display(Name = "DateOfBirth", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Dob]
+        public string? DateOfBirth { get; set; }
 
         public List<PersonRow> Results { get; private set; } = [];
         public List<(string Key, string Value)>? PersonDetails { get; private set; }
         public string SelectedNameSuffix { get; private set; } = string.Empty;
         public List<string> Errors { get; private set; } = [];
+
+        // Holds full GetPeoplePublicInfo response (raw + pretty)
+        public string? PeoplePublicInfoResponseXml { get; private set; }
+        public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
+
+        private const string ResponseKey = "PeoplePublicInfoResponse";
 
         public async Task OnGetAsync(string? publicId = null)
         {
@@ -49,9 +84,20 @@ namespace XRoadFolkWeb.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) = InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+            if (!ModelState.IsValid)
+            {
+                Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
+                return Page();
+            }
+
+            (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
+                InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
             if (!ok)
             {
+                foreach (string err in errs)
+                {
+                    ModelState.AddModelError(string.Empty, err);
+                }
                 Errors = errs;
                 return Page();
             }
@@ -59,8 +105,16 @@ namespace XRoadFolkWeb.Pages
             try
             {
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                PeoplePublicInfoResponseXml = xml;
+                PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
                 Results = ParsePeopleList(xml);
                 SelectedNameSuffix = string.Empty;
+
+                // After getting the full XML in OnPostAsync, cache slices instead of full doc
+                _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                });
             }
             catch (Exception ex)
             {
@@ -71,20 +125,32 @@ namespace XRoadFolkWeb.Pages
 
         public IActionResult OnPostClear()
         {
-            // Reset server-side state (not strictly needed with redirect, but harmless)
             Ssn = FirstName = LastName = DateOfBirth = null;
             Results = [];
             PersonDetails = null;
             Errors = [];
             SelectedNameSuffix = string.Empty;
-
-            // PRG: remove ?handler=Clear and avoid stale ModelState
+            PeoplePublicInfoResponseXml = null;
+            PeoplePublicInfoResponseXmlPretty = null;
             return RedirectToPage();
         }
 
         public IActionResult OnGetClear()
         {
             return RedirectToPage();
+        }
+
+        private static string PrettyFormatXml(string xml)
+        {
+            try
+            {
+                XDocument doc = XDocument.Parse(xml);
+                return doc.ToString(SaveOptions.None);
+            }
+            catch
+            {
+                return xml;
+            }
         }
 
         private static List<PersonRow> ParsePeopleList(string xml)
@@ -97,10 +163,8 @@ namespace XRoadFolkWeb.Pages
 
             XDocument doc = XDocument.Parse(xml);
 
-            // Collect people first (used for count/fallbacks)
             List<XElement> people = [.. doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
 
-            // Optional: SSN may only appear in the request criteria; use as fallback if single result
             string? requestSsn = doc
                 .Descendants().FirstOrDefault(e => e.Name.LocalName == "ListOfPersonPublicInfoCriteria")?
                 .Descendants().FirstOrDefault(e => e.Name.LocalName == "PersonPublicInfoCriteria")?
@@ -112,12 +176,10 @@ namespace XRoadFolkWeb.Pages
                 string? publicId = p.Elements().FirstOrDefault(x => x.Name.LocalName == "PublicId")?.Value?.Trim()
                                 ?? p.Elements().FirstOrDefault(x => x.Name.LocalName == "PersonId")?.Value?.Trim();
 
-                // Names are under Names/Name with Type and Value
                 IEnumerable<XElement> nameItems = p.Elements().FirstOrDefault(x => x.Name.LocalName == "Names")?
                                .Elements().Where(x => x.Name.LocalName == "Name")
                             ?? [];
 
-                // FirstName(s): order by <Order>, join if multiple
                 List<string?> firstNames = [.. nameItems
                     .Where(n => string.Equals(
                         n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
@@ -140,13 +202,11 @@ namespace XRoadFolkWeb.Pages
                     .Select(n => n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim())
                     .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
-                // Date of birth is provided as CivilStatusDate with Born status
                 string? civilStatusDate = p.Elements().FirstOrDefault(x => x.Name.LocalName == "CivilStatusDate")?.Value?.Trim();
                 string? dateOfBirth = !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
                     ? civilStatusDate[..10]
                     : civilStatusDate;
 
-                // SSN usually not present in PersonPublicInfo; fallback to request SSN if single result
                 string? ssn = p.Elements().FirstOrDefault(x => x.Name.LocalName == "SSN")?.Value?.Trim();
                 if (string.IsNullOrWhiteSpace(ssn) && people.Count == 1 && !string.IsNullOrWhiteSpace(requestSsn))
                 {
@@ -235,6 +295,29 @@ namespace XRoadFolkWeb.Pages
             public string? FirstName { get; set; }
             public string? LastName { get; set; }
             public string? DateOfBirth { get; set; }
+        }
+
+        // Cross-field, model-level rules with localized messages
+        public IEnumerable<ValidationResult> Validate(ValidationContext context)
+        {
+            bool haveSsn = InputValidation.LooksLikeValidSsn(Ssn, out DateTimeOffset? ssnDob);
+            bool haveNames = InputValidation.IsValidName(FirstName) &&
+                             InputValidation.IsValidName(LastName);
+            bool haveDob = InputValidation.TryParseDob(DateOfBirth, out DateTimeOffset? dob);
+
+            IStringLocalizer<InputValidation> loc = _valLoc; // injected
+
+            if (!haveSsn && !(haveNames && haveDob))
+            {
+                yield return new ValidationResult(loc[InputValidation.Errors.ProvideSsnOrNameDob]);
+            }
+
+            if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
+            {
+                yield return new ValidationResult(loc[InputValidation.Errors.DobSsnMismatch,
+                                                     dob.Value.ToString("yyyy-MM-dd"),
+                                                     ssnDob.Value.ToString("yyyy-MM-dd")]);
+            }
         }
     }
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <data name="Ssn_Invalid" xml:space="preserve"><value>SSN skal vera júst 9 siffur.</value></data>
+  <data name="FirstName_MaxLength" xml:space="preserve"><value>Fornavn má í mesta lagi hava 100 tekn.</value></data>
+  <data name="LastName_MaxLength" xml:space="preserve"><value>Eftirnavn má í mesta lagi hava 100 tekn.</value></data>
+  <data name="Dob_Format" xml:space="preserve"><value>Føðingardagur skal vera í sniði YYYY-MM-DD og ikki í framtíðini.</value></data>
+  <data name="ProvideSsnOrNameDob" xml:space="preserve"><value>Gev SSN ella bæði fornavn og eftirnavn saman við føðingardegi.</value></data>
+  <data name="DobSsnMismatch" xml:space="preserve"><value>Føðingardagur {0} samsvarar ikki dagsetingini í SSN {1}.</value></data>
+
+  <data name="Name_Invalid" xml:space="preserve"><value>Navn inniheldur ógild tekin.</value></data>
+  <data name="FirstName_Invalid" xml:space="preserve"><value>Fornavn inniheldur ógild tekin.</value></data>
+  <data name="LastName_Invalid" xml:space="preserve"><value>Eftirnavn inniheldur ógild tekin.</value></data>
+</root>

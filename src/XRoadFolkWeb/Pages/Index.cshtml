@@ -1,52 +1,58 @@
 @page
 @model XRoadFolkWeb.Pages.IndexModel
-@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer IViewLocalizer
 @{
-    ViewData["Title"] = L["Title"];
+    ViewData["Title"] = IViewLocalizer["Title"];
 }
 
-<h1 class="mb-4">@L["Title"]</h1>
+<h1 class="mb-4">@IViewLocalizer["Title"]</h1>
 
 <div class="row g-4">
     <div class="col-12 col-lg-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5 class="card-title">@L["SearchCriteria"]</h5>
-                <p class="text-muted mb-3">@L["ProvideCriteria"]</p>
+                <h5 class="card-title">@IViewLocalizer["SearchCriteria"]</h5>
+                <p class="text-muted mb-3">@IViewLocalizer["ProvideCriteria"]</p>
 
                 <form method="post" class="row gy-3">
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
                     <div class="col-12">
-                        <label for="Ssn" class="form-label">@L["SSN"]</label>
-                        <input id="Ssn" name="Ssn" value="@Model.Ssn" class="form-control" />
+                        <label asp-for="Ssn" class="form-label"></label>
+                        <input asp-for="Ssn" class="form-control" />
+                        <span asp-validation-for="Ssn" class="text-danger small"></span>
                     </div>
 
                     <div class="col-12">
-                        <div class="text-center text-muted-sep">@L["OrSeparator"]</div>
+                        <div class="text-center text-muted-sep">@IViewLocalizer["OrSeparator"]</div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="FirstName" class="form-label">@L["FirstName"]</label>
-                        <input id="FirstName" name="FirstName" value="@Model.FirstName" class="form-control" />
+                        <label asp-for="FirstName" class="form-label"></label>
+                        <input asp-for="FirstName" class="form-control" />
+                        <span asp-validation-for="FirstName" class="text-danger small"></span>
                     </div>
                     <div class="col-md-6">
-                        <label for="LastName" class="form-label">@L["LastName"]</label>
-                        <input id="LastName" name="LastName" value="@Model.LastName" class="form-control" />
+                        <label asp-for="LastName" class="form-label"></label>
+                        <input asp-for="LastName" class="form-control" />
+                        <span asp-validation-for="LastName" class="text-danger small"></span>
                     </div>
                     <div class="col-12">
-                        <label for="DateOfBirth" class="form-label">@L["DateOfBirthPrompt"]</label>
-                        <input id="DateOfBirth" name="DateOfBirth" value="@Model.DateOfBirth" class="form-control" />
+                        <label asp-for="DateOfBirth" class="form-label"></label>
+                        <input asp-for="DateOfBirth" class="form-control" placeholder="YYYY-MM-DD" />
+                        <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                     </div>
 
                     <div class="col-12 d-grid d-sm-flex gap-2 mt-2">
-                        <button type="submit" class="btn btn-primary">@L["Search"]</button>
-                        <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@L["Clear"]</button>
+                        <button type="submit" class="btn btn-primary">@IViewLocalizer["Search"]</button>
+                        <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@IViewLocalizer["Clear"]</button>
                     </div>
                 </form>
 
                 @if (Model.Errors?.Count > 0)
                 {
                     <div class="alert alert-danger mt-3" role="alert">
-                        <strong>@L["InputErrors"]</strong>
+                        <strong>@IViewLocalizer["InputErrors"]</strong>
                         <ul class="mb-0">
                             @foreach (var e in Model.Errors)
                             {
@@ -64,16 +70,16 @@
         {
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">@L["Matches"]</h5>
+                    <h5 class="card-title">@IViewLocalizer["Matches"]</h5>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>@L["PublicId"]</th>
-                                    <th>@L["SSN"]</th>
-                                    <th>@L["First"]</th>
-                                    <th>@L["Last"]</th>
-                                    <th>@L["DOB"]</th>
+                                    <th>@IViewLocalizer["PublicId"]</th>
+                                    <th>@IViewLocalizer["SSN"]</th>
+                                    <th>@IViewLocalizer["First"]</th>
+                                    <th>@IViewLocalizer["Last"]</th>
+                                    <th>@IViewLocalizer["DOB"]</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -89,7 +95,7 @@
                                         <td class="text-end">
                                             @if (!string.IsNullOrWhiteSpace(r.PublicId))
                                             {
-                                                <a class="btn btn-outline-secondary btn-sm" href="?publicId=@Uri.EscapeDataString(r.PublicId)">@L["Details"]</a>
+                                                <a class="btn btn-outline-secondary btn-sm" href="?publicId=@Uri.EscapeDataString(r.PublicId)">@IViewLocalizer["Details"]</a>
                                             }
                                         </td>
                                     </tr>
@@ -101,17 +107,772 @@
             </div>
         }
 
+        @* Overview accordion ABOVE the response viewer *@
+        @if (!string.IsNullOrWhiteSpace(Model.PeoplePublicInfoResponseXml))
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">GetPeoplePublicInfo overview</h5>
+                    <div class="accordion" id="ppi-overview-acc">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="ppi-ov-h-0">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#ppi-ov-c-0" aria-expanded="true" aria-controls="ppi-ov-c-0">
+                                    Summary
+                                </button>
+                            </h2>
+                            <div id="ppi-ov-c-0" class="accordion-collapse collapse show" aria-labelledby="ppi-ov-h-0" data-bs-parent="#ppi-overview-acc">
+                                <div class="accordion-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <tbody>
+                                                <tr>
+                                                    <th class="text-muted fw-normal" style="width:40%;">Total matches</th>
+                                                    <td>@(Model.Results?.Count ?? 0)</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-muted fw-normal">XML size (chars)</th>
+                                                    <td>@(Model.PeoplePublicInfoResponseXml?.Length ?? 0)</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="ppi-ov-h-1">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ppi-ov-c-1" aria-expanded="false" aria-controls="ppi-ov-c-1">
+                                    Criteria used
+                                </button>
+                            </h2>
+                            <div id="ppi-ov-c-1" class="accordion-collapse collapse" aria-labelledby="ppi-ov-h-1" data-bs-parent="#ppi-overview-acc">
+                                <div class="accordion-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <tbody>
+                                                <tr><th class="text-muted fw-normal" style="width:40%;">SSN</th><td>@(string.IsNullOrWhiteSpace(Model.Ssn) ? "-" : Model.Ssn)</td></tr>
+                                                <tr><th class="text-muted fw-normal">First Name</th><td>@(string.IsNullOrWhiteSpace(Model.FirstName) ? "-" : Model.FirstName)</td></tr>
+                                                <tr><th class="text-muted fw-normal">Last Name</th><td>@(string.IsNullOrWhiteSpace(Model.LastName) ? "-" : Model.LastName)</td></tr>
+                                                <tr><th class="text-muted fw-normal">Date of Birth</th><td>@(string.IsNullOrWhiteSpace(Model.DateOfBirth) ? "-" : Model.DateOfBirth)</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="ppi-ov-h-2">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ppi-ov-c-2" aria-expanded="false" aria-controls="ppi-ov-c-2">
+                                    Fields present (PersonPublicInfo)
+                                </button>
+                            </h2>
+                            <div id="ppi-ov-c-2" class="accordion-collapse collapse" aria-labelledby="ppi-ov-h-2" data-bs-parent="#ppi-overview-acc">
+                                <div class="accordion-body">
+                                    <ul id="ppi-field-list" class="list-unstyled mb-0"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* NEW: Per-person accordion ABOVE the response viewer *@
+        @if (!string.IsNullOrWhiteSpace(Model.PeoplePublicInfoResponseXml) && Model.Results?.Count > 0)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+                        <h5 class="card-title mb-0">People (accordion)</h5>
+                        <div class="btn-group" role="group" aria-label="People accordion commands">
+                            <button id="ppi-persons-expand" type="button" class="btn btn-sm btn-outline-secondary">Expand</button>
+                            <button id="ppi-persons-collapse" type="button" class="btn btn-sm btn-outline-secondary">Collapse</button>
+                        </div>
+                    </div>
+
+                    <div id="ppi-people-acc" class="accordion">
+                        @{
+                            for (int i = 0; i < Model.Results.Count; i++)
+                            {
+                                var r = Model.Results[i];
+                                var headingId = $"ppi-pers-h-{i}";
+                                var collapseId = $"ppi-pers-c-{i}";
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="@headingId">
+                                        <button class="accordion-button collapsed" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#@collapseId"
+                                                aria-expanded="false" aria-controls="@collapseId">
+                                            <div class="d-flex flex-wrap gap-2 align-items-baseline">
+                                                <span class="text-muted">#@(i + 1)</span>
+                                                <strong>@(string.Join(" ", new[] { r.FirstName, r.LastName }.Where(s => !string.IsNullOrWhiteSpace(s))))</strong>
+                                                <span class="text-muted">•</span>
+                                                <span class="text-muted">PublicId: @(r.PublicId ?? "-")</span>
+                                                @if (!string.IsNullOrWhiteSpace(r.DateOfBirth))
+                                                {
+                                                    <span class="badge text-bg-light ms-2">DOB: @r.DateOfBirth</span>
+                                                }
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="@collapseId" class="accordion-collapse collapse"
+                                         aria-labelledby="@headingId" data-index="@i" data-bs-parent="#ppi-people-acc">
+                                        <div class="accordion-body">
+                                            <div class="d-flex justify-content-end gap-2 mb-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary ppi-copy-one" data-index="@i">Copy XML</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary ppi-dl-one" data-index="@i">Download XML</button>
+                                            </div>
+                                            <div id="ppi-host-@i" class="small bg-body-tertiary p-3 border rounded"
+                                                 style="max-height:35vh; overflow:auto;">
+                                                <span class="text-muted">Open to load…</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function () {
+                    const key = document.getElementById('ppi-key')?.value || '';
+                    const acc = document.getElementById('ppi-people-acc');
+                    const expandAll = document.getElementById('ppi-persons-expand');
+                    const collapseAll = document.getElementById('ppi-persons-collapse');
+
+                    const inflight = new Map(); // index -> {promise, controller}
+
+                    function getPersonXml(index) {
+                        if (inflight.has(index)) return inflight.get(index).promise;
+                        const controller = new AbortController();
+                        const p = (async () => {
+                            try {
+                                const resp = await fetch(`?handler=PersonXml&index=${index}&key=${encodeURIComponent(key)}`, {
+                                    headers: { 'Accept': 'application/xml' },
+                                    signal: controller.signal
+                                });
+                                if (!resp.ok) throw new Error(await resp.text());
+                                return await resp.text();
+                            } finally {
+                                inflight.delete(index);
+                            }
+                        })();
+                        inflight.set(index, { promise: p, controller });
+                        return p;
+                    }
+
+                    // on opening another item, cancel previous prefetches if needed
+                    function cancelAllPrefetch() {
+                        inflight.forEach(v => v.controller.abort());
+                        inflight.clear();
+                    }
+
+                    async function fetchPersonXml(index) {
+                        const url = `?handler=PersonXml&index=${index}&key=${encodeURIComponent(key)}`;
+                        const resp = await fetch(url, { headers: { 'Accept': 'application/xml' } });
+                        if (!resp.ok) throw new Error(await resp.text());
+                        return await resp.text();
+                    }
+
+                    function buildTreeFromXml(xmlText) {
+                        try {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(xmlText, 'application/xml');
+                            if (doc.querySelector('parsererror')) return null;
+
+                            function el(tag, cls, text) {
+                                const e = document.createElement(tag);
+                                if (cls) e.className = cls;
+                                if (text != null) e.textContent = text;
+                                return e;
+                            }
+                            function build(node) {
+                                if (node.nodeType === 1) {
+                                    const details = el('details', 'xml-node', null);
+                                    const sum = el('summary', 'xml-summary', null);
+                                    sum.appendChild(el('span', 'xml-name fw-bold', node.nodeName));
+                                    if (node.attributes && node.attributes.length) {
+                                        const attrs = Array.from(node.attributes).map(a => `${a.name}="${a.value}"`).join(' ');
+                                        sum.appendChild(el('span', 'text-muted ms-2', attrs));
+                                    }
+                                    const hasChildren = Array.from(node.childNodes).some(n => n.nodeType === 1);
+                                    const text = (node.textContent || '').trim();
+                                    if (!hasChildren && text) {
+                                        sum.appendChild(el('span', 'xml-text ms-2', `= "${text}"`));
+                                    }
+                                    details.appendChild(sum);
+                                    Array.from(node.childNodes).forEach(ch => {
+                                        if (ch.nodeType === 1) details.appendChild(build(ch));
+                                    });
+                                    return details;
+                                }
+                                return document.createTextNode('');
+                            }
+                            const tree = build(doc.documentElement);
+                            tree.open = true;
+                            return tree;
+                        } catch { return null; }
+                    }
+
+                    function ensureLazyLoad(collapseEl) {
+                        let loaded = false;
+                        collapseEl.addEventListener('show.bs.collapse', async () => {
+                            if (loaded) return;
+                            const idx = collapseEl.getAttribute('data-index');
+                            const host = document.getElementById(`ppi-host-${idx}`);
+                            if (!host) return;
+                            host.textContent = 'Loading…';
+                            try {
+                                const xml = await fetchPersonXml(idx);
+                                const tree = buildTreeFromXml(xml);
+                                host.innerHTML = '';
+                                if (tree) host.appendChild(tree);
+                                else {
+                                    const pre = document.createElement('pre');
+                                    pre.className = 'mb-0';
+                                    pre.textContent = xml;
+                                    host.appendChild(pre);
+                                }
+                                loaded = true;
+                            } catch (e) {
+                                host.innerHTML = `<span class="text-danger">Failed: ${e}</span>`;
+                            }
+                        });
+                    }
+
+                    // Wire lazy loads
+                    acc?.querySelectorAll('.accordion-collapse').forEach(ensureLazyLoad);
+
+                    // Expand/collapse all
+                    expandAll?.addEventListener('click', () => {
+                        acc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.add('show'));
+                    });
+                    collapseAll?.addEventListener('click', () => {
+                        acc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.remove('show'));
+                    });
+
+                    // Copy/Download per person
+                    acc?.addEventListener('click', async (e) => {
+                        const btn = e.target.closest('button');
+                        if (!btn) return;
+                        const idx = btn.getAttribute('data-index');
+                        if (!idx) return;
+
+                        if (btn.classList.contains('ppi-copy-one')) {
+                            try {
+                                const xml = await fetchPersonXml(idx);
+                                await navigator.clipboard.writeText(xml);
+                                const old = btn.textContent; btn.textContent = 'Copied';
+                                setTimeout(() => btn.textContent = old, 1200);
+                            } catch { /* noop */ }
+                        }
+                        if (btn.classList.contains('ppi-dl-one')) {
+                            const xml = await fetchPersonXml(idx);
+                            const blob = new Blob([xml], { type: 'application/xml' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `PersonPublicInfo_${(+idx + 1)}.xml`;
+                            document.body.appendChild(a); a.click();
+                            URL.revokeObjectURL(a.href); a.remove();
+                        }
+                    });
+
+                    const observer = new IntersectionObserver(entries => {
+                        entries.forEach(e => {
+                            if (e.isIntersecting) {
+                                const idx = +e.target.getAttribute('data-index');
+                                // prefetch current and next two items
+                                [idx, idx + 1, idx + 2].forEach(i => { if (i >= 0) getPersonXml(i).catch(() => {}); });
+                                observer.unobserve(e.target);
+                            }
+                        });
+                    }, { rootMargin: '200px' });
+
+                    document.querySelectorAll('.accordion-collapse').forEach(el => observer.observe(el));
+                })();
+            </script>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.PeoplePublicInfoResponseXml))
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+                        <h5 class="card-title mb-0">GetPeoplePublicInfo response</h5>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <div class="btn-group" role="group" aria-label="View mode">
+                                <button id="ppi-pretty" type="button" class="btn btn-sm btn-outline-secondary">Pretty</button>
+                                <button id="ppi-raw" type="button" class="btn btn-sm btn-outline-secondary">Raw</button>
+                                <button id="ppi-tree" type="button" class="btn btn-sm btn-outline-secondary">Tree</button>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="ppi-mask">
+                                <label class="form-check-label" for="ppi-mask">Mask sensitive</label>
+                            </div>
+                            <div class="input-group input-group-sm" style="width: 240px;">
+                                <span class="input-group-text">Search</span>
+                                <input id="ppi-search" type="text" class="form-control" placeholder="tag/value…">
+                                <button id="ppi-clearsearch" class="btn btn-outline-secondary" type="button" title="Clear">×</button>
+                            </div>
+                            <div class="btn-group" role="group" aria-label="Tree commands">
+                                <button id="ppi-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled>Expand</button>
+                                <button id="ppi-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled>Collapse</button>
+                            </div>
+                            <div class="btn-group" role="group" aria-label="Export">
+                                <button id="ppi-copy" type="button" class="btn btn-sm btn-outline-secondary">Copy</button>
+                                <button id="ppi-download" type="button" class="btn btn-sm btn-outline-secondary">Download</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <pre id="ppi-xml-pretty"
+                         class="mb-0 small bg-body-tertiary p-3 border rounded"
+                         style="white-space: pre; overflow: auto; max-height: 40vh;">@Model.PeoplePublicInfoResponseXmlPretty</pre>
+
+                    <pre id="ppi-xml-raw"
+                         class="mb-0 small bg-body-tertiary p-3 border rounded"
+                         style="white-space: pre; overflow: auto; max-height: 40vh; display: none;">@Model.PeoplePublicInfoResponseXml</pre>
+
+                    <div id="ppi-xml-tree"
+                         class="mb-0 small bg-body-tertiary p-3 border rounded"
+                         style="display:none; overflow:auto; max-height:40vh; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);">
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function () {
+                    const prettyBtn = document.getElementById('ppi-pretty');
+                    const rawBtn = document.getElementById('ppi-raw');
+                    const treeBtn = document.getElementById('ppi-tree');
+                    const copyBtn = document.getElementById('ppi-copy');
+                    const downloadBtn = document.getElementById('ppi-download');
+                    const expandBtn = document.getElementById('ppi-expand');
+                    const collapseBtn = document.getElementById('ppi-collapse');
+                    const maskChk = document.getElementById('ppi-mask');
+                    const search = document.getElementById('ppi-search');
+                    const clearSearch = document.getElementById('ppi-clearsearch');
+                    const prePretty = document.getElementById('ppi-xml-pretty');
+                    const preRaw = document.getElementById('ppi-xml-raw');
+                    const treeHost = document.getElementById('ppi-xml-tree');
+
+                    // Overview
+                    const fieldsList = document.getElementById('ppi-field-list');
+
+                    // Per-person accordion
+                    const peopleAcc = document.getElementById('ppi-people-acc');
+                    const sortSelect = document.getElementById('ppi-persons-sort');
+                    const applySortBtn = document.getElementById('ppi-persons-applysort');
+                    const personsExpandBtn = document.getElementById('ppi-persons-expand');
+                    const personsCollapseBtn = document.getElementById('ppi-persons-collapse');
+
+                    const originalPretty = prePretty.textContent ?? '';
+                    const originalRaw = preRaw.textContent ?? '';
+                    const prefKey = 'ppi-pref-v1';
+                    let mode = (localStorage.getItem(prefKey) && JSON.parse(localStorage.getItem(prefKey)).mode) || 'pretty';
+                    const saved = localStorage.getItem(prefKey);
+                    maskChk.checked = (saved && JSON.parse(saved).mask) || false;
+
+                    function savePrefs() {
+                        localStorage.setItem(prefKey, JSON.stringify({ mode, mask: maskChk.checked }));
+                    }
+
+                    function maskValue(val) {
+                        if (!val) return val;
+                        val = val.replace(/(<SSN>)([^<]+)(<\/SSN>)/gi, (_, a, mid, b) => {
+                            const digits = (mid || '').replace(/\D/g, '');
+                            if (!digits) return a + mid + b;
+                            const masked = digits.length <= 3 ? '*'.repeat(digits.length)
+                                : '*'.repeat(digits.length - 3) + digits.slice(-3);
+                            return a + masked + b;
+                        });
+                        val = val.replace(/(<token>)([^<]+)(<\/token>)/gi, '$1***$3');
+                        val = val.replace(/(Authorization\s*:\s*)([^\r\n]+)/gi, '$1***');
+                        return val;
+                    }
+
+                    function getDisplayText(text) {
+                        return maskChk.checked ? maskValue(text) : text;
+                    }
+
+                    function parseXml(text) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(text, 'application/xml');
+                        const err = doc.querySelector('parsererror');
+                        if (err) throw new Error(err.textContent || 'Invalid XML');
+                        return doc;
+                    }
+
+                    function el(tag, cls, text) {
+                        const e = document.createElement(tag);
+                        if (cls) e.className = cls;
+                        if (text != null) e.textContent = text;
+                        return e;
+                    }
+
+                    function xmlToString(node) {
+                        return new XMLSerializer().serializeToString(node);
+                    }
+
+                    function getText(el, localName) {
+                        const n = Array.from(el.children).find(c => c.localName === localName);
+                        return (n && (n.textContent || '').trim()) || '';
+                    }
+
+                    function getNames(el, type) {
+                        const names = el.querySelectorAll('Names > Name');
+                        const filtered = Array.from(names).filter(n => getText(n, 'Type') === type);
+                        if (type === 'FirstName') {
+                            return filtered
+                                .map(n => ({ order: parseInt(getText(n, 'Order') || '9999', 10), value: getText(n, 'Value') }))
+                                .sort((a, b) => a.order - b.order)
+                                .map(x => x.value)
+                                .filter(Boolean)
+                                .join(' ');
+                        }
+                        const first = filtered.find(n => true);
+                        return first ? getText(first, 'Value') : '';
+                    }
+
+                    function buildTree(node) {
+                        if (node.nodeType === 1) {
+                            const details = el('details', 'xml-node', null);
+                            details.open = false;
+
+                            const sum = el('summary', 'xml-summary', null);
+                            const name = el('span', 'xml-name fw-bold', node.nodeName);
+                            sum.appendChild(name);
+
+                            if (node.attributes && node.attributes.length) {
+                                const attrs = Array.from(node.attributes).map(a => `${a.name}="${a.value}"`).join(' ');
+                                sum.appendChild(el('span', 'text-muted ms-2', attrs));
+                            }
+
+                            const text = (node.textContent || '').trim();
+                            const hasElementChildren = Array.from(node.childNodes).some(n => n.nodeType === 1);
+                            if (!hasElementChildren && text) {
+                                sum.appendChild(el('span', 'xml-text ms-2', `= "${text}"`));
+                            }
+
+                            details.appendChild(sum);
+
+                            Array.from(node.childNodes).forEach(child => {
+                                if (child.nodeType === 1) {
+                                    details.appendChild(buildTree(child));
+                                }
+                            });
+
+                            return details;
+                        }
+                        return document.createTextNode('');
+                    }
+
+                    function renderTree() {
+                        treeHost.innerHTML = '';
+                        let text = getDisplayText(originalRaw);
+                        try {
+                            const xml = parseXml(text);
+                            const root = xml.documentElement;
+                            const tree = buildTree(root);
+                            tree.open = true;
+                            treeHost.appendChild(tree);
+                        } catch (e) {
+                            treeHost.textContent = 'Failed to render tree: ' + (e && e.message ? e.message : e);
+                        }
+                    }
+
+                    function setActiveButton() {
+                        [prettyBtn, rawBtn, treeBtn].forEach(b => b.classList.remove('active'));
+                        if (mode === 'pretty') prettyBtn.classList.add('active');
+                        if (mode === 'raw') rawBtn.classList.add('active');
+                        if (mode === 'tree') treeBtn.classList.add('active');
+                    }
+
+                    function updateView() {
+                        prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
+                        preRaw.style.display = (mode === 'raw') ? 'block' : 'none';
+                        treeHost.style.display = (mode === 'tree') ? 'block' : 'none';
+
+                        prePretty.textContent = getDisplayText(originalPretty);
+                        preRaw.textContent = getDisplayText(originalRaw);
+
+                        const treeActive = (mode === 'tree');
+                        expandBtn.disabled = !treeActive;
+                        collapseBtn.disabled = !treeActive;
+
+                        if (treeActive) renderTree();
+
+                        setActiveButton();
+                        savePrefs();
+                        applySearch();
+                    }
+
+                    function expandAll(open) {
+                        treeHost.querySelectorAll('details.xml-node').forEach(d => d.open = open);
+                    }
+
+                    function applySearch() {
+                        const q = (search.value || '').trim().toLowerCase();
+                        if (!q) {
+                            treeHost.querySelectorAll('.xml-node, .xml-summary').forEach(e => e.classList.remove('d-none', 'bg-warning-subtle'));
+                            return;
+                        }
+                        treeHost.querySelectorAll('.xml-node').forEach(d => d.classList.add('d-none'));
+                        const summaries = treeHost.querySelectorAll('.xml-summary');
+                        summaries.forEach(s => {
+                            const text = s.textContent?.toLowerCase() ?? '';
+                            if (text.includes(q)) {
+                                s.classList.add('bg-warning-subtle');
+                                let p = s.parentElement;
+                                while (p && p !== treeHost) {
+                                    if (p.classList.contains('xml-node')) {
+                                        p.classList.remove('d-none');
+                                        p.open = true;
+                                    }
+                                    p = p.parentElement;
+                                }
+                            } else {
+                                s.classList.remove('bg-warning-subtle');
+                            }
+                        });
+                    }
+
+                    function populateFields() {
+                        if (!fieldsList) return;
+                        fieldsList.innerHTML = '';
+                        try {
+                            const xml = parseXml(originalRaw);
+                            const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
+                            const counts = new Map();
+                            people.forEach(p => {
+                                Array.from(p.children).forEach(ch => {
+                                    counts.set(ch.localName, (counts.get(ch.localName) || 0) + 1);
+                                });
+                            });
+                            const items = Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+                            if (items.length === 0) {
+                                const li = el('li', 'text-muted', 'No PersonPublicInfo elements found.');
+                                fieldsList.appendChild(li);
+                                return;
+                            }
+                            items.forEach(([name, cnt]) => {
+                                const li = el('li', null, `${name} (${cnt})`);
+                                fieldsList.appendChild(li);
+                            });
+                        } catch {
+                            const li = el('li', 'text-danger', 'Failed to analyze fields.');
+                            fieldsList.appendChild(li);
+                        }
+                    }
+
+                    // Build per-person accordion (lazy render body)
+                    function populatePeopleAccordion() {
+                        if (!peopleAcc) return;
+                        peopleAcc.innerHTML = '';
+                        let xml;
+                        try {
+                            xml = parseXml(originalRaw);
+                        } catch {
+                            peopleAcc.innerHTML = '<div class="text-danger small">Failed to parse XML.</div>';
+                            return;
+                        }
+                        const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
+                        const items = people.map((p, idx) => {
+                            const publicId = getText(p, 'PublicId') || getText(p, 'PersonId');
+                            const first = getNames(p, 'FirstName');
+                            const last = getNames(p, 'LastName');
+                            const dob = (getText(p, 'CivilStatusDate') || '').slice(0, 10);
+                            return { el: p, index: idx + 1, publicId, first, last, dob };
+                        });
+
+                        function render(itemsOrdered) {
+                            peopleAcc.innerHTML = '';
+                            itemsOrdered.forEach((it, i) => {
+                                const headingId = `ppi-pers-h-${i}`;
+                                const collapseId = `ppi-pers-c-${i}`;
+                                const item = document.createElement('div');
+                                item.className = 'accordion-item';
+
+                                const header = document.createElement('h2');
+                                header.className = 'accordion-header';
+                                header.id = headingId;
+
+                                const btn = document.createElement('button');
+                                btn.className = 'accordion-button collapsed';
+                                btn.type = 'button';
+                                btn.setAttribute('data-bs-toggle', 'collapse');
+                                btn.setAttribute('data-bs-target', `#${collapseId}`);
+                                btn.setAttribute('aria-expanded', 'false');
+                                btn.setAttribute('aria-controls', collapseId);
+                                btn.innerHTML = `<div class="d-flex flex-wrap gap-2 align-items-baseline">
+                                                    <span class="text-muted">#${it.index}</span>
+                                                    <strong>${(it.first || '-') + ' ' + (it.last || '')}</strong>
+                                                    <span class="text-muted">•</span>
+                                                    <span class="text-muted">PublicId: ${it.publicId || '-'}</span>
+                                                    ${it.dob ? `<span class="badge text-bg-light ms-2">DOB: ${it.dob}</span>` : ''}
+                                                 </div>`;
+
+                                header.appendChild(btn);
+
+                                const bodyWrap = document.createElement('div');
+                                bodyWrap.id = collapseId;
+                                bodyWrap.className = 'accordion-collapse collapse';
+                                bodyWrap.setAttribute('aria-labelledby', headingId);
+                                bodyWrap.setAttribute('data-bs-parent', '#ppi-people-acc');
+
+                                const body = document.createElement('div');
+                                body.className = 'accordion-body';
+                                // Toolbar
+                                const bar = document.createElement('div');
+                                bar.className = 'd-flex flex-wrap gap-2 justify-content-end mb-2';
+                                const copyBtn = el('button', 'btn btn-sm btn-outline-secondary', 'Copy XML');
+                                const dlBtn = el('button', 'btn btn-sm btn-outline-secondary', 'Download XML');
+                                bar.appendChild(copyBtn);
+                                bar.appendChild(dlBtn);
+                                body.appendChild(bar);
+
+                                // Host where we render the person subtree (lazy)
+                                const host = document.createElement('div');
+                                host.className = 'small bg-body-tertiary p-3 border rounded';
+                                host.style.maxHeight = '35vh';
+                                host.style.overflow = 'auto';
+                                body.appendChild(host);
+
+                                // Wire actions (lazy render on first open)
+                                let rendered = false;
+                                function ensureRendered() {
+                                    if (rendered) return;
+                                    const personXml = xmlToString(it.el);
+                                    // Use tree for readability
+                                    try {
+                                        const tree = buildTree(it.el);
+                                        tree.open = true;
+                                        host.innerHTML = '';
+                                        host.appendChild(tree);
+                                    } catch {
+                                        host.textContent = personXml;
+                                    }
+                                    rendered = true;
+                                }
+
+                                bodyWrap.addEventListener('show.bs.collapse', ensureRendered);
+
+                                copyBtn.addEventListener('click', async (e) => {
+                                    e.preventDefault();
+                                    const text = xmlToString(it.el);
+                                    try {
+                                        await navigator.clipboard.writeText(text);
+                                        const old = copyBtn.textContent;
+                                        copyBtn.textContent = 'Copied';
+                                        setTimeout(() => copyBtn.textContent = old, 1200);
+                                    } catch { /* noop */ }
+                                });
+
+                                dlBtn.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    const text = xmlToString(it.el);
+                                    const blob = new Blob([text], { type: 'application/xml' });
+                                    const a = document.createElement('a');
+                                    a.href = URL.createObjectURL(blob);
+                                    a.download = `PersonPublicInfo_${(it.publicId || it.index)}.xml`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    URL.revokeObjectURL(a.href);
+                                    a.remove();
+                                });
+
+                                bodyWrap.appendChild(body);
+                                item.appendChild(header);
+                                item.appendChild(bodyWrap);
+                                peopleAcc.appendChild(item);
+                            });
+                        }
+
+                        // Initial render in original order
+                        render(items);
+
+                        // Sorting support
+                        applySortBtn?.addEventListener('click', () => {
+                            const mode = sortSelect.value;
+                            let arr = [...items];
+                            if (mode === 'first') arr.sort((a, b) => (a.first || '').localeCompare(b.first || ''));
+                            else if (mode === 'last') arr.sort((a, b) => (a.last || '').localeCompare(b.last || ''));
+                            else if (mode === 'dob') arr.sort((a, b) => (a.dob || '').localeCompare(b.dob || ''));
+                            else arr = items; // index/original
+                            render(arr);
+                        });
+
+                        // Expand/collapse all
+                        personsExpandBtn?.addEventListener('click', () => {
+                            peopleAcc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.add('show'));
+                        });
+                        personsCollapseBtn?.addEventListener('click', () => {
+                            peopleAcc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.remove('show'));
+                        });
+                    }
+
+                    // wire events
+                    prettyBtn.addEventListener('click', () => { mode = 'pretty'; updateView(); });
+                    rawBtn.addEventListener('click', () => { mode = 'raw'; updateView(); });
+                    treeBtn.addEventListener('click', () => { mode = 'tree'; updateView(); });
+                    maskChk.addEventListener('change', () => updateView());
+                    expandBtn.addEventListener('click', () => expandAll(true));
+                    collapseBtn.addEventListener('click', () => expandAll(false));
+                    search.addEventListener('input', () => applySearch());
+                    clearSearch.addEventListener('click', () => { search.value = ''; applySearch(); });
+
+                    copyBtn.addEventListener('click', async function (e) {
+                        e.preventDefault();
+                        let text = '';
+                        if (mode === 'pretty') text = prePretty.textContent || '';
+                        else if (mode === 'raw') text = preRaw.textContent || '';
+                        else text = prePretty.textContent || '';
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            const old = copyBtn.innerText;
+                            copyBtn.innerText = 'Copied';
+                            setTimeout(() => copyBtn.innerText = old, 1500);
+                        } catch { /* noop */ }
+                    });
+
+                    downloadBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        let text = '';
+                        if (mode === 'pretty') text = prePretty.textContent || '';
+                        else if (mode === 'raw') text = preRaw.textContent || '';
+                        else text = prePretty.textContent || '';
+                        const blob = new Blob([text], { type: 'application/xml' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = 'GetPeoplePublicInfo.xml';
+                        document.body.appendChild(a);
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                        a.remove();
+                    });
+
+                    // init
+                    updateView();
+                    populateFields();
+                    populatePeopleAccordion();
+                })();
+            </script>
+        }
+
         @if (Model.PersonDetails is not null)
         {
             <div class="card shadow-sm mt-4">
                 <div class="card-body">
-                    <h5 class="card-title">@L["PersonDetails"]@Model.SelectedNameSuffix</h5>
+                    <h5 class="card-title">@IViewLocalizer["PersonDetails"]@Model.SelectedNameSuffix</h5>
 
                     @{
                         var groups = Model.PersonDetails
-                            .GroupBy(p => p.Key.Contains('.') ? p.Key[..p.Key.IndexOf('.')] : p.Key)
-                            .OrderBy(g => g.Key)
-                            .ToList();
+                        .GroupBy(p => p.Key.Contains('.') ? p.Key[..p.Key.IndexOf('.')] : p.Key)
+                        .OrderBy(g => g.Key)
+                        .ToList();
                         var accId = "personDetailsAcc";
                         var gIndex = 0;
                     }
@@ -135,20 +896,20 @@
                                         <div class="table-responsive">
                                             <table class="table table-sm table-striped align-middle mb-0">
                                                 <tbody>
-                                                @foreach (var (k, v) in grp.OrderBy(x => x.Key))
-                                                {
-                                                    var lastDot = k.LastIndexOf('.');
-                                                    var subKey = lastDot >= 0 ? k[(lastDot + 1)..] : k;
-                                                    var bracketPos = subKey.IndexOf('[');
-                                                    if (bracketPos >= 0) subKey = subKey[..bracketPos];
+                                                    @foreach (var (k, v) in grp.OrderBy(x => x.Key))
+                                                    {
+                                                        var lastDot = k.LastIndexOf('.');
+                                                        var subKey = lastDot >= 0 ? k[(lastDot + 1)..] : k;
+                                                        var bracketPos = subKey.IndexOf('[');
+                                                        if (bracketPos >= 0) subKey = subKey[..bracketPos];
 
-                                                    <tr>
-                                                        <th class="text-muted fw-normal" style="width: 35%; word-break: break-word;">
-                                                            @subKey
-                                                        </th>
-                                                        <td style="word-break: break-word;">@v</td>
-                                                    </tr>
-                                                }
+                                                        <tr>
+                                                            <th class="text-muted fw-normal" style="width: 35%; word-break: break-word;">
+                                                                @subKey
+                                                            </th>
+                                                            <td style="word-break: break-word;">@v</td>
+                                                        </tr>
+                                                    }
                                                 </tbody>
                                             </table>
                                         </div>
@@ -164,10 +925,17 @@
     </div>
 </div>
 
-@{ 
-    var t = L["Title"]; 
+@{
+    var t = IViewLocalizer["Title"];
 }
 
 <environment include="Development">
     <script src="/_framework/aspnetcore-browser-refresh.js"></script>
 </environment>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/validation-ssn.js"></script>
+    <script src="~/js/validation-name.js"></script>
+    <script src="~/js/validation-dob.js"></script>
+}
