@@ -404,42 +404,177 @@
         var html = escapeHtml(masked).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
         preEl.innerHTML = html;
     }
-    var searchTimer = 0;
-    function debouncedSearch() {
-        if (searchTimer) window.clearTimeout(searchTimer);
-        searchTimer = window.setTimeout(applySearch, 150);
+    function highlightInline(el, q) {
+        if (!el) return;
+        if (!q) { el.textContent = (el.textContent || ''); return; }
+        var rx = new RegExp(escapeRegExp(q), 'gi');
+        var txt = el.textContent || '';
+        el.innerHTML = escapeHtml(txt).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
     }
+    function highlightCell(cell, q) {
+        if (!cell) return;
+        if (!q) { cell.textContent = (cell.textContent || ''); return; }
+        var rx = new RegExp(escapeRegExp(q), 'gi');
+        var txt = cell.textContent || '';
+        cell.innerHTML = escapeHtml(txt).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
+    }
+    function clearSummaryEffects() {
+        // show all cards/rows; remove highlights and hints
+        var cards = summaryHost.querySelectorAll('.mb-3.p-2.border.rounded');
+        for (var i = 0; i < cards.length; i++) cards[i].classList.remove('d-none');
+        var rows = summaryHost.querySelectorAll('tbody tr');
+        for (var r = 0; r < rows.length; r++) rows[r].classList.remove('d-none');
+        var cells = summaryHost.querySelectorAll('th,td,summary,strong,.badge');
+        for (var c = 0; c < cells.length; c++) cells[c].textContent = (cells[c].textContent || '');
+        var hint = summaryHost.querySelector('.gpiv-summary-nomatch');
+        if (hint) hint.remove();
+    }
+
+    // REPLACE the existing applySearch() with this version.
+    // Raw, Pretty and Tree branches are unchanged.
     function applySearch() {
-        var prev = treeHost ? treeHost.querySelector('.gpiv-tree-nomatch') : null;
-        if (prev) prev.remove();
+        var prevTree = treeHost ? treeHost.querySelector('.gpiv-tree-nomatch') : null;
+        if (prevTree) prevTree.remove();
+        var prevSum = summaryHost ? summaryHost.querySelector('.gpiv-summary-nomatch') : null;
+        if (prevSum) prevSum.remove();
+
         var q = (search && search.value || '').trim();
+
+        // Tree (unchanged)
         if (mode === 'tree') {
             var list = treeHost.querySelectorAll('.xml-node, .xml-summary');
             for (var i = 0; i < list.length; i++) list[i].classList.remove('d-none', 'bg-warning-subtle');
             if (!q) return;
-            var ql = q.toLowerCase(); var any = false;
-            var nodes = treeHost.querySelectorAll('.xml-node'); for (var j = 0; j < nodes.length; j++) nodes[j].classList.add('d-none');
+
+            var ql = q.toLowerCase();
+            var any = false;
+
+            var nodes = treeHost.querySelectorAll('.xml-node');
+            for (var j = 0; j < nodes.length; j++) nodes[j].classList.add('d-none');
+
             var sums = treeHost.querySelectorAll('.xml-summary');
             for (var s = 0; s < sums.length; s++) {
                 var txt = (sums[s].textContent || '').toLowerCase();
                 if (txt.indexOf(ql) >= 0) {
-                    any = true; sums[s].classList.add('bg-warning-subtle');
+                    any = true;
+                    sums[s].classList.add('bg-warning-subtle');
                     var p = sums[s].parentElement;
-                    while (p && p !== treeHost) { if (p.classList && p.classList.contains('xml-node')) { p.classList.remove('d-none'); p.open = true; } p = p.parentElement; }
-                } else { sums[s].classList.remove('bg-warning-subtle'); }
+                    while (p && p !== treeHost) {
+                        if (p.classList && p.classList.contains('xml-node')) {
+                            p.classList.remove('d-none');
+                            p.open = true;
+                        }
+                        p = p.parentElement;
+                    }
+                } else {
+                    sums[s].classList.remove('bg-warning-subtle');
+                }
             }
-            if (!any) { var hint = document.createElement('div'); hint.className = 'gpiv-tree-nomatch text-muted small'; hint.textContent = 'No matches. Clear search to show all.'; treeHost.prepend(hint); }
+            if (!any) {
+                var hintT = document.createElement('div');
+                hintT.className = 'gpiv-tree-nomatch text-muted small';
+                hintT.textContent = 'No matches. Clear search to show all.';
+                treeHost.prepend(hintT);
+            }
             return;
         }
+
+        // Summary (enhanced)
         if (mode === 'summary') {
-            var cards = summaryHost.querySelectorAll('.p-2.border.rounded, .mb-3.p-2.border.rounded');
-            if (!q) { for (var c = 0; c < cards.length; c++) cards[c].classList.remove('d-none'); return; }
-            var qls = q.toLowerCase();
-            for (var c2 = 0; c2 < cards.length; c2++) { var match = (cards[c2].textContent || '').toLowerCase().indexOf(qls) >= 0; cards[c2].classList.toggle('d-none', !match); }
+            if (!q) { clearSummaryEffects(); return; }
+            var ql = q.toLowerCase();
+            var anyCard = false;
+
+            var cards = summaryHost.querySelectorAll('.mb-3.p-2.border.rounded');
+            for (var ci = 0; ci < cards.length; ci++) {
+                var card = cards[ci];
+                var cardHasMatch = false;
+
+                // Header: strong name + badges
+                var header = card.querySelector('.d-flex.flex-wrap.gap-2.align-items-baseline.mb-2');
+                if (header) {
+                    var nameEl = header.querySelector('strong');
+                    if (nameEl) {
+                        if ((nameEl.textContent || '').toLowerCase().indexOf(ql) >= 0) cardHasMatch = true;
+                        highlightInline(nameEl, q);
+                    }
+                    var badges = header.querySelectorAll('.badge');
+                    for (var bi = 0; bi < badges.length; bi++) {
+                        var b = badges[bi];
+                        if ((b.textContent || '').toLowerCase().indexOf(ql) >= 0) cardHasMatch = true;
+                        highlightInline(b, q);
+                    }
+                }
+
+                // Each details section
+                var detailsList = card.querySelectorAll('details.summary-group');
+                for (var di = 0; di < detailsList.length; di++) {
+                    var det = detailsList[di];
+                    var sectionHas = false;
+
+                    var sm = det.querySelector('summary');
+                    if (sm) {
+                        if ((sm.textContent || '').toLowerCase().indexOf(ql) >= 0) sectionHas = true;
+                        highlightInline(sm, q);
+                    }
+
+                    // Table rows
+                    var rows = det.querySelectorAll('tbody tr');
+                    for (var ri = 0; ri < rows.length; ri++) {
+                        var row = rows[ri];
+                        var rowTxt = (row.textContent || '').toLowerCase();
+                        var match = rowTxt.indexOf(ql) >= 0;
+                        row.classList.toggle('d-none', !match);
+                        var th = row.querySelector('th'); var td = row.querySelector('td');
+                        if (th) highlightCell(th, q);
+                        if (td) highlightCell(td, q);
+                        if (match) sectionHas = true;
+                    }
+
+                    // Nested cards (repeating items)
+                    var nestedCards = det.querySelectorAll('.p-2.border.rounded');
+                    for (var ni = 0; ni < nestedCards.length; ni++) {
+                        var n = nestedCards[ni];
+                        var nMatch = ((n.textContent || '').toLowerCase().indexOf(ql) >= 0);
+                        n.classList.toggle('d-none', !nMatch);
+                        if (nMatch) {
+                            sectionHas = true;
+                            var pcs = n.querySelectorAll('th,td,summary,strong,.badge');
+                            for (var pi = 0; pi < pcs.length; pi++) highlightInline(pcs[pi], q);
+                        } else {
+                            var clear = n.querySelectorAll('th,td,summary,strong,.badge');
+                            for (var cl = 0; cl < clear.length; cl++) clear[cl].textContent = (clear[cl].textContent || '');
+                        }
+                    }
+
+                    if (sectionHas) det.open = true;
+                    cardHasMatch = cardHasMatch || sectionHas;
+                }
+
+                card.classList.toggle('d-none', !cardHasMatch);
+                if (cardHasMatch) anyCard = true;
+            }
+
+            if (!anyCard) {
+                var hintS = document.createElement('div');
+                hintS.className = 'gpiv-summary-nomatch text-muted small';
+                hintS.textContent = 'No matches in Summary. Clear search to show all.';
+                summaryHost.prepend(hintS);
+            }
             return;
         }
+
+        // Raw/Pretty (unchanged)
         if (mode === 'raw')    highlightPre(preRaw,   sourceRaw,   q);
         if (mode === 'pretty') highlightPre(prePretty, sourcePretty, q);
+    }
+
+    var gpivSearchTimer = 0;
+    function debouncedSearch() {
+        if (gpivSearchTimer) { try { window.clearTimeout(gpivSearchTimer); } catch {} }
+        gpivSearchTimer = window.setTimeout(function () {
+            try { applySearch(); } catch {}
+        }, 150);
     }
 
     function expandAll(open) { var details = treeHost.querySelectorAll('details.xml-node'); for (var i = 0; i < details.length; i++) details[i].open = open; }
