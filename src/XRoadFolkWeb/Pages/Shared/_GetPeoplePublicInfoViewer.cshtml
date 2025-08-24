@@ -4,6 +4,7 @@
 }
 <style>
     /* Sticky toolbar + fullscreen + adjustable height */
+    .gpiv-card { position: relative; }
     .gpiv-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); padding-top: .25rem; }
     .gpiv-card.gpiv-fullscreen {
         position: fixed; inset: 0; z-index: 1050; margin: 0;
@@ -12,9 +13,31 @@
     .gpiv-card.gpiv-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
     .gpiv-card .gpiv-viewport { max-height: var(--gpiv-h, 40vh); }
     .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: calc(100dvh - 7.5rem); }
+
+    /* Drag & drop overlay */
+    .gpiv-drop {
+        display: none; position: absolute; inset: 0; z-index: 3;
+        background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary);
+        align-items: center; justify-content: center; text-align: center; padding: 2rem;
+        border-radius: .375rem;
+    }
+    .gpiv-drop .msg { font-size: .95rem; color: var(--bs-secondary); }
+
+    /* Keyframes for highlight (note: double-at to emit a literal at-keyword) */
+    @@keyframes gpivFlash {
+        0%   { background: rgba(255, 243, 205, .9); }
+        100% { background: transparent; }
+    }
+    .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
 </style>
 
 <div class="card shadow-sm mb-4 gpiv-card">
+    <div class="gpiv-drop" id="gpiv-drop">
+        <div class="msg">
+            <div class="mb-1">Drop XML file or text to load</div>
+        </div>
+    </div>
+
     <div class="card-body">
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
             <h5 class="card-title mb-0">GetPeoplePublicInfo</h5>
@@ -41,6 +64,7 @@
                 <div class="btn-group" role="group" aria-label="Export">
                     <button id="gpiv-copy" type="button" class="btn btn-sm btn-outline-secondary" title="Ctrl+Shift+C">Copy</button>
                     <button id="gpiv-download" type="button" class="btn btn-sm btn-outline-secondary">Download</button>
+                    <button id="gpiv-exportcsv" type="button" class="btn btn-sm btn-outline-secondary" title="Export summary as CSV">CSV</button>
                 </div>
                 <div class="input-group input-group-sm" style="width: 180px;">
                     <span class="input-group-text">Height</span>
@@ -80,6 +104,7 @@
     var summaryBtn = document.getElementById('gpiv-summary');
     var copyBtn = document.getElementById('gpiv-copy');
     var downloadBtn = document.getElementById('gpiv-download');
+    var exportCsvBtn = document.getElementById('gpiv-exportcsv');
     var expandBtn = document.getElementById('gpiv-expand');
     var collapseBtn = document.getElementById('gpiv-collapse');
     var maskChk = document.getElementById('gpiv-mask');
@@ -87,6 +112,7 @@
     var clearSearch = document.getElementById('gpiv-clearsearch');
     var heightRange = document.getElementById('gpiv-height');
     var fullscreenBtn = document.getElementById('gpiv-fullscreen');
+    var dropOverlay = document.getElementById('gpiv-drop');
 
     var prePretty = document.getElementById('gpiv-xml-pretty');
     var preRaw = document.getElementById('gpiv-xml-raw');
@@ -242,9 +268,12 @@
     }
     function badge(text) { var b = document.createElement('span'); b.className = 'badge text-bg-light'; b.textContent = text; return b; }
 
-    // Summary (enhanced)
+    var summaryPeopleNodes = [];
+
+    // Summary (enhanced with per-person actions)
     function renderSummary() {
         summaryHost.innerHTML = '';
+        summaryPeopleNodes = [];
         try {
             var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
             if (!xmlText.trim()) { summaryHost.textContent = 'No XML to display.'; return; }
@@ -254,13 +283,16 @@
             if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.')); return; }
 
             // Header row with count
-            var hdr = el('div', 'mb-2', null);
+            var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
             hdr.appendChild(el('strong', null, 'People: ' + people.length));
             summaryHost.appendChild(hdr);
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
+                summaryPeopleNodes.push(person);
+
                 var wrap = el('div', 'mb-3 p-2 border rounded', null);
+                wrap.setAttribute('data-idx', String(p));
 
                 var header = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
                 header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
@@ -286,9 +318,18 @@
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
                 var civil = getTextLocal(person, 'CivilStatus');
-                if (publicId) header.appendChild(badge('PublicId: ' + publicId));
+                if (publicId) { var b1 = badge('PublicId: ' + publicId); b1.className += ' gpiv-pid'; header.appendChild(b1); }
                 if (dob) header.appendChild(badge('DOB: ' + dob));
                 if (civil) header.appendChild(badge('Status: ' + civil));
+
+                // Per-person actions (copy/download)
+                var act = document.createElement('div');
+                act.className = 'ms-auto d-flex gap-2';
+                var btnCopy = document.createElement('button'); btnCopy.type = 'button'; btnCopy.className = 'btn btn-sm btn-outline-secondary gpiv-copy-person'; btnCopy.setAttribute('data-idx', String(p)); btnCopy.textContent = 'Copy XML';
+                var btnDl = document.createElement('button'); btnDl.type = 'button'; btnDl.className = 'btn btn-sm btn-outline-secondary gpiv-dl-person'; btnDl.setAttribute('data-idx', String(p)); btnDl.textContent = 'Download';
+                act.appendChild(btnCopy); act.appendChild(btnDl);
+                header.appendChild(act);
+
                 wrap.appendChild(header);
 
                 var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = true;
@@ -304,11 +345,11 @@
                     var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
                     for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
                         var nItem = nameRoot.children[n2]; if (nItem.localName !== 'Name' || isNil(nItem)) continue;
-                        var card = el('div', 'p-2 border rounded', null);
-                        var title = el('div', 'small text-muted mb-1', 'Name #' + (list.children.length + 1));
-                        card.appendChild(title);
-                        var t = buildKvpTableIncludingAttributes(nItem); if (t) card.appendChild(t);
-                        list.appendChild(card);
+                        var card2 = el('div', 'p-2 border rounded', null);
+                        var title2 = el('div', 'small text-muted mb-1', 'Name #' + (list.children.length + 1));
+                        card2.appendChild(title2);
+                        var t2 = buildKvpTableIncludingAttributes(nItem); if (t2) card2.appendChild(t2);
+                        list.appendChild(card2);
                     }
                     namesSection.appendChild(list);
                     wrap.appendChild(namesSection);
@@ -331,13 +372,13 @@
                         var items = []; for (var ii = 0; ii < group.children.length; ii++) { var it = group.children[ii]; if (!isNil(it) && it.localName === repeated) items.push(it); }
                         var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
                         for (var itx = 0; itx < items.length; itx++) {
-                            var card2 = el('div', 'p-2 border rounded', null);
-                            var title2 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx + 1));
-                            card2.appendChild(title2);
-                            var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card2.appendChild(leaves2);
+                            var card3 = el('div', 'p-2 border rounded', null);
+                            var title3 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx + 1));
+                            card3.appendChild(title3);
+                            var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card3.appendChild(leaves2);
                             var nested = []; for (var nc = 0; nc < items[itx].children.length; nc++) { var kid = items[itx].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
-                            for (var nx = 0; nx < nested.length; nx++) card2.appendChild(buildDetails(nested[nx]));
-                            listWrap.appendChild(card2);
+                            for (var nx = 0; nx < nested.length; nx++) card3.appendChild(buildDetails(nested[nx]));
+                            listWrap.appendChild(card3);
                         }
                         section.appendChild(listWrap);
                     } else {
@@ -410,6 +451,7 @@
         if (mode === 'tree' && treeBtn) treeBtn.classList.add('active');
         if (mode === 'summary' && summaryBtn) summaryBtn.classList.add('active');
     }
+
     function updateView() {
         var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
         var hasAny = combined.length > 0;
@@ -426,7 +468,57 @@
         setActive(); savePrefs(); applySearch();
     }
 
-    // UI events
+    // Per-person copy/download (event delegation)
+    summaryHost && summaryHost.addEventListener('click', function (ev) {
+        var t = ev.target;
+        while (t && t !== summaryHost && !(t.classList && (t.classList.contains('gpiv-copy-person') || t.classList.contains('gpiv-dl-person')))) {
+            t = t.parentElement;
+        }
+        if (!t || t === summaryHost) return;
+        var idx = parseInt(t.getAttribute('data-idx') || '-1', 10);
+        if (isNaN(idx) || idx < 0 || idx >= summaryPeopleNodes.length) return;
+        try {
+            var xml = new XMLSerializer().serializeToString(summaryPeopleNodes[idx]);
+            xml = getDisplayText(xml);
+            if (t.classList.contains('gpiv-copy-person')) {
+                (navigator.clipboard && navigator.clipboard.writeText(xml).catch(function () { })) || (function () {
+                    var ta = document.createElement('textarea'); ta.value = xml; ta.style.position = 'fixed'; ta.style.left = '-10000px';
+                    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
+                })();
+                t.textContent = 'Copied'; setTimeout(function () { t.textContent = 'Copy XML'; }, 1200);
+            } else {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([xml], { type: 'application/xml;charset=utf-8' }));
+                a.download = 'PersonPublicInfo_' + (idx + 1) + '.xml';
+                document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
+            }
+        } catch {}
+    });
+
+    // Load: Drag & Drop only
+    function setXmlFromText(text) {
+        if (!text || !text.trim()) return;
+        sourceRaw = text; sourcePretty = text;
+        updateView();
+    }
+    function showDrop(v) { if (dropOverlay) dropOverlay.style.display = v ? 'flex' : 'none'; }
+    card && card.addEventListener('dragenter', function (e) { e.preventDefault(); showDrop(true); });
+    card && card.addEventListener('dragover', function (e) { e.preventDefault(); showDrop(true); });
+    card && card.addEventListener('dragleave', function (e) { e.preventDefault(); showDrop(false); });
+    card && card.addEventListener('drop', function (e) {
+        e.preventDefault(); showDrop(false);
+        var dt = e.dataTransfer; if (!dt) return;
+        if (dt.files && dt.files.length) {
+            var f = dt.files[0]; var reader = new FileReader();
+            reader.onload = function () { setXmlFromText(String(reader.result || '')); };
+            reader.readAsText(f);
+        } else {
+            var txt = dt.getData('text') || '';
+            setXmlFromText(txt);
+        }
+    });
+
+    // Toolbar actions
     prettyBtn && prettyBtn.addEventListener('click', function () { mode = 'pretty'; updateView(); });
     rawBtn && rawBtn.addEventListener('click', function () { mode = 'raw'; updateView(); });
     treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; if (search) search.value = ''; updateView(); });
@@ -454,6 +546,7 @@
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
     });
 
+    // Export (whole document)
     function getExportText() {
         if (mode === 'raw') return getDisplayText(sourceRaw || (preRaw ? preRaw.textContent : '') || '');
         if (mode === 'pretty') return getDisplayText(sourcePretty || (prePretty ? prePretty.textContent : '') || '');
@@ -480,6 +573,84 @@
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
         URL.revokeObjectURL(a.href); a.remove();
     });
+
+    // Export CSV (Summary basics)
+    function exportSummaryCsv() {
+        try {
+            var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
+            if (!xmlText.trim()) return;
+            var xml = parseXml(xmlText);
+            var people = []; var all = xml.getElementsByTagName('*');
+            for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
+            var rows = [];
+            rows.push(['Index','FullName','PublicId','PersonId','DateOfBirth','CivilStatus'].join(','));
+            for (var p = 0; p < people.length; p++) {
+                var person = people[p];
+                // name
+                var namesRoot = null;
+                for (var nc = 0; nc < person.children.length; nc++) if (person.children[nc].localName === 'Names') { namesRoot = person.children[nc]; break; }
+                var full = '';
+                if (namesRoot) {
+                    var firsts = []; var last = '';
+                    for (var nn = 0; nn < namesRoot.children.length; nn++) {
+                        var nm = namesRoot.children[nn]; if (nm.localName !== 'Name' || isNil(nm)) continue;
+                        var tp = getTextLocal(nm, 'Type');
+                        if (tp === 'FirstName') {
+                            var order = parseInt(getTextLocal(nm, 'Order') || '9999', 10);
+                            firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(nm, 'Value') });
+                        } else if (tp === 'LastName') last = getTextLocal(nm, 'Value') || last;
+                    }
+                    firsts.sort(function (a, b) { return a.o - b.o; });
+                    var firstJoined = []; for (var fj = 0; fj < firsts.length; fj++) firstJoined.push(firsts[fj].v);
+                    full = (firstJoined.join(' ') + ' ' + last).trim();
+                }
+                var pid = getTextLocal(person, 'PublicId');
+                var perid = getTextLocal(person, 'PersonId');
+                var dob = getTextLocal(person, 'DateOfBirth');
+                var civ = getTextLocal(person, 'CivilStatus');
+                function q(s){ s = s || ''; s = s.replace(/"/g,'""'); return '"' + s + '"'; }
+                rows.push([p+1, q(full), q(pid), q(perid), q(dob), q(civ)].join(','));
+            }
+            var csv = rows.join('\r\n');
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            a.download = 'GetPeoplePublicInfo_summary.csv';
+            document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
+        } catch {}
+    }
+    exportCsvBtn && exportCsvBtn.addEventListener('click', exportSummaryCsv);
+
+    // Public API
+    window.gpiv = {
+        setXml: function (raw, pretty) {
+            if (typeof raw === 'string') sourceRaw = raw;
+            if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string') sourcePretty = raw;
+            if (preRaw) preRaw.textContent = getDisplayText(sourceRaw || '');
+            if (prePretty) prePretty.textContent = getDisplayText(sourcePretty || '');
+            updateView();
+        },
+        focusPerson: function (publicId) {
+            if (!publicId) return;
+            mode = 'summary'; updateView();
+            // find badge
+            var badges = summaryHost.querySelectorAll('.gpiv-pid');
+            for (var i = 0; i < badges.length; i++) {
+                if ((badges[i].textContent || '').indexOf(publicId) >= 0) {
+                    var wrap = badges[i];
+                    while (wrap && wrap !== summaryHost && !wrap.classList.contains('border')) wrap = wrap.parentElement;
+                    if (wrap && wrap.scrollIntoView) { wrap.scrollIntoView({ block: 'center' }); wrap.classList.add('gpiv-highlight'); setTimeout(function () { wrap.classList.remove('gpiv-highlight'); }, 1500); }
+                    break;
+                }
+            }
+        }
+    };
+
+    // Deep-link support: ?gpivPublicId=...
+    try {
+        var qs = new URLSearchParams(window.location.search);
+        var linkPid = qs.get('gpivPublicId');
+        if (linkPid) { setTimeout(function () { window.gpiv.focusPerson(linkPid); }, 50); }
+    } catch {}
 
     updateView();
 })();
