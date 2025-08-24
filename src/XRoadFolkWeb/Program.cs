@@ -60,18 +60,13 @@ IServiceCollection serviceCollection = builder.Services.AddSingleton(sp =>
 bool maskTokens = builder.Configuration.GetValue("Logging:MaskTokens", true);
 SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
-// Move this field inside a class or make it local to the method to fix CS0116.
-// Simplify collection initialization to fix IDE0300.
-// string[] DefaultSupportedCultures = ["fo-FO"]; // removed (encapsulated in AppLocalization)
-
+// Centralized supported cultures from configuration (with safe fallbacks)
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    string[] names = AppLocalization.CultureNames;
-    IReadOnlyList<CultureInfo> supported = AppLocalization.Cultures;
-    opts.DefaultRequestCulture = new RequestCulture(AppLocalization.DefaultCulture);
-    // Create mutable lists for options assignment
-    opts.SupportedCultures = [.. supported];
-    opts.SupportedUICultures = [.. supported];
+    var (defaultCulture, cultures) = AppLocalization.FromConfiguration(builder.Configuration);
+    opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
+    opts.SupportedCultures = [.. cultures];
+    opts.SupportedUICultures = [.. cultures];
 });
 
 // Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)

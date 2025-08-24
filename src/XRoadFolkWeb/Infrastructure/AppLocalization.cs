@@ -1,15 +1,31 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 
 namespace XRoadFolkWeb.Infrastructure
 {
     internal static class AppLocalization
     {
-        // Centralized, immutable culture configuration
-        public static readonly string[] CultureNames = ["fo-FO", "da-DK", "en-US"];
-        public static string DefaultCulture => CultureNames[0];
+        // Config section name
+        public const string SectionName = "Localization";
 
-        private static IReadOnlyList<CultureInfo>? _cultures;
-        public static IReadOnlyList<CultureInfo> Cultures =>
-            _cultures ??= CultureNames.Select(c => new CultureInfo(c)).ToList().AsReadOnly();
+        // Safe defaults if config is missing or incomplete
+        private static readonly string[] FallbackCultureNames = ["fo-FO", "da-DK", "en-US"];
+
+        public static (string DefaultCulture, IReadOnlyList<CultureInfo> Cultures) FromConfiguration(IConfiguration configuration)
+        {
+            var section = configuration.GetSection(SectionName);
+            string[] names = section.GetSection("SupportedCultures").Get<string[]>() ?? FallbackCultureNames;
+            string defaultName = section.GetValue<string>("DefaultCulture");
+
+            // Ensure default is present and valid
+            if (string.IsNullOrWhiteSpace(defaultName) ||
+                !names.Any(n => string.Equals(n, defaultName, StringComparison.OrdinalIgnoreCase)))
+            {
+                defaultName = names[0];
+            }
+
+            var cultures = names.Select(n => new CultureInfo(n)).ToList();
+            return (defaultName, cultures);
+        }
     }
 }
