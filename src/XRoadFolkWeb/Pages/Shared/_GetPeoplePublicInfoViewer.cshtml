@@ -2,16 +2,28 @@
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
 }
-<div class="card shadow-sm mb-4">
+<style>
+    /* Sticky toolbar + fullscreen + adjustable height */
+    .gpiv-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); padding-top: .25rem; }
+    .gpiv-card.gpiv-fullscreen {
+        position: fixed; inset: 0; z-index: 1050; margin: 0;
+        border-radius: 0; background: var(--bs-body-bg);
+    }
+    .gpiv-card.gpiv-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
+    .gpiv-card .gpiv-viewport { max-height: var(--gpiv-h, 40vh); }
+    .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: calc(100dvh - 7.5rem); }
+</style>
+
+<div class="card shadow-sm mb-4 gpiv-card">
     <div class="card-body">
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+        <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
             <h5 class="card-title mb-0">GetPeoplePublicInfo</h5>
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <div class="btn-group" role="group" aria-label="View mode">
-                    <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary">Pretty</button>
-                    <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary">Raw</button>
-                    <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary">Tree</button>
-                    <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary">Summary</button>
+                    <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">Pretty</button>
+                    <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">Raw</button>
+                    <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">Tree</button>
+                    <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">Summary</button>
                 </div>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="checkbox" id="gpiv-mask">
@@ -23,34 +35,39 @@
                     <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="Clear">×</button>
                 </div>
                 <div class="btn-group" role="group" aria-label="Tree commands">
-                    <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled>Expand</button>
-                    <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled>Collapse</button>
+                    <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">Expand</button>
+                    <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">Collapse</button>
                 </div>
                 <div class="btn-group" role="group" aria-label="Export">
-                    <button id="gpiv-copy" type="button" class="btn btn-sm btn-outline-secondary">Copy</button>
+                    <button id="gpiv-copy" type="button" class="btn btn-sm btn-outline-secondary" title="Ctrl+Shift+C">Copy</button>
                     <button id="gpiv-download" type="button" class="btn btn-sm btn-outline-secondary">Download</button>
                 </div>
+                <div class="input-group input-group-sm" style="width: 180px;">
+                    <span class="input-group-text">Height</span>
+                    <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="Adjust viewer height (vh)">
+                </div>
+                <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="Toggle fullscreen">Fullscreen</button>
             </div>
         </div>
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">No response loaded yet.</div>
 
         <pre id="gpiv-xml-pretty"
-             class="mb-0 small bg-body-tertiary p-3 border rounded"
-             style="white-space: pre; overflow: auto; max-height: 40vh;">@pretty</pre>
+             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
+             style="white-space: pre; overflow: auto;">@pretty</pre>
 
         <pre id="gpiv-xml-raw"
-             class="mb-0 small bg-body-tertiary p-3 border rounded"
-             style="white-space: pre; overflow: auto; max-height: 40vh; display:none;">@raw</pre>
+             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
+             style="white-space: pre; overflow: auto; display:none;">@raw</pre>
 
         <div id="gpiv-xml-tree"
-             class="mb-0 small bg-body-tertiary p-3 border rounded"
-             style="display:none; overflow:auto; max-height:40vh; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);">
+             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
+             style="display:none; overflow:auto; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);">
         </div>
 
         <div id="gpiv-xml-summary"
-             class="mb-0 small bg-body-tertiary p-3 border rounded"
-             style="display:none; overflow:auto; max-height:40vh;">
+             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
+             style="display:none; overflow:auto;">
         </div>
     </div>
 </div>
@@ -68,26 +85,39 @@
     var maskChk = document.getElementById('gpiv-mask');
     var search = document.getElementById('gpiv-search');
     var clearSearch = document.getElementById('gpiv-clearsearch');
+    var heightRange = document.getElementById('gpiv-height');
+    var fullscreenBtn = document.getElementById('gpiv-fullscreen');
 
     var prePretty = document.getElementById('gpiv-xml-pretty');
     var preRaw = document.getElementById('gpiv-xml-raw');
     var treeHost = document.getElementById('gpiv-xml-tree');
     var summaryHost = document.getElementById('gpiv-xml-summary');
     var emptyMsg = document.getElementById('gpiv-empty');
+    var card = document.querySelector('.gpiv-card');
 
     var sourcePretty = prePretty ? (prePretty.textContent || '') : '';
     var sourceRaw = preRaw ? (preRaw.textContent || '') : '';
 
     var prefKey = 'gpiv-pref-v1';
     var mode = 'pretty';
-    try {
-        var saved = JSON.parse(localStorage.getItem(prefKey) || 'null');
-        if (saved && typeof saved.mode === 'string') mode = saved.mode;
-        if (saved && typeof saved.mask === 'boolean') maskChk.checked = saved.mask;
-    } catch {}
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
+    if (saved && typeof saved.mode === 'string') mode = saved.mode;
+    if (saved && typeof saved.mask === 'boolean' && maskChk) maskChk.checked = saved.mask;
+    var savedQ = saved && typeof saved.q === 'string' ? saved.q : '';
+    var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
+    if (search && savedQ) search.value = savedQ;
+    if (heightRange) { heightRange.value = savedH; if (card) card.style.setProperty('--gpiv-h', savedH + 'vh'); }
 
     function savePrefs() {
-        try { localStorage.setItem(prefKey, JSON.stringify({ mode: mode, mask: !!maskChk.checked })); } catch {}
+        try {
+            localStorage.setItem(prefKey, JSON.stringify({
+                mode: mode,
+                mask: !!(maskChk && maskChk.checked),
+                q: search ? (search.value || '') : '',
+                h: heightRange ? parseInt(heightRange.value || '40', 10) : 40
+            }));
+        } catch {}
     }
 
     function maskValue(val) {
@@ -102,9 +132,7 @@
         val = val.replace(/(Authorization\s*:\s*)([^\r\n]+)/gi, '$1***');
         return val;
     }
-    function getDisplayText(text) {
-        return maskChk && maskChk.checked ? maskValue(text) : text;
-    }
+    function getDisplayText(text) { return (maskChk && maskChk.checked) ? maskValue(text) : text; }
     function parseXml(text) {
         var parser = new DOMParser();
         var doc = parser.parseFromString(text, 'application/xml');
@@ -128,23 +156,15 @@
         sum.appendChild(el('span', 'xml-name fw-bold', node.nodeName));
         if (node.attributes && node.attributes.length) {
             var attrs = [];
-            for (var i = 0; i < node.attributes.length; i++) {
-                var a = node.attributes[i];
-                attrs.push(a.name + '="' + a.value + '"');
-            }
+            for (var i = 0; i < node.attributes.length; i++) { var a = node.attributes[i]; attrs.push(a.name + '="' + a.value + '"'); }
             sum.appendChild(el('span', 'text-muted ms-2', attrs.join(' ')));
         }
-        var hasElementChildren = false;
-        for (var c = 0; c < node.childNodes.length; c++) {
-            if (node.childNodes[c].nodeType === 1) { hasElementChildren = true; break; }
-        }
+        var hasChildren = false;
+        for (var c = 0; c < node.childNodes.length; c++) if (node.childNodes[c].nodeType === 1) { hasChildren = true; break; }
         var txt = (node.textContent || '').trim();
-        if (!hasElementChildren && txt) sum.appendChild(el('span', 'xml-text ms-2', '= "' + txt + '"'));
+        if (!hasChildren && txt) sum.appendChild(el('span', 'xml-text ms-2', '= "' + txt + '"'));
         details.appendChild(sum);
-        for (var j = 0; j < node.childNodes.length; j++) {
-            var ch = node.childNodes[j];
-            if (ch.nodeType === 1) details.appendChild(buildTree(ch));
-        }
+        for (var j = 0; j < node.childNodes.length; j++) { var ch = node.childNodes[j]; if (ch.nodeType === 1) details.appendChild(buildTree(ch)); }
         return details;
     }
     function renderTree() {
@@ -157,9 +177,7 @@
             var tree = buildTree(xml.documentElement);
             tree.open = true;
             treeHost.appendChild(tree);
-        } catch (e) {
-            treeHost.textContent = 'Failed to render tree: ' + (e && e.message ? e.message : e);
-        }
+        } catch (e) { treeHost.textContent = 'Failed to render tree: ' + (e && e.message ? e.message : e); }
     }
 
     // Summary helpers
@@ -167,30 +185,22 @@
         if (!node || node.nodeType !== 1 || !node.attributes) return false;
         for (var i = 0; i < node.attributes.length; i++) {
             var a = node.attributes[i];
-            if ((a.localName || a.name) === 'nil' && /^(true|1)$/i.test((a.value || '').trim())) return true;
+            var ln = a.localName || a.name;
+            if (ln === 'nil' && /^(true|1)$/i.test((a.value || '').trim())) return true;
         }
         return false;
     }
     function hasElementChildren(node) {
         if (!node || !node.children) return false;
-        for (var i = 0; i < node.children.length; i++) {
-            if (!isNil(node.children[i])) return true;
-        }
+        for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
         return false;
     }
     var atSign = String.fromCharCode(64);
     function buildKvpTableIncludingAttributes(owner) {
         var rows = [];
-
-        // owner attributes
         if (owner && owner.attributes && owner.attributes.length) {
-            for (var i = 0; i < owner.attributes.length; i++) {
-                var a = owner.attributes[i];
-                rows.push({ key: atSign + a.name, val: (a.value || '') });
-            }
+            for (var i = 0; i < owner.attributes.length; i++) { var a = owner.attributes[i]; rows.push({ key: atSign + a.name, val: (a.value || '') }); }
         }
-
-        // leaf children and their attributes
         var kids = owner && owner.children ? owner.children : [];
         for (var k = 0; k < kids.length; k++) {
             var ch = kids[k];
@@ -198,46 +208,25 @@
             if (!hasElementChildren(ch)) {
                 rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
                 if (ch.attributes && ch.attributes.length) {
-                    for (var a2 = 0; a2 < ch.attributes.length; a2++) {
-                        var at = ch.attributes[a2];
-                        rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') });
-                    }
+                    for (var a2 = 0; a2 < ch.attributes.length; a2++) { var at = ch.attributes[a2]; rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') }); }
                 }
             }
         }
-
         if (!rows.length) return null;
-
-        var t = document.createElement('table');
-        t.className = 'table table-sm table-striped align-middle mb-2';
+        var t = document.createElement('table'); t.className = 'table table-sm table-striped align-middle mb-2';
         var tb = document.createElement('tbody');
         for (var r = 0; r < rows.length; r++) {
             var tr = document.createElement('tr');
-            var th = document.createElement('th');
-            th.className = 'text-muted fw-normal';
-            th.style.width = '40%';
-            th.textContent = rows[r].key;
-            var td = document.createElement('td');
-            td.textContent = rows[r].val;
-            tr.appendChild(th); tr.appendChild(td);
-            tb.appendChild(tr);
+            var th = document.createElement('th'); th.className = 'text-muted fw-normal'; th.style.width = '40%'; th.textContent = rows[r].key;
+            var td = document.createElement('td'); td.textContent = rows[r].val;
+            tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
         }
-        t.appendChild(tb);
-        return t;
+        t.appendChild(tb); return t;
     }
-    function buildDetails(node, titleOverride) {
-        var d = document.createElement('details');
-        d.className = 'summary-group';
-        d.open = true;
-
-        var s = document.createElement('summary');
-        s.className = 'fw-semibold';
-        s.textContent = titleOverride || node.localName;
-        d.appendChild(s);
-
-        var table = buildKvpTableIncludingAttributes(node);
-        if (table) d.appendChild(table);
-
+    function buildDetails(node, title) {
+        var d = document.createElement('details'); d.className = 'summary-group'; d.open = true;
+        var s = document.createElement('summary'); s.className = 'fw-semibold'; s.textContent = title || node.localName; d.appendChild(s);
+        var table = buildKvpTableIncludingAttributes(node); if (table) d.appendChild(table);
         var complex = [];
         var kids = node.children || [];
         for (var i = 0; i < kids.length; i++) {
@@ -248,18 +237,10 @@
     }
     function getTextLocal(elx, name) {
         if (!elx || !elx.children) return '';
-        for (var i = 0; i < elx.children.length; i++) {
-            var c = elx.children[i];
-            if (c.localName === name) return (c.textContent || '').trim();
-        }
+        for (var i = 0; i < elx.children.length; i++) { var c = elx.children[i]; if (c.localName === name) return (c.textContent || '').trim(); }
         return '';
     }
-    function badge(text) {
-        var b = document.createElement('span');
-        b.className = 'badge text-bg-light';
-        b.textContent = text;
-        return b;
-    }
+    function badge(text) { var b = document.createElement('span'); b.className = 'badge text-bg-light'; b.textContent = text; return b; }
 
     // Summary (enhanced)
     function renderSummary() {
@@ -267,191 +248,113 @@
         try {
             var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
             if (!xmlText.trim()) { summaryHost.textContent = 'No XML to display.'; return; }
-
             var xml = parseXml(xmlText);
-            var people = [];
-            var all = xml.getElementsByTagName('*');
+            var people = []; var all = xml.getElementsByTagName('*');
             for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
+            if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.')); return; }
 
-            if (people.length === 0) {
-                summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.'));
-                return;
-            }
+            // Header row with count
+            var hdr = el('div', 'mb-2', null);
+            hdr.appendChild(el('strong', null, 'People: ' + people.length));
+            summaryHost.appendChild(hdr);
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
                 var wrap = el('div', 'mb-3 p-2 border rounded', null);
 
-                // Header
                 var header = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
                 header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
 
-                // Friendly name from Names/Name items
                 var nameRoot = null;
-                for (var nc = 0; nc < person.children.length; nc++) {
-                    if (person.children[nc].localName === 'Names') { nameRoot = person.children[nc]; break; }
-                }
+                for (var nc = 0; nc < person.children.length; nc++) { if (person.children[nc].localName === 'Names') { nameRoot = person.children[nc]; break; } }
                 var fullName = '';
                 if (nameRoot) {
-                    var names = [];
+                    var firsts = []; var last = '';
                     for (var nn = 0; nn < nameRoot.children.length; nn++) {
-                        var nameItem = nameRoot.children[nn];
-                        if (nameItem.localName !== 'Name' || isNil(nameItem)) continue;
-                        names.push(nameItem);
-                    }
-                    var firsts = [];
-                    var last = '';
-                    for (var ni = 0; ni < names.length; ni++) {
-                        var tp = getTextLocal(names[ni], 'Type');
-                        if (tp === 'FirstName') {
-                            var order = parseInt(getTextLocal(names[ni], 'Order') || '9999', 10);
-                            firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(names[ni], 'Value') });
-                        } else if (tp === 'LastName') {
-                            last = getTextLocal(names[ni], 'Value') || last;
-                        }
+                        var nm = nameRoot.children[nn]; if (nm.localName !== 'Name' || isNil(nm)) continue;
+                        var tp = getTextLocal(nm, 'Type'); if (tp === 'FirstName') {
+                            var order = parseInt(getTextLocal(nm, 'Order') || '9999', 10);
+                            firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(nm, 'Value') });
+                        } else if (tp === 'LastName') last = getTextLocal(nm, 'Value') || last;
                     }
                     firsts.sort(function (a, b) { return a.o - b.o; });
-                    var firstJoined = [];
-                    for (var fj = 0; fj < firsts.length; fj++) firstJoined.push(firsts[fj].v);
-                    fullName = (firstJoined.join(' ') + ' ' + last).trim();
+                    var joined = []; for (var fj = 0; fj < firsts.length; fj++) joined.push(firsts[fj].v);
+                    fullName = (joined.join(' ') + ' ' + last).trim();
                 }
-                var nameEl = document.createElement('strong');
-                nameEl.textContent = fullName || '-';
-                header.appendChild(nameEl);
+                var nameEl = document.createElement('strong'); nameEl.textContent = fullName || '-'; header.appendChild(nameEl);
 
-                // Useful badges
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
                 var civil = getTextLocal(person, 'CivilStatus');
                 if (publicId) header.appendChild(badge('PublicId: ' + publicId));
                 if (dob) header.appendChild(badge('DOB: ' + dob));
                 if (civil) header.appendChild(badge('Status: ' + civil));
-
                 wrap.appendChild(header);
 
-                // Basics (attributes + leaf values directly under person)
-                var basics = document.createElement('details');
-                basics.className = 'summary-group';
-                basics.open = true;
-                var basicsSum = document.createElement('summary');
-                basicsSum.className = 'fw-semibold';
-                basicsSum.textContent = 'Basics';
+                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = true;
+                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = 'Basics';
                 basics.appendChild(basicsSum);
-                var basicsTable = buildKvpTableIncludingAttributes(person);
-                if (basicsTable) basics.appendChild(basicsTable);
+                var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
                 wrap.appendChild(basics);
 
-                // Names section (if present)
                 if (nameRoot) {
-                    var namesSection = document.createElement('details');
-                    namesSection.className = 'summary-group';
-                    namesSection.open = true;
-                    var namesSum = document.createElement('summary');
-                    namesSum.className = 'fw-semibold';
-                    namesSum.textContent = 'Names';
+                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = true;
+                    var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = 'Names';
                     namesSection.appendChild(namesSum);
-
-                    var list = document.createElement('div');
-                    list.className = 'd-flex flex-column gap-2';
+                    var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
                     for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
-                        var nItem = nameRoot.children[n2];
-                        if (nItem.localName !== 'Name' || isNil(nItem)) continue;
+                        var nItem = nameRoot.children[n2]; if (nItem.localName !== 'Name' || isNil(nItem)) continue;
                         var card = el('div', 'p-2 border rounded', null);
                         var title = el('div', 'small text-muted mb-1', 'Name #' + (list.children.length + 1));
                         card.appendChild(title);
-                        var t = buildKvpTableIncludingAttributes(nItem);
-                        if (t) card.appendChild(t);
+                        var t = buildKvpTableIncludingAttributes(nItem); if (t) card.appendChild(t);
                         list.appendChild(card);
                     }
                     namesSection.appendChild(list);
                     wrap.appendChild(namesSection);
                 }
 
-                // Other complex groups
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
-                    var ch = person.children[g];
-                    if (isNil(ch)) continue;
-                    if (ch.localName === 'Names') continue;
-                    if (hasElementChildren(ch)) groups.push(ch);
+                    var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names') continue; if (hasElementChildren(ch)) groups.push(ch);
                 }
                 for (var gi = 0; gi < groups.length; gi++) {
                     var group = groups[gi];
+                    var counts = {}; for (var kk = 0; kk < group.children.length; kk++) { var lk = group.children[kk]; if (isNil(lk)) continue; var nm2 = lk.localName; counts[nm2] = (counts[nm2] || 0) + 1; }
+                    var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
 
-                    // Detect repeating items by counting children localNames
-                    var counts = {};
-                    for (var kk = 0; kk < group.children.length; kk++) {
-                        var lk = group.children[kk];
-                        if (isNil(lk)) continue;
-                        var nm = lk.localName;
-                        counts[nm] = (counts[nm] || 0) + 1;
-                    }
-                    var repeated = null;
-                    for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
-
-                    var section = document.createElement('details');
-                    section.className = 'summary-group';
-                    section.open = true;
-                    var secSum = document.createElement('summary');
-                    secSum.className = 'fw-semibold';
-                    secSum.textContent = group.localName;
+                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = true;
+                    var secSum = document.createElement('summary'); secSum.className = 'fw-semibold'; secSum.textContent = group.localName;
                     section.appendChild(secSum);
 
                     if (repeated) {
-                        // Render list cards
-                        var items = [];
-                        for (var ii = 0; ii < group.children.length; ii++) {
-                            var item = group.children[ii];
-                            if (isNil(item)) continue;
-                            if (item.localName === repeated) items.push(item);
-                        }
-                        var listWrap = document.createElement('div');
-                        listWrap.className = 'd-flex flex-column gap-2';
-                        for (var it = 0; it < items.length; it++) {
+                        var items = []; for (var ii = 0; ii < group.children.length; ii++) { var it = group.children[ii]; if (!isNil(it) && it.localName === repeated) items.push(it); }
+                        var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
+                        for (var itx = 0; itx < items.length; itx++) {
                             var card2 = el('div', 'p-2 border rounded', null);
-                            var title2 = el('div', 'small text-muted mb-1', repeated + ' #' + (it + 1));
+                            var title2 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx + 1));
                             card2.appendChild(title2);
-                            var leaves2 = buildKvpTableIncludingAttributes(items[it]);
-                            if (leaves2) card2.appendChild(leaves2);
-
-                            // nested complex
-                            var nested = [];
-                            for (var nc = 0; nc < items[it].children.length; nc++) {
-                                var kid = items[it].children[nc];
-                                if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid);
-                            }
+                            var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card2.appendChild(leaves2);
+                            var nested = []; for (var nc = 0; nc < items[itx].children.length; nc++) { var kid = items[itx].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
                             for (var nx = 0; nx < nested.length; nx++) card2.appendChild(buildDetails(nested[nx]));
                             listWrap.appendChild(card2);
                         }
                         section.appendChild(listWrap);
                     } else {
-                        var leaves = buildKvpTableIncludingAttributes(group);
-                        if (leaves) section.appendChild(leaves);
-                        var subComplex = [];
-                        for (var sc = 0; sc < group.children.length; sc++) {
-                            var scn = group.children[sc];
-                            if (!isNil(scn) && hasElementChildren(scn)) subComplex.push(scn);
-                        }
+                        var leaves = buildKvpTableIncludingAttributes(group); if (leaves) section.appendChild(leaves);
+                        var subComplex = []; for (var sc = 0; sc < group.children.length; sc++) { var scn = group.children[sc]; if (!isNil(scn) && hasElementChildren(scn)) subComplex.push(scn); }
                         for (var sx = 0; sx < subComplex.length; sx++) section.appendChild(buildDetails(subComplex[sx]));
                     }
-
                     wrap.appendChild(section);
                 }
-
                 summaryHost.appendChild(wrap);
             }
-        } catch (e) {
-            summaryHost.textContent = 'Failed to build summary: ' + (e && e.message ? e.message : e);
-        }
+        } catch (e) { summaryHost.textContent = 'Failed to build summary: ' + (e && e.message ? e.message : e); }
     }
 
-    // Search and view plumbing
+    // Search + highlight
     function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-    function escapeHtml(s) {
-        return s.replace(/[&<>\"']/g, function (ch) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-        });
-    }
+    function escapeHtml(s) { return s.replace(/[&<>\"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
     function highlightPre(preEl, sourceText, q) {
         if (!preEl) return;
         if (!q) { preEl.textContent = getDisplayText(sourceText); return; }
@@ -460,66 +363,45 @@
         var html = escapeHtml(masked).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
         preEl.innerHTML = html;
     }
+    var searchTimer = 0;
+    function debouncedSearch() {
+        if (searchTimer) window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(applySearch, 150);
+    }
     function applySearch() {
         var prev = treeHost ? treeHost.querySelector('.gpiv-tree-nomatch') : null;
         if (prev) prev.remove();
-
         var q = (search && search.value || '').trim();
-
         if (mode === 'tree') {
             var list = treeHost.querySelectorAll('.xml-node, .xml-summary');
             for (var i = 0; i < list.length; i++) list[i].classList.remove('d-none', 'bg-warning-subtle');
             if (!q) return;
-
-            var ql = q.toLowerCase();
-            var any = false;
-            var nodes = treeHost.querySelectorAll('.xml-node');
-            for (var j = 0; j < nodes.length; j++) nodes[j].classList.add('d-none');
+            var ql = q.toLowerCase(); var any = false;
+            var nodes = treeHost.querySelectorAll('.xml-node'); for (var j = 0; j < nodes.length; j++) nodes[j].classList.add('d-none');
             var sums = treeHost.querySelectorAll('.xml-summary');
             for (var s = 0; s < sums.length; s++) {
                 var txt = (sums[s].textContent || '').toLowerCase();
                 if (txt.indexOf(ql) >= 0) {
-                    any = true;
-                    sums[s].classList.add('bg-warning-subtle');
+                    any = true; sums[s].classList.add('bg-warning-subtle');
                     var p = sums[s].parentElement;
-                    while (p && p !== treeHost) {
-                        if (p.classList && p.classList.contains('xml-node')) {
-                            p.classList.remove('d-none');
-                            p.open = true;
-                        }
-                        p = p.parentElement;
-                    }
-                } else {
-                    sums[s].classList.remove('bg-warning-subtle');
-                }
+                    while (p && p !== treeHost) { if (p.classList && p.classList.contains('xml-node')) { p.classList.remove('d-none'); p.open = true; } p = p.parentElement; }
+                } else { sums[s].classList.remove('bg-warning-subtle'); }
             }
-            if (!any) {
-                var hint = document.createElement('div');
-                hint.className = 'gpiv-tree-nomatch text-muted small';
-                hint.textContent = 'No matches. Clear search to show all.';
-                treeHost.prepend(hint);
-            }
+            if (!any) { var hint = document.createElement('div'); hint.className = 'gpiv-tree-nomatch text-muted small'; hint.textContent = 'No matches. Clear search to show all.'; treeHost.prepend(hint); }
             return;
         }
-
         if (mode === 'summary') {
             var cards = summaryHost.querySelectorAll('.p-2.border.rounded, .mb-3.p-2.border.rounded');
             if (!q) { for (var c = 0; c < cards.length; c++) cards[c].classList.remove('d-none'); return; }
             var qls = q.toLowerCase();
-            for (var c2 = 0; c2 < cards.length; c2++) {
-                var match = (cards[c2].textContent || '').toLowerCase().indexOf(qls) >= 0;
-                cards[c2].classList.toggle('d-none', !match);
-            }
+            for (var c2 = 0; c2 < cards.length; c2++) { var match = (cards[c2].textContent || '').toLowerCase().indexOf(qls) >= 0; cards[c2].classList.toggle('d-none', !match); }
             return;
         }
-
         if (mode === 'raw')    highlightPre(preRaw,   sourceRaw,   q);
         if (mode === 'pretty') highlightPre(prePretty, sourcePretty, q);
     }
-    function expandAll(open) {
-        var details = treeHost.querySelectorAll('details.xml-node');
-        for (var i = 0; i < details.length; i++) details[i].open = open;
-    }
+
+    function expandAll(open) { var details = treeHost.querySelectorAll('details.xml-node'); for (var i = 0; i < details.length; i++) details[i].open = open; }
     function setActive() {
         var btns = [prettyBtn, rawBtn, treeBtn, summaryBtn];
         for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
@@ -532,38 +414,45 @@
         var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
         var hasAny = combined.length > 0;
         if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-
         prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
         preRaw.style.display    = (mode === 'raw')    ? 'block' : 'none';
         treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
         summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
-
         prePretty.textContent = getDisplayText(sourcePretty || '');
         preRaw.textContent = getDisplayText(sourceRaw || '');
-
-        var treeActive = (mode === 'tree');
-        if (expandBtn) expandBtn.disabled = !treeActive;
-        if (collapseBtn) collapseBtn.disabled = !treeActive;
-
+        var treeActive = (mode === 'tree'); if (expandBtn) expandBtn.disabled = !treeActive; if (collapseBtn) collapseBtn.disabled = !treeActive;
         if (treeActive && hasAny) renderTree();
         if (mode === 'summary' && hasAny) renderSummary();
-
-        setActive();
-        savePrefs();
-        applySearch();
+        setActive(); savePrefs(); applySearch();
     }
 
+    // UI events
     prettyBtn && prettyBtn.addEventListener('click', function () { mode = 'pretty'; updateView(); });
     rawBtn && rawBtn.addEventListener('click', function () { mode = 'raw'; updateView(); });
     treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; if (search) search.value = ''; updateView(); });
     summaryBtn && summaryBtn.addEventListener('click', function () { mode = 'summary'; updateView(); });
     maskChk && maskChk.addEventListener('change', function () { updateView(); });
-
     expandBtn && expandBtn.addEventListener('click', function () { expandAll(true); });
     collapseBtn && collapseBtn.addEventListener('click', function () { expandAll(false); });
+    search && search.addEventListener('input', debouncedSearch);
+    clearSearch && clearSearch.addEventListener('click', function () { if (search) search.value = ''; applySearch(); savePrefs(); });
+    heightRange && heightRange.addEventListener('input', function () {
+        var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs();
+    });
+    fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
 
-    search && search.addEventListener('input', applySearch);
-    clearSearch && clearSearch.addEventListener('click', function () { if (search) search.value = ''; applySearch(); });
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function (e) {
+        var ctrl = e.ctrlKey || e.metaKey;
+        if (ctrl && e.key.toLowerCase() === 'f') { if (search) { search.focus(); search.select(); } e.preventDefault(); return; }
+        if (ctrl && e.shiftKey && e.key.toLowerCase() === 'c') { if (copyBtn) copyBtn.click(); e.preventDefault(); return; }
+        if (e.key === '1') { if (prettyBtn) prettyBtn.click(); }
+        if (e.key === '2') { if (rawBtn) rawBtn.click(); }
+        if (e.key === '3') { if (treeBtn) treeBtn.click(); }
+        if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
+        if (e.key.toLowerCase() === 'e') { if (!expandBtn || expandBtn.disabled) return; expandBtn.click(); }
+        if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
+    });
 
     function getExportText() {
         if (mode === 'raw') return getDisplayText(sourceRaw || (preRaw ? preRaw.textContent : '') || '');
@@ -574,14 +463,10 @@
         e.preventDefault();
         var text = getExportText();
         (navigator.clipboard && navigator.clipboard.writeText(text).catch(function () { })) || (function () {
-            var ta = document.createElement('textarea');
-            ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-10000px';
-            document.body.appendChild(ta); ta.select();
-            try { document.execCommand('copy'); } catch {}
-            ta.remove();
+            var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-10000px';
+            document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
         })();
-        var old = copyBtn.innerText; copyBtn.innerText = 'Copied';
-        setTimeout(function () { copyBtn.innerText = old; }, 1200);
+        var old = copyBtn.innerText; copyBtn.innerText = 'Copied'; setTimeout(function () { copyBtn.innerText = old; }, 1200);
     });
     downloadBtn && downloadBtn.addEventListener('click', function (e) {
         e.preventDefault();
@@ -592,10 +477,7 @@
             : (mode === 'summary') ? 'GetPeoplePublicInfo_summary.xml'
             : 'GetPeoplePublicInfo.xml';
         var blob = new Blob([text], { type: 'application/xml;charset=utf-8' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = name;
-        document.body.appendChild(a); a.click();
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
         URL.revokeObjectURL(a.href); a.remove();
     });
 
