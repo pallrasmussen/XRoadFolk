@@ -3,11 +3,12 @@
 
     function getRegex() {
         try {
-            // Prefer full Unicode letters + marks, spaces, hyphen, apostrophe
-            return new RegExp("^[\\p{L}\\p{M}\\s\\-']+$", "u");
+            // Unicode property escapes: letters + marks + whitespace + apostrophes (straight/curly) + hyphen
+            return new RegExp("^[\\p{L}\\p{M}\\s\\-\\'’]+$", "u");
         } catch (e) {
-            // Fallback for older browsers (Latin-1 supplement)
-            return /^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/;
+            // Fallback for older browsers (Latin scripts incl. Extended blocks)
+            // Hyphen is escaped to avoid unintended ranges; includes straight ' (U+0027) and curly ’ (U+2019)
+            return new RegExp("^[A-Za-z\\u00C0-\\u02AF\\u1E00-\\u1EFF\\s\\u0027\\u2019\\-]+$");
         }
     }
 
