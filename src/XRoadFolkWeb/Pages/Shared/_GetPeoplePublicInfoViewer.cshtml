@@ -578,6 +578,14 @@
     }
 
     function expandAll(open) { var details = treeHost.querySelectorAll('details.xml-node'); for (var i = 0; i < details.length; i++) details[i].open = open; }
+
+    // NEW: Summary expand/collapse
+    function expandSummaryAll(open) {
+        if (!summaryHost) return;
+        var details = summaryHost.querySelectorAll('details.summary-group');
+        for (var i = 0; i < details.length; i++) details[i].open = open;
+    }
+
     function setActive() {
         var btns = [prettyBtn, rawBtn, treeBtn, summaryBtn];
         for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
@@ -597,9 +605,17 @@
         summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
         prePretty.textContent = getDisplayText(sourcePretty || '');
         preRaw.textContent = getDisplayText(sourceRaw || '');
-        var treeActive = (mode === 'tree'); if (expandBtn) expandBtn.disabled = !treeActive; if (collapseBtn) collapseBtn.disabled = !treeActive;
+
+        var treeActive = (mode === 'tree');
+        var summaryActive = (mode === 'summary');
+
+        // Enable buttons for Tree or Summary
+        if (expandBtn) expandBtn.disabled = !(treeActive || summaryActive);
+        if (collapseBtn) collapseBtn.disabled = !(treeActive || summaryActive);
+
         if (treeActive && hasAny) renderTree();
-        if (mode === 'summary' && hasAny) renderSummary();
+        if (summaryActive && hasAny) renderSummary();
+
         setActive(); savePrefs(); applySearch();
     }
 
@@ -659,8 +675,14 @@
     treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; if (search) search.value = ''; updateView(); });
     summaryBtn && summaryBtn.addEventListener('click', function () { mode = 'summary'; updateView(); });
     maskChk && maskChk.addEventListener('change', function () { updateView(); });
-    expandBtn && expandBtn.addEventListener('click', function () { expandAll(true); });
-    collapseBtn && collapseBtn.addEventListener('click', function () { expandAll(false); });
+    expandBtn && expandBtn.addEventListener('click', function () {
+        if (mode === 'summary') expandSummaryAll(true);
+        else expandAll(true); // Tree (unchanged)
+    });
+    collapseBtn && collapseBtn.addEventListener('click', function () {
+        if (mode === 'summary') expandSummaryAll(false);
+        else expandAll(false); // Tree (unchanged)
+    });
     search && search.addEventListener('input', debouncedSearch);
     clearSearch && clearSearch.addEventListener('click', function () { if (search) search.value = ''; applySearch(); savePrefs(); });
     heightRange && heightRange.addEventListener('input', function () {
