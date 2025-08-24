@@ -422,7 +422,7 @@
                         }
                     }
 
-                    // NEW: Build a pretty summary for the whole response
+                    // Summary (hierarchy grouping kept from your current file)
                     function renderSummary() {
                         summaryHost.innerHTML = '';
                         try {
@@ -434,12 +434,11 @@
                                 return;
                             }
 
-                            // Helpers
                             const isNil = (node) =>
                                 node && node.nodeType === 1 &&
                                 Array.from(node.attributes || []).some(a => a.localName === 'nil' && /^(true|1)$/i.test((a.value || '').trim()));
 
-                            const hasElementChildren = (el) => Array.from(el.children).some(c => c.nodeType === 1 && !isNil(c));
+                            const hasElementChildren = (elx) => Array.from(elx.children).some(c => c.nodeType === 1 && !isNil(c));
 
                             const buildKvpTableForLeaves = (owner) => {
                                 const leaves = Array.from(owner.children).filter(ch => !isNil(ch) && !hasElementChildren(ch));
@@ -471,19 +470,17 @@
                                 s.textContent = titleOverride || node.localName;
                                 d.appendChild(s);
 
-                                // Immediate leaves table
                                 const leavesTable = buildKvpTableForLeaves(node);
                                 if (leavesTable) d.appendChild(leavesTable);
 
-                                // Nested complex children
                                 const complex = Array.from(node.children).filter(ch => !isNil(ch) && hasElementChildren(ch));
                                 complex.forEach(ch => d.appendChild(buildDetails(ch)));
 
                                 return d;
                             };
 
-                            const getText = (el, name) => {
-                                const n = Array.from(el.children).find(c => c.localName === name);
+                            const getTextLocal = (elx, name) => {
+                                const n = Array.from(elx.children).find(c => c.localName === name);
                                 return (n && (n.textContent || '').trim()) || '';
                             };
 
@@ -494,9 +491,9 @@
                                 const names = Array.from(namesRoot.children).filter(n => n.localName === 'Name' && !isNil(n));
                                 const byType = new Map();
                                 names.forEach(n => {
-                                    const type = getText(n, 'Type') || '-';
-                                    const value = getText(n, 'Value') || '';
-                                    const order = parseInt(getText(n, 'Order') || '9999', 10);
+                                    const type = getTextLocal(n, 'Type') || '-';
+                                    const value = getTextLocal(n, 'Value') || '';
+                                    const order = parseInt(getTextLocal(n, 'Order') || '9999', 10);
                                     if (!byType.has(type)) byType.set(type, []);
                                     byType.get(type).push({ value, order });
                                 });
@@ -509,7 +506,6 @@
                                 sum.textContent = 'Names';
                                 wrap.appendChild(sum);
 
-                                // Summary by type (FirstName grouped/ordered)
                                 if (byType.size) {
                                     const t = document.createElement('table');
                                     t.className = 'table table-sm align-middle mb-2';
@@ -530,7 +526,6 @@
                                     wrap.appendChild(t);
                                 }
 
-                                // Detailed list (each Name entry)
                                 if (names.length) {
                                     const list = document.createElement('div');
                                     list.className = 'd-flex flex-column gap-2';
@@ -563,28 +558,23 @@
                                 idxBadge.textContent = `#${i + 1}`;
                                 header.appendChild(idxBadge);
 
-                                const first = (() => {
-                                    const n = getNamesSection(p);
-                                    // Fallback to computed name for header using Names > Name
-                                    const nameNodes = p.querySelectorAll('Names > Name');
-                                    const firsts = Array.from(nameNodes).filter(nm => getText(nm, 'Type') === 'FirstName')
-                                        .map(nm => ({ order: parseInt(getText(nm, 'Order') || '9999', 10), v: getText(nm, 'Value') }))
-                                        .sort((a, b) => a.order - b.order).map(x => x.v).filter(Boolean).join(' ');
-                                    const last = (() => {
-                                        const nm = Array.from(nameNodes).find(nm => getText(nm, 'Type') === 'LastName');
-                                        return nm ? getText(nm, 'Value') : '';
-                                    })();
-                                    const full = [firsts, last].filter(Boolean).join(' ');
-                                    return { full, namesSection: n };
+                                const nameNodes = p.querySelectorAll('Names > Name');
+                                const firsts = Array.from(nameNodes).filter(nm => getTextLocal(nm, 'Type') === 'FirstName')
+                                    .map(nm => ({ order: parseInt(getTextLocal(nm, 'Order') || '9999', 10), v: getTextLocal(nm, 'Value') }))
+                                    .sort((a, b) => a.order - b.order).map(x => x.v).filter(Boolean).join(' ');
+                                const last = (() => {
+                                    const nm = Array.from(nameNodes).find(nm => getTextLocal(nm, 'Type') === 'LastName');
+                                    return nm ? getTextLocal(nm, 'Value') : '';
                                 })();
+                                const full = [firsts, last].filter(Boolean).join(' ');
 
                                 const nameEl = document.createElement('strong');
-                                nameEl.textContent = first.full || '-';
+                                nameEl.textContent = full || '-';
                                 header.appendChild(nameEl);
 
-                                const publicId = getText(p, 'PublicId') || getText(p, 'PersonId') || '';
-                                const dob = (getText(p, 'CivilStatusDate') || getText(p, 'DateOfBirth') || '').slice(0, 10);
-                                const status = getText(p, 'CivilStatus') || '';
+                                const publicId = getTextLocal(p, 'PublicId') || getTextLocal(p, 'PersonId') || '';
+                                const dob = (getTextLocal(p, 'CivilStatusDate') || getTextLocal(p, 'DateOfBirth') || '').slice(0, 10);
+                                const status = getTextLocal(p, 'CivilStatus') || '';
 
                                 if (publicId) {
                                     const b = document.createElement('span');
@@ -606,7 +596,7 @@
                                 }
                                 wrap.appendChild(header);
 
-                                // Basics: immediate leaf fields (excluding Names)
+                                // Basics
                                 const basicsOwner = document.createElement('details');
                                 basicsOwner.className = 'summary-group';
                                 basicsOwner.open = true;
@@ -615,11 +605,10 @@
                                 basicsSum.textContent = 'Basics';
                                 basicsOwner.appendChild(basicsSum);
 
-                                const basicsLeaves = document.createElement('div');
                                 const basicsTable = buildKvpTableForLeaves({
                                     children: Array.from(p.children).filter(ch =>
-                                        !isNil(ch) &&
                                         ch.localName !== 'Names' &&
+                                        !isNil(ch) &&
                                         !Array.from(ch.children).some(k => k.nodeType === 1)
                                     )
                                 });
@@ -628,15 +617,13 @@
                                     wrap.appendChild(basicsOwner);
                                 }
 
-                                // Names section (grouped)
-                                if (first.namesSection) wrap.appendChild(first.namesSection);
+                                const namesSection = getNamesSection(p);
+                                if (namesSection) wrap.appendChild(namesSection);
 
-                                // Other complex first-level groups (e.g., Addresses, Phones, etc.)
                                 const complexGroups = Array.from(p.children).filter(ch =>
                                     !isNil(ch) && ch.localName !== 'Names' && hasElementChildren(ch));
 
                                 complexGroups.forEach(group => {
-                                    // If this group contains repeated child items of the same element name, show each item as its own card.
                                     const kids = Array.from(group.children).filter(k => !isNil(k));
                                     const counts = kids.reduce((m, k) => (m[k.localName] = (m[k.localName] || 0) + 1, m), {});
                                     const repeatedName = Object.keys(counts).find(n => counts[n] > 1);
@@ -664,7 +651,6 @@
                                             const leaves = buildKvpTableForLeaves(item);
                                             if (leaves) card.appendChild(leaves);
 
-                                            // Nested details for deeper hierarchy (if any)
                                             const nestedComplex = Array.from(item.children).filter(ch => !isNil(ch) && hasElementChildren(ch));
                                             nestedComplex.forEach(ch => card.appendChild(buildDetails(ch)));
 
@@ -672,7 +658,6 @@
                                         });
                                         d.appendChild(list);
                                     } else {
-                                        // No repeated child item; render as nested details with immediate leaves first
                                         const leaves = buildKvpTableForLeaves(group);
                                         if (leaves) d.appendChild(leaves);
                                         const subComplex = kids.filter(ch => hasElementChildren(ch));
@@ -689,12 +674,45 @@
                         }
                     }
 
+                    // Search only applies to Tree view
+                    function applySearch() {
+                        if (mode !== 'tree') return;
+                        const q = (search?.value || '').trim().toLowerCase();
+                        if (!q) {
+                            treeHost.querySelectorAll('.xml-node, .xml-summary')
+                                .forEach(e => e.classList.remove('d-none', 'bg-warning-subtle'));
+                            return;
+                        }
+                        treeHost.querySelectorAll('.xml-node').forEach(d => d.classList.add('d-none'));
+                        const summaries = treeHost.querySelectorAll('.xml-summary');
+                        summaries.forEach(s => {
+                            const text = s.textContent?.toLowerCase() ?? '';
+                            if (text.includes(q)) {
+                                s.classList.add('bg-warning-subtle');
+                                let p = s.parentElement;
+                                while (p && p !== treeHost) {
+                                    if (p.classList.contains('xml-node')) {
+                                        p.classList.remove('d-none');
+                                        p.open = true;
+                                    }
+                                    p = p.parentElement;
+                                }
+                            } else {
+                                s.classList.remove('bg-warning-subtle');
+                            }
+                        });
+                    }
+
+                    function expandAll(open) {
+                        treeHost.querySelectorAll('details.xml-node').forEach(d => d.open = open);
+                    }
+
                     function setActiveButton() {
                         [prettyBtn, rawBtn, treeBtn, summaryBtn].forEach(b => b && b.classList.remove('active'));
-                        if (mode === 'pretty') prettyBtn.classList.add('active');
-                        if (mode === 'raw') rawBtn.classList.add('active');
-                        if (mode === 'tree') treeBtn.classList.add('active');
-                        if (mode === 'summary') summaryBtn.classList.add('active');
+                        if (mode === 'pretty') prettyBtn?.classList.add('active');
+                        if (mode === 'raw') rawBtn?.classList.add('active');
+                        if (mode === 'tree') treeBtn?.classList.add('active');
+                        if (mode === 'summary') summaryBtn?.classList.add('active');
                     }
 
                     function updateView() {
@@ -707,46 +725,52 @@
                         preRaw.textContent = getDisplayText(sourceRaw);
 
                         const treeActive = (mode === 'tree');
-                        expandBtn.disabled = !treeActive;
-                        collapseBtn.disabled = !treeActive;
+                        if (expandBtn) expandBtn.disabled = !treeActive;
+                        if (collapseBtn) collapseBtn.disabled = !treeActive;
 
                         if (treeActive) renderTree();
                         if (mode === 'summary') renderSummary();
 
                         setActiveButton();
                         savePrefs();
-                        applySearch(); // no-op for non-tree
+                        applySearch();
                     }
 
-                    // Wire button
-                    summaryBtn.addEventListener('click', () => { mode = 'summary'; updateView(); });
-                    // keep existing pretty/raw/tree listeners
+                    // Wire buttons (restored)
+                    prettyBtn?.addEventListener('click', () => { mode = 'pretty'; updateView(); });
+                    rawBtn?.addEventListener('click', () => { mode = 'raw'; updateView(); });
+                    treeBtn?.addEventListener('click', () => { mode = 'tree'; updateView(); });
+                    summaryBtn?.addEventListener('click', () => { mode = 'summary'; updateView(); });
+
+                    maskChk?.addEventListener('change', () => updateView());
+                    expandBtn?.addEventListener('click', () => expandAll(true));
+                    collapseBtn?.addEventListener('click', () => expandAll(false));
+                    search?.addEventListener('input', () => applySearch());
+                    clearSearch?.addEventListener('click', () => { if (search) search.value = ''; applySearch(); });
+
                     // init
                     updateView();
-                    populateFields();
-                    populatePeopleAccordion();
 
-                    // NEW: expose XML handling functions to global scope if needed
+                    // Keep your existing helpers exposed
                     window.ppiSetResponseXml = setResponseXml;
 
                     function setResponseXml(newRaw, newPretty) {
                         if (typeof newRaw === 'string') sourceRaw = newRaw;
                         if (typeof newPretty === 'string') sourcePretty = newPretty;
-                        else if (typeof newRaw === 'string') sourcePretty = newRaw; // fallback
+                        else if (typeof newRaw === 'string') sourcePretty = newRaw;
 
-                        // Update the PREs so switching tabs reflects the new data
                         preRaw.textContent = getDisplayText(sourceRaw);
                         prePretty.textContent = getDisplayText(sourcePretty);
 
-                        // Re-render current mode and dependent views
-                        updateView();              // re-renders Tree or Summary if active
-                        populateFields();          // refresh overview "Fields present"
-                        populatePeopleAccordion(); // rebuild People (accordion) from the new XML
+                        updateView();
+                        populateFields?.();
+                        populatePeopleAccordion?.();
                     }
 
-                    fetch('?handler=GetPeopleXml', { headers: { Accept: 'application/xml' } })
-                      .then(r => r.text())
-                      .then(xml => window.ppiSetResponseXml(xml));
+                    // Optional demo fetch (leave if you need it)
+                    // fetch('?handler=GetPeopleXml', { headers: { Accept: 'application/xml' } })
+                    //   .then(r => r.text())
+                    //   .then(xml => window.ppiSetResponseXml(xml));
                 })();
             </script>
         }
