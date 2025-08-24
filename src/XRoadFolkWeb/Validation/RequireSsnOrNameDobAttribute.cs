@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Localization;
 using XRoadFolkRaw.Lib;
@@ -7,57 +8,69 @@ namespace XRoadFolkWeb.Validation
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
     public sealed class RequireSsnOrNameDobAttribute : ValidationAttribute
     {
-        private readonly string _ssnProp;
-        private readonly string _firstProp;
-        private readonly string _lastProp;
-        private readonly string _dobProp;
+        private readonly string _ssn;
+        private readonly string _first;
+        private readonly string _last;
+        private readonly string _dob;
 
         public RequireSsnOrNameDobAttribute(string ssnProperty, string firstNameProperty, string lastNameProperty, string dobProperty)
         {
-            _ssnProp = ssnProperty;
-            _firstProp = firstNameProperty;
-            _lastProp = lastNameProperty;
-            _dobProp = dobProperty;
+            _ssn = ssnProperty ?? throw new ArgumentNullException(nameof(ssnProperty));
+            _first = firstNameProperty ?? throw new ArgumentNullException(nameof(firstNameProperty));
+            _last = lastNameProperty ?? throw new ArgumentNullException(nameof(lastNameProperty));
+            _dob = dobProperty ?? throw new ArgumentNullException(nameof(dobProperty));
+
+            // Fallback message if no localizer is available.
             ErrorMessage = "Provide SSN or First/Last name with DOB.";
         }
 
-        protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
+            if (validationContext is null) throw new ArgumentNullException(nameof(validationContext));
             if (value is null) return ValidationResult.Success;
 
-            string? ssn = Get<string?>(ctx, _ssnProp);
-            string? first = Get<string?>(ctx, _firstProp);
-            string? last = Get<string?>(ctx, _lastProp);
-            string? dobInput = Get<string?>(ctx, _dobProp);
+            string? ssn = GetString(validationContext.ObjectInstance, _ssn);
+            string? first = GetString(validationContext.ObjectInstance, _first);
+            string? last = GetString(validationContext.ObjectInstance, _last);
+            string? dob = GetString(validationContext.ObjectInstance, _dob);
 
-            bool haveSsn = InputValidation.LooksLikeValidSsn(ssn, out var ssnDob);
-            bool haveNames = InputValidation.IsValidName(first) && InputValidation.IsValidName(last);
-            bool haveDob = InputValidation.TryParseDob(dobInput, out var dob);
-
-            // Localize via IStringLocalizer<InputValidation> if available
-            var loc = (IStringLocalizer<InputValidation>?)ctx.GetService(typeof(IStringLocalizer<InputValidation>));
-
-            if (!haveSsn && !(haveNames && haveDob))
+            // 1) If SSN is not empty, use SSN (let field-level validators handle its format)
+            if (!string.IsNullOrWhiteSpace(ssn))
             {
-                string msg = loc?[InputValidation.Errors.ProvideSsnOrNameDob] ?? ErrorMessage!;
-                return new ValidationResult(msg, new[] { _ssnProp, _firstProp, _lastProp, _dobProp });
+                return ValidationResult.Success;
             }
 
-            if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
+            // 2) If SSN is empty, require First + Last + DOB (presence only; per-field validators check validity)
+            bool hasAll = !string.IsNullOrWhiteSpace(first)
+                          && !string.IsNullOrWhiteSpace(last)
+                          && !string.IsNullOrWhiteSpace(dob);
+
+            if (!hasAll)
             {
-                string msg = loc?[InputValidation.Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]
-                             ?? "DOB does not match SSN.";
-                return new ValidationResult(msg, new[] { _ssnProp, _dobProp });
+                IStringLocalizer<InputValidation>? loc =
+                    (IStringLocalizer<InputValidation>?)validationContext.GetService(typeof(IStringLocalizer<InputValidation>));
+
+                string msg = loc is not null
+                    ? loc[InputValidation.Errors.ProvideSsnOrNameDob]
+                    : (ErrorMessage ?? "Provide SSN or First/Last name with DOB.");
+
+                // Attach to all involved members so summary and field highlights work.
+                return new ValidationResult(msg, new[] { _ssn, _first, _last, _dob });
             }
 
             return ValidationResult.Success;
         }
 
-        private static T? Get<T>(ValidationContext ctx, string name)
+        private static string? GetString(object instance, string propName)
         {
-            var pi = ctx.ObjectType.GetProperty(name);
-            if (pi is null) return default;
-            return (T?)pi.GetValue(ctx.ObjectInstance);
+            System.Reflection.PropertyInfo? pi = instance.GetType().GetProperty(
+                propName,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.IgnoreCase);
+
+            if (pi is null) return null;
+            return (string?)pi.GetValue(instance);
         }
     }
 }

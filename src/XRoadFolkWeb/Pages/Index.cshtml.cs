@@ -82,6 +82,7 @@ namespace XRoadFolkWeb.Pages
             }
         }
 
+        // Replace the ValidateCriteria call in OnPostAsync with this guarded version
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
@@ -90,14 +91,33 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
+            // Decide the input path:
+            bool usingSsn = !string.IsNullOrWhiteSpace(Ssn);
+            string? first = FirstName;
+            string? last = LastName;
+            string? dobInput = DateOfBirth;
+
+            // If SSN is empty, require First + Last + DOB (presence only here).
+            if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
+            {
+                var msg = _valLoc[XRoadFolkRaw.Lib.InputValidation.Errors.ProvideSsnOrNameDob];
+                ModelState.AddModelError(string.Empty, msg);
+                Errors = [msg];
+                return Page();
+            }
+
+            // Only validate the chosen path to avoid spurious cross-field errors
             (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
-                InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+                XRoadFolkRaw.Lib.InputValidation.ValidateCriteria(
+                    usingSsn ? Ssn : null,
+                    usingSsn ? null : first,
+                    usingSsn ? null : last,
+                    usingSsn ? null : dobInput,
+                    _valLoc);
+
             if (!ok)
             {
-                foreach (string err in errs)
-                {
-                    ModelState.AddModelError(string.Empty, err);
-                }
+                foreach (string err in errs) ModelState.AddModelError(string.Empty, err);
                 Errors = errs;
                 return Page();
             }
@@ -110,7 +130,6 @@ namespace XRoadFolkWeb.Pages
                 Results = ParsePeopleList(xml);
                 SelectedNameSuffix = string.Empty;
 
-                // After getting the full XML in OnPostAsync, cache slices instead of full doc
                 _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
@@ -295,29 +314,6 @@ namespace XRoadFolkWeb.Pages
             public string? FirstName { get; set; }
             public string? LastName { get; set; }
             public string? DateOfBirth { get; set; }
-        }
-
-        // Cross-field, model-level rules with localized messages
-        public IEnumerable<ValidationResult> Validate(ValidationContext context)
-        {
-            bool haveSsn = InputValidation.LooksLikeValidSsn(Ssn, out DateTimeOffset? ssnDob);
-            bool haveNames = InputValidation.IsValidName(FirstName) &&
-                             InputValidation.IsValidName(LastName);
-            bool haveDob = InputValidation.TryParseDob(DateOfBirth, out DateTimeOffset? dob);
-
-            IStringLocalizer<InputValidation> loc = _valLoc; // injected
-
-            if (!haveSsn && !(haveNames && haveDob))
-            {
-                yield return new ValidationResult(loc[InputValidation.Errors.ProvideSsnOrNameDob]);
-            }
-
-            if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
-            {
-                yield return new ValidationResult(loc[InputValidation.Errors.DobSsnMismatch,
-                                                     dob.Value.ToString("yyyy-MM-dd"),
-                                                     ssnDob.Value.ToString("yyyy-MM-dd")]);
-            }
         }
     }
 }

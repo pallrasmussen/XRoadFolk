@@ -19,7 +19,12 @@
 
                     <div class="col-12">
                         <label asp-for="Ssn" class="form-label"></label>
-                        <input asp-for="Ssn" class="form-control" />
+                        <input asp-for="Ssn" class="form-control"
+                               data-val-ssnornamedob="@XRoadFolkWeb.Resources.ValidationMessages.ProvideSsnOrNameDob"
+                               data-val-ssnornamedob-ssn="Ssn"
+                               data-val-ssnornamedob-first="FirstName"
+                               data-val-ssnornamedob-last="LastName"
+                               data-val-ssnornamedob-dob="DateOfBirth" />
                         <span asp-validation-for="Ssn" class="text-danger small"></span>
                     </div>
 
@@ -938,4 +943,5 @@
     <script src="~/js/validation-ssn.js"></script>
     <script src="~/js/validation-name.js"></script>
     <script src="~/js/validation-dob.js"></script>
+    <script src="~/js/validation-ssn-or-name-dob.js"></script>
 }
