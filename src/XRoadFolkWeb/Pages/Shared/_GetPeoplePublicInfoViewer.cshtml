@@ -222,6 +222,8 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         for (var j = 0; j < node.childNodes.length; j++) { var ch = node.childNodes[j]; if (ch.nodeType === 1) details.appendChild(buildTree(ch)); }
         return details;
     }
+
+    // ADD: render the tree and open the root
     function renderTree() {
         treeHost.innerHTML = '';
         try {
@@ -230,7 +232,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
             var xml = parseXml(xmlText);
             if (!xml.documentElement) { treeHost.textContent = I18N.NoXmlRoot || 'No XML root element.'; return; }
             var tree = buildTree(xml.documentElement);
-            tree.open = true;
+            tree.open = true; // expand root so it’s visible by default
             treeHost.appendChild(tree);
         } catch (e) {
             var pfx = I18N.FailedToRenderTreePrefix || 'Failed to render tree:';
@@ -281,8 +283,10 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
         t.appendChild(tb); return t;
     }
+
+    // CHANGED: default collapsed for nested detail builders
     function buildDetails(node, title) {
-        var d = document.createElement('details'); d.className = 'summary-group'; d.open = true;
+        var d = document.createElement('details'); d.className = 'summary-group'; d.open = false; // was true
         var s = document.createElement('summary'); s.className = 'fw-semibold'; s.textContent = title || node.localName; d.appendChild(s);
         var table = buildKvpTableIncludingAttributes(node); if (table) d.appendChild(table);
         var complex = [];
@@ -293,6 +297,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         for (var j = 0; j < complex.length; j++) d.appendChild(buildDetails(complex[j]));
         return d;
     }
+
     function getTextLocal(elx, name) {
         if (!elx || !elx.children) return '';
         for (var i = 0; i < elx.children.length; i++) { var c = elx.children[i]; if (c.localName === name) return (c.textContent || '').trim(); }
@@ -302,7 +307,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
     var summaryPeopleNodes = [];
 
-    // Summary (enhanced with per-person actions)
     function renderSummary() {
         summaryHost.innerHTML = '';
         summaryPeopleNodes = [];
@@ -364,14 +368,16 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
                 wrap.appendChild(header);
 
-                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = true;
+                // CHANGED: Basics collapsed by default
+                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false; // was true
                 var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
                 basics.appendChild(basicsSum);
                 var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
                 wrap.appendChild(basics);
 
                 if (nameRoot) {
-                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = true;
+                    // CHANGED: Names collapsed by default
+                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = false; // was true
                     var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = I18N.Names || 'Names';
                     namesSection.appendChild(namesSum);
                     var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
@@ -387,6 +393,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                     wrap.appendChild(namesSection);
                 }
 
+                // CHANGED: Other groups collapsed by default
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
                     var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
@@ -396,7 +403,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                     var counts = {}; for (var kk = 0; kk < group.children.length; kk++) { var lk = group.children[kk]; if (isNil(lk)) continue; var nm2 = lk.localName; counts[nm2] = (counts[nm2] || 0) + 1; }
                     var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
 
-                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = true;
+                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = false; // was true
                     var secSum = document.createElement('summary'); secSum.className = 'fw-semibold'; secSum.textContent = group.localName;
                     section.appendChild(secSum);
 
