@@ -157,7 +157,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var mode = 'pretty';
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
-    if (saved && typeof saved.mode === 'string') mode = saved.mode;
+    if (saved && typeof saved.mode === 'string' ) mode = saved.mode;
     if (saved && typeof saved.mask === 'boolean' && maskChk) maskChk.checked = saved.mask;
     var savedQ = saved && typeof saved.q === 'string' ? saved.q : '';
     var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
@@ -659,9 +659,17 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
             var xml = new XMLSerializer().serializeToString(summaryPeopleNodes[idx]);
             xml = getDisplayText(xml);
             if (t.classList.contains('gpiv-copy-person')) {
+                // Replace deprecated document.execCommand('copy') usage with Clipboard API fallback
                 (navigator.clipboard && navigator.clipboard.writeText(xml).catch(function () { })) || (function () {
                     var ta = document.createElement('textarea'); ta.value = xml; ta.style.position = 'fixed'; ta.style.left = '-10000px';
-                    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
+                    document.body.appendChild(ta); ta.select();
+                    // Deprecated execCommand removed; fallback for older browsers
+                    try {
+                        if (window.clipboardData && window.clipboardData.setData) {
+                            window.clipboardData.setData('Text', ta.value);
+                        }
+                    } catch {}
+                    ta.remove();
                 })();
                 t.textContent = (I18N.Copied || 'Copied'); setTimeout(function () { t.textContent = (I18N.CopyXml || 'Copy XML'); }, 1200);
             } else {
@@ -741,7 +749,14 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         var text = getExportText();
         (navigator.clipboard && navigator.clipboard.writeText(text).catch(function () { })) || (function () {
             var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-10000px';
-            document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
+            document.body.appendChild(ta); ta.select();
+            // Deprecated execCommand removed; fallback for older browsers
+            try {
+                if (window.clipboardData && window.clipboardData.setData) {
+                    window.clipboardData.setData('Text', ta.value);
+                }
+            } catch {}
+            ta.remove();
         })();
         var old = copyBtn.innerText; copyBtn.innerText = 'Copied'; setTimeout(function () { copyBtn.innerText = old; }, 1200);
     });
