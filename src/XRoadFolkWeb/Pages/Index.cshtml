@@ -474,8 +474,8 @@
                     // Overview
                     const fieldsList = document.getElementById('ppi-field-list');
 
-                    const originalPretty = prePretty.textContent ?? '';
-                    const originalRaw = preRaw.textContent ?? '';
+                    let sourcePretty = prePretty.textContent ?? '';
+                    let sourceRaw = preRaw.textContent ?? '';
                     const prefKey = 'ppi-pref-v1';
                     let mode = (localStorage.getItem(prefKey) && JSON.parse(localStorage.getItem(prefKey)).mode) || 'pretty';
                     const saved = localStorage.getItem(prefKey);
@@ -577,7 +577,7 @@
 
                     function renderTree() {
                         treeHost.innerHTML = '';
-                        let text = getDisplayText(originalRaw);
+                        let text = getDisplayText(sourceRaw);
                         try {
                             const xml = parseXml(text);
                             const root = xml.documentElement;
@@ -593,7 +593,7 @@
                     function renderSummary() {
                         summaryHost.innerHTML = '';
                         try {
-                            const text = getDisplayText(originalRaw);
+                            const text = getDisplayText(sourceRaw);
                             const xml = parseXml(text);
                             const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
                             if (people.length === 0) {
@@ -606,38 +606,123 @@
                                 node && node.nodeType === 1 &&
                                 Array.from(node.attributes || []).some(a => a.localName === 'nil' && /^(true|1)$/i.test((a.value || '').trim()));
 
-                            function flattenLeafValues(root) {
-                                const rows = [];
-                                function walk(el, path) {
-                                    const kids = Array.from(el.children).filter(c => !isNil(c));
-                                    if (kids.length === 0) {
-                                        const v = (el.textContent || '').trim();
-                                        if (v) rows.push({ key: path || el.localName, value: v });
-                                        return;
-                                    }
-                                    // Count siblings by localName to add [index] only when repeated
-                                    const totals = new Map();
-                                    kids.forEach(k => totals.set(k.localName, (totals.get(k.localName) || 0) + 1));
-                                    const seen = new Map();
-                                    for (const child of kids) {
-                                        const name = child.localName;
-                                        const idx = seen.get(name) || 0;
-                                        seen.set(name, idx + 1);
-                                        let next = path ? `${path}.${name}` : name;
-                                        if ((totals.get(name) || 0) > 1) next += `[${idx}]`;
-                                        walk(child, next);
-                                    }
-                                }
-                                walk(root, '');
-                                return rows.sort((a, b) => a.key.localeCompare(b.key));
-                            }
+                            const hasElementChildren = (el) => Array.from(el.children).some(c => c.nodeType === 1 && !isNil(c));
 
-                            // Build a “card” per person with a friendly header + all fields
+                            const buildKvpTableForLeaves = (owner) => {
+                                const leaves = Array.from(owner.children).filter(ch => !isNil(ch) && !hasElementChildren(ch));
+                                if (leaves.length === 0) return null;
+                                const t = document.createElement('table');
+                                t.className = 'table table-sm table-striped align-middle mb-2';
+                                const tb = document.createElement('tbody');
+                                leaves.forEach(ch => {
+                                    const tr = document.createElement('tr');
+                                    const th = document.createElement('th');
+                                    th.className = 'text-muted fw-normal';
+                                    th.style.width = '40%';
+                                    th.textContent = ch.localName;
+                                    const td = document.createElement('td');
+                                    td.textContent = (ch.textContent || '').trim();
+                                    tr.appendChild(th); tr.appendChild(td);
+                                    tb.appendChild(tr);
+                                });
+                                t.appendChild(tb);
+                                return t;
+                            };
+
+                            const buildDetails = (node, titleOverride) => {
+                                const d = document.createElement('details');
+                                d.className = 'summary-group';
+                                d.open = true;
+                                const s = document.createElement('summary');
+                                s.className = 'fw-semibold';
+                                s.textContent = titleOverride || node.localName;
+                                d.appendChild(s);
+
+                                // Immediate leaves table
+                                const leavesTable = buildKvpTableForLeaves(node);
+                                if (leavesTable) d.appendChild(leavesTable);
+
+                                // Nested complex children
+                                const complex = Array.from(node.children).filter(ch => !isNil(ch) && hasElementChildren(ch));
+                                complex.forEach(ch => d.appendChild(buildDetails(ch)));
+
+                                return d;
+                            };
+
+                            const getText = (el, name) => {
+                                const n = Array.from(el.children).find(c => c.localName === name);
+                                return (n && (n.textContent || '').trim()) || '';
+                            };
+
+                            const getNamesSection = (person) => {
+                                const namesRoot = Array.from(person.children).find(c => c.localName === 'Names');
+                                if (!namesRoot) return null;
+
+                                const names = Array.from(namesRoot.children).filter(n => n.localName === 'Name' && !isNil(n));
+                                const byType = new Map();
+                                names.forEach(n => {
+                                    const type = getText(n, 'Type') || '-';
+                                    const value = getText(n, 'Value') || '';
+                                    const order = parseInt(getText(n, 'Order') || '9999', 10);
+                                    if (!byType.has(type)) byType.set(type, []);
+                                    byType.get(type).push({ value, order });
+                                });
+
+                                const wrap = document.createElement('details');
+                                wrap.className = 'summary-group';
+                                wrap.open = true;
+                                const sum = document.createElement('summary');
+                                sum.className = 'fw-semibold';
+                                sum.textContent = 'Names';
+                                wrap.appendChild(sum);
+
+                                // Summary by type (FirstName grouped/ordered)
+                                if (byType.size) {
+                                    const t = document.createElement('table');
+                                    t.className = 'table table-sm align-middle mb-2';
+                                    const tb = document.createElement('tbody');
+                                    Array.from(byType.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([type, arr]) => {
+                                        arr.sort((a, b) => a.order - b.order);
+                                        const tr = document.createElement('tr');
+                                        const th = document.createElement('th');
+                                        th.className = 'text-muted fw-normal';
+                                        th.style.width = '40%';
+                                        th.textContent = type;
+                                        const td = document.createElement('td');
+                                        td.textContent = arr.map(x => x.value).filter(Boolean).join(' ');
+                                        tr.appendChild(th); tr.appendChild(td);
+                                        tb.appendChild(tr);
+                                    });
+                                    t.appendChild(tb);
+                                    wrap.appendChild(t);
+                                }
+
+                                // Detailed list (each Name entry)
+                                if (names.length) {
+                                    const list = document.createElement('div');
+                                    list.className = 'd-flex flex-column gap-2';
+                                    names.forEach((n, i) => {
+                                        const card = document.createElement('div');
+                                        card.className = 'p-2 border rounded';
+                                        const t = buildKvpTableForLeaves(n);
+                                        const title = document.createElement('div');
+                                        title.className = 'small text-muted mb-1';
+                                        title.textContent = `Name #${i + 1}`;
+                                        card.appendChild(title);
+                                        if (t) card.appendChild(t);
+                                        list.appendChild(card);
+                                    });
+                                    wrap.appendChild(list);
+                                }
+
+                                return wrap;
+                            };
+
                             people.forEach((p, i) => {
                                 const wrap = document.createElement('div');
                                 wrap.className = 'mb-3 p-2 border rounded';
 
-                                // Friendly header
+                                // Header (friendly badges)
                                 const header = document.createElement('div');
                                 header.className = 'd-flex flex-wrap gap-2 align-items-baseline mb-2';
                                 const idxBadge = document.createElement('span');
@@ -645,17 +730,30 @@
                                 idxBadge.textContent = `#${i + 1}`;
                                 header.appendChild(idxBadge);
 
-                                const first = getNames(p, 'FirstName');
-                                const last  = getNames(p, 'LastName');
+                                const first = (() => {
+                                    const n = getNamesSection(p);
+                                    // Fallback to computed name for header using Names > Name
+                                    const nameNodes = p.querySelectorAll('Names > Name');
+                                    const firsts = Array.from(nameNodes).filter(nm => getText(nm, 'Type') === 'FirstName')
+                                        .map(nm => ({ order: parseInt(getText(nm, 'Order') || '9999', 10), v: getText(nm, 'Value') }))
+                                        .sort((a, b) => a.order - b.order).map(x => x.v).filter(Boolean).join(' ');
+                                    const last = (() => {
+                                        const nm = Array.from(nameNodes).find(nm => getText(nm, 'Type') === 'LastName');
+                                        return nm ? getText(nm, 'Value') : '';
+                                    })();
+                                    const full = [firsts, last].filter(Boolean).join(' ');
+                                    return { full, namesSection: n };
+                                })();
+
                                 const nameEl = document.createElement('strong');
-                                nameEl.textContent = [first, last].filter(Boolean).join(' ') || '-';
+                                nameEl.textContent = first.full || '-';
                                 header.appendChild(nameEl);
 
-                                const publicId = getText(p, 'PublicId') || getText(p, 'PersonId') || '-';
+                                const publicId = getText(p, 'PublicId') || getText(p, 'PersonId') || '';
                                 const dob = (getText(p, 'CivilStatusDate') || getText(p, 'DateOfBirth') || '').slice(0, 10);
                                 const status = getText(p, 'CivilStatus') || '';
 
-                                if (publicId && publicId !== '-') {
+                                if (publicId) {
                                     const b = document.createElement('span');
                                     b.className = 'badge text-bg-light';
                                     b.textContent = `PublicId: ${publicId}`;
@@ -675,29 +773,81 @@
                                 }
                                 wrap.appendChild(header);
 
-                                // All fields (flattened)
-                                const rows = flattenLeafValues(p);
-                                if (rows.length === 0) {
-                                    wrap.appendChild(el('div', 'text-muted', 'No data.'));
-                                } else {
-                                    const table = document.createElement('table');
-                                    table.className = 'table table-sm table-striped align-middle mb-0';
-                                    const tbody = document.createElement('tbody');
-                                    rows.forEach(({ key, value }) => {
-                                        const tr = document.createElement('tr');
-                                        const th = document.createElement('th');
-                                        th.className = 'text-muted fw-normal';
-                                        th.style.width = '40%';
-                                        th.textContent = key;
-                                        const td = document.createElement('td');
-                                        td.textContent = value;
-                                        tr.appendChild(th);
-                                        tr.appendChild(td);
-                                        tbody.appendChild(tr);
-                                    });
-                                    table.appendChild(tbody);
-                                    wrap.appendChild(table);
+                                // Basics: immediate leaf fields (excluding Names)
+                                const basicsOwner = document.createElement('details');
+                                basicsOwner.className = 'summary-group';
+                                basicsOwner.open = true;
+                                const basicsSum = document.createElement('summary');
+                                basicsSum.className = 'fw-semibold';
+                                basicsSum.textContent = 'Basics';
+                                basicsOwner.appendChild(basicsSum);
+
+                                const basicsLeaves = document.createElement('div');
+                                const basicsTable = buildKvpTableForLeaves({
+                                    children: Array.from(p.children).filter(ch =>
+                                        !isNil(ch) &&
+                                        ch.localName !== 'Names' &&
+                                        !Array.from(ch.children).some(k => k.nodeType === 1)
+                                    )
+                                });
+                                if (basicsTable) {
+                                    basicsOwner.appendChild(basicsTable);
+                                    wrap.appendChild(basicsOwner);
                                 }
+
+                                // Names section (grouped)
+                                if (first.namesSection) wrap.appendChild(first.namesSection);
+
+                                // Other complex first-level groups (e.g., Addresses, Phones, etc.)
+                                const complexGroups = Array.from(p.children).filter(ch =>
+                                    !isNil(ch) && ch.localName !== 'Names' && hasElementChildren(ch));
+
+                                complexGroups.forEach(group => {
+                                    // If this group contains repeated child items of the same element name, show each item as its own card.
+                                    const kids = Array.from(group.children).filter(k => !isNil(k));
+                                    const counts = kids.reduce((m, k) => (m[k.localName] = (m[k.localName] || 0) + 1, m), {});
+                                    const repeatedName = Object.keys(counts).find(n => counts[n] > 1);
+
+                                    const d = document.createElement('details');
+                                    d.className = 'summary-group';
+                                    d.open = true;
+                                    const s = document.createElement('summary');
+                                    s.className = 'fw-semibold';
+                                    s.textContent = group.localName;
+                                    d.appendChild(s);
+
+                                    if (repeatedName) {
+                                        const items = kids.filter(k => k.localName === repeatedName);
+                                        const list = document.createElement('div');
+                                        list.className = 'd-flex flex-column gap-2';
+                                        items.forEach((item, idx) => {
+                                            const card = document.createElement('div');
+                                            card.className = 'p-2 border rounded';
+                                            const title = document.createElement('div');
+                                            title.className = 'small text-muted mb-1';
+                                            title.textContent = `${repeatedName} #${idx + 1}`;
+                                            card.appendChild(title);
+
+                                            const leaves = buildKvpTableForLeaves(item);
+                                            if (leaves) card.appendChild(leaves);
+
+                                            // Nested details for deeper hierarchy (if any)
+                                            const nestedComplex = Array.from(item.children).filter(ch => !isNil(ch) && hasElementChildren(ch));
+                                            nestedComplex.forEach(ch => card.appendChild(buildDetails(ch)));
+
+                                            list.appendChild(card);
+                                        });
+                                        d.appendChild(list);
+                                    } else {
+                                        // No repeated child item; render as nested details with immediate leaves first
+                                        const leaves = buildKvpTableForLeaves(group);
+                                        if (leaves) d.appendChild(leaves);
+                                        const subComplex = kids.filter(ch => hasElementChildren(ch));
+                                        subComplex.forEach(ch => d.appendChild(buildDetails(ch)));
+                                    }
+
+                                    wrap.appendChild(d);
+                                });
 
                                 summaryHost.appendChild(wrap);
                             });
@@ -720,8 +870,8 @@
                         treeHost.style.display = (mode === 'tree') ? 'block' : 'none';
                         summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
 
-                        prePretty.textContent = getDisplayText(originalPretty);
-                        preRaw.textContent = getDisplayText(originalRaw);
+                        prePretty.textContent = getDisplayText(sourcePretty);
+                        preRaw.textContent = getDisplayText(sourceRaw);
 
                         const treeActive = (mode === 'tree');
                         expandBtn.disabled = !treeActive;
@@ -742,6 +892,28 @@
                     updateView();
                     populateFields();
                     populatePeopleAccordion();
+
+                    // NEW: expose XML handling functions to global scope if needed
+                    window.ppiSetResponseXml = setResponseXml;
+
+                    function setResponseXml(newRaw, newPretty) {
+                        if (typeof newRaw === 'string') sourceRaw = newRaw;
+                        if (typeof newPretty === 'string') sourcePretty = newPretty;
+                        else if (typeof newRaw === 'string') sourcePretty = newRaw; // fallback
+
+                        // Update the PREs so switching tabs reflects the new data
+                        preRaw.textContent = getDisplayText(sourceRaw);
+                        prePretty.textContent = getDisplayText(sourcePretty);
+
+                        // Re-render current mode and dependent views
+                        updateView();              // re-renders Tree or Summary if active
+                        populateFields();          // refresh overview "Fields present"
+                        populatePeopleAccordion(); // rebuild People (accordion) from the new XML
+                    }
+
+                    fetch('?handler=GetPeopleXml', { headers: { Accept: 'application/xml' } })
+                      .then(r => r.text())
+                      .then(xml => window.ppiSetResponseXml(xml));
                 })();
             </script>
         }
