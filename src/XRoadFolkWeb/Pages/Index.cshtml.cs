@@ -1,8 +1,8 @@
-using System;
-using System.Collections.Generic;
+//using System;
+//using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+//using System.Linq;
+//using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -22,30 +22,30 @@ namespace XRoadFolkWeb.Pages
         private readonly IMemoryCache _cache = cache;
 
         [BindProperty]
-        [Display(Name = "SSN", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
         [Ssn]
         public string? Ssn { get; set; }
 
         [BindProperty]
-        [Display(Name = "FirstName", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Display(Name = "FirstName", ResourceType = typeof(Resources.Labels))]
         [Name(MessageKey = "FirstName_Invalid")]
         [MaxLength(100,
-            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
+            ErrorMessageResourceType = typeof(Resources.ValidationMessages),
             ErrorMessageResourceName = "FirstName_MaxLength")]
         [LettersOnly]
         public string? FirstName { get; set; }
 
         [BindProperty]
-        [Display(Name = "LastName", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Display(Name = "LastName", ResourceType = typeof(Resources.Labels))]
         [Name(MessageKey = "LastName_Invalid")]
         [MaxLength(100,
-            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
+            ErrorMessageResourceType = typeof(Resources.ValidationMessages),
             ErrorMessageResourceName = "LastName_MaxLength")]
         [LettersOnly]
         public string? LastName { get; set; }
 
         [BindProperty]
-        [Display(Name = "DateOfBirth", ResourceType = typeof(global::XRoadFolkWeb.Resources.Labels))]
+        [Display(Name = "DateOfBirth", ResourceType = typeof(Resources.Labels))]
         [Dob]
         public string? DateOfBirth { get; set; }
 
@@ -102,7 +102,7 @@ namespace XRoadFolkWeb.Pages
             // If SSN is empty, require First + Last + DOB (presence only here).
             if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
             {
-                LocalizedString msg = _valLoc[XRoadFolkRaw.Lib.InputValidation.Errors.ProvideSsnOrNameDob];
+                LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
                 ModelState.AddModelError(string.Empty, msg);
                 Errors = [msg];
                 return Page();
@@ -110,7 +110,7 @@ namespace XRoadFolkWeb.Pages
 
             // Only validate the chosen path to avoid spurious cross-field errors
             (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
-                XRoadFolkRaw.Lib.InputValidation.ValidateCriteria(
+                InputValidation.ValidateCriteria(
                     usingSsn ? Ssn : null,
                     usingSsn ? null : first,
                     usingSsn ? null : last,
@@ -119,7 +119,11 @@ namespace XRoadFolkWeb.Pages
 
             if (!ok)
             {
-                foreach (string err in errs) ModelState.AddModelError(string.Empty, err);
+                foreach (string err in errs)
+                {
+                    ModelState.AddModelError(string.Empty, err);
+                }
+
                 Errors = errs;
                 return Page();
             }

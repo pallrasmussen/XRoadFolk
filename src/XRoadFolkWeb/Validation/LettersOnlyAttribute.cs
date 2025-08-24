@@ -38,6 +38,7 @@ namespace XRoadFolkWeb.Validation
 
         public void AddValidation(ClientModelValidationContext context)
         {
+            ArgumentNullException.ThrowIfNull(context);
             context.Attributes["data-val"] = "true";
             context.Attributes["data-val-lettersonly"] = ErrorMessageString;
         }
