@@ -4,10 +4,16 @@
     // Cross-field rule: SSN OR (FirstName + LastName + DateOfBirth)
     $.validator.addMethod("ssnornamedob", function (value, element) {
         var $form = $(element).closest("form");
-        var ssn = $.trim(($form.find('[name="Ssn"]').val() || ""));
-        var first = $.trim(($form.find('[name="FirstName"]').val() || ""));
-        var last = $.trim(($form.find('[name="LastName"]').val() || ""));
-        var dob = $.trim(($form.find('[name="DateOfBirth"]').val() || ""));
+
+        // Replace deprecated $.trim with safe String.trim
+        function t(v) { return (v == null ? '' : String(v)).trim(); }
+
+        var ssn = t($form.find('[name="Ssn"]').val());
+        var first = t($form.find('[name="FirstName"]').val());
+        var last  = t($form.find('[name="LastName"]').val());
+        var dob   = t($form.find('[name="DateOfBirth"]').val());
+        
+        debugger;
 
         if (ssn.length > 0) return true;
         if (first.length > 0 && last.length > 0 && dob.length > 0) return true;

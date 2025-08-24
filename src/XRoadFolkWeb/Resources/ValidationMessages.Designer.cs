@@ -1,3 +1,4 @@
+#nullable enable
 // This is a minimal strongly-typed resource wrapper for DataAnnotations error messages.
 namespace XRoadFolkWeb.Resources
 {

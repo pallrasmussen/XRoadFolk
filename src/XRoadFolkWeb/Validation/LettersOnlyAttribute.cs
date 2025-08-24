@@ -21,6 +21,8 @@ namespace XRoadFolkWeb.Validation
 
         protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
+            ArgumentNullException.ThrowIfNull(validationContext);
+
             string? s = value as string;
             if (string.IsNullOrWhiteSpace(s))
             {
