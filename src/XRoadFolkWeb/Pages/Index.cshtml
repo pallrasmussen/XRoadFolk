@@ -412,6 +412,7 @@
                                 <button id="ppi-pretty" type="button" class="btn btn-sm btn-outline-secondary">Pretty</button>
                                 <button id="ppi-raw" type="button" class="btn btn-sm btn-outline-secondary">Raw</button>
                                 <button id="ppi-tree" type="button" class="btn btn-sm btn-outline-secondary">Tree</button>
+                                <button id="ppi-summary" type="button" class="btn btn-sm btn-outline-secondary">Summary</button>
                             </div>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="checkbox" id="ppi-mask">
@@ -445,6 +446,10 @@
                          class="mb-0 small bg-body-tertiary p-3 border rounded"
                          style="display:none; overflow:auto; max-height:40vh; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);">
                     </div>
+                    <div id="ppi-xml-summary"
+                         class="mb-0 small bg-body-tertiary p-3 border rounded"
+                         style="display:none; overflow:auto; max-height:40vh;">
+                    </div>
                 </div>
             </div>
 
@@ -453,6 +458,7 @@
                     const prettyBtn = document.getElementById('ppi-pretty');
                     const rawBtn = document.getElementById('ppi-raw');
                     const treeBtn = document.getElementById('ppi-tree');
+                    const summaryBtn = document.getElementById('ppi-summary');
                     const copyBtn = document.getElementById('ppi-copy');
                     const downloadBtn = document.getElementById('ppi-download');
                     const expandBtn = document.getElementById('ppi-expand');
@@ -463,16 +469,10 @@
                     const prePretty = document.getElementById('ppi-xml-pretty');
                     const preRaw = document.getElementById('ppi-xml-raw');
                     const treeHost = document.getElementById('ppi-xml-tree');
+                    const summaryHost = document.getElementById('ppi-xml-summary');
 
                     // Overview
                     const fieldsList = document.getElementById('ppi-field-list');
-
-                    // Per-person accordion
-                    const peopleAcc = document.getElementById('ppi-people-acc');
-                    const sortSelect = document.getElementById('ppi-persons-sort');
-                    const applySortBtn = document.getElementById('ppi-persons-applysort');
-                    const personsExpandBtn = document.getElementById('ppi-persons-expand');
-                    const personsCollapseBtn = document.getElementById('ppi-persons-collapse');
 
                     const originalPretty = prePretty.textContent ?? '';
                     const originalRaw = preRaw.textContent ?? '';
@@ -589,17 +589,136 @@
                         }
                     }
 
+                    // NEW: Build a pretty summary for the whole response
+                    function renderSummary() {
+                        summaryHost.innerHTML = '';
+                        try {
+                            const text = getDisplayText(originalRaw);
+                            const xml = parseXml(text);
+                            const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
+                            if (people.length === 0) {
+                                summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.'));
+                                return;
+                            }
+
+                            // Helpers
+                            const isNil = (node) =>
+                                node && node.nodeType === 1 &&
+                                Array.from(node.attributes || []).some(a => a.localName === 'nil' && /^(true|1)$/i.test((a.value || '').trim()));
+
+                            function flattenLeafValues(root) {
+                                const rows = [];
+                                function walk(el, path) {
+                                    const kids = Array.from(el.children).filter(c => !isNil(c));
+                                    if (kids.length === 0) {
+                                        const v = (el.textContent || '').trim();
+                                        if (v) rows.push({ key: path || el.localName, value: v });
+                                        return;
+                                    }
+                                    // Count siblings by localName to add [index] only when repeated
+                                    const totals = new Map();
+                                    kids.forEach(k => totals.set(k.localName, (totals.get(k.localName) || 0) + 1));
+                                    const seen = new Map();
+                                    for (const child of kids) {
+                                        const name = child.localName;
+                                        const idx = seen.get(name) || 0;
+                                        seen.set(name, idx + 1);
+                                        let next = path ? `${path}.${name}` : name;
+                                        if ((totals.get(name) || 0) > 1) next += `[${idx}]`;
+                                        walk(child, next);
+                                    }
+                                }
+                                walk(root, '');
+                                return rows.sort((a, b) => a.key.localeCompare(b.key));
+                            }
+
+                            // Build a “card” per person with a friendly header + all fields
+                            people.forEach((p, i) => {
+                                const wrap = document.createElement('div');
+                                wrap.className = 'mb-3 p-2 border rounded';
+
+                                // Friendly header
+                                const header = document.createElement('div');
+                                header.className = 'd-flex flex-wrap gap-2 align-items-baseline mb-2';
+                                const idxBadge = document.createElement('span');
+                                idxBadge.className = 'badge text-bg-secondary';
+                                idxBadge.textContent = `#${i + 1}`;
+                                header.appendChild(idxBadge);
+
+                                const first = getNames(p, 'FirstName');
+                                const last  = getNames(p, 'LastName');
+                                const nameEl = document.createElement('strong');
+                                nameEl.textContent = [first, last].filter(Boolean).join(' ') || '-';
+                                header.appendChild(nameEl);
+
+                                const publicId = getText(p, 'PublicId') || getText(p, 'PersonId') || '-';
+                                const dob = (getText(p, 'CivilStatusDate') || getText(p, 'DateOfBirth') || '').slice(0, 10);
+                                const status = getText(p, 'CivilStatus') || '';
+
+                                if (publicId && publicId !== '-') {
+                                    const b = document.createElement('span');
+                                    b.className = 'badge text-bg-light';
+                                    b.textContent = `PublicId: ${publicId}`;
+                                    header.appendChild(b);
+                                }
+                                if (dob) {
+                                    const b = document.createElement('span');
+                                    b.className = 'badge text-bg-light';
+                                    b.textContent = `DOB: ${dob}`;
+                                    header.appendChild(b);
+                                }
+                                if (status) {
+                                    const b = document.createElement('span');
+                                    b.className = 'badge text-bg-light';
+                                    b.textContent = `Status: ${status}`;
+                                    header.appendChild(b);
+                                }
+                                wrap.appendChild(header);
+
+                                // All fields (flattened)
+                                const rows = flattenLeafValues(p);
+                                if (rows.length === 0) {
+                                    wrap.appendChild(el('div', 'text-muted', 'No data.'));
+                                } else {
+                                    const table = document.createElement('table');
+                                    table.className = 'table table-sm table-striped align-middle mb-0';
+                                    const tbody = document.createElement('tbody');
+                                    rows.forEach(({ key, value }) => {
+                                        const tr = document.createElement('tr');
+                                        const th = document.createElement('th');
+                                        th.className = 'text-muted fw-normal';
+                                        th.style.width = '40%';
+                                        th.textContent = key;
+                                        const td = document.createElement('td');
+                                        td.textContent = value;
+                                        tr.appendChild(th);
+                                        tr.appendChild(td);
+                                        tbody.appendChild(tr);
+                                    });
+                                    table.appendChild(tbody);
+                                    wrap.appendChild(table);
+                                }
+
+                                summaryHost.appendChild(wrap);
+                            });
+                        } catch (e) {
+                            summaryHost.textContent = 'Failed to build summary: ' + (e && e.message ? e.message : e);
+                        }
+                    }
+
                     function setActiveButton() {
-                        [prettyBtn, rawBtn, treeBtn].forEach(b => b.classList.remove('active'));
+                        [prettyBtn, rawBtn, treeBtn, summaryBtn].forEach(b => b && b.classList.remove('active'));
                         if (mode === 'pretty') prettyBtn.classList.add('active');
                         if (mode === 'raw') rawBtn.classList.add('active');
                         if (mode === 'tree') treeBtn.classList.add('active');
+                        if (mode === 'summary') summaryBtn.classList.add('active');
                     }
 
                     function updateView() {
                         prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
                         preRaw.style.display = (mode === 'raw') ? 'block' : 'none';
                         treeHost.style.display = (mode === 'tree') ? 'block' : 'none';
+                        summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
 
                         prePretty.textContent = getDisplayText(originalPretty);
                         preRaw.textContent = getDisplayText(originalRaw);
@@ -609,256 +728,16 @@
                         collapseBtn.disabled = !treeActive;
 
                         if (treeActive) renderTree();
+                        if (mode === 'summary') renderSummary();
 
                         setActiveButton();
                         savePrefs();
-                        applySearch();
+                        applySearch(); // no-op for non-tree
                     }
 
-                    function expandAll(open) {
-                        treeHost.querySelectorAll('details.xml-node').forEach(d => d.open = open);
-                    }
-
-                    function applySearch() {
-                        const q = (search.value || '').trim().toLowerCase();
-                        if (!q) {
-                            treeHost.querySelectorAll('.xml-node, .xml-summary').forEach(e => e.classList.remove('d-none', 'bg-warning-subtle'));
-                            return;
-                        }
-                        treeHost.querySelectorAll('.xml-node').forEach(d => d.classList.add('d-none'));
-                        const summaries = treeHost.querySelectorAll('.xml-summary');
-                        summaries.forEach(s => {
-                            const text = s.textContent?.toLowerCase() ?? '';
-                            if (text.includes(q)) {
-                                s.classList.add('bg-warning-subtle');
-                                let p = s.parentElement;
-                                while (p && p !== treeHost) {
-                                    if (p.classList.contains('xml-node')) {
-                                        p.classList.remove('d-none');
-                                        p.open = true;
-                                    }
-                                    p = p.parentElement;
-                                }
-                            } else {
-                                s.classList.remove('bg-warning-subtle');
-                            }
-                        });
-                    }
-
-                    function populateFields() {
-                        if (!fieldsList) return;
-                        fieldsList.innerHTML = '';
-                        try {
-                            const xml = parseXml(originalRaw);
-                            const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
-                            const counts = new Map();
-                            people.forEach(p => {
-                                Array.from(p.children).forEach(ch => {
-                                    counts.set(ch.localName, (counts.get(ch.localName) || 0) + 1);
-                                });
-                            });
-                            const items = Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-                            if (items.length === 0) {
-                                const li = el('li', 'text-muted', 'No PersonPublicInfo elements found.');
-                                fieldsList.appendChild(li);
-                                return;
-                            }
-                            items.forEach(([name, cnt]) => {
-                                const li = el('li', null, `${name} (${cnt})`);
-                                fieldsList.appendChild(li);
-                            });
-                        } catch {
-                            const li = el('li', 'text-danger', 'Failed to analyze fields.');
-                            fieldsList.appendChild(li);
-                        }
-                    }
-
-                    // Build per-person accordion (lazy render body)
-                    function populatePeopleAccordion() {
-                        if (!peopleAcc) return;
-                        peopleAcc.innerHTML = '';
-                        let xml;
-                        try {
-                            xml = parseXml(originalRaw);
-                        } catch {
-                            peopleAcc.innerHTML = '<div class="text-danger small">Failed to parse XML.</div>';
-                            return;
-                        }
-                        const people = Array.from(xml.getElementsByTagName('*')).filter(el => el.localName === 'PersonPublicInfo');
-                        const items = people.map((p, idx) => {
-                            const publicId = getText(p, 'PublicId') || getText(p, 'PersonId');
-                            const first = getNames(p, 'FirstName');
-                            const last = getNames(p, 'LastName');
-                            const dob = (getText(p, 'CivilStatusDate') || '').slice(0, 10);
-                            return { el: p, index: idx + 1, publicId, first, last, dob };
-                        });
-
-                        function render(itemsOrdered) {
-                            peopleAcc.innerHTML = '';
-                            itemsOrdered.forEach((it, i) => {
-                                const headingId = `ppi-pers-h-${i}`;
-                                const collapseId = `ppi-pers-c-${i}`;
-                                const item = document.createElement('div');
-                                item.className = 'accordion-item';
-
-                                const header = document.createElement('h2');
-                                header.className = 'accordion-header';
-                                header.id = headingId;
-
-                                const btn = document.createElement('button');
-                                btn.className = 'accordion-button collapsed';
-                                btn.type = 'button';
-                                btn.setAttribute('data-bs-toggle', 'collapse');
-                                btn.setAttribute('data-bs-target', `#${collapseId}`);
-                                btn.setAttribute('aria-expanded', 'false');
-                                btn.setAttribute('aria-controls', collapseId);
-                                btn.innerHTML = `<div class="d-flex flex-wrap gap-2 align-items-baseline">
-                                                    <span class="text-muted">#${it.index}</span>
-                                                    <strong>${(it.first || '-') + ' ' + (it.last || '')}</strong>
-                                                    <span class="text-muted">•</span>
-                                                    <span class="text-muted">PublicId: ${it.publicId || '-'}</span>
-                                                    ${it.dob ? `<span class="badge text-bg-light ms-2">DOB: ${it.dob}</span>` : ''}
-                                                 </div>`;
-
-                                header.appendChild(btn);
-
-                                const bodyWrap = document.createElement('div');
-                                bodyWrap.id = collapseId;
-                                bodyWrap.className = 'accordion-collapse collapse';
-                                bodyWrap.setAttribute('aria-labelledby', headingId);
-                                bodyWrap.setAttribute('data-bs-parent', '#ppi-people-acc');
-
-                                const body = document.createElement('div');
-                                body.className = 'accordion-body';
-                                // Toolbar
-                                const bar = document.createElement('div');
-                                bar.className = 'd-flex flex-wrap gap-2 justify-content-end mb-2';
-                                const copyBtn = el('button', 'btn btn-sm btn-outline-secondary', 'Copy XML');
-                                const dlBtn = el('button', 'btn btn-sm btn-outline-secondary', 'Download XML');
-                                bar.appendChild(copyBtn);
-                                bar.appendChild(dlBtn);
-                                body.appendChild(bar);
-
-                                // Host where we render the person subtree (lazy)
-                                const host = document.createElement('div');
-                                host.className = 'small bg-body-tertiary p-3 border rounded';
-                                host.style.maxHeight = '35vh';
-                                host.style.overflow = 'auto';
-                                body.appendChild(host);
-
-                                // Wire actions (lazy render on first open)
-                                let rendered = false;
-                                function ensureRendered() {
-                                    if (rendered) return;
-                                    const personXml = xmlToString(it.el);
-                                    // Use tree for readability
-                                    try {
-                                        const tree = buildTree(it.el);
-                                        tree.open = true;
-                                        host.innerHTML = '';
-                                        host.appendChild(tree);
-                                    } catch {
-                                        host.textContent = personXml;
-                                    }
-                                    rendered = true;
-                                }
-
-                                bodyWrap.addEventListener('show.bs.collapse', ensureRendered);
-
-                                copyBtn.addEventListener('click', async (e) => {
-                                    e.preventDefault();
-                                    const text = xmlToString(it.el);
-                                    try {
-                                        await navigator.clipboard.writeText(text);
-                                        const old = copyBtn.textContent;
-                                        copyBtn.textContent = 'Copied';
-                                        setTimeout(() => copyBtn.textContent = old, 1200);
-                                    } catch { /* noop */ }
-                                });
-
-                                dlBtn.addEventListener('click', (e) => {
-                                    e.preventDefault();
-                                    const text = xmlToString(it.el);
-                                    const blob = new Blob([text], { type: 'application/xml' });
-                                    const a = document.createElement('a');
-                                    a.href = URL.createObjectURL(blob);
-                                    a.download = `PersonPublicInfo_${(it.publicId || it.index)}.xml`;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    URL.revokeObjectURL(a.href);
-                                    a.remove();
-                                });
-
-                                bodyWrap.appendChild(body);
-                                item.appendChild(header);
-                                item.appendChild(bodyWrap);
-                                peopleAcc.appendChild(item);
-                            });
-                        }
-
-                        // Initial render in original order
-                        render(items);
-
-                        // Sorting support
-                        applySortBtn?.addEventListener('click', () => {
-                            const mode = sortSelect.value;
-                            let arr = [...items];
-                            if (mode === 'first') arr.sort((a, b) => (a.first || '').localeCompare(b.first || ''));
-                            else if (mode === 'last') arr.sort((a, b) => (a.last || '').localeCompare(b.last || ''));
-                            else if (mode === 'dob') arr.sort((a, b) => (a.dob || '').localeCompare(b.dob || ''));
-                            else arr = items; // index/original
-                            render(arr);
-                        });
-
-                        // Expand/collapse all
-                        personsExpandBtn?.addEventListener('click', () => {
-                            peopleAcc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.add('show'));
-                        });
-                        personsCollapseBtn?.addEventListener('click', () => {
-                            peopleAcc.querySelectorAll('.accordion-collapse').forEach(c => c.classList.remove('show'));
-                        });
-                    }
-
-                    // wire events
-                    prettyBtn.addEventListener('click', () => { mode = 'pretty'; updateView(); });
-                    rawBtn.addEventListener('click', () => { mode = 'raw'; updateView(); });
-                    treeBtn.addEventListener('click', () => { mode = 'tree'; updateView(); });
-                    maskChk.addEventListener('change', () => updateView());
-                    expandBtn.addEventListener('click', () => expandAll(true));
-                    collapseBtn.addEventListener('click', () => expandAll(false));
-                    search.addEventListener('input', () => applySearch());
-                    clearSearch.addEventListener('click', () => { search.value = ''; applySearch(); });
-
-                    copyBtn.addEventListener('click', async function (e) {
-                        e.preventDefault();
-                        let text = '';
-                        if (mode === 'pretty') text = prePretty.textContent || '';
-                        else if (mode === 'raw') text = preRaw.textContent || '';
-                        else text = prePretty.textContent || '';
-                        try {
-                            await navigator.clipboard.writeText(text);
-                            const old = copyBtn.innerText;
-                            copyBtn.innerText = 'Copied';
-                            setTimeout(() => copyBtn.innerText = old, 1500);
-                        } catch { /* noop */ }
-                    });
-
-                    downloadBtn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        let text = '';
-                        if (mode === 'pretty') text = prePretty.textContent || '';
-                        else if (mode === 'raw') text = preRaw.textContent || '';
-                        else text = prePretty.textContent || '';
-                        const blob = new Blob([text], { type: 'application/xml' });
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = 'GetPeoplePublicInfo.xml';
-                        document.body.appendChild(a);
-                        a.click();
-                        URL.revokeObjectURL(a.href);
-                        a.remove();
-                    });
-
+                    // Wire button
+                    summaryBtn.addEventListener('click', () => { mode = 'summary'; updateView(); });
+                    // keep existing pretty/raw/tree listeners
                     // init
                     updateView();
                     populateFields();
