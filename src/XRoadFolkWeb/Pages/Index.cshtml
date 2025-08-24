@@ -7,9 +7,10 @@
 
 <h1 class="mb-4">@IViewLocalizer["Title"]</h1>
 
-<div class="row g-4">
-    <div class="col-12">
-        <div class="card shadow-sm">
+<div class="row g-4 align-items-start">
+    <!-- People Search -->
+    <div class="col-12 col-lg-5 col-xxl-4">
+        <div class="card shadow-sm h-100">
             <div class="card-body">
                 <h5 class="card-title">@IViewLocalizer["SearchCriteria"]</h5>
                 <p class="text-muted mb-3">@IViewLocalizer["ProvideCriteria"]</p>
@@ -70,8 +71,8 @@
         </div>
     </div>
 
-    @* Modern, robust viewer (optional: always visible, shows empty state) *@
-    <div class="col-12">
+    <!-- GetPeoplePublicInfo viewer -->
+    <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
         <partial name="_GetPeoplePublicInfoViewer"
                  view-data='new ViewDataDictionary(ViewData) {
                      ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
