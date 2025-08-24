@@ -102,7 +102,7 @@ namespace XRoadFolkWeb.Pages
             // If SSN is empty, require First + Last + DOB (presence only here).
             if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
             {
-                var msg = _valLoc[XRoadFolkRaw.Lib.InputValidation.Errors.ProvideSsnOrNameDob];
+                LocalizedString msg = _valLoc[XRoadFolkRaw.Lib.InputValidation.Errors.ProvideSsnOrNameDob];
                 ModelState.AddModelError(string.Empty, msg);
                 Errors = [msg];
                 return Page();

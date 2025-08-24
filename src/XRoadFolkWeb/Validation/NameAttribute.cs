@@ -26,7 +26,7 @@ namespace XRoadFolkWeb.Validation
 
         protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
         {
-            var s = value as string;
+            string? s = value as string;
             if (string.IsNullOrWhiteSpace(s)) return ValidationResult.Success; // not [Required]
             return XRoadFolkRaw.Lib.InputValidation.IsValidName(s)
                 ? ValidationResult.Success

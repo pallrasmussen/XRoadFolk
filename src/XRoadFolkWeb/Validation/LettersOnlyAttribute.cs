@@ -15,7 +15,7 @@ namespace XRoadFolkWeb.Validation
 
         protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
         {
-            var s = value as string;
+            string? s = value as string;
             if (string.IsNullOrWhiteSpace(s)) return ValidationResult.Success; // not [Required]
             // Accept letters, spaces, apostrophes, hyphens (incl. Latin-1 letters)
             return System.Text.RegularExpressions.Regex.IsMatch(s, @"^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$") 

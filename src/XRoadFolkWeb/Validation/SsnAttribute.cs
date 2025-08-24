@@ -13,7 +13,7 @@ namespace XRoadFolkWeb.Validation
 
         protected override ValidationResult? IsValid(object? value, ValidationContext context)
         {
-            var s = value as string;
+            string? s = value as string;
 
             // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
             if (string.IsNullOrWhiteSpace(s))

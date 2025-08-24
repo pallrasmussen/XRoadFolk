@@ -9,12 +9,12 @@ namespace XRoadFolkWeb.Validation
         public Task BindModelAsync(ModelBindingContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
-            var value = context.ValueProvider.GetValue(context.ModelName).FirstValue;
+            string? value = context.ValueProvider.GetValue(context.ModelName).FirstValue;
             if (value is null)
             {
                 return Task.CompletedTask;
             }
-            var digits = new string(value.Where(char.IsDigit).ToArray());
+            string digits = new string(value.Where(char.IsDigit).ToArray());
             context.Result = ModelBindingResult.Success(string.IsNullOrEmpty(digits) ? value : digits);
             return Task.CompletedTask;
         }

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
+using XRoadFolkWeb.Infrastructure; // added
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -61,15 +62,16 @@ SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
 // Move this field inside a class or make it local to the method to fix CS0116.
 // Simplify collection initialization to fix IDE0300.
-string[] DefaultSupportedCultures = ["fo-FO"];
+// string[] DefaultSupportedCultures = ["fo-FO"]; // removed (encapsulated in AppLocalization)
 
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    var cultures = new[] { "fo-FO", "da-DK", "en-US" };
-    var supported = cultures.Select(c => new CultureInfo(c)).ToList();
-    opts.DefaultRequestCulture = new RequestCulture(cultures[0]);
-    opts.SupportedCultures = supported;
-    opts.SupportedUICultures = supported;
+    string[] names = AppLocalization.CultureNames;
+    IReadOnlyList<CultureInfo> supported = AppLocalization.Cultures;
+    opts.DefaultRequestCulture = new RequestCulture(AppLocalization.DefaultCulture);
+    // Create mutable lists for options assignment
+    opts.SupportedCultures = [.. supported];
+    opts.SupportedUICultures = [.. supported];
 });
 
 // Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)
@@ -146,7 +148,7 @@ builder.Services.AddControllers(options =>
     options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
 });
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 app.UseResponseCompression();
 
 // Redirect to HTTPS in dev so secure cookies work
