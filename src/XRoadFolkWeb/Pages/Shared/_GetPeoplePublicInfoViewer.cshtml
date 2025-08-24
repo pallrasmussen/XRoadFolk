@@ -17,7 +17,7 @@
                     <input class="form-check-input" type="checkbox" id="gpiv-mask">
                     <label class="form-check-label" for="gpiv-mask">Mask sensitive</label>
                 </div>
-                <div class="input-group input-group-sm" style="width: 240px;">
+                <div class="input-group input-group-sm" style="width: 260px;">
                     <span class="input-group-text">Search</span>
                     <input id="gpiv-search" type="text" class="form-control" placeholder="tag/value…">
                     <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="Clear">×</button>
@@ -92,7 +92,6 @@
 
     function maskValue(val) {
         if (!val) return val;
-        // basic masking rules (tweak as needed)
         val = val.replace(/(<SSN>)([^<]+)(<\/SSN>)/gi, function (_, a, mid, b) {
             var digits = (mid || '').replace(/\D/g, '');
             if (!digits) return a + mid + b;
@@ -120,6 +119,7 @@
         return e;
     }
 
+    // Tree
     function buildTree(node) {
         if (!node || node.nodeType !== 1) return document.createTextNode('');
         var details = el('details', 'xml-node', null);
@@ -139,9 +139,7 @@
             if (node.childNodes[c].nodeType === 1) { hasElementChildren = true; break; }
         }
         var txt = (node.textContent || '').trim();
-        if (!hasElementChildren && txt) {
-            sum.appendChild(el('span', 'xml-text ms-2', '= "' + txt + '"'));
-        }
+        if (!hasElementChildren && txt) sum.appendChild(el('span', 'xml-text ms-2', '= "' + txt + '"'));
         details.appendChild(sum);
         for (var j = 0; j < node.childNodes.length; j++) {
             var ch = node.childNodes[j];
@@ -149,7 +147,6 @@
         }
         return details;
     }
-
     function renderTree() {
         treeHost.innerHTML = '';
         try {
@@ -165,49 +162,282 @@
         }
     }
 
+    // Summary helpers
+    function isNil(node) {
+        if (!node || node.nodeType !== 1 || !node.attributes) return false;
+        for (var i = 0; i < node.attributes.length; i++) {
+            var a = node.attributes[i];
+            if ((a.localName || a.name) === 'nil' && /^(true|1)$/i.test((a.value || '').trim())) return true;
+        }
+        return false;
+    }
+    function hasElementChildren(node) {
+        if (!node || !node.children) return false;
+        for (var i = 0; i < node.children.length; i++) {
+            if (!isNil(node.children[i])) return true;
+        }
+        return false;
+    }
+    var atSign = String.fromCharCode(64);
+    function buildKvpTableIncludingAttributes(owner) {
+        var rows = [];
+
+        // owner attributes
+        if (owner && owner.attributes && owner.attributes.length) {
+            for (var i = 0; i < owner.attributes.length; i++) {
+                var a = owner.attributes[i];
+                rows.push({ key: atSign + a.name, val: (a.value || '') });
+            }
+        }
+
+        // leaf children and their attributes
+        var kids = owner && owner.children ? owner.children : [];
+        for (var k = 0; k < kids.length; k++) {
+            var ch = kids[k];
+            if (isNil(ch)) continue;
+            if (!hasElementChildren(ch)) {
+                rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
+                if (ch.attributes && ch.attributes.length) {
+                    for (var a2 = 0; a2 < ch.attributes.length; a2++) {
+                        var at = ch.attributes[a2];
+                        rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') });
+                    }
+                }
+            }
+        }
+
+        if (!rows.length) return null;
+
+        var t = document.createElement('table');
+        t.className = 'table table-sm table-striped align-middle mb-2';
+        var tb = document.createElement('tbody');
+        for (var r = 0; r < rows.length; r++) {
+            var tr = document.createElement('tr');
+            var th = document.createElement('th');
+            th.className = 'text-muted fw-normal';
+            th.style.width = '40%';
+            th.textContent = rows[r].key;
+            var td = document.createElement('td');
+            td.textContent = rows[r].val;
+            tr.appendChild(th); tr.appendChild(td);
+            tb.appendChild(tr);
+        }
+        t.appendChild(tb);
+        return t;
+    }
+    function buildDetails(node, titleOverride) {
+        var d = document.createElement('details');
+        d.className = 'summary-group';
+        d.open = true;
+
+        var s = document.createElement('summary');
+        s.className = 'fw-semibold';
+        s.textContent = titleOverride || node.localName;
+        d.appendChild(s);
+
+        var table = buildKvpTableIncludingAttributes(node);
+        if (table) d.appendChild(table);
+
+        var complex = [];
+        var kids = node.children || [];
+        for (var i = 0; i < kids.length; i++) {
+            if (!isNil(kids[i]) && hasElementChildren(kids[i])) complex.push(kids[i]);
+        }
+        for (var j = 0; j < complex.length; j++) d.appendChild(buildDetails(complex[j]));
+        return d;
+    }
+    function getTextLocal(elx, name) {
+        if (!elx || !elx.children) return '';
+        for (var i = 0; i < elx.children.length; i++) {
+            var c = elx.children[i];
+            if (c.localName === name) return (c.textContent || '').trim();
+        }
+        return '';
+    }
+    function badge(text) {
+        var b = document.createElement('span');
+        b.className = 'badge text-bg-light';
+        b.textContent = text;
+        return b;
+    }
+
+    // Summary (enhanced)
     function renderSummary() {
         summaryHost.innerHTML = '';
         try {
             var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
             if (!xmlText.trim()) { summaryHost.textContent = 'No XML to display.'; return; }
+
             var xml = parseXml(xmlText);
             var people = [];
             var all = xml.getElementsByTagName('*');
             for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
+
             if (people.length === 0) {
                 summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.'));
                 return;
             }
+
             for (var p = 0; p < people.length; p++) {
+                var person = people[p];
                 var wrap = el('div', 'mb-3 p-2 border rounded', null);
 
-                var head = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
-                var badge = el('span', 'badge text-bg-secondary', '#' + (p + 1));
-                head.appendChild(badge);
-                wrap.appendChild(head);
+                // Header
+                var header = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
+                header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
 
-                var table = document.createElement('table');
-                table.className = 'table table-sm table-striped align-middle mb-2';
-                var tb = document.createElement('tbody');
-
-                var person = people[p];
-                var childs = person.children;
-                for (var k = 0; k < childs.length; k++) {
-                    var ch = childs[k];
-                    var hasKids = ch.children && ch.children.length > 0;
-                    if (!hasKids) {
-                        var tr = document.createElement('tr');
-                        var th = document.createElement('th');
-                        th.className = 'text-muted fw-normal';
-                        th.style.width = '40%';
-                        th.textContent = ch.localName;
-                        var td = document.createElement('td');
-                        td.textContent = (ch.textContent || '').trim();
-                        tr.appendChild(th); tr.appendChild(td);
-                        tb.appendChild(tr);
-                    }
+                // Friendly name from Names/Name items
+                var nameRoot = null;
+                for (var nc = 0; nc < person.children.length; nc++) {
+                    if (person.children[nc].localName === 'Names') { nameRoot = person.children[nc]; break; }
                 }
-                if (tb.children.length > 0) { table.appendChild(tb); wrap.appendChild(table); }
+                var fullName = '';
+                if (nameRoot) {
+                    var names = [];
+                    for (var nn = 0; nn < nameRoot.children.length; nn++) {
+                        var nameItem = nameRoot.children[nn];
+                        if (nameItem.localName !== 'Name' || isNil(nameItem)) continue;
+                        names.push(nameItem);
+                    }
+                    var firsts = [];
+                    var last = '';
+                    for (var ni = 0; ni < names.length; ni++) {
+                        var tp = getTextLocal(names[ni], 'Type');
+                        if (tp === 'FirstName') {
+                            var order = parseInt(getTextLocal(names[ni], 'Order') || '9999', 10);
+                            firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(names[ni], 'Value') });
+                        } else if (tp === 'LastName') {
+                            last = getTextLocal(names[ni], 'Value') || last;
+                        }
+                    }
+                    firsts.sort(function (a, b) { return a.o - b.o; });
+                    var firstJoined = [];
+                    for (var fj = 0; fj < firsts.length; fj++) firstJoined.push(firsts[fj].v);
+                    fullName = (firstJoined.join(' ') + ' ' + last).trim();
+                }
+                var nameEl = document.createElement('strong');
+                nameEl.textContent = fullName || '-';
+                header.appendChild(nameEl);
+
+                // Useful badges
+                var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
+                var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
+                var civil = getTextLocal(person, 'CivilStatus');
+                if (publicId) header.appendChild(badge('PublicId: ' + publicId));
+                if (dob) header.appendChild(badge('DOB: ' + dob));
+                if (civil) header.appendChild(badge('Status: ' + civil));
+
+                wrap.appendChild(header);
+
+                // Basics (attributes + leaf values directly under person)
+                var basics = document.createElement('details');
+                basics.className = 'summary-group';
+                basics.open = true;
+                var basicsSum = document.createElement('summary');
+                basicsSum.className = 'fw-semibold';
+                basicsSum.textContent = 'Basics';
+                basics.appendChild(basicsSum);
+                var basicsTable = buildKvpTableIncludingAttributes(person);
+                if (basicsTable) basics.appendChild(basicsTable);
+                wrap.appendChild(basics);
+
+                // Names section (if present)
+                if (nameRoot) {
+                    var namesSection = document.createElement('details');
+                    namesSection.className = 'summary-group';
+                    namesSection.open = true;
+                    var namesSum = document.createElement('summary');
+                    namesSum.className = 'fw-semibold';
+                    namesSum.textContent = 'Names';
+                    namesSection.appendChild(namesSum);
+
+                    var list = document.createElement('div');
+                    list.className = 'd-flex flex-column gap-2';
+                    for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
+                        var nItem = nameRoot.children[n2];
+                        if (nItem.localName !== 'Name' || isNil(nItem)) continue;
+                        var card = el('div', 'p-2 border rounded', null);
+                        var title = el('div', 'small text-muted mb-1', 'Name #' + (list.children.length + 1));
+                        card.appendChild(title);
+                        var t = buildKvpTableIncludingAttributes(nItem);
+                        if (t) card.appendChild(t);
+                        list.appendChild(card);
+                    }
+                    namesSection.appendChild(list);
+                    wrap.appendChild(namesSection);
+                }
+
+                // Other complex groups
+                var groups = [];
+                for (var g = 0; g < person.children.length; g++) {
+                    var ch = person.children[g];
+                    if (isNil(ch)) continue;
+                    if (ch.localName === 'Names') continue;
+                    if (hasElementChildren(ch)) groups.push(ch);
+                }
+                for (var gi = 0; gi < groups.length; gi++) {
+                    var group = groups[gi];
+
+                    // Detect repeating items by counting children localNames
+                    var counts = {};
+                    for (var kk = 0; kk < group.children.length; kk++) {
+                        var lk = group.children[kk];
+                        if (isNil(lk)) continue;
+                        var nm = lk.localName;
+                        counts[nm] = (counts[nm] || 0) + 1;
+                    }
+                    var repeated = null;
+                    for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
+
+                    var section = document.createElement('details');
+                    section.className = 'summary-group';
+                    section.open = true;
+                    var secSum = document.createElement('summary');
+                    secSum.className = 'fw-semibold';
+                    secSum.textContent = group.localName;
+                    section.appendChild(secSum);
+
+                    if (repeated) {
+                        // Render list cards
+                        var items = [];
+                        for (var ii = 0; ii < group.children.length; ii++) {
+                            var item = group.children[ii];
+                            if (isNil(item)) continue;
+                            if (item.localName === repeated) items.push(item);
+                        }
+                        var listWrap = document.createElement('div');
+                        listWrap.className = 'd-flex flex-column gap-2';
+                        for (var it = 0; it < items.length; it++) {
+                            var card2 = el('div', 'p-2 border rounded', null);
+                            var title2 = el('div', 'small text-muted mb-1', repeated + ' #' + (it + 1));
+                            card2.appendChild(title2);
+                            var leaves2 = buildKvpTableIncludingAttributes(items[it]);
+                            if (leaves2) card2.appendChild(leaves2);
+
+                            // nested complex
+                            var nested = [];
+                            for (var nc = 0; nc < items[it].children.length; nc++) {
+                                var kid = items[it].children[nc];
+                                if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid);
+                            }
+                            for (var nx = 0; nx < nested.length; nx++) card2.appendChild(buildDetails(nested[nx]));
+                            listWrap.appendChild(card2);
+                        }
+                        section.appendChild(listWrap);
+                    } else {
+                        var leaves = buildKvpTableIncludingAttributes(group);
+                        if (leaves) section.appendChild(leaves);
+                        var subComplex = [];
+                        for (var sc = 0; sc < group.children.length; sc++) {
+                            var scn = group.children[sc];
+                            if (!isNil(scn) && hasElementChildren(scn)) subComplex.push(scn);
+                        }
+                        for (var sx = 0; sx < subComplex.length; sx++) section.appendChild(buildDetails(subComplex[sx]));
+                    }
+
+                    wrap.appendChild(section);
+                }
+
                 summaryHost.appendChild(wrap);
             }
         } catch (e) {
@@ -215,6 +445,7 @@
         }
     }
 
+    // Search and view plumbing
     function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
     function escapeHtml(s) {
         return s.replace(/[&<>\"']/g, function (ch) {
@@ -229,7 +460,6 @@
         var html = escapeHtml(masked).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
         preEl.innerHTML = html;
     }
-
     function applySearch() {
         var prev = treeHost ? treeHost.querySelector('.gpiv-tree-nomatch') : null;
         if (prev) prev.remove();
@@ -286,12 +516,10 @@
         if (mode === 'raw')    highlightPre(preRaw,   sourceRaw,   q);
         if (mode === 'pretty') highlightPre(prePretty, sourcePretty, q);
     }
-
     function expandAll(open) {
         var details = treeHost.querySelectorAll('details.xml-node');
         for (var i = 0; i < details.length; i++) details[i].open = open;
     }
-
     function setActive() {
         var btns = [prettyBtn, rawBtn, treeBtn, summaryBtn];
         for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
@@ -300,7 +528,6 @@
         if (mode === 'tree' && treeBtn) treeBtn.classList.add('active');
         if (mode === 'summary' && summaryBtn) summaryBtn.classList.add('active');
     }
-
     function updateView() {
         var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
         var hasAny = combined.length > 0;
@@ -339,9 +566,9 @@
     clearSearch && clearSearch.addEventListener('click', function () { if (search) search.value = ''; applySearch(); });
 
     function getExportText() {
-        if (mode === 'raw') return getDisplayText(sourceRaw || preRaw.textContent || '');
-        if (mode === 'pretty') return getDisplayText(sourcePretty || prePretty.textContent || '');
-        return getDisplayText(sourcePretty || prePretty.textContent || '');
+        if (mode === 'raw') return getDisplayText(sourceRaw || (preRaw ? preRaw.textContent : '') || '');
+        if (mode === 'pretty') return getDisplayText(sourcePretty || (prePretty ? prePretty.textContent : '') || '');
+        return getDisplayText(sourcePretty || (prePretty ? prePretty.textContent : '') || '');
     }
     copyBtn && copyBtn.addEventListener('click', function (e) {
         e.preventDefault();
