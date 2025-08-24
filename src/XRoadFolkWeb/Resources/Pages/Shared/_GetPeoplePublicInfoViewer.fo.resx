@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <!-- Toolbar/labels -->
+  <data name="GetPeoplePublicInfo" xml:space="preserve"><value>Heinta almennar fólkaupplýsingar</value></data>
+  <data name="Pretty" xml:space="preserve"><value>Sniðgjørt</value></data>
+  <data name="Raw" xml:space="preserve"><value>Rátt</value></data>
+  <data name="Tree" xml:space="preserve"><value>Greinayvirlit</value></data>
+  <data name="Summary" xml:space="preserve"><value>Samandráttur</value></data>
+  <data name="MaskSensitive" xml:space="preserve"><value>Maskera viðkvæmar</value></data>
+  <data name="Search" xml:space="preserve"><value>Leita</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>tag/virði…</value></data>
+  <data name="Clear" xml:space="preserve"><value>Tøm</value></data>
+  <data name="Expand" xml:space="preserve"><value>Víðka</value></data>
+  <data name="Collapse" xml:space="preserve"><value>Fella saman</value></data>
+  <data name="Copy" xml:space="preserve"><value>Avrita</value></data>
+  <data name="Download" xml:space="preserve"><value>Heinta</value></data>
+  <data name="ExportCsvTitle" xml:space="preserve"><value>Útflut samandrátt sum CSV</value></data>
+  <data name="Height" xml:space="preserve"><value>Hædd</value></data>
+  <data name="AdjustHeightTitle" xml:space="preserve"><value>Rætta sýnihædd (vh)</value></data>
+  <data name="Fullscreen" xml:space="preserve"><value>Fullskíggja</value></data>
+  <data name="ToggleFullscreen" xml:space="preserve"><value>Skift fullskíggju</value></data>
+  <data name="DropXmlHint" xml:space="preserve"><value>Slepp XML-fílu ella teksti her fyri at lesa inn</value></data>
+  <data name="EmptyState" xml:space="preserve"><value>Eingi svar løgd inn enn.</value></data>
+
+  <!-- JS messages -->
+  <data name="NoXmlToDisplay" xml:space="preserve"><value>Eingin XML at vísa.</value></data>
+  <data name="NoXmlRoot" xml:space="preserve"><value>Einki XML-rotelement.</value></data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve"><value>Kundi ikki vísa greinayvirlit:</value></data>
+  <data name="NoPeopleFound" xml:space="preserve"><value>Eingi PersonPublicInfo-element funnin.</value></data>
+  <data name="PeopleLabel" xml:space="preserve"><value>Fólk</value></data>
+  <data name="Basics" xml:space="preserve"><value>Grundupplýsingar</value></data>
+  <data name="Names" xml:space="preserve"><value>Nøvn</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data>
+  <data name="NoMatchesClear" xml:space="preserve"><value>Eingi úrslit. Tøm leitina fyri at vísa alt.</value></data>
+  <data name="NoMatchesSummaryClear" xml:space="preserve"><value>Eingi úrslit í samandrátti. Tøm leitina fyri at vísa alt.</value></data>
+  <data name="CopyXml" xml:space="preserve"><value>Avrita XML</value></data>
+  <data name="Copied" xml:space="preserve"><value>Avritað</value></data>
+  <data name="PublicId" xml:space="preserve"><value>Alment ID</value></data>
+  <data name="DOB" xml:space="preserve"><value>Føðingardagur</value></data>
+  <data name="Status" xml:space="preserve"><value>Støða</value></data>
+</root>

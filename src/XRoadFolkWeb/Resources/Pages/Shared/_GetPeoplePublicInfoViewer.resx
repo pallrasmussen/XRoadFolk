@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <!-- Toolbar/labels -->
+  <data name="GetPeoplePublicInfo" xml:space="preserve"><value>GetPeoplePublicInfo</value></data>
+  <data name="Pretty" xml:space="preserve"><value>Pretty</value></data>
+  <data name="Raw" xml:space="preserve"><value>Raw</value></data>
+  <data name="Tree" xml:space="preserve"><value>Tree</value></data>
+  <data name="Summary" xml:space="preserve"><value>Summary</value></data>
+  <data name="MaskSensitive" xml:space="preserve"><value>Mask sensitive</value></data>
+  <data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>tag/value…</value></data>
+  <data name="Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Expand" xml:space="preserve"><value>Expand</value></data>
+  <data name="Collapse" xml:space="preserve"><value>Collapse</value></data>
+  <data name="Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Download" xml:space="preserve"><value>Download</value></data>
+  <data name="ExportCsvTitle" xml:space="preserve"><value>Export summary as CSV</value></data>
+  <data name="Height" xml:space="preserve"><value>Height</value></data>
+  <data name="AdjustHeightTitle" xml:space="preserve"><value>Adjust viewer height (vh)</value></data>
+  <data name="Fullscreen" xml:space="preserve"><value>Fullscreen</value></data>
+  <data name="ToggleFullscreen" xml:space="preserve"><value>Toggle fullscreen</value></data>
+  <data name="DropXmlHint" xml:space="preserve"><value>Drop XML file or text to load</value></data>
+  <data name="EmptyState" xml:space="preserve"><value>No response loaded yet.</value></data>
+
+  <!-- JS messages -->
+  <data name="NoXmlToDisplay" xml:space="preserve"><value>No XML to display.</value></data>
+  <data name="NoXmlRoot" xml:space="preserve"><value>No XML root element.</value></data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve"><value>Failed to render tree:</value></data>
+  <data name="NoPeopleFound" xml:space="preserve"><value>No PersonPublicInfo elements found.</value></data>
+  <data name="PeopleLabel" xml:space="preserve"><value>People</value></data>
+  <data name="Basics" xml:space="preserve"><value>Basics</value></data>
+  <data name="Names" xml:space="preserve"><value>Names</value></data>
+  <data name="Name" xml:space="preserve"><value>Name</value></data>
+  <data name="NoMatchesClear" xml:space="preserve"><value>No matches. Clear search to show all.</value></data>
+  <data name="NoMatchesSummaryClear" xml:space="preserve"><value>No matches in Summary. Clear search to show all.</value></data>
+  <data name="CopyXml" xml:space="preserve"><value>Copy XML</value></data>
+  <data name="Copied" xml:space="preserve"><value>Copied</value></data>
+  <data name="PublicId" xml:space="preserve"><value>PublicId</value></data>
+  <data name="DOB" xml:space="preserve"><value>DOB</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+</root>

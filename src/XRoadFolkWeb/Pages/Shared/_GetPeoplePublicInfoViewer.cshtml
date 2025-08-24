@@ -1,6 +1,28 @@
+@using System.Text.Json
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
+
+    // Strings used by JavaScript
+    var gpivI18n = new {
+        NoXmlToDisplay = L["NoXmlToDisplay"].Value,
+        NoXmlRoot = L["NoXmlRoot"].Value,
+        FailedToRenderTreePrefix = L["FailedToRenderTreePrefix"].Value,
+        NoPeopleFound = L["NoPeopleFound"].Value,
+        PeopleLabel = L["PeopleLabel"].Value,               // "People"
+        Basics = L["Basics"].Value,
+        Names = L["Names"].Value,
+        Name = L["Name"].Value,
+        NoMatchesClear = L["NoMatchesClear"].Value,
+        NoMatchesSummaryClear = L["NoMatchesSummaryClear"].Value,
+        CopyXml = L["CopyXml"].Value,
+        Copied = L["Copied"].Value,
+        Download = L["Download"].Value,
+        PublicId = L["PublicId"].Value,
+        DOB = L["DOB"].Value,
+        Status = L["Status"].Value
+    };
 }
 <style>
     /* Sticky toolbar + fullscreen + adjustable height */
@@ -34,47 +56,47 @@
 <div class="card shadow-sm mb-4 gpiv-card">
     <div class="gpiv-drop" id="gpiv-drop">
         <div class="msg">
-            <div class="mb-1">Drop XML file or text to load</div>
+            <div class="mb-1">@L["DropXmlHint"]</div>
         </div>
     </div>
 
     <div class="card-body">
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-            <h5 class="card-title mb-0">GetPeoplePublicInfo</h5>
+            <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <div class="btn-group" role="group" aria-label="View mode">
-                    <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">Pretty</button>
-                    <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">Raw</button>
-                    <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">Tree</button>
-                    <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">Summary</button>
+                    <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
+                    <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">@L["Raw"]</button>
+                    <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
+                    <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
                 </div>
                 <div class="form-check form-check-inline">
                     <input class="form-check-input" type="checkbox" id="gpiv-mask">
-                    <label class="form-check-label" for="gpiv-mask">Mask sensitive</label>
+                    <label class="form-check-label" for="gpiv-mask">@L["MaskSensitive"]</label>
                 </div>
                 <div class="input-group input-group-sm" style="width: 260px;">
-                    <span class="input-group-text">Search</span>
-                    <input id="gpiv-search" type="text" class="form-control" placeholder="tag/value…">
-                    <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="Clear">×</button>
+                    <span class="input-group-text">@L["Search"]</span>
+                    <input id="gpiv-search" type="text" class="form-control" placeholder="@L["SearchPlaceholder"]">
+                    <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="@L["Clear"]">×</button>
                 </div>
                 <div class="btn-group" role="group" aria-label="Tree commands">
-                    <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">Expand</button>
-                    <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">Collapse</button>
+                    <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
+                    <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">@L["Collapse"]</button>
                 </div>
                 <div class="btn-group" role="group" aria-label="Export">
-                    <button id="gpiv-copy" type="button" class="btn btn-sm btn-outline-secondary" title="Ctrl+Shift+C">Copy</button>
-                    <button id="gpiv-download" type="button" class="btn btn-sm btn-outline-secondary">Download</button>
-                    <button id="gpiv-exportcsv" type="button" class="btn btn-sm btn-outline-secondary" title="Export summary as CSV">CSV</button>
+                    <button id="gpiv-copy" type="button" class="btn btn-sm btn-outline-secondary" title="Ctrl+Shift+C">@L["Copy"]</button>
+                    <button id="gpiv-download" type="button" class="btn btn-sm btn-outline-secondary">@L["Download"]</button>
+                    <button id="gpiv-exportcsv" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ExportCsvTitle"]">CSV</button>
                 </div>
                 <div class="input-group input-group-sm" style="width: 180px;">
-                    <span class="input-group-text">Height</span>
-                    <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="Adjust viewer height (vh)">
+                    <span class="input-group-text">@L["Height"]</span>
+                    <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeightTitle"]">
                 </div>
-                <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="Toggle fullscreen">Fullscreen</button>
+                <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
             </div>
         </div>
 
-        <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">No response loaded yet.</div>
+        <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
 
         <pre id="gpiv-xml-pretty"
              class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
@@ -97,7 +119,14 @@
 </div>
 
 <script>
+// localized strings for JS
+window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
+</script>
+<script>
 (function () {
+    // FIX: define localized strings object before any use in renderTree/renderSummary/applySearch
+    var I18N = (window.gpiv_i18n || {});
+
     var prettyBtn = document.getElementById('gpiv-pretty');
     var rawBtn = document.getElementById('gpiv-raw');
     var treeBtn = document.getElementById('gpiv-tree');
@@ -197,13 +226,16 @@
         treeHost.innerHTML = '';
         try {
             var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
-            if (!xmlText || !xmlText.trim()) { treeHost.textContent = 'No XML to display.'; return; }
+            if (!xmlText || !xmlText.trim()) { treeHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
             var xml = parseXml(xmlText);
-            if (!xml.documentElement) { treeHost.textContent = 'No XML root element.'; return; }
+            if (!xml.documentElement) { treeHost.textContent = I18N.NoXmlRoot || 'No XML root element.'; return; }
             var tree = buildTree(xml.documentElement);
             tree.open = true;
             treeHost.appendChild(tree);
-        } catch (e) { treeHost.textContent = 'Failed to render tree: ' + (e && e.message ? e.message : e); }
+        } catch (e) {
+            var pfx = I18N.FailedToRenderTreePrefix || 'Failed to render tree:';
+            treeHost.textContent = pfx + ' ' + (e && e.message ? e.message : e);
+        }
     }
 
     // Summary helpers
@@ -276,15 +308,15 @@
         summaryPeopleNodes = [];
         try {
             var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
-            if (!xmlText.trim()) { summaryHost.textContent = 'No XML to display.'; return; }
+            if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
             var xml = parseXml(xmlText);
             var people = []; var all = xml.getElementsByTagName('*');
             for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
-            if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', 'No PersonPublicInfo elements found.')); return; }
+            if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No PersonPublicInfo elements found.')); return; }
 
             // Header row with count
             var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
-            hdr.appendChild(el('strong', null, 'People: ' + people.length));
+            hdr.appendChild(el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length));
             summaryHost.appendChild(hdr);
 
             for (var p = 0; p < people.length; p++) {
@@ -318,35 +350,35 @@
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
                 var civil = getTextLocal(person, 'CivilStatus');
-                if (publicId) { var b1 = badge('PublicId: ' + publicId); b1.className += ' gpiv-pid'; header.appendChild(b1); }
-                if (dob) header.appendChild(badge('DOB: ' + dob));
-                if (civil) header.appendChild(badge('Status: ' + civil));
+                if (publicId) { var b1 = badge((I18N.PublicId || 'PublicId') + ': ' + publicId); b1.className += ' gpiv-pid'; header.appendChild(b1); }
+                if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
+                if (civil) header.appendChild(badge((I18N.Status || 'Status') + ': ' + civil));
 
                 // Per-person actions (copy/download)
                 var act = document.createElement('div');
                 act.className = 'ms-auto d-flex gap-2';
-                var btnCopy = document.createElement('button'); btnCopy.type = 'button'; btnCopy.className = 'btn btn-sm btn-outline-secondary gpiv-copy-person'; btnCopy.setAttribute('data-idx', String(p)); btnCopy.textContent = 'Copy XML';
-                var btnDl = document.createElement('button'); btnDl.type = 'button'; btnDl.className = 'btn btn-sm btn-outline-secondary gpiv-dl-person'; btnDl.setAttribute('data-idx', String(p)); btnDl.textContent = 'Download';
+                var btnCopy = document.createElement('button'); btnCopy.type = 'button'; btnCopy.className = 'btn btn-sm btn-outline-secondary gpiv-copy-person'; btnCopy.setAttribute('data-idx', String(p)); btnCopy.textContent = I18N.CopyXml || 'Copy XML';
+                var btnDl = document.createElement('button'); btnDl.type = 'button'; btnDl.className = 'btn btn-sm btn-outline-secondary gpiv-dl-person'; btnDl.setAttribute('data-idx', String(p)); btnDl.textContent = I18N.Download || 'Download';
                 act.appendChild(btnCopy); act.appendChild(btnDl);
                 header.appendChild(act);
 
                 wrap.appendChild(header);
 
                 var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = true;
-                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = 'Basics';
+                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
                 basics.appendChild(basicsSum);
                 var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
                 wrap.appendChild(basics);
 
                 if (nameRoot) {
                     var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = true;
-                    var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = 'Names';
+                    var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = I18N.Names || 'Names';
                     namesSection.appendChild(namesSum);
                     var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
                     for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
                         var nItem = nameRoot.children[n2]; if (nItem.localName !== 'Name' || isNil(nItem)) continue;
                         var card2 = el('div', 'p-2 border rounded', null);
-                        var title2 = el('div', 'small text-muted mb-1', 'Name #' + (list.children.length + 1));
+                        var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (list.children.length + 1));
                         card2.appendChild(title2);
                         var t2 = buildKvpTableIncludingAttributes(nItem); if (t2) card2.appendChild(t2);
                         list.appendChild(card2);
@@ -390,7 +422,7 @@
                 }
                 summaryHost.appendChild(wrap);
             }
-        } catch (e) { summaryHost.textContent = 'Failed to build summary: ' + (e && e.message ? e.message : e); }
+        } catch (e) { summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to build summary:') + ' ' + (e && e.message ? e.message : e); }
     }
 
     // Search + highlight
@@ -470,12 +502,7 @@
                     sums[s].classList.remove('bg-warning-subtle');
                 }
             }
-            if (!any) {
-                var hintT = document.createElement('div');
-                hintT.className = 'gpiv-tree-nomatch text-muted small';
-                hintT.textContent = 'No matches. Clear search to show all.';
-                treeHost.prepend(hintT);
-            }
+            if (!any) { var hint = document.createElement('div'); hint.className = 'gpiv-tree-nomatch text-muted small'; hint.textContent = I18N.NoMatchesClear || 'No matches. Clear search to show all.'; treeHost.prepend(hint); }
             return;
         }
 
@@ -558,7 +585,7 @@
             if (!anyCard) {
                 var hintS = document.createElement('div');
                 hintS.className = 'gpiv-summary-nomatch text-muted small';
-                hintS.textContent = 'No matches in Summary. Clear search to show all.';
+                hintS.textContent = I18N.NoMatchesSummaryClear || 'No matches in Summary. Clear search to show all.';
                 summaryHost.prepend(hintS);
             }
             return;
@@ -636,7 +663,7 @@
                     var ta = document.createElement('textarea'); ta.value = xml; ta.style.position = 'fixed'; ta.style.left = '-10000px';
                     document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
                 })();
-                t.textContent = 'Copied'; setTimeout(function () { t.textContent = 'Copy XML'; }, 1200);
+                t.textContent = (I18N.Copied || 'Copied'); setTimeout(function () { t.textContent = (I18N.CopyXml || 'Copy XML'); }, 1200);
             } else {
                 var a = document.createElement('a');
                 a.href = URL.createObjectURL(new Blob([xml], { type: 'application/xml;charset=utf-8' }));
@@ -810,5 +837,15 @@
     } catch {}
 
     updateView();
+})();
+</script>
+<script>
+// Bootstrap the viewer with server-provided XML (so it shows even if parsing the <pre> fails)
+(function () {
+    var rawFromServer = @Html.Raw(JsonSerializer.Serialize(raw));
+    var prettyFromServer = @Html.Raw(JsonSerializer.Serialize(pretty));
+    if (window.gpiv && (rawFromServer || prettyFromServer)) {
+        window.gpiv.setXml(rawFromServer, prettyFromServer);
+    }
 })();
 </script>

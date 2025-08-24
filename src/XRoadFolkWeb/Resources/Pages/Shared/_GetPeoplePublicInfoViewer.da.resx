@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+
+  <!-- Toolbar/labels -->
+  <data name="GetPeoplePublicInfo" xml:space="preserve"><value>Hent offentlige personoplysninger</value></data>
+  <data name="Pretty" xml:space="preserve"><value>Formatteret</value></data>
+  <data name="Raw" xml:space="preserve"><value>Rå</value></data>
+  <data name="Tree" xml:space="preserve"><value>Trævisning</value></data>
+  <data name="Summary" xml:space="preserve"><value>Oversigt</value></data>
+  <data name="MaskSensitive" xml:space="preserve"><value>Maskér følsomme</value></data>
+  <data name="Search" xml:space="preserve"><value>Søg</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>tag/værdi…</value></data>
+  <data name="Clear" xml:space="preserve"><value>Ryd</value></data>
+  <data name="Expand" xml:space="preserve"><value>Udvid</value></data>
+  <data name="Collapse" xml:space="preserve"><value>Sammenfold</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopiér</value></data>
+  <data name="Download" xml:space="preserve"><value>Hent</value></data>
+  <data name="ExportCsvTitle" xml:space="preserve"><value>Eksportér oversigt som CSV</value></data>
+  <data name="Height" xml:space="preserve"><value>Højde</value></data>
+  <data name="AdjustHeightTitle" xml:space="preserve"><value>Juster visningshøjde (vh)</value></data>
+  <data name="Fullscreen" xml:space="preserve"><value>Fuldskærm</value></data>
+  <data name="ToggleFullscreen" xml:space="preserve"><value>Skift fuldskærm</value></data>
+  <data name="DropXmlHint" xml:space="preserve"><value>Slip XML-fil eller tekst for at indlæse</value></data>
+  <data name="EmptyState" xml:space="preserve"><value>Ingen respons indlæst endnu.</value></data>
+
+  <!-- JS messages -->
+  <data name="NoXmlToDisplay" xml:space="preserve"><value>Ingen XML at vise.</value></data>
+  <data name="NoXmlRoot" xml:space="preserve"><value>Intet XML-rodelement.</value></data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve"><value>Kunne ikke gengive træ:</value></data>
+  <data name="NoPeopleFound" xml:space="preserve"><value>Ingen PersonPublicInfo-elementer fundet.</value></data>
+  <data name="PeopleLabel" xml:space="preserve"><value>Personer</value></data>
+  <data name="Basics" xml:space="preserve"><value>Grundlæggende</value></data>
+  <data name="Names" xml:space="preserve"><value>Navne</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data>
+  <data name="NoMatchesClear" xml:space="preserve"><value>Ingen resultater. Ryd søgning for at vise alle.</value></data>
+  <data name="NoMatchesSummaryClear" xml:space="preserve"><value>Ingen resultater i Oversigt. Ryd søgning for at vise alle.</value></data>
+  <data name="CopyXml" xml:space="preserve"><value>Kopiér XML</value></data>
+  <data name="Copied" xml:space="preserve"><value>Kopieret</value></data>
+  <data name="PublicId" xml:space="preserve"><value>Offentligt ID</value></data>
+  <data name="DOB" xml:space="preserve"><value>Fødselsdato</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+</root>
