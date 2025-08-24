@@ -1,5 +1,5 @@
 using System.Globalization;
-using Microsoft.Extensions.Configuration;
+//using Microsoft.Extensions.Configuration;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -13,7 +13,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public static (string DefaultCulture, IReadOnlyList<CultureInfo> Cultures) FromConfiguration(IConfiguration configuration)
         {
-            var section = configuration.GetSection(SectionName);
+            IConfigurationSection section = configuration.GetSection(SectionName);
             string[] names = section.GetSection("SupportedCultures").Get<string[]>() ?? FallbackCultureNames;
             string defaultName = section.GetValue<string>("DefaultCulture");
 
@@ -24,7 +24,7 @@ namespace XRoadFolkWeb.Infrastructure
                 defaultName = names[0];
             }
 
-            var cultures = names.Select(n => new CultureInfo(n)).ToList();
+            List<CultureInfo> cultures = [.. names.Select(n => new CultureInfo(n))];
             return (defaultName, cultures);
         }
     }

@@ -389,7 +389,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
-                    var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names') continue; if (hasElementChildren(ch)) groups.push(ch);
+                    var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
                 }
                 for (var gi = 0; gi < groups.length; gi++) {
                     var group = groups[gi];

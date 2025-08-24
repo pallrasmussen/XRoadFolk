@@ -63,7 +63,7 @@ SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 // Centralized supported cultures from configuration (with safe fallbacks)
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    var (defaultCulture, cultures) = AppLocalization.FromConfiguration(builder.Configuration);
+    (string defaultCulture, IReadOnlyList<CultureInfo> cultures) = AppLocalization.FromConfiguration(builder.Configuration);
     opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
     opts.SupportedCultures = [.. cultures];
     opts.SupportedUICultures = [.. cultures];

@@ -15,25 +15,29 @@ namespace XRoadFolkWeb.Validation
         public LettersOnlyAttribute()
         {
             // Reuse your localized message
-            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages);
+            ErrorMessageResourceType = typeof(Resources.ValidationMessages);
             ErrorMessageResourceName = "Name_Invalid";
         }
 
-        protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
-            var s = value as string;
-            if (string.IsNullOrWhiteSpace(s)) return ValidationResult.Success; // not [Required]
+            string? s = value as string;
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return ValidationResult.Success; // not [Required]
+            }
+
             s = s.Trim();
             // Unicode-aware match; avoids unintended hyphen ranges
             return LettersRegex.IsMatch(s)
                 ? ValidationResult.Success
-                : new ValidationResult(FormatErrorMessage(ctx.DisplayName));
+                : new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
         }
 
-        public void AddValidation(ClientModelValidationContext ctx)
+        public void AddValidation(ClientModelValidationContext context)
         {
-            ctx.Attributes["data-val"] = "true";
-            ctx.Attributes["data-val-lettersonly"] = ErrorMessageString;
+            context.Attributes["data-val"] = "true";
+            context.Attributes["data-val-lettersonly"] = ErrorMessageString;
         }
     }
 }
