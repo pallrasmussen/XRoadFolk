@@ -32,6 +32,7 @@ namespace XRoadFolkWeb.Pages
         [MaxLength(100,
             ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
             ErrorMessageResourceName = "FirstName_MaxLength")]
+        [LettersOnly]
         public string? FirstName { get; set; }
 
         [BindProperty]
@@ -40,6 +41,7 @@ namespace XRoadFolkWeb.Pages
         [MaxLength(100,
             ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages),
             ErrorMessageResourceName = "LastName_MaxLength")]
+        [LettersOnly]
         public string? LastName { get; set; }
 
         [BindProperty]
