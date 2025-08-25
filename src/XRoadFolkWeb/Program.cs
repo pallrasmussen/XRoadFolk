@@ -82,6 +82,16 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
     opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
     opts.SupportedCultures = [.. cultures];
     opts.SupportedUICultures = [.. cultures];
+
+    // Explicitly enable parent fallback
+    opts.FallBackToParentCultures = true;
+    opts.FallBackToParentUICultures = true;
+
+    // Optional mapping from appsettings: Localization:FallbackMap
+    var locCfg = builder.Configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
+    // Insert our best-match provider before the built-ins (Cookie/Query/Accept-Language)
+    opts.RequestCultureProviders.Insert(0, new XRoadFolkWeb.Infrastructure.BestMatchRequestCultureProvider(
+        opts.SupportedUICultures, locCfg.FallbackMap));
 });
 
 // Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)
@@ -182,6 +192,27 @@ builder.Services.AddRazorPages()
         options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
     });
 
+// Bind + validate Localization config from appsettings
+builder.Services
+    .AddOptions<LocalizationConfig>()
+    .Bind(builder.Configuration.GetSection("Localization"))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.DefaultCulture), "Localization: DefaultCulture is required.")
+    .Validate(o => o.SupportedCultures is { Count: > 0 }, "Localization: SupportedCultures must have at least one value.")
+    .Validate(o =>
+    {
+        try { _ = CultureInfo.GetCultureInfo(o.DefaultCulture!); }
+        catch { return false; }
+        foreach (var c in o.SupportedCultures)
+        {
+            try { _ = CultureInfo.GetCultureInfo(c); }
+            catch { return false; }
+        }
+        return true;
+    }, "Localization: One or more culture names are invalid.")
+    .Validate(o => o.SupportedCultures.Contains(o.DefaultCulture!, StringComparer.OrdinalIgnoreCase),
+        "Localization: DefaultCulture must be included in SupportedCultures.")
+    .ValidateOnStart();
+
 WebApplication app = builder.Build();
 app.UseResponseCompression();
 
@@ -191,6 +222,35 @@ app.UseHttpsRedirection();
 // Localization middleware
 RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
 app.UseRequestLocalization(locOpts);
+
+// After app.UseRequestLocalization(locOpts);
+var locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
+var locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
+locLogger.LogInformation("Localization config: Default={Default}, Supported=[{Supported}]",
+    locCfg.DefaultCulture, string.Join(", ", locCfg.SupportedCultures));
+
+// Diagnostic endpoint to verify applied culture at runtime
+app.MapGet("/__culture", (HttpContext ctx,
+                          IOptions<RequestLocalizationOptions> locOpts,
+                          IOptions<LocalizationConfig> cfg) =>
+{
+    var feature = ctx.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
+    return Results.Json(new
+    {
+        FromConfig = new
+        {
+            cfg.Value.DefaultCulture,
+            cfg.Value.SupportedCultures
+        },
+        Applied = new
+        {
+            Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
+            Supported = locOpts.Value.SupportedCultures.Select(c => c.Name).ToArray(),
+            Current = feature?.RequestCulture.Culture.Name,
+            CurrentUI = feature?.RequestCulture.UICulture.Name
+        }
+    });
+});
 
 // Static files + routing + pages
 app.UseStaticFiles();
