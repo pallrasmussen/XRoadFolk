@@ -321,5 +321,31 @@ namespace XRoadFolkWeb.Pages
             public string? LastName { get; set; }
             public string? DateOfBirth { get; set; }
         }
+
+        public async Task<IActionResult> OnGetPersonDetailsAsync(string? publicId)
+        {
+            if (string.IsNullOrWhiteSpace(publicId))
+            {
+                return BadRequest(new { ok = false, error = "Missing publicId." });
+            }
+
+            try
+            {
+                string xml = await _service.GetPersonAsync(publicId);
+                List<(string Key, string Value)> pairs = FlattenResponse(xml);
+                return new JsonResult(new
+                {
+                    ok = true,
+                    publicId,
+                    raw = xml,
+                    pretty = PrettyFormatXml(xml),
+                    details = pairs.Select(p => new { key = p.Key, value = p.Value }).ToArray()
+                });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { ok = false, error = ex.Message });
+            }
+        }
     }
 }

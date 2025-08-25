@@ -318,7 +318,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
             for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
             if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No PersonPublicInfo elements found.')); return; }
 
-            // Header row with count
             var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
             hdr.appendChild(el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length));
             summaryHost.appendChild(hdr);
@@ -354,7 +353,17 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
                 var civil = getTextLocal(person, 'CivilStatus');
-                if (publicId) { var b1 = badge((I18N.PublicId || 'PublicId') + ': ' + publicId); b1.className += ' gpiv-pid'; header.appendChild(b1); }
+
+                // FIX: make PublicId a real link that navigates to ?publicId=... (server renders GetPerson section)
+                if (publicId) {
+                    var pidLink = document.createElement('a');
+                    pidLink.href = '#';                   // prevent navigation
+                    pidLink.className = 'badge text-bg-light gpiv-pid';
+                    pidLink.setAttribute('data-public-id', publicId);
+                    pidLink.textContent = (I18N.PublicId || 'PublicId') + ': ' + publicId;
+                    header.appendChild(pidLink);
+                }
+
                 if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
                 if (civil) header.appendChild(badge((I18N.Status || 'Status') + ': ' + civil));
 
@@ -429,7 +438,9 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                 }
                 summaryHost.appendChild(wrap);
             }
-        } catch (e) { summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to build summary:') + ' ' + (e && e.message ? e.message : e); }
+        } catch (e) {
+            summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to build summary:') + ' ' + (e && e.message ? e.message : e);
+        }
     }
 
     // Search + highlight
@@ -875,5 +886,107 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     if (window.gpiv && (rawFromServer || prettyFromServer)) {
         window.gpiv.setXml(rawFromServer, prettyFromServer);
     }
+})();
+</script>
+@* Append this script at the end of the file (after the existing scripts) *@
+<script>
+(function(){
+  function getPanelEls() {
+    return {
+      sec: document.getElementById('person-details-section'),
+      body: document.getElementById('person-details-body'),
+      err: document.getElementById('person-details-error'),
+      loading: document.getElementById('person-details-loading')
+    };
+  }
+  function showLoading(on){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.loading){ e.loading.classList.toggle('d-none', !on);} }
+  function clearPanel(){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.body){ e.body.innerHTML=''; } if(e.loading){ e.loading.classList.add('d-none'); } }
+  function ensureShown(){ const e=getPanelEls(); if(e.sec) e.sec.classList.remove('d-none'); }
+
+  function renderPairsGrouped(pairs){
+    var groups = {}; (pairs||[]).forEach(function(p){ var k=p.key||''; var v=p.value||''; var seg=k.indexOf('.')>-1?k.slice(0,k.indexOf('.')):k; (groups[seg]=groups[seg]||[]).push({k:k,v:v}); });
+    var keys = Object.keys(groups).sort(function(a,b){ var ai=a.toLowerCase()==='summary'?0:1, bi=b.toLowerCase()==='summary'?0:1; return (ai-bi)||a.localeCompare(b); });
+    var accId = 'pd-acc-'+Date.now();
+    var acc = document.createElement('div'); acc.className='accordion'; acc.id=accId;
+    keys.forEach(function(name, gi){
+      var items = groups[name].slice().sort(function(x,y){ return x.k.localeCompare(y.k); });
+      var hid=accId+'-h-'+gi, cid=accId+'-c-'+gi;
+      var item=document.createElement('div'); item.className='accordion-item';
+      var h2=document.createElement('h2'); h2.className='accordion-header'; h2.id=hid;
+      var btn=document.createElement('button');
+      btn.className='accordion-button'+(name.toLowerCase()==='summary'?'':' collapsed');
+      btn.type='button';
+      btn.setAttribute('data-bs-toggle','collapse');
+      btn.setAttribute('data-bs-target','#'+cid);
+      btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false');
+      btn.setAttribute('aria-controls', cid);
+      btn.textContent=name; h2.appendChild(btn);
+
+      var col=document.createElement('div');
+      col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':'')
+      col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
+
+      var body=document.createElement('div'); body.className='accordion-body p-0';
+      var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
+      var tb=document.createElement('tbody');
+      items.forEach(function(it){
+        var k=it.k, v=it.v;
+        var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+        var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+        var tr=document.createElement('tr');
+        var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='35%'; th.textContent=sub;
+        var td=document.createElement('td'); td.textContent=v;
+        tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+      });
+      table.appendChild(tb); body.appendChild(table); col.appendChild(body);
+      item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
+    });
+    return acc;
+  }
+
+  async function loadPerson(publicId){
+    const els = getPanelEls();
+    if(!publicId || !els.body) return;
+    clearPanel(); showLoading(true);
+    try{
+      var url = new URL(window.location.href);
+      url.searchParams.set('handler','PersonDetails');
+      url.searchParams.set('publicId', publicId);
+      var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json' } });
+      var data = await resp.json();
+      showLoading(false);
+      if(!data || data.ok !== true){
+        if(els.err){ els.err.textContent = (data && data.error) ? data.error : 'Failed to load details.'; els.err.classList.remove('d-none'); }
+        return;
+      }
+      var acc = renderPairsGrouped(data.details||[]);
+      if(acc) els.body.appendChild(acc);
+      ensureShown();
+      try{ var link = new URL(window.location.href); link.searchParams.set('gpivPublicId', publicId); history.pushState(null,'',link.toString()); }catch{}
+    }catch{
+      showLoading(false);
+      const els2 = getPanelEls();
+      if(els2.err){ els2.err.textContent='Failed to load details.'; els2.err.classList.remove('d-none'); }
+    }
+  }
+
+  // Delegated click for any PublicId badge/link in Summary
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
+    // Allow ctrl/cmd-click to open in new tab if you kept href
+    if(e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    var pid = t.getAttribute('data-public-id');
+    if(!pid){
+      var txt = t.textContent || '';
+      var parts = txt.split(':');
+      pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
+    }
+    if(pid) loadPerson(pid);
+  });
+
+  // Optional: load on deep-link (?gpivPublicId=...)
+  try{ var qs=new URLSearchParams(window.location.search); var pid=qs.get('gpivPublicId'); if(pid) { if(document.readyState==='loading'){ window.addEventListener('DOMContentLoaded', function(){ loadPerson(pid); }); } else { loadPerson(pid); } } }catch{}
 })();
 </script>
