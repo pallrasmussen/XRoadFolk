@@ -97,10 +97,14 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
 
     IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
     bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", true);
-    if (bypass)
+
+    // Only bypass certificate validation in Development if explicitly enabled
+    var env = sp.GetRequiredService<IHostEnvironment>();
+    if (env.IsDevelopment() && bypass)
     {
-        handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+        handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
     }
+
     return handler;
 });
 
@@ -135,13 +139,20 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddResponseCompression(opts =>
 {
     opts.EnableForHttps = true;
-    opts.MimeTypes = new[] { "text/plain", "text/xml", "application/xml", "application/soap+xml" };
+    opts.MimeTypes = XRoadFolkWeb.Program.ResponseCompressionMimeTypes;
 });
 
+// Add custom SSN model binder provider globally (controllers + pages)
 builder.Services.AddControllers(options =>
 {
     options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
 });
+
+builder.Services.AddRazorPages()
+    .AddMvcOptions(options =>
+    {
+        options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
+    });
 
 WebApplication app = builder.Build();
 app.UseResponseCompression();
@@ -207,5 +218,14 @@ namespace XRoadFolkWeb
 // add at the very end of the file (for WebApplicationFactory)
 namespace XRoadFolkWeb
 {
-    public partial class Program { }
+    public partial class Program
+    {
+        internal static readonly string[] ResponseCompressionMimeTypes =
+        [
+            "text/plain",
+            "text/xml",
+            "application/xml",
+            "application/soap+xml"
+        ];
+    }
 }
