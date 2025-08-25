@@ -895,6 +895,10 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
   var personCache = new Map();
   var lastPid = null;
 
+  // EXPOSE to other scripts (Index.cshtml toolbar uses these)
+  window.personCache = personCache;
+  window.lastPid = lastPid;
+
   function getPanelEls() {
     return {
       sec: document.getElementById('person-details-section'),
@@ -982,6 +986,8 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
   async function loadPerson(publicId, sourceEl){
     lastPid = publicId;
+    window.lastPid = publicId; // keep global in sync
+
     const els = getPanelEls();
     if(!publicId || !els.body) return;
 
@@ -1012,7 +1018,9 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         return;
       }
 
+      // when cache is updated:
       personCache.set(publicId, { details: data.details || [], ts: Date.now() });
+      window.personCache = personCache; // optional, same Map instance
 
       clearPanel();
       var acc = (window._renderPairsGroupedForPerson || renderPairsGrouped)(data.details || []);
