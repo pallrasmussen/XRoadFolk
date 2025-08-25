@@ -37,13 +37,11 @@
     </div>
 
     <div class="card-body">
-        <!-- Toolbar (Raw removed) -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
           <div class="d-flex flex-wrap gap-2 align-items-center">
             <div class="btn-group" role="group" aria-label="View mode">
               <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
-              <!-- removed gpiv-raw -->
               <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
               <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
             </div>
@@ -63,21 +61,17 @@
 
         <pre id="gpiv-xml-pretty" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="white-space: pre; overflow: auto;">@pretty</pre>
 
-        <!-- removed gpiv-xml-raw pane -->
-
         <div id="gpiv-xml-tree" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="display:none; overflow:auto; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);"></div>
         <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="display:none; overflow:auto;"></div>
     </div>
 </div>
 
-<!-- Safe JSON payloads to avoid TS1109 in <script> -->
 <script type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
 <script type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 
 <script>
 (function () {
-    // Read i18n JSON safely
     var I18N = {};
     try {
         var i18nEl = document.getElementById('gpiv-i18n-json');
@@ -94,7 +88,7 @@
     var dropOverlay = document.getElementById('gpiv-drop');
 
     var prePretty = document.getElementById('gpiv-xml-pretty');
-    var preRaw = document.getElementById('gpiv-xml-raw'); // not present, kept null-safe
+    var preRaw = document.getElementById('gpiv-xml-raw'); // may not exist
     var treeHost = document.getElementById('gpiv-xml-tree');
     var summaryHost = document.getElementById('gpiv-xml-summary');
     var emptyMsg = document.getElementById('gpiv-empty');
@@ -135,7 +129,7 @@
         return e;
     }
 
-    // Helpers for Summary
+    // Summary helpers
     function isNil(node) {
       if (!node || node.nodeType !== 1 || !node.attributes) return false;
       for (var i = 0; i < node.attributes.length; i++) {
@@ -220,6 +214,7 @@
         for (var j = 0; j < node.childNodes.length; j++) { var ch = node.childNodes[j]; if (ch.nodeType === 1) details.appendChild(buildTree(ch)); }
         return details;
     }
+
     function renderTree() {
         treeHost.innerHTML = '';
         try {
@@ -237,7 +232,6 @@
     }
 
     // Summary
-    var summaryPeopleNodes = [];
     function renderSummary() {
         function buildDetailsLocal(node, title) {
             var d = document.createElement('details');
@@ -260,7 +254,6 @@
         }
 
         summaryHost.innerHTML = '';
-        summaryPeopleNodes = [];
         try {
             var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
             if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
@@ -275,7 +268,6 @@
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
-                summaryPeopleNodes.push(person);
 
                 var wrap = el('div', 'mb-3 p-2 border rounded', null);
                 wrap.setAttribute('data-idx', String(p));
@@ -382,7 +374,7 @@
         }
     }
 
-    // Expand/Collapse helpers (must be in-scope)
+    // Expand/Collapse helpers (tree & summary)
     function expandAll(open) {
         if (!treeHost) return;
         var nodes = treeHost.querySelectorAll('details.xml-node');
@@ -477,7 +469,6 @@
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
     });
 
-    // Public API
     window.gpiv = {
         setXml: function (raw, pretty) {
             if (typeof raw === 'string') sourceRaw = raw;
@@ -501,7 +492,6 @@
         }
     };
 
-    // Deep link support
     try {
         var qs = new URLSearchParams(window.location.search);
         var linkPid = qs.get('gpivPublicId');
@@ -512,7 +502,6 @@
 })();
 </script>
 <script>
-// Bootstrap from server JSON (avoids TS1109)
 (function () {
     try {
         var rawEl = document.getElementById('gpiv-raw-json');
@@ -524,7 +513,6 @@
 })();
 </script>
 <script>
-// Restore PublicId click -> load PersonDetails panel behavior
 (function(){
   if (window.__gpivPidHooked) return;
   window.__gpivPidHooked = true;
