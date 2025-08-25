@@ -4,7 +4,6 @@
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
 
-    // Removed unused: NoMatchesClear, NoMatchesSummaryClear, Copied
     var gpivI18n = new {
         NoXmlToDisplay = L["NoXmlToDisplay"].Value,
         NoXmlRoot = L["NoXmlRoot"].Value,
@@ -71,19 +70,23 @@
     </div>
 </div>
 
-<script>
-// localized strings for JS
-window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
-</script>
+<!-- Safe JSON payloads to avoid TS1109 in <script> -->
+<script type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
+<script type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
+<script type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
+
 <script>
 (function () {
-    var I18N = (window.gpiv_i18n || {});
+    // Read i18n JSON safely
+    var I18N = {};
+    try {
+        var i18nEl = document.getElementById('gpiv-i18n-json');
+        if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
+    } catch {}
 
     var prettyBtn = document.getElementById('gpiv-pretty');
-    // removed rawBtn
     var treeBtn = document.getElementById('gpiv-tree');
     var summaryBtn = document.getElementById('gpiv-summary');
-    // removed copyBtn and downloadBtn (no corresponding buttons in DOM)
     var expandBtn = document.getElementById('gpiv-expand');
     var collapseBtn = document.getElementById('gpiv-collapse');
     var heightRange = document.getElementById('gpiv-height');
@@ -91,8 +94,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var dropOverlay = document.getElementById('gpiv-drop');
 
     var prePretty = document.getElementById('gpiv-xml-pretty');
-    // keep variable but pane is removed; do not dereference without null checks
-    var preRaw = document.getElementById('gpiv-xml-raw');
+    var preRaw = document.getElementById('gpiv-xml-raw'); // not present, kept null-safe
     var treeHost = document.getElementById('gpiv-xml-tree');
     var summaryHost = document.getElementById('gpiv-xml-summary');
     var emptyMsg = document.getElementById('gpiv-empty');
@@ -106,7 +108,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
     if (saved && typeof saved.mode === 'string' ) mode = saved.mode;
-    // coerce legacy 'raw' mode to 'pretty' since raw view is removed
     if (mode === 'raw') mode = 'pretty';
     var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
     if (heightRange) { heightRange.value = savedH; if (card) card.style.setProperty('--gpiv-h', savedH + 'vh'); }
@@ -134,7 +135,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         return e;
     }
 
-    // Helpers used by Summary rendering
+    // Helpers for Summary
     function isNil(node) {
       if (!node || node.nodeType !== 1 || !node.attributes) return false;
       for (var i = 0; i < node.attributes.length; i++) {
@@ -144,15 +145,12 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       }
       return false;
     }
-
     function hasElementChildren(node) {
       if (!node || !node.children) return false;
       for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
       return false;
     }
-
     var atSign = String.fromCharCode(64);
-
     function buildKvpTableIncludingAttributes(owner) {
       var rows = [];
       if (owner && owner.attributes && owner.attributes.length) {
@@ -187,7 +185,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       t.appendChild(tb);
       return t;
     }
-
     function getTextLocal(elx, name) {
       if (!elx || !elx.children) return '';
       for (var i = 0; i < elx.children.length; i++) {
@@ -196,7 +193,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       }
       return '';
     }
-
     function badge(text) {
       var b = document.createElement('span');
       b.className = 'badge text-bg-light';
@@ -224,7 +220,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         for (var j = 0; j < node.childNodes.length; j++) { var ch = node.childNodes[j]; if (ch.nodeType === 1) details.appendChild(buildTree(ch)); }
         return details;
     }
-
     function renderTree() {
         treeHost.innerHTML = '';
         try {
@@ -241,7 +236,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     }
 
-    // Summary render
+    // Summary
     var summaryPeopleNodes = [];
     function renderSummary() {
         function buildDetailsLocal(node, title) {
@@ -324,7 +319,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
                 wrap.appendChild(header);
 
-                // Basics
                 var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false;
                 var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
                 basics.appendChild(basicsSum);
@@ -348,7 +342,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                     wrap.appendChild(namesSection);
                 }
 
-                // Other groups
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
                     var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
@@ -389,44 +382,53 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     }
 
+    // Expand/Collapse helpers (must be in-scope)
+    function expandAll(open) {
+        if (!treeHost) return;
+        var nodes = treeHost.querySelectorAll('details.xml-node');
+        for (var i = 0; i < nodes.length; i++) nodes[i].open = !!open;
+    }
+    function expandSummaryAll(open) {
+        if (!summaryHost) return;
+        var groups = summaryHost.querySelectorAll('details.summary-group');
+        for (var i = 0; i < groups.length; i++) groups[i].open = !!open;
+    }
+
     function setActive() {
-        var btns = [prettyBtn, /* rawBtn, */ treeBtn, summaryBtn];
+        var btns = [prettyBtn, treeBtn, summaryBtn];
         for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
         if (mode === 'pretty' && prettyBtn) prettyBtn.classList.add('active');
-        // raw mode removed
         if (mode === 'tree' && treeBtn) treeBtn.classList.add('active');
         if (mode === 'summary' && summaryBtn) summaryBtn.classList.add('active');
     }
 
     function updateView() {
-      var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
-      var hasAny = combined.length > 0;
+        var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
+        var hasAny = combined.length > 0;
 
-      if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-      prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
-      treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
-      summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
-      prePretty.textContent = (sourcePretty || '');
+        if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
+        if (prePretty) prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
+        if (treeHost) treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
+        if (summaryHost) summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
+        if (prePretty) prePretty.textContent = (sourcePretty || '');
 
-      var treeActive = (mode === 'tree');
-      var summaryActive = (mode === 'summary');
+        var treeActive = (mode === 'tree');
+        var summaryActive = (mode === 'summary');
 
-      // Render first, so DOM exists before we inspect it
-      if (treeActive && hasAny) renderTree();
-      if (summaryActive && hasAny) renderSummary();
+        if (treeActive && hasAny) renderTree();
+        if (summaryActive && hasAny) renderSummary();
 
-      // Enable only when the active view has expandable nodes
-      var canExpand = false;
-      if (treeActive) {
-          canExpand = !!(treeHost && treeHost.querySelector('details.xml-node'));
-      } else if (summaryActive) {
-          canExpand = !!(summaryHost && summaryHost.querySelector('details.summary-group'));
-      }
-      if (expandBtn) expandBtn.disabled = !canExpand;
-      if (collapseBtn) collapseBtn.disabled = !canExpand;
+        var canExpand = false;
+        if (treeActive) {
+            canExpand = !!(treeHost && treeHost.querySelector('details.xml-node'));
+        } else if (summaryActive) {
+            canExpand = !!(summaryHost && summaryHost.querySelector('details.summary-group'));
+        }
+        if (expandBtn) expandBtn.disabled = !canExpand;
+        if (collapseBtn) collapseBtn.disabled = !canExpand;
 
-      setActive();
-      savePrefs();
+        setActive();
+        savePrefs();
     }
 
     // Load: Drag & Drop only
@@ -461,7 +463,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     heightRange && heightRange.addEventListener('input', function () { var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs(); });
     fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
 
-    // Keyboard shortcuts (no '2' raw, no copy)
+    // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
@@ -475,11 +477,11 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
     });
 
+    // Public API
     window.gpiv = {
         setXml: function (raw, pretty) {
             if (typeof raw === 'string') sourceRaw = raw;
             if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string' ) sourcePretty = raw;
-            // leave guard in case pane is added back someday
             if (preRaw) preRaw.textContent = (sourceRaw || '');
             if (prePretty) prePretty.textContent = (sourcePretty || '');
             updateView();
@@ -499,6 +501,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     };
 
+    // Deep link support
     try {
         var qs = new URLSearchParams(window.location.search);
         var linkPid = qs.get('gpivPublicId');
@@ -509,39 +512,23 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 })();
 </script>
 <script>
-// Expand/Collapse helpers (tree and summary)
-function expandAll(open) {
-    if (!treeHost) return;
-    var nodes = treeHost.querySelectorAll('details.xml-node');
-    for (var i = 0; i < nodes.length; i++) nodes[i].open = !!open;
-}
-function expandSummaryAll(open) {
-    if (!summaryHost) return;
-    var groups = summaryHost.querySelectorAll('details.summary-group');
-    for (var i = 0; i < groups.length; i++) groups[i].open = !!open;
-}
-
-// existing bindings will now work:
-// expandBtn.addEventListener('click', () => mode==='summary' ? expandSummaryAll(true) : expandAll(true));
-// collapseBtn.addEventListener('click', () => mode==='summary' ? expandSummaryAll(false) : expandAll(false));
-</script>
-<script>
-// Bootstrap the viewer with server-provided XML (so it shows even if parsing the <pre> fails)
+// Bootstrap from server JSON (avoids TS1109)
 (function () {
-    var rawFromServer = @Html.Raw(JsonSerializer.Serialize(raw));
-    var prettyFromServer = @Html.Raw(JsonSerializer.Serialize(pretty));
-    if (window.gpiv && (rawFromServer || prettyFromServer)) {
-        window.gpiv.setXml(rawFromServer, prettyFromServer);
-    }
+    try {
+        var rawEl = document.getElementById('gpiv-raw-json');
+        var prettyEl = document.getElementById('gpiv-pretty-json');
+        var raw = rawEl ? JSON.parse(rawEl.textContent || '""') : "";
+        var pretty = prettyEl ? JSON.parse(prettyEl.textContent || '""') : "";
+        if (window.gpiv && (raw || pretty)) window.gpiv.setXml(raw, pretty);
+    } catch {}
 })();
 </script>
 <script>
 // Restore PublicId click -> load PersonDetails panel behavior
 (function(){
-  if (window.__gpivPidHooked) return; // idempotent
+  if (window.__gpivPidHooked) return;
   window.__gpivPidHooked = true;
 
-  // Shared cache/state (cooperate with Index.cshtml enhancements)
   var personCache = (window.personCache instanceof Map) ? window.personCache : (window.personCache = new Map());
   var lastPid = window.lastPid || null;
 
@@ -586,7 +573,6 @@ function expandSummaryAll(open) {
     } catch {}
   }
 
-  // Default renderer if a custom one is not provided (keeps UI readable)
   function defaultRenderPairsGrouped(pairs){
     var groups = {};
     (pairs||[]).forEach(function(p){
@@ -655,7 +641,6 @@ function expandSummaryAll(open) {
     var els = getPanelEls();
     if(!publicId || !els.body) return;
 
-    // Show cached immediately if present
     var cached = personCache.get(publicId);
     if (cached && cached.details && cached.details.length) {
       clearPanel();
@@ -709,11 +694,10 @@ function expandSummaryAll(open) {
     }
   }
 
-  // Delegate PublicId clicks from Summary
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
-    if(e.ctrlKey || e.metaKey) return; // allow open in new tab if needed
+    if(e.ctrlKey || e.metaKey) return;
     e.preventDefault();
     var pid = t.getAttribute('data-public-id') || '';
     if(!pid){
@@ -724,7 +708,6 @@ function expandSummaryAll(open) {
     if(pid) loadPerson(pid, t);
   });
 
-  // Deep-link support on load
   try{
     var qs=new URLSearchParams(window.location.search);
     var pid=qs.get('gpivPublicId');
