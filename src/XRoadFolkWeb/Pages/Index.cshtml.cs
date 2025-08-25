@@ -333,13 +333,27 @@ namespace XRoadFolkWeb.Pages
             {
                 string xml = await _service.GetPersonAsync(publicId);
                 List<(string Key, string Value)> pairs = FlattenResponse(xml);
+
+                // Filter out any RequestHeader/requestBody content (any level, case-insensitive)
+                List<(string Key, string Value)> filtered = pairs
+                    .Where(p =>
+                    {
+                        if (string.IsNullOrEmpty(p.Key)) return true;
+                        string k = p.Key.ToLowerInvariant();
+                        return !(k.StartsWith("requestheader")
+                              || k.StartsWith("requestbody")
+                              || k.Contains(".requestheader")
+                              || k.Contains(".requestbody"));
+                    })
+                    .ToList();
+
                 return new JsonResult(new
                 {
                     ok = true,
                     publicId,
                     raw = xml,
                     pretty = PrettyFormatXml(xml),
-                    details = pairs.Select(p => new { key = p.Key, value = p.Value }).ToArray()
+                    details = filtered.Select(p => new { key = p.Key, value = p.Value }).ToArray()
                 });
             }
             catch (Exception ex)
