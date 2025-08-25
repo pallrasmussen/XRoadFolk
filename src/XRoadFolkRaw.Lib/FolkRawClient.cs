@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Polly;
 using XRoadFolkRaw.Lib.Logging;
+using XRoadFolkRaw.Lib.Options;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -478,6 +479,139 @@ namespace XRoadFolkRaw.Lib
 
             XElement? requestHeader = requestEl.Element("requestHeader");
             if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
+            SetChildValue(requestHeader, "token", token);
+
+            string xmlString = doc.Declaration != null
+                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
+                : doc.ToString(SaveOptions.DisableFormatting);
+
+            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
+        }
+
+        public async Task<string> GetPersonAsync(
+            string xmlPath,
+            string xId,
+            string userId,
+            string token,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            GetPersonRequestOptions? options,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(xmlPath);
+            ArgumentNullException.ThrowIfNull(xId);
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(token);
+            ArgumentNullException.ThrowIfNull(protocolVersion);
+            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+            ArgumentNullException.ThrowIfNull(clientMemberClass);
+            ArgumentNullException.ThrowIfNull(clientMemberCode);
+            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+            ArgumentNullException.ThrowIfNull(serviceMemberClass);
+            ArgumentNullException.ThrowIfNull(serviceMemberCode);
+            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceCode);
+            ArgumentNullException.ThrowIfNull(serviceVersion);
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+
+            XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
+            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
+            XNamespace iden = "http://x-road.eu/xsd/identifiers";
+            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
+
+            XElement header = doc.Root?.Element(soapenv + "Header") ?? throw new InvalidOperationException("Missing SOAP Header");
+            XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
+
+            // Clean templated service/client entries in template header namespaces
+            header.Elements().Where(e => e.Name.Namespace == x).Remove();
+            header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
+
+            XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
+            header.Add(serviceEl);
+            SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
+            SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
+            SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
+            SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
+            SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
+            SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
+
+            XElement clientEl = new(xro + "client", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM"));
+            header.Add(clientEl);
+            SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
+            SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
+            SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
+            SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
+
+            SetChildValue(header, xro + "id", xId);
+            SetChildValue(header, xro + "protocolVersion", protocolVersion);
+            SetChildValue(header, x + "userId", userId);
+
+            XElement opEl = body.Element(prod + "GetPerson")
+                ?? throw new InvalidOperationException("Cannot find prod:GetPerson in body");
+            XElement requestEl = opEl.Element("request")
+                ?? throw new InvalidOperationException("Cannot find request under prod:GetPerson");
+            XElement requestBodyEl = requestEl.Element("requestBody")
+                ?? throw new InvalidOperationException("Cannot find requestBody under request");
+
+            // Identifiers
+            if (!string.IsNullOrWhiteSpace(options?.Id)) SetChildValue(requestBodyEl, "Id", options!.Id!);
+            if (!string.IsNullOrWhiteSpace(options?.PublicId)) SetChildValue(requestBodyEl, "PublicId", options!.PublicId!);
+            else if (!string.IsNullOrWhiteSpace(options?.Ssn)) SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
+            if (!string.IsNullOrWhiteSpace(options?.ExternalId)) SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
+
+            // Helper to write Include* flags if set
+            void SetFlag(string elementName, bool? val)
+            {
+                if (val.HasValue) SetChildValue(requestBodyEl, elementName, val.Value ? "true" : "false");
+            }
+
+            var inc = options?.Include;
+            if (inc != null)
+            {
+                SetFlag("IncludeAddresses", inc.Addresses);
+                SetFlag("IncludeAddressesHistory", inc.AddressesHistory);
+                SetFlag("IncludeBiologicalParents", inc.BiologicalParents);
+                SetFlag("IncludeChurchMembership", inc.ChurchMembership);
+                SetFlag("IncludeChurchMembershipHistory", inc.ChurchMembershipHistory);
+                SetFlag("IncludeCitizenships", inc.Citizenships);
+                SetFlag("IncludeCitizenshipsHistory", inc.CitizenshipsHistory);
+                SetFlag("IncludeCivilStatus", inc.CivilStatus);
+                SetFlag("IncludeCivilStatusHistory", inc.CivilStatusHistory);
+                SetFlag("IncludeForeignSsns", inc.ForeignSsns);
+                SetFlag("IncludeIncapacity", inc.Incapacity);
+                SetFlag("IncludeIncapacityHistory", inc.IncapacityHistory);
+                SetFlag("IncludeJuridicalChildren", inc.JuridicalChildren);
+                SetFlag("IncludeJuridicalChildrenHistory", inc.JuridicalChildrenHistory);
+                SetFlag("IncludeJuridicalParents", inc.JuridicalParents);
+                SetFlag("IncludeJuridicalParentsHistory", inc.JuridicalParentsHistory);
+                SetFlag("IncludeNames", inc.Names);
+                SetFlag("IncludeNamesHistory", inc.NamesHistory);
+                SetFlag("IncludeNotes", inc.Notes);
+                SetFlag("IncludeNotesHistory", inc.NotesHistory);
+                SetFlag("IncludePostbox", inc.Postbox);
+                SetFlag("IncludeSpecialMarks", inc.SpecialMarks);
+                SetFlag("IncludeSpecialMarksHistory", inc.SpecialMarksHistory);
+                SetFlag("IncludeSpouse", inc.Spouse);
+                SetFlag("IncludeSpouseHistory", inc.SpouseHistory);
+                SetFlag("IncludeSsn", inc.Ssn);
+                SetFlag("IncludeSsnHistory", inc.SsnHistory);
+            }
+
+            // Token in requestHeader
+            XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
+            if (requestHeader.Parent == null) requestEl.Add(requestHeader);
             SetChildValue(requestHeader, "token", token);
 
             string xmlString = doc.Declaration != null

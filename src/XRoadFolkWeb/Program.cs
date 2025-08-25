@@ -10,6 +10,8 @@ using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkWeb.Infrastructure;
 using System.Security.Cryptography.X509Certificates; // add
+using Microsoft.Extensions.Options;
+using XRoadFolkRaw.Lib.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -141,15 +143,24 @@ builder.Services.AddScoped(sp =>
         retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
-// PeopleService (resolve XRoadSettings from DI, not a captured local)
+// Bind GetPerson request options (do not ValidateOnStart; we validate per-request in PeopleService)
+builder.Services
+    .AddOptions<GetPersonRequestOptions>()
+    .Bind(builder.Configuration.GetSection("Operations:GetPerson:Request"));
+
+// Register validator
+builder.Services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
+
+// PeopleService registration (inject the validator)
 builder.Services.AddScoped(sp =>
 {
-    FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
-    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
-    ILogger<PeopleService> logger = sp.GetRequiredService<ILogger<PeopleService>>();
-    IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
-    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
-    return new PeopleService(client, cfg, xr, logger, loc);
+    var client   = sp.GetRequiredService<FolkRawClient>();
+    var cfg      = sp.GetRequiredService<IConfiguration>();
+    var xr       = sp.GetRequiredService<XRoadSettings>();
+    var logger   = sp.GetRequiredService<ILogger<PeopleService>>();
+    var loc      = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+    var validator= sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
+    return new PeopleService(client, cfg, xr, logger, loc, validator);
 });
 
 // Response compression

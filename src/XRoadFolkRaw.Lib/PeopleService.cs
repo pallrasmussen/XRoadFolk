@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using XRoadFolkRaw.Lib.Options;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -16,13 +18,15 @@ namespace XRoadFolkRaw.Lib
         private readonly string _loginXmlPath;
         private readonly string _peopleInfoXmlPath;
         private readonly string _personXmlPath;
+        private readonly IValidateOptions<GetPersonRequestOptions> _requestValidator;
 
         public PeopleService(
             FolkRawClient client,
             IConfiguration config,
             XRoadSettings settings,
             ILogger log,
-            IStringLocalizer<PeopleService> localizer)
+            IStringLocalizer<PeopleService> localizer,
+            IValidateOptions<GetPersonRequestOptions> requestValidator)
         {
             ArgumentNullException.ThrowIfNull(client);
             ArgumentNullException.ThrowIfNull(config);
@@ -35,12 +39,14 @@ namespace XRoadFolkRaw.Lib
             _settings = settings;
             _log = log;
             _localizer = localizer;
+            _requestValidator = requestValidator;
 
             _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
             _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
             _personXmlPath = _config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
 
-            _client.PreloadTemplates(new[] { _loginXmlPath, _peopleInfoXmlPath, _personXmlPath });
+            // Preload all XML templates
+            _client.PreloadTemplates([_loginXmlPath, _peopleInfoXmlPath, _personXmlPath]);
 
             _tokenProvider = new FolkTokenProviderRaw(client, ct => client.LoginAsync(
                 loginXmlPath: _loginXmlPath,
@@ -103,7 +109,7 @@ namespace XRoadFolkRaw.Lib
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Error fetching people public info");
+                LogPeoplePublicInfoError(_log, ex);
                 throw new InvalidOperationException(_localizer["PeoplePublicInfoError"], ex);
             }
         }
@@ -111,6 +117,27 @@ namespace XRoadFolkRaw.Lib
         public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
+
+            GetPersonRequestOptions req =
+                _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>()
+                ?? new GetPersonRequestOptions();
+
+            // runtime override from caller
+            if (!string.IsNullOrWhiteSpace(publicId))
+            {
+                req.PublicId = publicId;
+                req.Ssn = null;
+                req.Id = null;
+                req.ExternalId = null;
+            }
+
+            // Validate after overrides (qualify Options.DefaultName to avoid namespace collision)
+            ValidateOptionsResult result = _requestValidator.Validate(Microsoft.Extensions.Options.Options.DefaultName, req);
+            if (result.Failed)
+            {
+                throw new OptionsValidationException(Microsoft.Extensions.Options.Options.DefaultName, typeof(GetPersonRequestOptions), result.Failures);
+            }
+
             try
             {
                 return await _client.GetPersonAsync(
@@ -129,26 +156,24 @@ namespace XRoadFolkRaw.Lib
                     serviceSubsystemCode: _settings.Service.SubsystemCode,
                     serviceCode: "GetPerson",
                     serviceVersion: "v1",
-                    publicId: publicId,
-                    includeAddress: _config.GetValue("GetPerson:Include:Address", true),
-                    includeContact: _config.GetValue("GetPerson:Include:Contact", true),
-                    includeBirthDate: _config.GetValue("GetPerson:Include:BirthDate", true),
-                    includeDeathDate: _config.GetValue("GetPerson:Include:DeathDate", true),
-                    includeGender: _config.GetValue("GetPerson:Include:Gender", true),
-                    includeMaritalStatus: _config.GetValue("GetPerson:Include:MaritalStatus", true),
-                    includeCitizenship: _config.GetValue("GetPerson:Include:Citizenship", true),
-                    includeSsnHistory: _config.GetValue("GetPerson:Include:SsnHistory", true),
+                    options: req,
                     ct: ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Error fetching person");
-                throw new InvalidOperationException(_localizer["PersonInfoError"], ex);
+                LogGetPersonError(_log, ex);
+                throw new InvalidOperationException(_localizer["GetPersonError"], ex);
             }
         }
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]
         static partial void LogTokenAcquired(ILogger logger, int tokenLength);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Error fetching people public info")]
+        static partial void LogPeoplePublicInfoError(ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Error fetching person")]
+        static partial void LogGetPersonError(ILogger logger, Exception ex);
 
         public void Dispose()
         {
