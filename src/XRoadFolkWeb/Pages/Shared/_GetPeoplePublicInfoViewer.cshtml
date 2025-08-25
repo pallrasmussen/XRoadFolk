@@ -891,22 +891,24 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 @* Append this script at the end of the file (after the existing scripts) *@
 <script>
 (function(){
+  // Local cache + last clicked id
+  var personCache = new Map();
+  var lastPid = null;
+
   function getPanelEls() {
     return {
       sec: document.getElementById('person-details-section'),
       body: document.getElementById('person-details-body'),
       err: document.getElementById('person-details-error'),
-      loading: document.getElementById('person-details-loading')
+      loading: document.getElementById('person-details-loading'),
+      title: document.querySelector('#person-details-section .card-title')
     };
   }
   function showLoading(on){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.loading){ e.loading.classList.toggle('d-none', !on);} }
   function clearPanel(){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.body){ e.body.innerHTML=''; } if(e.loading){ e.loading.classList.add('d-none'); } }
-  function ensureShown(){ const e=getPanelEls(); if(e.sec) e.sec.classList.remove('d-none'); }
+  function ensureShownAndFocus(){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.title){ e.title.setAttribute('tabindex','-1'); try{ e.title.focus({preventScroll:true}); }catch{} try{ e.title.scrollIntoView({block:'start', behavior:'smooth'});}catch{} } }
 
-  // Safe icon helper (optional). If a global pdIconFor exists, use it; otherwise empty.
-  function pdIconForLocal(groupName){
-    try { return (window.pdIconFor && window.pdIconFor(groupName)) || ''; } catch { return ''; }
-  }
+  function pdIconForLocal(groupName){ try { return (window.pdIconFor && window.pdIconFor(groupName)) || ''; } catch { return ''; } }
 
   function renderPairsGrouped(pairs){
     var groups = {}; (pairs||[]).forEach(function(p){ var k=p.key||''; var v=p.value||''; var seg=k.indexOf('.')>-1?k.slice(0,k.indexOf('.')):k; (groups[seg]=groups[seg]||[]).push({k:k,v:v}); });
@@ -928,7 +930,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       btn.setAttribute('data-bs-target','#'+cid);
       btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false');
       btn.setAttribute('aria-controls', cid);
-      btn.setAttribute('data-icon', pdIconForLocal(name)); // picked up by CSS if present
+      btn.setAttribute('data-icon', pdIconForLocal(name));
       btn.textContent=name; h2.appendChild(btn);
 
       var col=document.createElement('div');
@@ -936,6 +938,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
 
       var body=document.createElement('div'); body.className='accordion-body p-0';
+      var respWrap=document.createElement('div'); respWrap.className='table-responsive';
       var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
       var tb=document.createElement('tbody');
 
@@ -949,65 +952,95 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
       });
 
-      table.appendChild(tb); body.appendChild(table); col.appendChild(body);
+      table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap); col.appendChild(body);
       item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
     });
     return acc;
   }
 
-  async function loadPerson(publicId){
+  function markSelectedSummaryCard(fromEl){
+    try {
+      var host = document.getElementById('gpiv-xml-summary'); if (!host) return;
+      var prev = host.querySelector('.gpiv-active-card'); if (prev) prev.classList.remove('gpiv-active-card');
+      var wrap = fromEl; while (wrap && wrap !== host && !(wrap.classList && wrap.classList.contains('border') && wrap.classList.contains('rounded'))) wrap = wrap.parentElement;
+      if (wrap && wrap !== host) wrap.classList.add('gpiv-active-card');
+    } catch {}
+  }
+
+  async function fetchDetails(publicId){
+    var url = new URL(window.location.href);
+    url.searchParams.set('handler','PersonDetails');
+    url.searchParams.set('publicId', publicId);
+    var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json' } });
+    var ct = (resp.headers.get('content-type') || '').toLowerCase();
+    var data = null;
+    if (ct.includes('application/json')) data = await resp.json();
+    else { var text = await resp.text(); data = { ok: false, error: text && text.length < 500 ? text : 'Non-JSON response (' + resp.status + ')' }; }
+    if (!resp.ok) data.ok = false;
+    return data;
+  }
+
+  async function loadPerson(publicId, sourceEl){
+    lastPid = publicId;
     const els = getPanelEls();
     if(!publicId || !els.body) return;
-    clearPanel(); showLoading(true);
-    try{
-      var url = new URL(window.location.href);
-      url.searchParams.set('handler','PersonDetails');
-      url.searchParams.set('publicId', publicId);
-      var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json' } });
 
-      // Robust parse: prefer JSON; if not JSON, read text to surface server error/HTML
-      var ct = (resp.headers.get('content-type') || '').toLowerCase();
-      var data = null;
-      if (ct.includes('application/json')) {
-        data = await resp.json();
-      } else {
-        var text = await resp.text();
-        data = { ok: false, error: text && text.length < 500 ? text : 'Non-JSON response (' + resp.status + ')' };
-      }
+    // Show cached immediately (if any)
+    var cached = personCache.get(publicId);
+    if (cached && cached.details && cached.details.length) {
+      clearPanel();
+      var accCached = (window._renderPairsGroupedForPerson || renderPairsGrouped)(cached.details);
+      if (accCached) els.body.appendChild(accCached);
+      ensureShownAndFocus();
+    } else {
+      clearPanel(); showLoading(true);
+    }
 
+    // Fetch fresh
+    try {
+      var data = await fetchDetails(publicId);
       showLoading(false);
 
-      if (!resp.ok || !data || data.ok !== true) {
+      if (!data || data.ok !== true) {
         if (els.err) {
-          var msg = (data && data.error) ? String(data.error) : ('HTTP ' + resp.status + ' Failed to load details.');
-          els.err.textContent = msg;
+          var msg = (data && data.error) ? String(data.error) : 'Failed to load details.';
+          els.err.innerHTML = msg + ' <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
           els.err.classList.remove('d-none');
+          var retry = document.getElementById('pd-retry');
+          retry && retry.addEventListener('click', function(){ loadPerson(lastPid, sourceEl); });
         }
-        // Console hint for debugging
-        try { console.error('GetPerson error', { status: resp.status, data }); } catch {}
         return;
       }
 
-      // Prefer an externally provided renderer if present, otherwise our local one
-      var builder = (window._renderPairsGroupedForPerson || renderPairsGrouped);
-      var acc = builder(data.details||[]);
-      if(acc) els.body.appendChild(acc);
-      ensureShown();
+      personCache.set(publicId, { details: data.details || [], ts: Date.now() });
 
-      // Deep-link so refresh restores focus (optional)
+      clearPanel();
+      var acc = (window._renderPairsGroupedForPerson || renderPairsGrouped)(data.details || []);
+      if (acc) els.body.appendChild(acc);
+      ensureShownAndFocus();
+
+      // Highlight the selected summary card
+      if (sourceEl) markSelectedSummaryCard(sourceEl);
+
+      // Deep-link for refresh/back
       try{ var link = new URL(window.location.href); link.searchParams.set('gpivPublicId', publicId); history.pushState(null,'',link.toString()); }catch{}
     } catch (err) {
       showLoading(false);
-      if (els.err) { els.err.textContent='Failed to load details.'; els.err.classList.remove('d-none'); }
+      if (els.err) {
+        els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
+        els.err.classList.remove('d-none');
+        var retry2 = document.getElementById('pd-retry');
+        retry2 && retry2.addEventListener('click', function(){ loadPerson(lastPid, sourceEl); });
+      }
       try { console.error('GetPerson fetch failed', err); } catch {}
     }
   }
 
-  // Delegated click for any PublicId badge/link in Summary
+  // Delegate PublicId clicks
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
-    if(e.ctrlKey || e.metaKey) return; // allow new tab if href exists
+    if(e.ctrlKey || e.metaKey) return;
     e.preventDefault();
     var pid = t.getAttribute('data-public-id');
     if(!pid){
@@ -1015,10 +1048,18 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       var parts = txt.split(':');
       pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
     }
-    if(pid) loadPerson(pid);
+    if(pid) loadPerson(pid, t);
   });
 
-  // Optional: load on deep-link (?gpivPublicId=...)
-  try{ var qs=new URLSearchParams(window.location.search); var pid=qs.get('gpivPublicId'); if(pid) { if(document.readyState==='loading'){ window.addEventListener('DOMContentLoaded', function(){ loadPerson(pid); }); } else { loadPerson(pid); } } }catch{}
+  // Deep-link support
+  try{
+    var qs=new URLSearchParams(window.location.search);
+    var pid=qs.get('gpivPublicId');
+    if(pid) {
+      if(document.readyState==='loading'){
+        window.addEventListener('DOMContentLoaded', function(){ loadPerson(pid); });
+      } else { loadPerson(pid); }
+    }
+  }catch{}
 })();
 </script>
