@@ -1,15 +1,41 @@
 using System.Globalization;
 using System.Net;
-using System.Net.Http.Headers;
+//using System.Net.Http.Headers;
+using System.Reflection;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.AspNetCore.Mvc; // added
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
-using XRoadFolkWeb.Infrastructure; // added
+using XRoadFolkWeb.Infrastructure;
+using System.Security.Cryptography.X509Certificates; // add
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Load default X-Road settings from library (robust resource lookup + file fallback)
+Assembly libAsm = typeof(XRoadSettings).Assembly;
+string? resName = libAsm.GetManifestResourceNames()
+    .FirstOrDefault(n => n.EndsWith(".Resources.appsettings.xroad.json", StringComparison.OrdinalIgnoreCase));
+
+if (resName is not null)
+{
+    using Stream? s = libAsm.GetManifestResourceStream(resName);
+    if (s is not null) { builder.Configuration.AddJsonStream(s); }
+}
+else
+{
+    // Fallback: try file next to the lib assembly (dev scenarios)
+    string? libDir = Path.GetDirectoryName(libAsm.Location);
+    string? jsonPath = libDir is null ? null : Path.Combine(libDir, "Resources", "appsettings.xroad.json");
+    if (jsonPath is not null && File.Exists(jsonPath))
+    {
+        _ = builder.Configuration.AddJsonFile(jsonPath, optional: true, reloadOnChange: false);
+    }
+}
+
+// Allow overrides from Web appsettings/UserSecrets/ENV
+builder.Configuration.AddEnvironmentVariables();
 
 // Logging
 builder.Logging.ClearProviders();
@@ -39,22 +65,9 @@ builder.Services.AddAntiforgery(opts =>
     opts.HeaderName = "RequestVerificationToken"; // for AJAX if needed
 });
 
-// Register ConfigurationLoader
-builder.Services.AddSingleton<ConfigurationLoader>();
-
-// Register a factory for XRoadSettings that resolves dependencies from DI at runtime:
-IServiceCollection serviceCollection = builder.Services.AddSingleton(sp =>
-{
-    ConfigurationLoader loader = sp.GetRequiredService<ConfigurationLoader>();
-    ILogger preLogger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadFolkWeb");
-    IStringLocalizer<ConfigurationLoader> cfgLoc = sp.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
-    (IConfigurationRoot configRoot, XRoadSettings xr) = loader.Load(preLogger, cfgLoc);
-
-    // Make the loaded configuration available to the app
-    _ = builder.Configuration.AddConfiguration(configRoot);
-
-    return xr;
-});
+// Bind XRoad settings from configuration (defaults come from the lib; Web can override via appsettings.json/UserSecrets/EnvVars)
+builder.Services.Configure<XRoadSettings>(builder.Configuration.GetSection("XRoad"));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
 // Safe SOAP sanitization hook, same behavior as console app
 bool maskTokens = builder.Configuration.GetValue("Logging:MaskTokens", true);
@@ -75,11 +88,10 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
     c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
     c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
-    c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/xml"));
 })
 .ConfigurePrimaryHttpMessageHandler(sp =>
 {
-    SocketsHttpHandler handler = new()
+    SocketsHttpHandler handler = new SocketsHttpHandler
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
@@ -88,18 +100,23 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     };
 
     XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
-    System.Security.Cryptography.X509Certificates.X509Certificate2? cert = CertLoader.LoadFromConfig(xr.Certificate);
-    if (cert is not null)
+
+    // Try to attach client certificate; if not configured, log and continue (useful for dev)
+    try
     {
-        handler.SslOptions.ClientCertificates ??= [];
+        X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
+        handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
         _ = handler.SslOptions.ClientCertificates.Add(cert);
+    }
+    catch (Exception ex)
+    {
+        ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
+        log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
     }
 
     IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
     bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", true);
-
-    // Only bypass certificate validation in Development if explicitly enabled
-    var env = sp.GetRequiredService<IHostEnvironment>();
+    IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
     if (env.IsDevelopment() && bypass)
     {
         handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;

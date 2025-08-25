@@ -1,130 +1,134 @@
-using System.Globalization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Localization;
+using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
-using XRoadFolkRaw.Lib.Logging;
 
-// Top-level program
+// Use the Generic Host only (remove mixed top-level + class blocks)
 
-// Logger
-using ILoggerFactory loggerFactory = LoggerFactory.Create(b =>
+// Host builder
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+// Load embedded X-Road defaults from the library
+Assembly libAsm = typeof(XRoadSettings).Assembly;
+string? resName = libAsm
+    .GetManifestResourceNames()
+    .FirstOrDefault(n => n.EndsWith(".Resources.appsettings.xroad.json", StringComparison.OrdinalIgnoreCase));
+if (resName is not null)
 {
-    _ = b.AddConsole();
-    _ = b.SetMinimumLevel(LogLevel.Information);
-    _ = b.AddFilter("Microsoft", LogLevel.Warning);
-});
-ILogger log = loggerFactory.CreateLogger("XRoadFolkRaw");
-using IDisposable _corr = LoggingHelper.BeginCorrelationScope(log);
+    using Stream? s = libAsm.GetManifestResourceStream(resName);
+    if (s is not null)
+    {
+        builder.Configuration.AddJsonStream(s);
+    }
+}
 
-// Configuration
-ConfigurationLoader loader = new();
-ServiceCollection preServices = new();
-preServices.AddSingleton(loggerFactory);
-preServices.AddLocalization(opts => opts.ResourcesPath = "Resources");
-using ServiceProvider preProvider = preServices.BuildServiceProvider();
-IStringLocalizer<ConfigurationLoader> cfgLocalizer = preProvider.GetRequiredService<IStringLocalizer<ConfigurationLoader>>();
-(IConfigurationRoot config, XRoadSettings xr) = loader.Load(log, cfgLocalizer);
-IStringLocalizer<PeopleService> serviceLocalizer = preProvider.GetRequiredService<IStringLocalizer<PeopleService>>();
+// Keep appsettings.json (added by default) and environment variables as overrides
+builder.Configuration.AddEnvironmentVariables();
 
-// Startup banner
-Console.WriteLine("Press Ctrl+Q at any time to quit.\n");
+// Logging
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 
-// Load certificate
-System.Security.Cryptography.X509Certificates.X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
-LogCertificateDetails(log, cert.Subject, cert.Thumbprint);
+// Localization
+builder.Services.AddLocalization();
 
-// Create raw client
-bool verbose = config.GetValue("Logging:Verbose", false);
-bool maskTokens = config.GetValue("Logging:MaskTokens", true);
+// Bind and expose XRoad settings via DI
+builder.Services.Configure<XRoadSettings>(builder.Configuration.GetSection("XRoad"));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
-// Ensure SafeSoapLogger uses the same sanitizer everywhere
-SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
-
-int httpAttempts = config.GetValue("Retry:Http:Attempts", 3);
-int httpBaseDelay = config.GetValue("Retry:Http:BaseDelayMs", 200);
-int httpJitter = config.GetValue("Retry:Http:JitterMs", 250);
-
-// Build a minimal service provider for IHttpClientFactory to supply a configured HttpClient
-ServiceCollection httpServices = new();
-httpServices.AddHttpClient("XRoadFolk", c =>
+// HttpClient with certificate (warn if missing)
+builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
 {
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
     c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
     c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
 })
-.ConfigurePrimaryHttpMessageHandler(() =>
+.ConfigurePrimaryHttpMessageHandler(sp =>
 {
-    HttpClientHandler handler = new();
-    if (cert is not null)
+    SocketsHttpHandler handler = new()
     {
-        _ = handler.ClientCertificates.Add(cert);
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+        MaxConnectionsPerServer = 20,
+        AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+    };
+
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+    try
+    {
+        X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
+        handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
+        handler.SslOptions.ClientCertificates.Add(cert);
+    }
+    catch (Exception ex)
+    {
+        ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
+        log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
     }
 
-    // Optional: allow opt-in bypass for dev/local only
-    bool bypass = config.GetValue("Http:BypassServerCertificateValidation", true);
-    if (bypass)
+    IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
+    bool bypass = sp.GetRequiredService<IConfiguration>().GetValue("Http:BypassServerCertificateValidation", true);
+    if (env.IsDevelopment() && bypass)
     {
-        handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
     }
+
     return handler;
 });
-using ServiceProvider httpProvider = httpServices.BuildServiceProvider();
-System.Net.Http.IHttpClientFactory httpFactory = httpProvider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
-System.Net.Http.HttpClient httpClient = httpFactory.CreateClient("XRoadFolk");
 
-using FolkRawClient client = new(
-    httpClient,
-    logger: log, verbose: verbose, maskTokens: maskTokens,
-    retryAttempts: httpAttempts, retryBaseDelayMs: httpBaseDelay, retryJitterMs: httpJitter);
-
-PeopleService service = new(client, config, xr, log, serviceLocalizer);
-
-ServiceCollection services = new();
-services.AddSingleton(loggerFactory);
-services.AddLocalization(opts => opts.ResourcesPath = "Resources");
-string[] supportedCultureNames = config.GetSection("Localization:SupportedCultures").Get<string[]>() ?? ["en-US"];
-services.Configure<RequestLocalizationOptions>(opts =>
+// FolkRawClient + PeopleService + ConsoleUi
+builder.Services.AddScoped(sp =>
 {
-    List<CultureInfo> cultures = [.. supportedCultureNames.Select(CultureInfo.GetCultureInfo)];
-    string defaultName = config.GetValue<string>("Localization:Culture") ?? cultures.First().Name;
-    opts.SupportedCultures = cultures;
-    opts.SupportedUICultures = cultures;
-    opts.DefaultRequestCulture = new RequestCulture(defaultName);
+    IHttpClientFactory httpFactory = sp.GetRequiredService<IHttpClientFactory>();
+    HttpClient http = httpFactory.CreateClient("XRoadFolk");
+    ILogger<FolkRawClient> logger = sp.GetRequiredService<ILogger<FolkRawClient>>();
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+    return new FolkRawClient(
+        httpClient: http,
+        logger: logger,
+        verbose: cfg.GetValue("Logging:Verbose", false),
+        maskTokens: cfg.GetValue("Logging:MaskTokens", true),
+        retryAttempts: cfg.GetValue("Retry:Http:Attempts", 3),
+        retryBaseDelayMs: cfg.GetValue("Retry:Http:BaseDelayMs", 200),
+        retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
-using ServiceProvider provider = services.BuildServiceProvider();
-RequestLocalizationOptions locOpts = provider.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
-CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
-CultureInfo.DefaultThreadCurrentCulture = culture;
-CultureInfo.DefaultThreadCurrentUICulture = culture;
-LogCultureSelection(log, culture.Name);
-IStringLocalizer<ConsoleUi> localizer = provider.GetRequiredService<IStringLocalizer<ConsoleUi>>();
-IStringLocalizer<InputValidation> valLocalizer = provider.GetRequiredService<IStringLocalizer<InputValidation>>();
-LocalizedString check = localizer["BannerSeparator"];
-if (check.ResourceNotFound)
+builder.Services.AddScoped(sp =>
 {
-    LogMissingBannerSeparator(log, culture.Name);
-}
+    FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+    ILogger<PeopleService> log = sp.GetRequiredService<ILogger<PeopleService>>();
+    IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+    return new PeopleService(client, cfg, xr, log, loc);
+});
 
-ConsoleUi ui = new(config, service, log, localizer, valLocalizer);
-await ui.RunAsync();
+builder.Services.AddScoped<ConsoleUi>();
 
+// Build and run
+IHost app = builder.Build();
+await app.Services.GetRequiredService<ConsoleUi>().RunAsync();
+
+// LoggerMessage helpers (types must come after top-level statements)
 internal static partial class Program
 {
     [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
-                   Message = "[culture] Resource 'BannerSeparator' not found for {Culture}")]
+        Message = "[culture] Resource 'BannerSeparator' not found for {Culture}")]
     public static partial void LogMissingBannerSeparator(ILogger logger, string culture);
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Information,
-                   Message = "[cert] Using {Subject} thumbprint {Thumbprint}")]
+        Message = "[cert] Using {Subject} thumbprint {Thumbprint}")]
     public static partial void LogCertificateDetails(ILogger logger, string subject, string thumbprint);
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Information,
-                   Message = "[culture] Using {Culture}")]
+        Message = "[culture] Using {Culture}")]
     public static partial void LogCultureSelection(ILogger logger, string culture);
 }

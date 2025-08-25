@@ -22,4 +22,7 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\appsettings.xroad.json" />
+  </ItemGroup>
 </Project>
