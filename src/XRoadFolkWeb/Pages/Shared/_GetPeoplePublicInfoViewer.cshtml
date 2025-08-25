@@ -61,38 +61,35 @@
     </div>
 
     <div class="card-body">
+        <!-- Toolbar: remove the CSV export group -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-            <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <div class="btn-group" role="group" aria-label="View mode">
-                    <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
-                    <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">@L["Raw"]</button>
-                    <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
-                    <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
-                </div>
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="gpiv-mask">
-                    <label class="form-check-label" for="gpiv-mask">@L["MaskSensitive"]</label>
-                </div>
-                <div class="input-group input-group-sm" style="width: 260px;">
-                    <span class="input-group-text">@L["Search"]</span>
-                    <input id="gpiv-search" type="text" class="form-control" placeholder="@L["SearchPlaceholder"]">
-                    <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="@L["Clear"]">×</button>
-                </div>
-                <div class="btn-group" role="group" aria-label="Tree commands">
-                    <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
-                    <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">@L["Collapse"]</button>
-                </div>
-                <div class="btn-group" role="group" aria-label="Export">
-                    <button id="gpiv-download" type="button" class="btn btn-sm btn-outline-secondary">@L["Download"]</button>
-                    <button id="gpiv-exportcsv" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ExportCsvTitle"]">CSV</button>
-                </div>
-                <div class="input-group input-group-sm" style="width: 180px;">
-                    <span class="input-group-text">@L["Height"]</span>
-                    <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeightTitle"]">
-                </div>
-                <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
+          <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="btn-group" role="group" aria-label="View mode">
+              <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
+              <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">@L["Raw"]</button>
+              <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
+              <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
             </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="gpiv-mask">
+              <label class="form-check-label" for="gpiv-mask">@L["MaskSensitive"]</label>
+            </div>
+            <div class="input-group input-group-sm" style="width: 260px;">
+              <span class="input-group-text">@L["Search"]</span>
+              <input id="gpiv-search" type="text" class="form-control" placeholder="@L["SearchPlaceholder"]">
+              <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="@L["Clear"]">×</button>
+            </div>
+            <div class="btn-group" role="group" aria-label="Tree commands">
+              <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
+              <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">@L["Collapse"]</button>
+            </div>
+            <div class="input-group input-group-sm" style="width: 180px;">
+              <span class="input-group-text">@L["Height"]</span>
+              <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeightTitle"]">
+            </div>
+            <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
+          </div>
         </div>
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
@@ -132,7 +129,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var summaryBtn = document.getElementById('gpiv-summary');
     var copyBtn = document.getElementById('gpiv-copy');
     var downloadBtn = document.getElementById('gpiv-download');
-    var exportCsvBtn = document.getElementById('gpiv-exportcsv');
     var expandBtn = document.getElementById('gpiv-expand');
     var collapseBtn = document.getElementById('gpiv-collapse');
     var maskChk = document.getElementById('gpiv-mask');
@@ -795,52 +791,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
         URL.revokeObjectURL(a.href); a.remove();
     });
-
-    // Export CSV (Summary basics)
-    function exportSummaryCsv() {
-        try {
-            var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
-            if (!xmlText.trim()) return;
-            var xml = parseXml(xmlText);
-            var people = []; var all = xml.getElementsByTagName('*');
-            for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
-            var rows = [];
-            rows.push(['Index','FullName','PublicId','PersonId','DateOfBirth','CivilStatus'].join(','));
-            for (var p = 0; p < people.length; p++) {
-                var person = people[p];
-                // name
-                var namesRoot = null;
-                for (var nc = 0; nc < person.children.length; nc++) if (person.children[nc].localName === 'Names') { namesRoot = person.children[nc]; break; }
-                var full = '';
-                if (namesRoot) {
-                    var firsts = []; var last = '';
-                    for (var nn = 0; nn < namesRoot.children.length; nn++) {
-                        var nm = namesRoot.children[nn]; if (nm.localName !== 'Name' || isNil(nm)) continue;
-                        var tp = getTextLocal(nm, 'Type');
-                        if (tp === 'FirstName') {
-                            var order = parseInt(getTextLocal(nm, 'Order') || '9999', 10);
-                            firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(nm, 'Value') });
-                        } else if (tp === 'LastName') last = getTextLocal(nm, 'Value') || last;
-                    }
-                    firsts.sort(function (a, b) { return a.o - b.o; });
-                    var firstJoined = []; for (var fj = 0; fj < firsts.length; fj++) firstJoined.push(firsts[fj].v);
-                    full = (firstJoined.join(' ') + ' ' + last).trim();
-                }
-                var pid = getTextLocal(person, 'PublicId');
-                var perid = getTextLocal(person, 'PersonId');
-                var dob = getTextLocal(person, 'DateOfBirth');
-                var civ = getTextLocal(person, 'CivilStatus');
-                function q(s){ s = s || ''; s = s.replace(/"/g,'""'); return '"' + s + '"'; }
-                rows.push([p+1, q(full), q(pid), q(perid), q(dob), q(civ)].join(','));
-            }
-            var csv = rows.join('\r\n');
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-            a.download = 'GetPeoplePublicInfo_summary.csv';
-            document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
-        } catch {}
-    }
-    exportCsvBtn && exportCsvBtn.addEventListener('click', exportSummaryCsv);
 
     // Public API
     window.gpiv = {
