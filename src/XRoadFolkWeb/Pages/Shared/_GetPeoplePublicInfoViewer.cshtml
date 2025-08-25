@@ -4,81 +4,49 @@
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
 
-    // Strings used by JavaScript
+    // Removed unused: NoMatchesClear, NoMatchesSummaryClear, Copied
     var gpivI18n = new {
         NoXmlToDisplay = L["NoXmlToDisplay"].Value,
         NoXmlRoot = L["NoXmlRoot"].Value,
         FailedToRenderTreePrefix = L["FailedToRenderTreePrefix"].Value,
         NoPeopleFound = L["NoPeopleFound"].Value,
-        PeopleLabel = L["PeopleLabel"].Value,               // "People"
+        PeopleLabel = L["PeopleLabel"].Value,
         Basics = L["Basics"].Value,
         Names = L["Names"].Value,
         Name = L["Name"].Value,
-        NoMatchesClear = L["NoMatchesClear"].Value,
-        NoMatchesSummaryClear = L["NoMatchesSummaryClear"].Value,
-        CopyXml = L["CopyXml"].Value,
-        Copied = L["Copied"].Value,
-        Download = L["Download"].Value,
         PublicId = L["PublicId"].Value,
         DOB = L["DOB"].Value,
         Status = L["Status"].Value
     };
 }
 <style>
-    /* Sticky toolbar + fullscreen + adjustable height */
     .gpiv-card { position: relative; }
     .gpiv-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); padding-top: .25rem; }
-    .gpiv-card.gpiv-fullscreen {
-        position: fixed; inset: 0; z-index: 1050; margin: 0;
-        border-radius: 0; background: var(--bs-body-bg);
-    }
+    .gpiv-card.gpiv-fullscreen { position: fixed; inset: 0; z-index: 1050; margin: 0; border-radius: 0; background: var(--bs-body-bg); }
     .gpiv-card.gpiv-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
     .gpiv-card .gpiv-viewport { max-height: var(--gpiv-h, 40vh); }
     .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: calc(100dvh - 7.5rem); }
-
-    /* Drag & drop overlay */
-    .gpiv-drop {
-        display: none; position: absolute; inset: 0; z-index: 3;
-        background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary);
-        align-items: center; justify-content: center; text-align: center; padding: 2rem;
-        border-radius: .375rem;
-    }
+    .gpiv-drop { display: none; position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary); align-items: center; justify-content: center; text-align: center; padding: 2rem; border-radius: .375rem; }
     .gpiv-drop .msg { font-size: .95rem; color: var(--bs-secondary); }
-
-    /* Keyframes for highlight (note: double-at to emit a literal at-keyword) */
-    @@keyframes gpivFlash {
-        0%   { background: rgba(255, 243, 205, .9); }
-        100% { background: transparent; }
-    }
+    @@keyframes gpivFlash { 0% { background: rgba(255, 243, 205, .9); } 100% { background: transparent; } }
     .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
 </style>
 
 <div class="card shadow-sm mb-4 gpiv-card">
     <div class="gpiv-drop" id="gpiv-drop">
-        <div class="msg">
-            <div class="mb-1">@L["DropXmlHint"]</div>
-        </div>
+        <div class="msg"><div class="mb-1">@L["DropXmlHint"]</div></div>
     </div>
 
     <div class="card-body">
-        <!-- Toolbar: remove the CSV export group -->
+        <!-- Toolbar (Raw removed) -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
           <div class="d-flex flex-wrap gap-2 align-items-center">
             <div class="btn-group" role="group" aria-label="View mode">
               <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
-              <button id="gpiv-raw" type="button" class="btn btn-sm btn-outline-secondary" title="2">@L["Raw"]</button>
+              <!-- removed gpiv-raw -->
               <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
               <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" id="gpiv-mask">
-              <label class="form-check-label" for="gpiv-mask">@L["MaskSensitive"]</label>
-            </div>
-            <div class="input-group input-group-sm" style="width: 260px;">
-              <span class="input-group-text">@L["Search"]</span>
-              <input id="gpiv-search" type="text" class="form-control" placeholder="@L["SearchPlaceholder"]">
-              <button id="gpiv-clearsearch" class="btn btn-outline-secondary" type="button" title="@L["Clear"]">×</button>
             </div>
             <div class="btn-group" role="group" aria-label="Tree commands">
               <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
@@ -86,7 +54,7 @@
             </div>
             <div class="input-group input-group-sm" style="width: 180px;">
               <span class="input-group-text">@L["Height"]</span>
-              <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeightTitle"]">
+              <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeight"]">
             </div>
             <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
           </div>
@@ -94,23 +62,12 @@
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
 
-        <pre id="gpiv-xml-pretty"
-             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
-             style="white-space: pre; overflow: auto;">@pretty</pre>
+        <pre id="gpiv-xml-pretty" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="white-space: pre; overflow: auto;">@pretty</pre>
 
-        <pre id="gpiv-xml-raw"
-             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
-             style="white-space: pre; overflow: auto; display:none;">@raw</pre>
+        <!-- removed gpiv-xml-raw pane -->
 
-        <div id="gpiv-xml-tree"
-             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
-             style="display:none; overflow:auto; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);">
-        </div>
-
-        <div id="gpiv-xml-summary"
-             class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded"
-             style="display:none; overflow:auto;">
-        </div>
+        <div id="gpiv-xml-tree" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="display:none; overflow:auto; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);"></div>
+        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="display:none; overflow:auto;"></div>
     </div>
 </div>
 
@@ -120,25 +77,22 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 </script>
 <script>
 (function () {
-    // FIX: define localized strings object before any use in renderTree/renderSummary/applySearch
     var I18N = (window.gpiv_i18n || {});
 
     var prettyBtn = document.getElementById('gpiv-pretty');
-    var rawBtn = document.getElementById('gpiv-raw');
+    // removed rawBtn
     var treeBtn = document.getElementById('gpiv-tree');
     var summaryBtn = document.getElementById('gpiv-summary');
     var copyBtn = document.getElementById('gpiv-copy');
     var downloadBtn = document.getElementById('gpiv-download');
     var expandBtn = document.getElementById('gpiv-expand');
     var collapseBtn = document.getElementById('gpiv-collapse');
-    var maskChk = document.getElementById('gpiv-mask');
-    var search = document.getElementById('gpiv-search');
-    var clearSearch = document.getElementById('gpiv-clearsearch');
     var heightRange = document.getElementById('gpiv-height');
     var fullscreenBtn = document.getElementById('gpiv-fullscreen');
     var dropOverlay = document.getElementById('gpiv-drop');
 
     var prePretty = document.getElementById('gpiv-xml-pretty');
+    // keep variable but pane is removed; do not dereference without null checks
     var preRaw = document.getElementById('gpiv-xml-raw');
     var treeHost = document.getElementById('gpiv-xml-tree');
     var summaryHost = document.getElementById('gpiv-xml-summary');
@@ -153,36 +107,20 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
     if (saved && typeof saved.mode === 'string' ) mode = saved.mode;
-    if (saved && typeof saved.mask === 'boolean' && maskChk) maskChk.checked = saved.mask;
-    var savedQ = saved && typeof saved.q === 'string' ? saved.q : '';
+    // coerce legacy 'raw' mode to 'pretty' since raw view is removed
+    if (mode === 'raw') mode = 'pretty';
     var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
-    if (search && savedQ) search.value = savedQ;
     if (heightRange) { heightRange.value = savedH; if (card) card.style.setProperty('--gpiv-h', savedH + 'vh'); }
 
     function savePrefs() {
         try {
             localStorage.setItem(prefKey, JSON.stringify({
                 mode: mode,
-                mask: !!(maskChk && maskChk.checked),
-                q: search ? (search.value || '') : '',
                 h: heightRange ? parseInt(heightRange.value || '40', 10) : 40
             }));
         } catch {}
     }
 
-    function maskValue(val) {
-        if (!val) return val;
-        val = val.replace(/(<SSN>)([^<]+)(<\/SSN>)/gi, function (_, a, mid, b) {
-            var digits = (mid || '').replace(/\D/g, '');
-            if (!digits) return a + mid + b;
-            var masked = digits.length <= 3 ? new Array(digits.length + 1).join('*') : new Array(digits.length - 3 + 1).join('*') + digits.slice(-3);
-            return a + masked + b;
-        });
-        val = val.replace(/(<token>)([^<]+)(<\/token>)/gi, '$1***$3');
-        val = val.replace(/(Authorization\s*:\s*)([^\r\n]+)/gi, '$1***');
-        return val;
-    }
-    function getDisplayText(text) { return (maskChk && maskChk.checked) ? maskValue(text) : text; }
     function parseXml(text) {
         var parser = new DOMParser();
         var doc = parser.parseFromString(text, 'application/xml');
@@ -218,16 +156,15 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         return details;
     }
 
-    // ADD: render the tree and open the root
     function renderTree() {
         treeHost.innerHTML = '';
         try {
-            var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
+            var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
             if (!xmlText || !xmlText.trim()) { treeHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
             var xml = parseXml(xmlText);
             if (!xml.documentElement) { treeHost.textContent = I18N.NoXmlRoot || 'No XML root element.'; return; }
             var tree = buildTree(xml.documentElement);
-            tree.open = true; // expand root so it’s visible by default
+            tree.open = true;
             treeHost.appendChild(tree);
         } catch (e) {
             var pfx = I18N.FailedToRenderTreePrefix || 'Failed to render tree:';
@@ -235,7 +172,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     }
 
-    // Summary helpers
+    // Helpers
     function isNil(node) {
         if (!node || node.nodeType !== 1 || !node.attributes) return false;
         for (var i = 0; i < node.attributes.length; i++) {
@@ -279,20 +216,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         t.appendChild(tb); return t;
     }
 
-    // CHANGED: default collapsed for nested detail builders
-    function buildDetails(node, title) {
-        var d = document.createElement('details'); d.className = 'summary-group'; d.open = false; // was true
-        var s = document.createElement('summary'); s.className = 'fw-semibold'; s.textContent = title || node.localName; d.appendChild(s);
-        var table = buildKvpTableIncludingAttributes(node); if (table) d.appendChild(table);
-        var complex = [];
-        var kids = node.children || [];
-        for (var i = 0; i < kids.length; i++) {
-            if (!isNil(kids[i]) && hasElementChildren(kids[i])) complex.push(kids[i]);
-        }
-        for (var j = 0; j < complex.length; j++) d.appendChild(buildDetails(complex[j]));
-        return d;
-    }
-
     function getTextLocal(elx, name) {
         if (!elx || !elx.children) return '';
         for (var i = 0; i < elx.children.length; i++) { var c = elx.children[i]; if (c.localName === name) return (c.textContent || '').trim(); }
@@ -303,10 +226,30 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     var summaryPeopleNodes = [];
 
     function renderSummary() {
+        function buildDetailsLocal(node, title) {
+            var d = document.createElement('details');
+            d.className = 'summary-group';
+            d.open = false;
+            var s = document.createElement('summary');
+            s.className = 'fw-semibold';
+            s.textContent = title || (node && node.localName) || '';
+            d.appendChild(s);
+            var table = buildKvpTableIncludingAttributes(node);
+            if (table) d.appendChild(table);
+            var kids = (node && node.children) ? node.children : [];
+            for (var i = 0; i < kids.length; i++) {
+                var k = kids[i];
+                if (!isNil(k) && hasElementChildren(k)) {
+                    d.appendChild(buildDetailsLocal(k));
+                }
+            }
+            return d;
+        }
+
         summaryHost.innerHTML = '';
         summaryPeopleNodes = [];
         try {
-            var xmlText = getDisplayText((sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || ''));
+            var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
             if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
             var xml = parseXml(xmlText);
             var people = []; var all = xml.getElementsByTagName('*');
@@ -349,10 +292,9 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
                 var civil = getTextLocal(person, 'CivilStatus');
 
-                // FIX: make PublicId a real link that navigates to ?publicId=... (server renders GetPerson section)
                 if (publicId) {
                     var pidLink = document.createElement('a');
-                    pidLink.href = '#';                   // prevent navigation
+                    pidLink.href = '#';
                     pidLink.className = 'badge text-bg-light gpiv-pid';
                     pidLink.setAttribute('data-public-id', publicId);
                     pidLink.textContent = (I18N.PublicId || 'PublicId') + ': ' + publicId;
@@ -362,26 +304,17 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                 if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
                 if (civil) header.appendChild(badge((I18N.Status || 'Status') + ': ' + civil));
 
-                // Per-person actions (copy/download)
-                var act = document.createElement('div');
-                act.className = 'ms-auto d-flex gap-2';
-                var btnCopy = document.createElement('button'); btnCopy.type = 'button'; btnCopy.className = 'btn btn-sm btn-outline-secondary gpiv-copy-person'; btnCopy.setAttribute('data-idx', String(p)); btnCopy.textContent = I18N.CopyXml || 'Copy XML';
-                var btnDl = document.createElement('button'); btnDl.type = 'button'; btnDl.className = 'btn btn-sm btn-outline-secondary gpiv-dl-person'; btnDl.setAttribute('data-idx', String(p)); btnDl.textContent = I18N.Download || 'Download';
-                act.appendChild(btnCopy); act.appendChild(btnDl);
-                header.appendChild(act);
-
                 wrap.appendChild(header);
 
-                // CHANGED: Basics collapsed by default
-                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false; // was true
+                // Basics
+                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false;
                 var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
                 basics.appendChild(basicsSum);
                 var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
                 wrap.appendChild(basics);
 
                 if (nameRoot) {
-                    // CHANGED: Names collapsed by default
-                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = false; // was true
+                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = false;
                     var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = I18N.Names || 'Names';
                     namesSection.appendChild(namesSum);
                     var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
@@ -397,7 +330,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                     wrap.appendChild(namesSection);
                 }
 
-                // CHANGED: Other groups collapsed by default
+                // Other groups
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
                     var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
@@ -407,7 +340,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                     var counts = {}; for (var kk = 0; kk < group.children.length; kk++) { var lk = group.children[kk]; if (isNil(lk)) continue; var nm2 = lk.localName; counts[nm2] = (counts[nm2] || 0) + 1; }
                     var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
 
-                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = false; // was true
+                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = false;
                     var secSum = document.createElement('summary'); secSum.className = 'fw-semibold'; secSum.textContent = group.localName;
                     section.appendChild(secSum);
 
@@ -420,14 +353,14 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
                             card3.appendChild(title3);
                             var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card3.appendChild(leaves2);
                             var nested = []; for (var nc = 0; nc < items[itx].children.length; nc++) { var kid = items[itx].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
-                            for (var nx = 0; nx < nested.length; nx++) card3.appendChild(buildDetails(nested[nx]));
+                            for (var nx = 0; nx < nested.length; nx++) card3.appendChild(buildDetailsLocal(nested[nx]));
                             listWrap.appendChild(card3);
                         }
                         section.appendChild(listWrap);
                     } else {
                         var leaves = buildKvpTableIncludingAttributes(group); if (leaves) section.appendChild(leaves);
                         var subComplex = []; for (var sc = 0; sc < group.children.length; sc++) { var scn = group.children[sc]; if (!isNil(scn) && hasElementChildren(scn)) subComplex.push(scn); }
-                        for (var sx = 0; sx < subComplex.length; sx++) section.appendChild(buildDetails(subComplex[sx]));
+                        for (var sx = 0; sx < subComplex.length; sx++) section.appendChild(buildDetailsLocal(subComplex[sx]));
                     }
                     wrap.appendChild(section);
                 }
@@ -438,199 +371,11 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     }
 
-    // Search + highlight
-    function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-    function escapeHtml(s) { return s.replace(/[&<>\"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
-    function highlightPre(preEl, sourceText, q) {
-        if (!preEl) return;
-        if (!q) { preEl.textContent = getDisplayText(sourceText); return; }
-        var rx = new RegExp(escapeRegExp(q), 'gi');
-        var masked = getDisplayText(sourceText);
-        var html = escapeHtml(masked).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
-        preEl.innerHTML = html;
-    }
-    function highlightInline(el, q) {
-        if (!el) return;
-        if (!q) { el.textContent = (el.textContent || ''); return; }
-        var rx = new RegExp(escapeRegExp(q), 'gi');
-        var txt = el.textContent || '';
-        el.innerHTML = escapeHtml(txt).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
-    }
-    function highlightCell(cell, q) {
-        if (!cell) return;
-        if (!q) { cell.textContent = (cell.textContent || ''); return; }
-        var rx = new RegExp(escapeRegExp(q), 'gi');
-        var txt = cell.textContent || '';
-        cell.innerHTML = escapeHtml(txt).replace(rx, function (m) { return '<mark>' + escapeHtml(m) + '</mark>'; });
-    }
-    function clearSummaryEffects() {
-        // show all cards/rows; remove highlights and hints
-        var cards = summaryHost.querySelectorAll('.mb-3.p-2.border.rounded');
-        for (var i = 0; i < cards.length; i++) cards[i].classList.remove('d-none');
-        var rows = summaryHost.querySelectorAll('tbody tr');
-        for (var r = 0; r < rows.length; r++) rows[r].classList.remove('d-none');
-        var cells = summaryHost.querySelectorAll('th,td,summary,strong,.badge');
-        for (var c = 0; c < cells.length; c++) cells[c].textContent = (cells[c].textContent || '');
-        var hint = summaryHost.querySelector('.gpiv-summary-nomatch');
-        if (hint) hint.remove();
-    }
-
-    // REPLACE the existing applySearch() with this version.
-    // Raw, Pretty and Tree branches are unchanged.
-    function applySearch() {
-        var prevTree = treeHost ? treeHost.querySelector('.gpiv-tree-nomatch') : null;
-        if (prevTree) prevTree.remove();
-        var prevSum = summaryHost ? summaryHost.querySelector('.gpiv-summary-nomatch') : null;
-        if (prevSum) prevSum.remove();
-
-        var q = (search && search.value || '').trim();
-
-        // Tree (unchanged)
-        if (mode === 'tree') {
-            var list = treeHost.querySelectorAll('.xml-node, .xml-summary');
-            for (var i = 0; i < list.length; i++) list[i].classList.remove('d-none', 'bg-warning-subtle');
-            if (!q) return;
-
-            var ql = q.toLowerCase();
-            var any = false;
-
-            var nodes = treeHost.querySelectorAll('.xml-node');
-            for (var j = 0; j < nodes.length; j++) nodes[j].classList.add('d-none');
-
-            var sums = treeHost.querySelectorAll('.xml-summary');
-            for (var s = 0; s < sums.length; s++) {
-                var txt = (sums[s].textContent || '').toLowerCase();
-                if (txt.indexOf(ql) >= 0) {
-                    any = true;
-                    sums[s].classList.add('bg-warning-subtle');
-                    var p = sums[s].parentElement;
-                    while (p && p !== treeHost) {
-                        if (p.classList && p.classList.contains('xml-node')) {
-                            p.classList.remove('d-none');
-                            p.open = true;
-                        }
-                        p = p.parentElement;
-                    }
-                } else {
-                    sums[s].classList.remove('bg-warning-subtle');
-                }
-            }
-            if (!any) { var hint = document.createElement('div'); hint.className = 'gpiv-tree-nomatch text-muted small'; hint.textContent = I18N.NoMatchesClear || 'No matches. Clear search to show all.'; treeHost.prepend(hint); }
-            return;
-        }
-
-        // Summary (enhanced)
-        if (mode === 'summary') {
-            if (!q) { clearSummaryEffects(); return; }
-            var ql = q.toLowerCase();
-            var anyCard = false;
-
-            var cards = summaryHost.querySelectorAll('.mb-3.p-2.border.rounded');
-            for (var ci = 0; ci < cards.length; ci++) {
-                var card = cards[ci];
-                var cardHasMatch = false;
-
-                // Header: strong name + badges
-                var header = card.querySelector('.d-flex.flex-wrap.gap-2.align-items-baseline.mb-2');
-                if (header) {
-                    var nameEl = header.querySelector('strong');
-                    if (nameEl) {
-                        if ((nameEl.textContent || '').toLowerCase().indexOf(ql) >= 0) cardHasMatch = true;
-                        highlightInline(nameEl, q);
-                    }
-                    var badges = header.querySelectorAll('.badge');
-                    for (var bi = 0; bi < badges.length; bi++) {
-                        var b = badges[bi];
-                        if ((b.textContent || '').toLowerCase().indexOf(ql) >= 0) cardHasMatch = true;
-                        highlightInline(b, q);
-                    }
-                }
-
-                // Each details section
-                var detailsList = card.querySelectorAll('details.summary-group');
-                for (var di = 0; di < detailsList.length; di++) {
-                    var det = detailsList[di];
-                    var sectionHas = false;
-
-                    var sm = det.querySelector('summary');
-                    if (sm) {
-                        if ((sm.textContent || '').toLowerCase().indexOf(ql) >= 0) sectionHas = true;
-                        highlightInline(sm, q);
-                    }
-
-                    // Table rows
-                    var rows = det.querySelectorAll('tbody tr');
-                    for (var ri = 0; ri < rows.length; ri++) {
-                        var row = rows[ri];
-                        var rowTxt = (row.textContent || '').toLowerCase();
-                        var match = rowTxt.indexOf(ql) >= 0;
-                        row.classList.toggle('d-none', !match);
-                        var th = row.querySelector('th'); var td = row.querySelector('td');
-                        if (th) highlightCell(th, q);
-                        if (td) highlightCell(td, q);
-                        if (match) sectionHas = true;
-                    }
-
-                    // Nested cards (repeating items)
-                    var nestedCards = det.querySelectorAll('.p-2.border.rounded');
-                    for (var ni = 0; ni < nestedCards.length; ni++) {
-                        var n = nestedCards[ni];
-                        var nMatch = ((n.textContent || '').toLowerCase().indexOf(ql) >= 0);
-                        n.classList.toggle('d-none', !nMatch);
-                        if (nMatch) {
-                            sectionHas = true;
-                            var pcs = n.querySelectorAll('th,td,summary,strong,.badge');
-                            for (var pi = 0; pi < pcs.length; pi++) highlightInline(pcs[pi], q);
-                        } else {
-                            var clear = n.querySelectorAll('th,td,summary,strong,.badge');
-                            for (var cl = 0; cl < clear.length; cl++) clear[cl].textContent = (clear[cl].textContent || '');
-                        }
-                    }
-
-                    if (sectionHas) det.open = true;
-                    cardHasMatch = cardHasMatch || sectionHas;
-                }
-
-                card.classList.toggle('d-none', !cardHasMatch);
-                if (cardHasMatch) anyCard = true;
-            }
-
-            if (!anyCard) {
-                var hintS = document.createElement('div');
-                hintS.className = 'gpiv-summary-nomatch text-muted small';
-                hintS.textContent = I18N.NoMatchesSummaryClear || 'No matches in Summary. Clear search to show all.';
-                summaryHost.prepend(hintS);
-            }
-            return;
-        }
-
-        // Raw/Pretty (unchanged)
-        if (mode === 'raw')    highlightPre(preRaw,   sourceRaw,   q);
-        if (mode === 'pretty') highlightPre(prePretty, sourcePretty, q);
-    }
-
-    var gpivSearchTimer = 0;
-    function debouncedSearch() {
-        if (gpivSearchTimer) { try { window.clearTimeout(gpivSearchTimer); } catch {} }
-        gpivSearchTimer = window.setTimeout(function () {
-            try { applySearch(); } catch {}
-        }, 150);
-    }
-
-    function expandAll(open) { var details = treeHost.querySelectorAll('details.xml-node'); for (var i = 0; i < details.length; i++) details[i].open = open; }
-
-    // NEW: Summary expand/collapse
-    function expandSummaryAll(open) {
-        if (!summaryHost) return;
-        var details = summaryHost.querySelectorAll('details.summary-group');
-        for (var i = 0; i < details.length; i++) details[i].open = open;
-    }
-
     function setActive() {
-        var btns = [prettyBtn, rawBtn, treeBtn, summaryBtn];
+        var btns = [prettyBtn, /* rawBtn, */ treeBtn, summaryBtn];
         for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
         if (mode === 'pretty' && prettyBtn) prettyBtn.classList.add('active');
-        if (mode === 'raw' && rawBtn) rawBtn.classList.add('active');
+        // raw mode removed
         if (mode === 'tree' && treeBtn) treeBtn.classList.add('active');
         if (mode === 'summary' && summaryBtn) summaryBtn.classList.add('active');
     }
@@ -640,59 +385,23 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         var hasAny = combined.length > 0;
         if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
         prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
-        preRaw.style.display    = (mode === 'raw')    ? 'block' : 'none';
+        // removed preRaw.style since raw view is gone
         treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
         summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
-        prePretty.textContent = getDisplayText(sourcePretty || '');
-        preRaw.textContent = getDisplayText(sourceRaw || '');
+        prePretty.textContent = (sourcePretty || '');
+        // removed preRaw.textContent
 
         var treeActive = (mode === 'tree');
         var summaryActive = (mode === 'summary');
 
-        // Enable buttons for Tree or Summary
         if (expandBtn) expandBtn.disabled = !(treeActive || summaryActive);
         if (collapseBtn) collapseBtn.disabled = !(treeActive || summaryActive);
 
         if (treeActive && hasAny) renderTree();
         if (summaryActive && hasAny) renderSummary();
 
-        setActive(); savePrefs(); applySearch();
+        setActive(); savePrefs();
     }
-
-    // Per-person copy/download (event delegation)
-    summaryHost && summaryHost.addEventListener('click', function (ev) {
-        var t = ev.target;
-        while (t && t !== summaryHost && !(t.classList && (t.classList.contains('gpiv-copy-person') || t.classList.contains('gpiv-dl-person')))) {
-            t = t.parentElement;
-        }
-        if (!t || t === summaryHost) return;
-        var idx = parseInt(t.getAttribute('data-idx') || '-1', 10);
-        if (isNaN(idx) || idx < 0 || idx >= summaryPeopleNodes.length) return;
-        try {
-            var xml = new XMLSerializer().serializeToString(summaryPeopleNodes[idx]);
-            xml = getDisplayText(xml);
-            if (t.classList.contains('gpiv-copy-person')) {
-                // Replace deprecated document.execCommand('copy') usage with Clipboard API fallback
-                (navigator.clipboard && navigator.clipboard.writeText(xml).catch(function () { })) || (function () {
-                    var ta = document.createElement('textarea'); ta.value = xml; ta.style.position = 'fixed'; ta.style.left = '-10000px';
-                    document.body.appendChild(ta); ta.select();
-                    // Deprecated execCommand removed; fallback for older browsers
-                    try {
-                        if (window.clipboardData && window.clipboardData.setData) {
-                            window.clipboardData.setData('Text', ta.value);
-                        }
-                    } catch {}
-                    ta.remove();
-                })();
-                t.textContent = (I18N.Copied || 'Copied'); setTimeout(function () { t.textContent = (I18N.CopyXml || 'Copy XML'); }, 1200);
-            } else {
-                var a = document.createElement('a');
-                a.href = URL.createObjectURL(new Blob([xml], { type: 'application/xml;charset=utf-8' }));
-                a.download = 'PersonPublicInfo_' + (idx + 1) + '.xml';
-                document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
-            }
-        } catch {}
-    });
 
     // Load: Drag & Drop only
     function setXmlFromText(text) {
@@ -719,49 +428,32 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
     // Toolbar actions
     prettyBtn && prettyBtn.addEventListener('click', function () { mode = 'pretty'; updateView(); });
-    rawBtn && rawBtn.addEventListener('click', function () { mode = 'raw'; updateView(); });
-    treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; if (search) search.value = ''; updateView(); });
+    // removed rawBtn handler
+    treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; updateView(); });
     summaryBtn && summaryBtn.addEventListener('click', function () { mode = 'summary'; updateView(); });
-    maskChk && maskChk.addEventListener('change', function () { updateView(); });
-    expandBtn && expandBtn.addEventListener('click', function () {
-        if (mode === 'summary') expandSummaryAll(true);
-        else expandAll(true); // Tree (unchanged)
-    });
-    collapseBtn && collapseBtn.addEventListener('click', function () {
-        if (mode === 'summary') expandSummaryAll(false);
-        else expandAll(false); // Tree (unchanged)
-    });
-    search && search.addEventListener('input', debouncedSearch);
-    clearSearch && clearSearch.addEventListener('click', function () { if (search) search.value = ''; applySearch(); savePrefs(); });
-    heightRange && heightRange.addEventListener('input', function () {
-        var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs();
-    });
+    expandBtn && expandBtn.addEventListener('click', function () { if (mode === 'summary') expandSummaryAll(true); else expandAll(true); });
+    collapseBtn && collapseBtn.addEventListener('click', function () { if (mode === 'summary') expandSummaryAll(false); else expandAll(false); });
+    heightRange && heightRange.addEventListener('input', function () { var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs(); });
     fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts (removed Ctrl+Shift+C for copy, raw '2' already removed)
     document.addEventListener('keydown', function (e) {
-        // Ignore shortcuts while typing in any editable field (fixes SSN forcing Pretty)
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
         var inEditable = t && (t.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
         if (inEditable) return;
 
-        var ctrl = e.ctrlKey || e.metaKey;
-        if (ctrl && e.key.toLowerCase() === 'f') { if (search) { search.focus(); search.select(); } e.preventDefault(); return; }
-        if (ctrl && e.shiftKey && e.key.toLowerCase() === 'c') { if (copyBtn) copyBtn.click(); e.preventDefault(); return; }
         if (e.key === '1') { if (prettyBtn) prettyBtn.click(); }
-        if (e.key === '2') { if (rawBtn)    rawBtn.click(); }
         if (e.key === '3') { if (treeBtn)   treeBtn.click(); }
         if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
         if (e.key.toLowerCase() === 'e') { if (!expandBtn || expandBtn.disabled) return; expandBtn.click(); }
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
     });
 
-    // Export (whole document)
     function getExportText() {
-        if (mode === 'raw') return getDisplayText(sourceRaw || (preRaw ? preRaw.textContent : '') || '');
-        if (mode === 'pretty') return getDisplayText(sourcePretty || (prePretty ? prePretty.textContent : '') || '');
-        return getDisplayText(sourcePretty || (prePretty ? prePretty.textContent : '') || '');
+        if (mode === 'raw') return (sourceRaw || (preRaw ? preRaw.textContent : '') || '');
+        if (mode === 'pretty') return (sourcePretty || (prePretty ? prePretty.textContent : '') || '');
+        return (sourcePretty || (prePretty ? prePretty.textContent : '') || '');
     }
     copyBtn && copyBtn.addEventListener('click', function (e) {
         e.preventDefault();
@@ -769,12 +461,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         (navigator.clipboard && navigator.clipboard.writeText(text).catch(function () { })) || (function () {
             var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-10000px';
             document.body.appendChild(ta); ta.select();
-            // Deprecated execCommand removed; fallback for older browsers
-            try {
-                if (window.clipboardData && window.clipboardData.setData) {
-                    window.clipboardData.setData('Text', ta.value);
-                }
-            } catch {}
+            try { if (window.clipboardData && window.clipboardData.setData) { window.clipboardData.setData('Text', ta.value); } } catch {}
             ta.remove();
         })();
         var old = copyBtn.innerText; copyBtn.innerText = 'Copied'; setTimeout(function () { copyBtn.innerText = old; }, 1200);
@@ -792,19 +479,18 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         URL.revokeObjectURL(a.href); a.remove();
     });
 
-    // Public API
     window.gpiv = {
         setXml: function (raw, pretty) {
             if (typeof raw === 'string') sourceRaw = raw;
-            if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string') sourcePretty = raw;
-            if (preRaw) preRaw.textContent = getDisplayText(sourceRaw || '');
-            if (prePretty) prePretty.textContent = getDisplayText(sourcePretty || '');
+            if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string' ) sourcePretty = raw;
+            // leave guard in case pane is added back someday
+            if (preRaw) preRaw.textContent = (sourceRaw || '');
+            if (prePretty) prePretty.textContent = (sourcePretty || '');
             updateView();
         },
         focusPerson: function (publicId) {
             if (!publicId) return;
             mode = 'summary'; updateView();
-            // find badge
             var badges = summaryHost.querySelectorAll('.gpiv-pid');
             for (var i = 0; i < badges.length; i++) {
                 if ((badges[i].textContent || '').indexOf(publicId) >= 0) {
@@ -817,7 +503,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     };
 
-    // Deep-link support: ?gpivPublicId=...
     try {
         var qs = new URLSearchParams(window.location.search);
         var linkPid = qs.get('gpivPublicId');
@@ -837,16 +522,15 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     }
 })();
 </script>
-@* Append this script at the end of the file (after the existing scripts) *@
 <script>
+// Restore PublicId click -> load PersonDetails panel behavior
 (function(){
-  // Local cache + last clicked id
-  var personCache = new Map();
-  var lastPid = null;
+  if (window.__gpivPidHooked) return; // idempotent
+  window.__gpivPidHooked = true;
 
-  // EXPOSE to other scripts (Index.cshtml toolbar uses these)
-  window.personCache = personCache;
-  window.lastPid = lastPid;
+  // Shared cache/state (cooperate with Index.cshtml enhancements)
+  var personCache = (window.personCache instanceof Map) ? window.personCache : (window.personCache = new Map());
+  var lastPid = window.lastPid || null;
 
   function getPanelEls() {
     return {
@@ -857,37 +541,66 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
       title: document.querySelector('#person-details-section .card-title')
     };
   }
-  function showLoading(on){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.loading){ e.loading.classList.toggle('d-none', !on);} }
-  function clearPanel(){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.err){e.err.classList.add('d-none'); e.err.textContent='';} if(e.body){ e.body.innerHTML=''; } if(e.loading){ e.loading.classList.add('d-none'); } }
-  function ensureShownAndFocus(){ const e=getPanelEls(); if(!e.sec) return; e.sec.classList.remove('d-none'); if(e.title){ e.title.setAttribute('tabindex','-1'); try{ e.title.focus({preventScroll:true}); }catch{} try{ e.title.scrollIntoView({block:'start', behavior:'smooth'});}catch{} } }
+  function showLoading(on){
+    var e=getPanelEls(); if(!e.sec) return;
+    e.sec.classList.remove('d-none');
+    if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
+    if(e.loading){ e.loading.classList.toggle('d-none', !on); }
+  }
+  function clearPanel(){
+    var e=getPanelEls(); if(!e.sec) return;
+    e.sec.classList.remove('d-none');
+    if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
+    if(e.body){ e.body.innerHTML=''; }
+    if(e.loading){ e.loading.classList.add('d-none'); }
+  }
+  function ensureShownAndFocus(){
+    var e=getPanelEls(); if(!e.sec) return;
+    e.sec.classList.remove('d-none');
+    if(e.title){
+      e.title.setAttribute('tabindex','-1');
+      try{ e.title.focus({preventScroll:true}); }catch{}
+      try{ e.title.scrollIntoView({block:'start', behavior:'smooth'});}catch{}
+    }
+  }
+  function markSelectedSummaryCard(fromEl){
+    try {
+      var host = document.getElementById('gpiv-xml-summary'); if (!host) return;
+      var prev = host.querySelector('.gpiv-active-card'); if (prev) prev.classList.remove('gpiv-active-card');
+      var wrap = fromEl;
+      while (wrap && wrap !== host && !(wrap.classList && wrap.classList.contains('border') && wrap.classList.contains('rounded'))) wrap = wrap.parentElement;
+      if (wrap && wrap !== host) wrap.classList.add('gpiv-active-card');
+    } catch {}
+  }
 
-  function pdIconForLocal(groupName){ try { return (window.pdIconFor && window.pdIconFor(groupName)) || ''; } catch { return ''; } }
-
-  function renderPairsGrouped(pairs){
-    var groups = {}; (pairs||[]).forEach(function(p){ var k=p.key||''; var v=p.value||''; var seg=k.indexOf('.')>-1?k.slice(0,k.indexOf('.')):k; (groups[seg]=groups[seg]||[]).push({k:k,v:v}); });
-    var keys = Object.keys(groups).sort(function(a,b){ var ai=a.toLowerCase()==='summary'?0:1, bi=b.toLowerCase()==='summary'?0:1; return (ai-bi)||a.localeCompare(b); });
-    var accId = 'pd-acc-'+Date.now();
-    var acc = document.createElement('div'); acc.className='accordion'; acc.id=accId;
+  // Default renderer if a custom one is not provided (keeps UI readable)
+  function defaultRenderPairsGrouped(pairs){
+    var groups = {};
+    (pairs||[]).forEach(function(p){
+      var k=p.key||'', v=p.value||'';
+      var seg=k.includes('.') ? k.slice(0,k.indexOf('.')) : k;
+      (groups[seg]=groups[seg]||[]).push({k:k,v:v});
+    });
+    var keys = Object.keys(groups).sort(function(a,b){
+      var ai=a.toLowerCase()==='summary'?0:1, bi=b.toLowerCase()==='summary'?0:1;
+      return (ai-bi)||a.localeCompare(b);
+    });
+    var accId='pd-acc-'+Date.now();
+    var acc=document.createElement('div'); acc.className='accordion'; acc.id=accId;
 
     keys.forEach(function(name, gi){
-      var items = groups[name].slice().sort(function(x,y){ return x.k.localeCompare(y.k); });
+      var items=groups[name].slice().sort(function(x,y){ return x.k.localeCompare(y.k); });
       var hid=accId+'-h-'+gi, cid=accId+'-c-'+gi;
 
       var item=document.createElement('div'); item.className='accordion-item'; item.setAttribute('data-group', name);
 
       var h2=document.createElement('h2'); h2.className='accordion-header'; h2.id=hid;
-      var btn=document.createElement('button');
-      btn.className='accordion-button'+(name.toLowerCase()==='summary'?'':' collapsed');
-      btn.type='button';
-      btn.setAttribute('data-bs-toggle','collapse');
-      btn.setAttribute('data-bs-target','#'+cid);
-      btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false');
-      btn.setAttribute('aria-controls', cid);
-      btn.setAttribute('data-icon', pdIconForLocal(name));
+      var btn=document.createElement('button'); btn.className='accordion-button'+(name.toLowerCase()==='summary'?'':' collapsed');
+      btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
+      btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false'); btn.setAttribute('aria-controls', cid);
       btn.textContent=name; h2.appendChild(btn);
 
-      var col=document.createElement('div');
-      col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':''); 
+      var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':'');
       col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
 
       var body=document.createElement('div'); body.className='accordion-body p-0';
@@ -911,15 +624,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     return acc;
   }
 
-  function markSelectedSummaryCard(fromEl){
-    try {
-      var host = document.getElementById('gpiv-xml-summary'); if (!host) return;
-      var prev = host.querySelector('.gpiv-active-card'); if (prev) prev.classList.remove('gpiv-active-card');
-      var wrap = fromEl; while (wrap && wrap !== host && !(wrap.classList && wrap.classList.contains('border') && wrap.classList.contains('rounded'))) wrap = wrap.parentElement;
-      if (wrap && wrap !== host) wrap.classList.add('gpiv-active-card');
-    } catch {}
-  }
-
   async function fetchDetails(publicId){
     var url = new URL(window.location.href);
     url.searchParams.set('handler','PersonDetails');
@@ -934,24 +638,22 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
   }
 
   async function loadPerson(publicId, sourceEl){
-    lastPid = publicId;
-    window.lastPid = publicId; // keep global in sync
-
-    const els = getPanelEls();
+    window.lastPid = lastPid = publicId;
+    var els = getPanelEls();
     if(!publicId || !els.body) return;
 
-    // Show cached immediately (if any)
+    // Show cached immediately if present
     var cached = personCache.get(publicId);
     if (cached && cached.details && cached.details.length) {
       clearPanel();
-      var accCached = (window._renderPairsGroupedForPerson || renderPairsGrouped)(cached.details);
+      var builder = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
+      var accCached = builder(cached.details);
       if (accCached) els.body.appendChild(accCached);
       ensureShownAndFocus();
     } else {
       clearPanel(); showLoading(true);
     }
 
-    // Fetch fresh
     try {
       var data = await fetchDetails(publicId);
       showLoading(false);
@@ -962,44 +664,45 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
           els.err.innerHTML = msg + ' <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
           els.err.classList.remove('d-none');
           var retry = document.getElementById('pd-retry');
-          retry && retry.addEventListener('click', function(){ loadPerson(lastPid, sourceEl); });
+          retry && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
         }
         return;
       }
 
-      // when cache is updated:
       personCache.set(publicId, { details: data.details || [], ts: Date.now() });
-      window.personCache = personCache; // optional, same Map instance
 
       clearPanel();
-      var acc = (window._renderPairsGroupedForPerson || renderPairsGrouped)(data.details || []);
+      var builder2 = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
+      var acc = builder2(data.details || []);
       if (acc) els.body.appendChild(acc);
       ensureShownAndFocus();
 
-      // Highlight the selected summary card
       if (sourceEl) markSelectedSummaryCard(sourceEl);
 
-      // Deep-link for refresh/back
-      try{ var link = new URL(window.location.href); link.searchParams.set('gpivPublicId', publicId); history.pushState(null,'',link.toString()); }catch{}
+      try{
+        var link = new URL(window.location.href);
+        link.searchParams.set('gpivPublicId', publicId);
+        history.pushState(null,'',link.toString());
+      }catch{}
     } catch (err) {
       showLoading(false);
       if (els.err) {
         els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
-        retry2 && retry2.addEventListener('click', function(){ loadPerson(lastPid, sourceEl); });
+        retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
       }
       try { console.error('GetPerson fetch failed', err); } catch {}
     }
   }
 
-  // Delegate PublicId clicks
+  // Delegate PublicId clicks from Summary
   document.addEventListener('click', function(e){
     var t = e.target;
     if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
-    if(e.ctrlKey || e.metaKey) return;
+    if(e.ctrlKey || e.metaKey) return; // allow open in new tab if needed
     e.preventDefault();
-    var pid = t.getAttribute('data-public-id');
+    var pid = t.getAttribute('data-public-id') || '';
     if(!pid){
       var txt = t.textContent || '';
       var parts = txt.split(':');
@@ -1008,14 +711,16 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     if(pid) loadPerson(pid, t);
   });
 
-  // Deep-link support
+  // Deep-link support on load
   try{
     var qs=new URLSearchParams(window.location.search);
     var pid=qs.get('gpivPublicId');
-    if(pid) {
-      if(document.readyState==='loading'){
+    if(pid){
+      if(document.readyState==='loading') {
         window.addEventListener('DOMContentLoaded', function(){ loadPerson(pid); });
-      } else { loadPerson(pid); }
+      } else {
+        loadPerson(pid);
+      }
     }
   }catch{}
 })();

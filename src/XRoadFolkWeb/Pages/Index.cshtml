@@ -179,35 +179,14 @@
   })();
 </script>
 <script>
-// Enhance the existing appended helper (keep your current code; add/replace the parts below)
+// Enhance the existing appended helper (mask removed)
 (function(){
-  // Reuse existing variables and helpers from your bottom script…
-  // personCache: Map(publicId -> { details: pairs[], ts })
-
-  // Toolbar getters
+  // Toolbar getters (mask removed)
   function getToolbarEls() {
     return {
-      mask: document.getElementById('pd-mask'),
       copyJson: document.getElementById('pd-copy-json'),
       dlJson: document.getElementById('pd-download-json')
     };
-  }
-
-  // Mask sensitive values in pairs (key/value list)
-  function maskPairs(pairs, on) {
-    if (!on) return pairs;
-    return (pairs || []).map(function(p){
-      var k = String(p.key || '');
-      var v = String(p.value || '');
-      var kl = k.toLowerCase();
-      if (kl.indexOf('ssn') >= 0) {
-        var digits = v.replace(/\D/g,'');
-        if (digits.length > 3) v = new Array(digits.length - 3 + 1).join('*') + digits.slice(-3);
-        else v = new Array(digits.length + 1).join('*');
-      }
-      if (kl.indexOf('token') >= 0 || kl.indexOf('authorization') >= 0) v = '***';
-      return { key: k, value: v };
-    });
   }
 
   // Convert pairs with dotted paths into a nested object
@@ -218,7 +197,6 @@
       var curr = root;
       for (var i = 0; i < path.length; i++) {
         var seg = path[i];
-        // turn Name[0] into { key:'Name', idx:0 }
         var m = seg.match(/^(.+)\[(\d+)\]$/);
         if (m) {
           var base = m[1], idx = parseInt(m[2], 10);
@@ -274,45 +252,37 @@
     }catch{}
   }
 
-  // Wrap original renderer to plug masking and state restore
+  // Wrap original renderer to restore state (mask removed)
   var originalRender = window._renderPairsGroupedForPerson || null;
   function renderPairsWithUX(pairs, pid){
-    var maskOn = !!(getToolbarEls().mask && getToolbarEls().mask.checked);
-    var masked = maskPairs(pairs, maskOn);
-
-    // Use project renderer if present, else fallback to local (renderPairsGrouped) from your script
     var builder = (originalRender || window.renderPairsGrouped || null);
     if (!builder) {
-      // Fallback: reuse local builder defined in your script (named renderPairsGrouped there)
       builder = function(ps){
-        // Minimal fallback using the existing local renderPairsGrouped function if available
         return (typeof renderPairsGrouped === 'function') ? renderPairsGrouped(ps) : document.createTextNode('');
       };
     }
-    var acc = builder(masked);
-    // After DOM insertion (done by caller), restore accordion state
+    var acc = builder(pairs || []);
     setTimeout(function(){ restoreAccState(pid); }, 0);
     return acc;
   }
 
-  // Hook into your existing loadPerson flow by monkey-patching append step
+  // Re-render current cache on demand
   var pdBody = document.getElementById('person-details-body');
   function rerenderCurrent(){
     try{
-      var pid = window.lastPid || null; // defined in your script
+      var pid = window.lastPid || null;
       if (!pid || !pdBody) return;
       var cache = (window.personCache && window.personCache.get) ? window.personCache.get(pid) : null;
       if (!cache || !cache.details) return;
       pdBody.innerHTML = '';
       var acc = renderPairsWithUX(cache.details, pid);
-      if (acc) pdBody.appendChild(acc);
+      if acc) pdBody.appendChild(acc);
       saveAccState(pid);
     }catch{}
   }
 
-  // Wire toolbar actions
+  // Wire toolbar actions (mask references removed)
   var tbe = getToolbarEls();
-  tbe.mask && tbe.mask.addEventListener('change', rerenderCurrent);
 
   tbe.copyJson && tbe.copyJson.addEventListener('click', function(){
     try{
@@ -320,7 +290,7 @@
       if (!pid) return;
       var cache = window.personCache ? window.personCache.get(pid) : null;
       if (!cache || !cache.details) return;
-      var json = pairsToObject(maskPairs(cache.details, !!(tbe.mask && tbe.mask.checked)));
+      var json = pairsToObject(cache.details);
       var text = JSON.stringify(json, null, 2);
       (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){})) || (function(){
         var ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.left='-10000px';
@@ -335,14 +305,13 @@
       if (!pid) return;
       var cache = window.personCache ? window.personCache.get(pid) : null;
       if (!cache || !cache.details) return;
-      var json = pairsToObject(maskPairs(cache.details, !!(tbe.mask && tbe.mask.checked)));
-      var blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json;charset=utf-8' });
+      var blob = new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' });
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'person_' + pid + '.json';
       document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
     }catch{}
   });
 
-  // Persist state when user toggles groups (using event delegation)
+  // Persist state when user toggles groups
   document.addEventListener('click', function(ev){
     var pid = window.lastPid || null;
     if (!pid) return;
@@ -350,7 +319,7 @@
     if (btn) setTimeout(function(){ saveAccState(pid); }, 0);
   });
 
-  // Expose small helpers so your existing loader can use them
+  // Expose helpers
   window.__pdUx = {
     renderPairsWithUX: renderPairsWithUX,
     restoreAccState: restoreAccState,
@@ -358,13 +327,10 @@
     rerenderCurrent: rerenderCurrent
   };
 
-  // If your existing loader appends with builder(...), switch to __pdUx.renderPairsWithUX(...)
-  // Minimal patch: intercept after current builder append via MutationObserver and save state the first time
   try{
     var mo = new MutationObserver(function(){
       var pid = window.lastPid || null;
       if (!pid) return;
-      // Save once after first render
       saveAccState(pid);
     });
     if (pdBody) mo.observe(pdBody, { childList: true });
