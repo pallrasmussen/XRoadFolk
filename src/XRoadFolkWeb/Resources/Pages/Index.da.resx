@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="PersonDetails" xml:space="preserve"><value>Persondetaljer</value></data>
+  <data name="MaskSensitive" xml:space="preserve"><value>Maskér følsomme oplysninger</value></data>
+  <data name="Expand" xml:space="preserve"><value>Udvid</value></data>
+  <data name="Collapse" xml:space="preserve"><value>Skjul</value></data>
+  <data name="Loading" xml:space="preserve"><value>Indlæser…</value></data>
+  <data name="CopyJson" xml:space="preserve"><value>Kopiér JSON</value></data>
+  <data name="DownloadJson" xml:space="preserve"><value>Download JSON</value></data>
+</root>
