@@ -10,6 +10,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
 using XRoadFolkRaw.Lib;
 using XRoadFolkWeb.Validation;
+using SsnAttr = XRoadFolkWeb.Validation.SsnAttribute; // ADD: alias to the intended SsnAttribute
 
 namespace XRoadFolkWeb.Pages
 {
@@ -21,9 +22,8 @@ namespace XRoadFolkWeb.Pages
         private readonly IStringLocalizer<IndexModel> _loc = loc;
         private readonly IMemoryCache _cache = cache;
 
-        [BindProperty]
+        [BindProperty, SsnAttr] // USE the alias to disambiguate
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
-        [Ssn]
         public string? Ssn { get; set; }
 
         [BindProperty]
