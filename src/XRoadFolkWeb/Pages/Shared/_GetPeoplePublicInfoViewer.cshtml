@@ -83,8 +83,7 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     // removed rawBtn
     var treeBtn = document.getElementById('gpiv-tree');
     var summaryBtn = document.getElementById('gpiv-summary');
-    var copyBtn = document.getElementById('gpiv-copy');
-    var downloadBtn = document.getElementById('gpiv-download');
+    // removed copyBtn and downloadBtn (no corresponding buttons in DOM)
     var expandBtn = document.getElementById('gpiv-expand');
     var collapseBtn = document.getElementById('gpiv-collapse');
     var heightRange = document.getElementById('gpiv-height');
@@ -135,6 +134,76 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         return e;
     }
 
+    // Helpers used by Summary rendering
+    function isNil(node) {
+      if (!node || node.nodeType !== 1 || !node.attributes) return false;
+      for (var i = 0; i < node.attributes.length; i++) {
+        var a = node.attributes[i];
+        var ln = a.localName || a.name;
+        if (ln === 'nil' && /^(true|1)$/i.test((a.value || '').trim())) return true;
+      }
+      return false;
+    }
+
+    function hasElementChildren(node) {
+      if (!node || !node.children) return false;
+      for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
+      return false;
+    }
+
+    var atSign = String.fromCharCode(64);
+
+    function buildKvpTableIncludingAttributes(owner) {
+      var rows = [];
+      if (owner && owner.attributes && owner.attributes.length) {
+        for (var i = 0; i < owner.attributes.length; i++) {
+          var a = owner.attributes[i];
+          rows.push({ key: atSign + a.name, val: (a.value || '') });
+        }
+      }
+      var kids = owner && owner.children ? owner.children : [];
+      for (var k = 0; k < kids.length; k++) {
+        var ch = kids[k];
+        if (isNil(ch)) continue;
+        if (!hasElementChildren(ch)) {
+          rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
+          if (ch.attributes && ch.attributes.length) {
+            for (var a2 = 0; a2 < ch.attributes.length; a2++) {
+              var at = ch.attributes[a2];
+              rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') });
+            }
+          }
+        }
+      }
+      if (!rows.length) return null;
+      var t = document.createElement('table'); t.className = 'table table-sm table-striped align-middle mb-2';
+      var tb = document.createElement('tbody');
+      for (var r = 0; r < rows.length; r++) {
+        var tr = document.createElement('tr');
+        var th = document.createElement('th'); th.className = 'text-muted fw-normal'; th.style.width = '40%'; th.textContent = rows[r].key;
+        var td = document.createElement('td'); td.textContent = rows[r].val;
+        tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+      }
+      t.appendChild(tb);
+      return t;
+    }
+
+    function getTextLocal(elx, name) {
+      if (!elx || !elx.children) return '';
+      for (var i = 0; i < elx.children.length; i++) {
+        var c = elx.children[i];
+        if (c.localName === name) return (c.textContent || '').trim();
+      }
+      return '';
+    }
+
+    function badge(text) {
+      var b = document.createElement('span');
+      b.className = 'badge text-bg-light';
+      b.textContent = text;
+      return b;
+    }
+
     // Tree
     function buildTree(node) {
         if (!node || node.nodeType !== 1) return document.createTextNode('');
@@ -172,59 +241,8 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         }
     }
 
-    // Helpers
-    function isNil(node) {
-        if (!node || node.nodeType !== 1 || !node.attributes) return false;
-        for (var i = 0; i < node.attributes.length; i++) {
-            var a = node.attributes[i];
-            var ln = a.localName || a.name;
-            if (ln === 'nil' && /^(true|1)$/i.test((a.value || '').trim())) return true;
-        }
-        return false;
-    }
-    function hasElementChildren(node) {
-        if (!node || !node.children) return false;
-        for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
-        return false;
-    }
-    var atSign = String.fromCharCode(64);
-    function buildKvpTableIncludingAttributes(owner) {
-        var rows = [];
-        if (owner && owner.attributes && owner.attributes.length) {
-            for (var i = 0; i < owner.attributes.length; i++) { var a = owner.attributes[i]; rows.push({ key: atSign + a.name, val: (a.value || '') }); }
-        }
-        var kids = owner && owner.children ? owner.children : [];
-        for (var k = 0; k < kids.length; k++) {
-            var ch = kids[k];
-            if (isNil(ch)) continue;
-            if (!hasElementChildren(ch)) {
-                rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
-                if (ch.attributes && ch.attributes.length) {
-                    for (var a2 = 0; a2 < ch.attributes.length; a2++) { var at = ch.attributes[a2]; rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') }); }
-                }
-            }
-        }
-        if (!rows.length) return null;
-        var t = document.createElement('table'); t.className = 'table table-sm table-striped align-middle mb-2';
-        var tb = document.createElement('tbody');
-        for (var r = 0; r < rows.length; r++) {
-            var tr = document.createElement('tr');
-            var th = document.createElement('th'); th.className = 'text-muted fw-normal'; th.style.width = '40%'; th.textContent = rows[r].key;
-            var td = document.createElement('td'); td.textContent = rows[r].val;
-            tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
-        }
-        t.appendChild(tb); return t;
-    }
-
-    function getTextLocal(elx, name) {
-        if (!elx || !elx.children) return '';
-        for (var i = 0; i < elx.children.length; i++) { var c = elx.children[i]; if (c.localName === name) return (c.textContent || '').trim(); }
-        return '';
-    }
-    function badge(text) { var b = document.createElement('span'); b.className = 'badge text-bg-light'; b.textContent = text; return b; }
-
+    // Summary render
     var summaryPeopleNodes = [];
-
     function renderSummary() {
         function buildDetailsLocal(node, title) {
             var d = document.createElement('details');
@@ -381,26 +399,34 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     }
 
     function updateView() {
-        var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
-        var hasAny = combined.length > 0;
-        if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-        prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
-        // removed preRaw.style since raw view is gone
-        treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
-        summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
-        prePretty.textContent = (sourcePretty || '');
-        // removed preRaw.textContent
+      var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
+      var hasAny = combined.length > 0;
 
-        var treeActive = (mode === 'tree');
-        var summaryActive = (mode === 'summary');
+      if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
+      prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
+      treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
+      summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
+      prePretty.textContent = (sourcePretty || '');
 
-        if (expandBtn) expandBtn.disabled = !(treeActive || summaryActive);
-        if (collapseBtn) collapseBtn.disabled = !(treeActive || summaryActive);
+      var treeActive = (mode === 'tree');
+      var summaryActive = (mode === 'summary');
 
-        if (treeActive && hasAny) renderTree();
-        if (summaryActive && hasAny) renderSummary();
+      // Render first, so DOM exists before we inspect it
+      if (treeActive && hasAny) renderTree();
+      if (summaryActive && hasAny) renderSummary();
 
-        setActive(); savePrefs();
+      // Enable only when the active view has expandable nodes
+      var canExpand = false;
+      if (treeActive) {
+          canExpand = !!(treeHost && treeHost.querySelector('details.xml-node'));
+      } else if (summaryActive) {
+          canExpand = !!(summaryHost && summaryHost.querySelector('details.summary-group'));
+      }
+      if (expandBtn) expandBtn.disabled = !canExpand;
+      if (collapseBtn) collapseBtn.disabled = !canExpand;
+
+      setActive();
+      savePrefs();
     }
 
     // Load: Drag & Drop only
@@ -427,16 +453,15 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
     });
 
     // Toolbar actions
-    prettyBtn && prettyBtn.addEventListener('click', function () { mode = 'pretty'; updateView(); });
-    // removed rawBtn handler
-    treeBtn && treeBtn.addEventListener('click', function () { mode = 'tree'; updateView(); });
-    summaryBtn && summaryBtn.addEventListener('click', function () { mode = 'summary'; updateView(); });
-    expandBtn && expandBtn.addEventListener('click', function () { if (mode === 'summary') expandSummaryAll(true); else expandAll(true); });
-    collapseBtn && collapseBtn.addEventListener('click', function () { if (mode === 'summary') expandSummaryAll(false); else expandAll(false); });
+    prettyBtn && prettyBtn.addEventListener('click', function(){ mode='pretty'; updateView(); });
+    treeBtn && treeBtn.addEventListener('click',   function(){ mode='tree';   updateView(); });
+    summaryBtn && summaryBtn.addEventListener('click',function(){ mode='summary'; updateView(); });
+    expandBtn && expandBtn.addEventListener('click',   function(){ if (mode==='summary') expandSummaryAll(true); else expandAll(true); });
+    collapseBtn && collapseBtn.addEventListener('click', function(){ if (mode==='summary') expandSummaryAll(false); else expandAll(false); });
     heightRange && heightRange.addEventListener('input', function () { var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs(); });
     fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
 
-    // Keyboard shortcuts (removed Ctrl+Shift+C for copy, raw '2' already removed)
+    // Keyboard shortcuts (no '2' raw, no copy)
     document.addEventListener('keydown', function (e) {
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
@@ -448,35 +473,6 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
         if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
         if (e.key.toLowerCase() === 'e') { if (!expandBtn || expandBtn.disabled) return; expandBtn.click(); }
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
-    });
-
-    function getExportText() {
-        if (mode === 'raw') return (sourceRaw || (preRaw ? preRaw.textContent : '') || '');
-        if (mode === 'pretty') return (sourcePretty || (prePretty ? prePretty.textContent : '') || '');
-        return (sourcePretty || (prePretty ? prePretty.textContent : '') || '');
-    }
-    copyBtn && copyBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        var text = getExportText();
-        (navigator.clipboard && navigator.clipboard.writeText(text).catch(function () { })) || (function () {
-            var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-10000px';
-            document.body.appendChild(ta); ta.select();
-            try { if (window.clipboardData && window.clipboardData.setData) { window.clipboardData.setData('Text', ta.value); } } catch {}
-            ta.remove();
-        })();
-        var old = copyBtn.innerText; copyBtn.innerText = 'Copied'; setTimeout(function () { copyBtn.innerText = old; }, 1200);
-    });
-    downloadBtn && downloadBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        var text = getExportText();
-        var name = (mode === 'raw') ? 'GetPeoplePublicInfo_raw.xml'
-            : (mode === 'pretty') ? 'GetPeoplePublicInfo_pretty.xml'
-            : (mode === 'tree') ? 'GetPeoplePublicInfo_from_tree.xml'
-            : (mode === 'summary') ? 'GetPeoplePublicInfo_summary.xml'
-            : 'GetPeoplePublicInfo.xml';
-        var blob = new Blob([text], { type: 'application/xml;charset=utf-8' });
-        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
-        URL.revokeObjectURL(a.href); a.remove();
     });
 
     window.gpiv = {
@@ -511,6 +507,23 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
     updateView();
 })();
+</script>
+<script>
+// Expand/Collapse helpers (tree and summary)
+function expandAll(open) {
+    if (!treeHost) return;
+    var nodes = treeHost.querySelectorAll('details.xml-node');
+    for (var i = 0; i < nodes.length; i++) nodes[i].open = !!open;
+}
+function expandSummaryAll(open) {
+    if (!summaryHost) return;
+    var groups = summaryHost.querySelectorAll('details.summary-group');
+    for (var i = 0; i < groups.length; i++) groups[i].open = !!open;
+}
+
+// existing bindings will now work:
+// expandBtn.addEventListener('click', () => mode==='summary' ? expandSummaryAll(true) : expandAll(true));
+// collapseBtn.addEventListener('click', () => mode==='summary' ? expandSummaryAll(false) : expandAll(false));
 </script>
 <script>
 // Bootstrap the viewer with server-provided XML (so it shows even if parsing the <pre> fails)
