@@ -734,12 +734,18 @@ window.gpiv_i18n = @Html.Raw(JsonSerializer.Serialize(gpivI18n));
 
     // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
+        // Ignore shortcuts while typing in any editable field (fixes SSN forcing Pretty)
+        var t = e.target;
+        var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+        var inEditable = t && (t.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
+        if (inEditable) return;
+
         var ctrl = e.ctrlKey || e.metaKey;
         if (ctrl && e.key.toLowerCase() === 'f') { if (search) { search.focus(); search.select(); } e.preventDefault(); return; }
         if (ctrl && e.shiftKey && e.key.toLowerCase() === 'c') { if (copyBtn) copyBtn.click(); e.preventDefault(); return; }
         if (e.key === '1') { if (prettyBtn) prettyBtn.click(); }
-        if (e.key === '2') { if (rawBtn) rawBtn.click(); }
-        if (e.key === '3') { if (treeBtn) treeBtn.click(); }
+        if (e.key === '2') { if (rawBtn)    rawBtn.click(); }
+        if (e.key === '3') { if (treeBtn)   treeBtn.click(); }
         if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
         if (e.key.toLowerCase() === 'e') { if (!expandBtn || expandBtn.disabled) return; expandBtn.click(); }
         if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
