@@ -11,7 +11,10 @@ namespace XRoadFolkRaw.Lib
             "dd-MM-yyyy",
             "yyyy/MM/dd",
             "dd.MM.yyyy",
-            "MM/dd/yyyy"
+            "MM/dd/yyyy",
+            // added compact variants
+            "yyyyMMdd",
+            "ddMMyyyy"
         ];
 
         [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
