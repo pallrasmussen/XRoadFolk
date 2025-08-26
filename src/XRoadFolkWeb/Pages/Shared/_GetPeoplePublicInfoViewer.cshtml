@@ -308,12 +308,12 @@
                 var civil = getTextLocal(person, 'CivilStatus');
 
                 if (publicId) {
-                    var pidLink = document.createElement('a');
-                    pidLink.href = '#';
-                    pidLink.className = 'badge text-bg-light gpiv-pid';
-                    pidLink.setAttribute('data-public-id', publicId);
-                    pidLink.textContent = (I18N.PublicId || 'PublicId') + ': ' + publicId;
-                    header.appendChild(pidLink);
+                    var pidBtn = document.createElement('button');
+                    pidBtn.type = 'button';
+                    pidBtn.className = 'btn btn-sm btn-outline-secondary gpiv-pid';
+                    pidBtn.setAttribute('data-public-id', publicId);
+                    pidBtn.textContent = (I18N.PublicId || 'PublicId') + ': ' + publicId;
+                    header.appendChild(pidBtn);
                 }
 
                 if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
