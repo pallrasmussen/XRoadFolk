@@ -1,20 +1,17 @@
 using System.Globalization;
 using System.Net;
-//using System.Net.Http.Headers;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
+
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
+
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
-using XRoadFolkWeb.Infrastructure;
-using System.Security.Cryptography.X509Certificates; // add
-using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
-using Microsoft.AspNetCore.Mvc;
 using XRoadFolkWeb.Infrastructure;
-using System.Threading.Channels;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
