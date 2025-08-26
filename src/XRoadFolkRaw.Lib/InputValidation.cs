@@ -7,12 +7,17 @@ namespace XRoadFolkRaw.Lib
     public partial class InputValidation
     {
         private static readonly string[] DobFormats = [
+            // ISO first
             "yyyy-MM-dd",
+            // DMY styles next
             "dd-MM-yyyy",
-            "yyyy/MM/dd",
+            "dd/MM/yyyy",
             "dd.MM.yyyy",
+            // YMD with slashes
+            "yyyy/MM/dd",
+            // US style last to avoid ambiguous swaps
             "MM/dd/yyyy",
-            // added compact variants
+            // compact variants
             "yyyyMMdd",
             "ddMMyyyy"
         ];

@@ -549,7 +549,10 @@
       body: document.getElementById('person-details-body'),
       err: document.getElementById('person-details-error'),
       loading: document.getElementById('person-details-loading'),
-      title: document.querySelector('#person-details-section .card-title')
+      title: document.querySelector('#person-details-section .card-title'),
+      logs: document.getElementById('person-details-logs'),
+      logPretty: document.getElementById('pd-log-pretty'),
+      logRaw: document.getElementById('pd-log-raw')
     };
   }
   function showLoading(on){
@@ -564,6 +567,9 @@
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
     if(e.body){ e.body.innerHTML=''; }
     if(e.loading){ e.loading.classList.add('d-none'); }
+    if(e.logs){ e.logs.classList.add('d-none'); }
+    if(e.logPretty){ e.logPretty.textContent=''; }
+    if(e.logRaw){ e.logRaw.textContent=''; }
   }
   function ensureShownAndFocus(){
     var e=getPanelEls(); if(!e.sec) return;
@@ -678,13 +684,21 @@
         return;
       }
 
-      personCache.set(publicId, { details: data.details || [], ts: Date.now() });
+      // store in cache and update logs areas
+      personCache.set(publicId, { details: data.details || [], ts: Date.now(), raw: data.raw || '', pretty: data.pretty || '' });
 
       clearPanel();
       var builder2 = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
       var acc = builder2(data.details || []);
       if (acc) els.body.appendChild(acc);
       ensureShownAndFocus();
+
+      // Update logs panel
+      if (els.logs) {
+        els.logs.classList.add('d-none');
+        if (els.logPretty) els.logPretty.textContent = data.pretty || '';
+        if (els.logRaw) els.logRaw.textContent = data.raw || '';
+      }
 
       if (sourceEl) markSelectedSummaryCard(sourceEl);
 
@@ -707,16 +721,56 @@
 
   document.addEventListener('click', function(e){
     var t = e.target;
-    if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
-    if(e.ctrlKey || e.metaKey) return;
-    e.preventDefault();
-    var pid = t.getAttribute('data-public-id') || '';
-    if(!pid){
-      var txt = t.textContent || '';
-      var parts = txt.split(':');
-      pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
+    if(!t) return;
+
+    // publicId badge click
+    if(t.classList && t.classList.contains('gpiv-pid')){
+      if(e.ctrlKey || e.metaKey) return;
+      e.preventDefault();
+      var pid = t.getAttribute('data-public-id') || '';
+      if(!pid){
+        var txt = t.textContent || '';
+        var parts = txt.split(':');
+        pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
+      }
+      if(pid) loadPerson(pid, t);
+      return;
     }
-    if(pid) loadPerson(pid, t);
+
+    // logs toggle
+    if (t.id === 'pd-toggle-logs'){
+      var els = getPanelEls(); if (!els.logs) return;
+      els.logs.classList.toggle('d-none');
+      return;
+    }
+
+    // logs view switch
+    if (t.id === 'pd-log-pretty-btn' || t.id === 'pd-log-raw-btn'){
+      var els2 = getPanelEls(); if (!els2.logs) return;
+      var showPretty = (t.id === 'pd-log-pretty-btn');
+      var btnPretty = document.getElementById('pd-log-pretty-btn');
+      var btnRaw = document.getElementById('pd-log-raw-btn');
+      btnPretty && btnPretty.classList.toggle('active', showPretty);
+      btnRaw && btnRaw.classList.toggle('active', !showPretty);
+      if (els2.logPretty) els2.logPretty.classList.toggle('d-none', !showPretty);
+      if (els2.logRaw) els2.logRaw.classList.toggle('d-none', showPretty);
+      return;
+    }
+
+    // logs copy
+    if (t.id === 'pd-log-copy-btn'){
+      try{
+        var els3 = getPanelEls();
+        var showPretty = !(els3.logPretty && els3.logPretty.classList.contains('d-none'));
+        var text = showPretty ? (els3.logPretty && els3.logPretty.textContent) : (els3.logRaw && els3.logRaw.textContent);
+        text = text || '';
+        (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){})) || (function(){
+          var ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.left='-10000px';
+          document.body.appendChild(ta); ta.select(); try{ document.execCommand && document.execCommand('copy'); }catch{} ta.remove();
+        })();
+      }catch{}
+      return;
+    }
   });
 
   try{
