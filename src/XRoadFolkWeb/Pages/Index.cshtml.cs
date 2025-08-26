@@ -345,6 +345,18 @@ namespace XRoadFolkWeb.Pages
                               || k.Contains(".requestheader")
                               || k.Contains(".requestbody"));
                     })
+                    // Also remove the same noise fields used by Summary: Id, Fixed, AuthorityCode, PersonAddressId
+                    .Where(p =>
+                    {
+                        if (string.IsNullOrEmpty(p.Key)) return true;
+                        string key = p.Key;
+                        int lastDot = key.LastIndexOf('.');
+                        string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
+                        int bpos = sub.IndexOf('[');
+                        if (bpos >= 0) sub = sub[..bpos];
+                        string s = sub.ToLowerInvariant();
+                        return s != "id" && s != "fixed" && s != "authoritycode" && s != "personaddressid";
+                    })
                     .ToList();
 
                 return new JsonResult(new
