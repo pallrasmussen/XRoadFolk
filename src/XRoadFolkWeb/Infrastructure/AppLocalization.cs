@@ -1,5 +1,4 @@
 using System.Globalization;
-//using Microsoft.Extensions.Configuration;
 
 namespace XRoadFolkWeb.Infrastructure
 {
