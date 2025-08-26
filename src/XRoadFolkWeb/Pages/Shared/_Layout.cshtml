@@ -71,8 +71,45 @@
                     <li class="nav-item">
                         <a class="nav-link @(Context.Request.Path == "/" ? "active" : null)" href="/">@SR["Nav_Home"]</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="btn btn-sm btn-outline-light @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="/Logs/Http">@SR["Nav_Logs"]</a>
+                    <li class="nav-item dropdown">
+                        <a class="btn btn-sm btn-outline-light dropdown-toggle @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="#" id="logsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            @SR["Nav_Logs"]
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="logsDropdown" style="min-width: 18rem;">
+                            <li class="dropdown-header small text-muted px-3 pt-2">@SR["Nav_Logs"]</li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="/Logs/Http">
+                                    <span class="text-primary" aria-hidden="true">🛰️</span>
+                                    <span>
+                                        <div class="fw-semibold">HTTP</div>
+                                        <small class="text-muted">Requests, responses, status codes</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="/Logs/Soap">
+                                    <span class="text-warning" aria-hidden="true">🧼</span>
+                                    <span>
+                                        <div class="fw-semibold">SOAP</div>
+                                        <small class="text-muted">Sanitized XML requests/responses</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-start gap-2 py-2" href="/Logs/App">
+                                    <span class="text-success" aria-hidden="true">📒</span>
+                                    <span>
+                                        <div class="fw-semibold">Application</div>
+                                        <small class="text-muted">Info, warnings and errors</small>
+                                    </span>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="px-3 pb-2">
+                                <div class="small text-muted">Tips</div>
+                                <div class="small">Use Ctrl/⌘ + K to focus the page filter (if available).</div>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
 

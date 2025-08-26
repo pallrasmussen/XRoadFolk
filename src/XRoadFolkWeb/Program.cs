@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
 using Microsoft.AspNetCore.Mvc;
 using XRoadFolkWeb.Infrastructure;
+using System.Threading.Channels;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -215,8 +216,9 @@ builder.Services
         "Localization: DefaultCulture must be included in SupportedCultures.")
     .ValidateOnStart();
 
-// Register in-memory HTTP/SOAP log store + logger provider (uses same singleton)
-builder.Services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLogStore(1000));
+// Register realtime broadcaster and in-memory log store + logger provider
+builder.Services.AddSingleton<ILogStream, LogStreamBroadcaster>();
+builder.Services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLogStore(1000, sp.GetRequiredService<ILogStream>()));
 builder.Services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
 
 WebApplication app = builder.Build();
@@ -296,10 +298,18 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
 
 app.MapRazorPages();
 
-// HTTP/SOAP logs endpoints
-app.MapGet("/logs/http", (IHttpLogStore store) => Results.Json(new { ok = true, items = store.GetAll() }));
-app.MapPost("/logs/http/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
-app.MapPost("/logs/http/write", ([FromBody] XRoadFolkWeb.LogWriteDto dto, IHttpLogStore store) =>
+// Logs endpoints (generic with kind=http|soap|app)
+app.MapGet("/logs", ([FromQuery] string? kind, IHttpLogStore store) =>
+{
+    var items = store.GetAll();
+    if (!string.IsNullOrWhiteSpace(kind))
+    {
+        items = items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+    return Results.Json(new { ok = true, items });
+});
+app.MapPost("/logs/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
+app.MapPost("/logs/write", ([FromBody] XRoadFolkWeb.LogWriteDto dto, IHttpLogStore store) =>
 {
     if (dto is null) return Results.BadRequest();
     if (!Enum.TryParse<LogLevel>(dto.Level ?? "Information", true, out var lvl)) lvl = LogLevel.Information;
@@ -309,10 +319,40 @@ app.MapPost("/logs/http/write", ([FromBody] XRoadFolkWeb.LogWriteDto dto, IHttpL
         Level = lvl,
         Category = dto.Category ?? "Manual",
         EventId = dto.EventId ?? 0,
+        Kind = "app",
         Message = dto.Message ?? string.Empty,
         Exception = null
     });
     return Results.Json(new { ok = true });
+});
+
+// Server-Sent Events: real-time log stream (accepts kind filter)
+app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogStream stream, CancellationToken ct) =>
+{
+    ctx.Response.Headers.CacheControl = "no-cache";
+    ctx.Response.Headers.Connection = "keep-alive";
+    ctx.Response.Headers.Add("X-Accel-Buffering", "no"); // for proxies like nginx
+    ctx.Response.ContentType = "text/event-stream";
+
+    var (reader, id) = stream.Subscribe();
+    try
+    {
+        await foreach (var entry in reader.ReadAllAsync(ct))
+        {
+            if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            string json = System.Text.Json.JsonSerializer.Serialize(entry);
+            await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+            await ctx.Response.Body.FlushAsync(ct);
+        }
+    }
+    catch (OperationCanceledException) { }
+    finally
+    {
+        stream.Unsubscribe(id);
+    }
 });
 
 // Culture defaults for threads (optional)

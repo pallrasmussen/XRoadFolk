@@ -60,8 +60,20 @@ namespace XRoadFolkWeb.Pages
 
         private const string ResponseKey = "PeoplePublicInfoResponse";
 
-        public async Task OnGetAsync(string? publicId = null)
+        public async Task OnGetAsync(
+            string? publicId = null,
+            string? ssn = null,
+            string? firstName = null,
+            string? lastName = null,
+            string? dateOfBirth = null)
         {
+            // Prefill bound properties from query to retain form values after redirects or navigation
+            if (!string.IsNullOrWhiteSpace(ssn)) Ssn = ssn;
+            if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
+            if (!string.IsNullOrWhiteSpace(lastName)) LastName = lastName;
+            if (!string.IsNullOrWhiteSpace(dateOfBirth)) DateOfBirth = dateOfBirth;
+
+            // Optional: load person details by PublicId (AJAX panel)
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 try
@@ -76,6 +88,41 @@ namespace XRoadFolkWeb.Pages
                     SelectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
                         ? _loc["SelectedNameSuffixFormat", string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                         : string.Empty;
+                }
+                catch (Exception ex)
+                {
+                    Errors.Add(ex.Message);
+                }
+            }
+
+            // If any search criteria provided via GET, perform the search (PRG target)
+            bool hasCriteria = !string.IsNullOrWhiteSpace(Ssn)
+                            || !string.IsNullOrWhiteSpace(FirstName)
+                            || !string.IsNullOrWhiteSpace(LastName)
+                            || !string.IsNullOrWhiteSpace(DateOfBirth);
+            if (hasCriteria)
+            {
+                // Only validate the present path (SSN vs Name+DOB)
+                (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
+                    InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+
+                if (!ok)
+                {
+                    Errors = errs;
+                    return;
+                }
+
+                try
+                {
+                    string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                    PeoplePublicInfoResponseXml = xml;
+                    PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
+                    Results = ParsePeopleList(xml);
+
+                    _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -132,6 +179,7 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
+            // Perform the operation
             try
             {
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
@@ -147,8 +195,17 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 Errors.Add(ex.Message);
+                return Page();
             }
-            return Page();
+
+            // PRG: Redirect to GET with criteria in query string so Back never re-submits the form
+            return RedirectToPage(new
+            {
+                ssn = Ssn,
+                firstName = FirstName,
+                lastName = LastName,
+                dateOfBirth = DateOfBirth
+            });
         }
 
         public IActionResult OnPostClear()

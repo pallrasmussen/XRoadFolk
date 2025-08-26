@@ -101,21 +101,10 @@
               <div class="d-flex flex-wrap gap-2">
                 <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary">@L["Expand"]</button>
                 <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary">@L["Collapse"]</button>
-                <button type="button" id="pd-toggle-logs" class="btn btn-sm btn-outline-secondary" title="Logs">Logs</button>
               </div>
             </div>
 
-            <div id="person-details-logs" class="d-none mb-2">
-              <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Logs view">
-                <button type="button" id="pd-log-pretty-btn" class="btn btn-outline-secondary active">Pretty</button>
-                <button type="button" id="pd-log-raw-btn" class="btn btn-outline-secondary">Raw</button>
-                <button type="button" id="pd-log-copy-btn" class="btn btn-outline-secondary">Copy</button>
-              </div>
-              <pre id="pd-log-pretty" class="small bg-body-tertiary p-3 border rounded" style="white-space: pre; overflow:auto; max-height:35vh;"></pre>
-              <pre id="pd-log-raw" class="small bg-body-tertiary p-3 border rounded d-none" style="white-space: pre; overflow:auto; max-height:35vh;"></pre>
-            </div>
-
-            <div id="person-details-loading" class="text-muted small d-none" aria-live="polite">@L["Loading"]…</div>
+            <div id="person-details-loading" class="text-muted small d-none" aria-live="polite">@L["Loading"]?</div>
             <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
 
             <div id="person-details-body"><!-- accordion injected here --></div>
@@ -367,16 +356,10 @@
       var body = document.getElementById('person-details-body');
       var err = document.getElementById('person-details-error');
       var loading = document.getElementById('person-details-loading');
-      var logs = document.getElementById('person-details-logs');
-      var pre1 = document.getElementById('pd-log-pretty');
-      var pre2 = document.getElementById('pd-log-raw');
       if (sec) sec.classList.add('d-none');
       if (body) body.innerHTML='';
       if (err) { err.classList.add('d-none'); err.textContent=''; }
       if (loading) loading.classList.add('d-none');
-      if (logs) logs.classList.add('d-none');
-      if (pre1) pre1.textContent='';
-      if (pre2) pre2.textContent='';
       window.lastPid = null;
       if (window.personCache && window.personCache.clear) window.personCache.clear();
       try{
@@ -386,6 +369,63 @@
       }catch{}
     }catch{}
   });
+})();
+</script>
+<script>
+// Preserve form values when navigating to Logs pages and restore when coming back via GET
+(function(){
+  var KEY = 'xrf:index:form-v1';
+  function save(){
+    try {
+      var ssn = document.getElementById('Ssn');
+      var fn  = document.getElementById('FirstName');
+      var ln  = document.getElementById('LastName');
+      var dob = document.getElementById('DateOfBirth');
+      var data = {
+        ssn: ssn && ssn.value || '',
+        first: fn && fn.value || '',
+        last: ln && ln.value || '',
+        dob: dob && dob.value || '',
+        ts: Date.now()
+      };
+      sessionStorage.setItem(KEY, JSON.stringify(data));
+    } catch {}
+  }
+  function restore(){
+    try {
+      var raw = sessionStorage.getItem(KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      var ssn = document.getElementById('Ssn');
+      var fn  = document.getElementById('FirstName');
+      var ln  = document.getElementById('LastName');
+      var dob = document.getElementById('DateOfBirth');
+      if (ssn) ssn.value = data.ssn || '';
+      if (fn)  fn.value  = data.first || '';
+      if (ln)  ln.value  = data.last || '';
+      if (dob) dob.value = data.dob || '';
+      // Clear after restoring to avoid stale use later
+      sessionStorage.removeItem(KEY);
+    } catch {}
+  }
+
+  // Intercept clicks on logs links to save form state just before leaving
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    // Match app-relative logs routes
+    if (href === '/Logs/Http' || href === '/Logs/Soap' || href === '/Logs/App') {
+      save();
+    }
+  }, true);
+
+  // On load after GET, restore if we have a snapshot
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', restore);
+  } else {
+    restore();
+  }
 })();
 </script>
 }
