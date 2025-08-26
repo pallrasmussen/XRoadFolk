@@ -305,7 +305,7 @@
 
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
-                var civil = getTextLocal(person, 'CivilStatus');
+                // var civil = getTextLocal(person, 'CivilStatus'); // removed from header display
 
                 if (publicId) {
                     var pidBtn = document.createElement('button');
@@ -317,7 +317,7 @@
                 }
 
                 if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
-                if (civil) header.appendChild(badge((I18N.Status || 'Status') + ': ' + civil));
+                // if (civil) header.appendChild(badge((I18N.Status || 'Status') + ': ' + civil)); // do not show status in People header
 
                 wrap.appendChild(header);
 
