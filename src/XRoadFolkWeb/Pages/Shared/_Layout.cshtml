@@ -49,14 +49,11 @@
         })();
     </script>
 
-    <!-- Bootstrap 5 (local) -->
-    <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" asp-append-version="true" />
+    <!-- Bootswatch "Flatly" theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom overrides -->
-    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
-
-    <!-- Bootswatch Zephyr theme (local overrides) -->
-    <link href="~/css/bootswatch-zephyr.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/site.css" rel="stylesheet" />
 </head>
 <body class="d-flex flex-column min-vh-100">
     <!-- Branded navbar -->
@@ -73,9 +70,6 @@
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link @(Context.Request.Path == "/" ? "active" : null)" href="/">@SR["Nav_Home"]</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="/Logs">Logs</a>
                     </li>
                 </ul>
 
@@ -126,8 +120,8 @@
         </div>
     </footer>
 
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="~/js/site.js"></script>
 
     <environment include="Development">
         <script src="/_framework/aspnetcore-browser-refresh.js"></script>

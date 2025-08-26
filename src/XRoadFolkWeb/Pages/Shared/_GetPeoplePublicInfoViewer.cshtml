@@ -144,13 +144,20 @@
       for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
       return false;
     }
+    function isNoiseKey(name) {
+      if (!name) return false;
+      var n = String(name).toLowerCase();
+      return n === 'id' || n === 'fixed' || n === 'authoritycode' || n === 'personaddressid';
+    }
     var atSign = String.fromCharCode(64);
     function buildKvpTableIncludingAttributes(owner) {
       var rows = [];
       if (owner && owner.attributes && owner.attributes.length) {
         for (var i = 0; i < owner.attributes.length; i++) {
           var a = owner.attributes[i];
-          rows.push({ key: atSign + a.name, val: (a.value || '') });
+          var attrName = a.localName || a.name || '';
+          if (isNoiseKey(attrName)) continue; // filter noise attributes
+          rows.push({ key: atSign + (a.name || ''), val: (a.value || '') });
         }
       }
       var kids = owner && owner.children ? owner.children : [];
@@ -158,11 +165,14 @@
         var ch = kids[k];
         if (isNil(ch)) continue;
         if (!hasElementChildren(ch)) {
+          if (isNoiseKey(ch.localName)) continue; // filter noise elements
           rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
           if (ch.attributes && ch.attributes.length) {
             for (var a2 = 0; a2 < ch.attributes.length; a2++) {
               var at = ch.attributes[a2];
-              rows.push({ key: ch.localName + ' ' + atSign + at.name, val: (at.value || '') });
+              var atName = at.localName || at.name || '';
+              if (isNoiseKey(atName)) continue; // filter noise child attributes
+              rows.push({ key: ch.localName + ' ' + atSign + (at.name || ''), val: (at.value || '') });
             }
           }
         }
@@ -311,28 +321,41 @@
 
                 wrap.appendChild(header);
 
-                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false;
-                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
-                basics.appendChild(basicsSum);
-                var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
-                wrap.appendChild(basics);
-
                 if (nameRoot) {
                     var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = false;
                     var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = I18N.Names || 'Names';
                     namesSection.appendChild(namesSum);
                     var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
+
+                    // Collect Name entries and sort by <Order>
+                    var nameItems = [];
                     for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
-                        var nItem = nameRoot.children[n2]; if (nItem.localName !== 'Name' || isNil(nItem)) continue;
+                        var nItem = nameRoot.children[n2];
+                        if (nItem.localName !== 'Name' || isNil(nItem)) continue;
+                        var ord = parseInt(getTextLocal(nItem, 'Order') || '9999', 10);
+                        if (isNaN(ord)) ord = 9999;
+                        nameItems.push({ node: nItem, order: ord });
+                    }
+                    nameItems.sort(function(a,b){ return a.order - b.order; });
+
+                    for (var ix = 0; ix < nameItems.length; ix++) {
+                        var nNode = nameItems[ix].node;
                         var card2 = el('div', 'p-2 border rounded', null);
-                        var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (list.children.length + 1));
+                        var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (ix + 1));
                         card2.appendChild(title2);
-                        var t2 = buildKvpTableIncludingAttributes(nItem); if (t2) card2.appendChild(t2);
+                        var t2 = buildKvpTableIncludingAttributes(nNode); if (t2) card2.appendChild(t2);
                         list.appendChild(card2);
                     }
+
                     namesSection.appendChild(list);
                     wrap.appendChild(namesSection);
                 }
+
+                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false;
+                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
+                basics.appendChild(basicsSum);
+                var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
+                wrap.appendChild(basics);
 
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
@@ -647,7 +670,7 @@
       if (!data || data.ok !== true) {
         if (els.err) {
           var msg = (data && data.error) ? String(data.error) : 'Failed to load details.';
-          els.err.innerHTML = msg + ' <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
+          els.err.innerHTML = msg + ' <button type=\"button\" id=\"pd-retry\" class=\"btn btn-sm btn-outline-secondary ms-2\">Retry</button>';
           els.err.classList.remove('d-none');
           var retry = document.getElementById('pd-retry');
           retry && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
@@ -673,7 +696,7 @@
     } catch (err) {
       showLoading(false);
       if (els.err) {
-        els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
+        els.err.innerHTML = 'Failed to load details. <button type=\"button\" id=\"pd-retry\" class=\"btn btn-sm btn-outline-secondary ms-2\">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
         retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });

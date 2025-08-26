@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
-using XRoadFolkRaw.Lib.Options; // add options types
+using XRoadFolkRaw.Lib.Options; // added for GetPersonRequestOptions & validator
 
 // Use the Generic Host only (remove mixed top-level + class blocks)
 
@@ -102,7 +102,7 @@ builder.Services.AddScoped(sp =>
         retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
-// Register options validator used by PeopleService
+// Register validator for GetPerson requests
 builder.Services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
 
 builder.Services.AddScoped(sp =>

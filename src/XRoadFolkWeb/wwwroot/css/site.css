@@ -44,11 +44,14 @@ body {
   --bs-border-radius-sm: .4rem;
   --bs-border-radius-lg: .8rem;
 
-  /* Typography (system stack only to comply with CSP self) */
-  --bs-body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+  /* Typography */
+  --bs-body-font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
   --bs-body-font-size: 1rem;
   --bs-body-line-height: 1.6;
 }
+
+/* Optional: import Inter font (ensure allowed by your CSP/policy) */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
 
 /* Buttons (adjust tokens for primary button) */
 .btn-primary {
@@ -77,8 +80,8 @@ body {
   --bs-border-color: #1f2937;
 
   --bs-primary: #60a5fa;            /* lighter blue for dark bg */
-  --bs-link-color: #93c5fd;
-  --bs-link-hover-color: #bfdbfe;
+  --bs-link-color: #60a5fa;
+  --bs-link-hover-color: #93c5fd;
 
   --bs-card-bg: #0f172a;            /* card surfaces */
   --bs-card-color: var(--bs-body-color);
@@ -95,7 +98,7 @@ body {
 
 /* Optional: subtle borders/shadows adapt in dark mode */
 [data-bs-theme="brand-dark"] .card {
-  border: 1px solid (var(--bs-card-border-color));
+  border: 1px solid var(--bs-card-border-color);
   box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.3);
 }
 
@@ -116,21 +119,3 @@ body {
   border-color: #60a5fa;
   box-shadow: 0 0 0 .25rem rgba(96,165,250,.2);
 }
-
-/* Accessibility: make links clearly visible and focusable */
-a:not(.btn) {
-  color: var(--bs-link-color);
-  text-decoration: underline;
-  text-underline-offset: .15em;
-  text-decoration-thickness: .08em;
-}
-a:not(.btn):hover { color: var(--bs-link-hover-color); }
-a:not(.btn):focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
-  border-radius: .15rem;
-}
-/* Navbar links: stronger focus/hover underline for clarity */
-.navbar .nav-link { text-decoration: none; }
-.navbar .nav-link:hover,
-.navbar .nav-link:focus-visible { text-decoration: underline; text-underline-offset: .2em; }

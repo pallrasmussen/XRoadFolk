@@ -15,7 +15,7 @@
                 <h5 class="card-title">@L["SearchCriteria"]</h5>
                 <p class="text-muted mb-3">@L["ProvideCriteria"]</p>
 
-                <form id="people-search-form" method="post" class="row gy-3">
+                <form method="post" class="row gy-3">
                     <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
 
                     <div class="col-12">
@@ -73,13 +73,11 @@
 
     <!-- GetPeoplePublicInfo viewer -->
     <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
-        <div id="gppi-wrapper">
-            <partial name="_GetPeoplePublicInfoViewer"
-                     view-data='new ViewDataDictionary(ViewData) {
-                         ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
-                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
-                     }' />
-        </div>
+        <partial name="_GetPeoplePublicInfoViewer"
+                 view-data='new ViewDataDictionary(ViewData) {
+                     ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
+                     ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
+                 }' />
 
         <!-- GetPerson response (AJAX-filled; kept separate and below the viewer) -->
         <div id="person-details-section" class="card shadow-sm mb-4 person-details d-none" role="region" aria-labelledby="pd-title">
@@ -183,58 +181,6 @@
 <script>
 // Enhance the existing appended helper (mask removed)
 (function(){
-  var FORM_ID = 'people-search-form';
-  var VIEW_ID = 'gppi-wrapper';
-  var PD_ID = 'person-details-section';
-  var STORAGE_KEY = 'people-search-state';
-
-  function saveState(){
-    try{
-      var f = document.getElementById(FORM_ID);
-      if (!f) return;
-      var state = {
-        ssn: f.querySelector('[name="Ssn"]').value || '',
-        first: f.querySelector('[name="FirstName"]').value || '',
-        last: f.querySelector('[name="LastName"]').value || '',
-        dob: f.querySelector('[name="DateOfBirth"]').value || '',
-        viewHtml: (document.getElementById(VIEW_ID)?.innerHTML) || '',
-        pdHtml: (document.getElementById(PD_ID)?.outerHTML) || ''
-      };
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }catch{}
-  }
-
-  function restoreState(){
-    try{
-      var raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      var f = document.getElementById(FORM_ID);
-      if (f){
-        var ssn = f.querySelector('[name="Ssn"]'); if (ssn) ssn.value = s.ssn || '';
-        var first = f.querySelector('[name="FirstName"]'); if (first) first.value = s.first || '';
-        var last = f.querySelector('[name="LastName"]'); if (last) last.value = s.last || '';
-        var dob = f.querySelector('[name="DateOfBirth"]'); if (dob) dob.value = s.dob || '';
-      }
-      var vw = document.getElementById(VIEW_ID);
-      if (vw && !vw.innerHTML.trim() && s.viewHtml){ vw.innerHTML = s.viewHtml; }
-      var pd = document.getElementById(PD_ID);
-      if (pd && s.pdHtml){ pd.outerHTML = s.pdHtml; }
-    }catch{}
-  }
-
-  // Save on navigation away and on form submit
-  window.addEventListener('beforeunload', saveState);
-  var formEl = document.getElementById(FORM_ID);
-  if (formEl) formEl.addEventListener('submit', saveState);
-
-  // Attempt restore on load
-  document.addEventListener('DOMContentLoaded', restoreState);
-})();
-</script>
-<script>
-// Additional helpers kept from earlier version
-(function(){
   // Toolbar getters (mask removed)
   function getToolbarEls() {
     return {
@@ -306,6 +252,7 @@
     }catch{}
   }
 
+  // Wrap original renderer to restore state (mask removed)
   var originalRender = window._renderPairsGroupedForPerson || null;
   function renderPairsWithUX(pairs, pid){
     var builder = (originalRender || window.renderPairsGrouped || null);
@@ -319,6 +266,7 @@
     return acc;
   }
 
+  // Re-render current cache on demand
   var pdBody = document.getElementById('person-details-body');
   function rerenderCurrent(){
     try{
@@ -328,11 +276,12 @@
       if (!cache || !cache.details) return;
       pdBody.innerHTML = '';
       var acc = renderPairsWithUX(cache.details, pid);
-      if (acc) pdBody.appendChild(acc);
+      if acc) pdBody.appendChild(acc);
       saveAccState(pid);
     }catch{}
   }
 
+  // Wire toolbar actions (mask references removed)
   var tbe = getToolbarEls();
 
   tbe.copyJson && tbe.copyJson.addEventListener('click', function(){
@@ -362,6 +311,7 @@
     }catch{}
   });
 
+  // Persist state when user toggles groups
   document.addEventListener('click', function(ev){
     var pid = window.lastPid || null;
     if (!pid) return;
@@ -369,6 +319,7 @@
     if (btn) setTimeout(function(){ saveAccState(pid); }, 0);
   });
 
+  // Expose helpers
   window.__pdUx = {
     renderPairsWithUX: renderPairsWithUX,
     restoreAccState: restoreAccState,
