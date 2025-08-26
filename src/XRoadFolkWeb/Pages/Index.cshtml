@@ -413,9 +413,11 @@
   document.addEventListener('click', function(e){
     var a = e.target && e.target.closest && e.target.closest('a[href]');
     if (!a) return;
-    var href = a.getAttribute('href') || '';
-    // Match app-relative logs routes
-    if (href === '/Logs/Http' || href === '/Logs/Soap' || href === '/Logs/App') {
+    var hrefAttr = a.getAttribute('href') || '';
+    var urlObj = null;
+    try { urlObj = new URL(hrefAttr, window.location.href); } catch { return; }
+    var path = (urlObj.pathname || '').toLowerCase();
+    if (path === '/logs' || path === '/logs/' || path.startsWith('/logs/')) {
       save();
     }
   }, true);
