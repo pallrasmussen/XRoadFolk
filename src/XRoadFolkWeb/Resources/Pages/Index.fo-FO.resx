@@ -174,4 +174,7 @@
   <data name="DateFormatPlaceholder" xml:space="preserve">
     <value>DD-MM-ÁÁÁÁ</value>
   </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>Einki fólk funnið.</value>
+  </data>
 </root>

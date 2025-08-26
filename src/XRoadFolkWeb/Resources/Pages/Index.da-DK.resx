@@ -174,4 +174,7 @@
   <data name="DateFormatPlaceholder" xml:space="preserve">
     <value>DD-MM-ÅÅÅÅ</value>
   </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>Ingen personer fundet.</value>
+  </data>
 </root>

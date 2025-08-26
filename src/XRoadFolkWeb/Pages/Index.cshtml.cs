@@ -241,6 +241,14 @@ namespace XRoadFolkWeb.Pages
                     ssn = requestSsn;
                 }
 
+                // Skip entries that have no identifiers or names at all
+                bool hasIdentifier = !string.IsNullOrWhiteSpace(publicId) || !string.IsNullOrWhiteSpace(ssn);
+                bool hasAnyName = !string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName);
+                if (!hasIdentifier && !hasAnyName)
+                {
+                    continue;
+                }
+
                 rows.Add(new PersonRow
                 {
                     PublicId = publicId,

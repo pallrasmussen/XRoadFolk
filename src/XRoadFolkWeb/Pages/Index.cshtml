@@ -73,11 +73,18 @@
 
     <!-- GetPeoplePublicInfo viewer -->
     <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
-        <partial name="_GetPeoplePublicInfoViewer"
-                 view-data='new ViewDataDictionary(ViewData) {
-                     ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
-                     ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
-                 }' />
+        @if ((Model?.Results?.Count ?? 0) > 0)
+        {
+            <partial name="_GetPeoplePublicInfoViewer"
+                     view-data='new ViewDataDictionary(ViewData) {
+                         ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
+                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
+                     }' />
+        }
+        else if (Model?.PeoplePublicInfoResponseXml != null)
+        {
+            <div class="alert alert-info" role="status">@L["NoPeopleFound"]</div>
+        }
 
         <!-- GetPerson response (AJAX-filled; kept separate and below the viewer) -->
         <div id="person-details-section" class="card shadow-sm mb-4 person-details d-none" role="region" aria-labelledby="pd-title">
