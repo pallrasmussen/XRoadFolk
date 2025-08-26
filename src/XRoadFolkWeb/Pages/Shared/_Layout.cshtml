@@ -74,6 +74,9 @@
                     <li class="nav-item">
                         <a class="nav-link @(Context.Request.Path == "/" ? "active" : null)" href="/">@SR["Nav_Home"]</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="/Logs">Logs</a>
+                    </li>
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">

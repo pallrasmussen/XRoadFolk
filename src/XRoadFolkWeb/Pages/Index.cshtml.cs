@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Logging; // add
+using System.Diagnostics; // add
 using XRoadFolkRaw.Lib;
 using XRoadFolkWeb.Validation;
 using SsnAttr = XRoadFolkWeb.Validation.SsnAttribute; // ADD: alias to the intended SsnAttribute
@@ -15,12 +17,13 @@ using SsnAttr = XRoadFolkWeb.Validation.SsnAttribute; // ADD: alias to the inten
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache) : PageModel
+    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, ILogger<IndexModel> logger) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
         private readonly IMemoryCache _cache = cache;
+        private readonly ILogger<IndexModel> _log = logger;
 
         [BindProperty, SsnAttr] // USE the alias to disambiguate
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
@@ -60,10 +63,19 @@ namespace XRoadFolkWeb.Pages
 
         private const string ResponseKey = "PeoplePublicInfoResponse";
 
+        private static string MaskSsn(string? ssn)
+        {
+            if (string.IsNullOrWhiteSpace(ssn)) return string.Empty;
+            var digits = new string(ssn.Where(char.IsDigit).ToArray());
+            if (digits.Length <= 3) return new string('*', digits.Length);
+            return new string('*', digits.Length - 3) + digits[^3..];
+        }
+
         public async Task OnGetAsync(string? publicId = null)
         {
             if (!string.IsNullOrWhiteSpace(publicId))
             {
+                _log.LogInformation("[GetPerson] Requested details for PublicId={PublicId}", publicId);
                 try
                 {
                     string xml = await _service.GetPersonAsync(publicId);
@@ -76,9 +88,12 @@ namespace XRoadFolkWeb.Pages
                     SelectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
                         ? _loc["SelectedNameSuffixFormat", string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                         : string.Empty;
+
+                    _log.LogInformation("[GetPerson] Parsed {PairCount} key-value pairs for PublicId={PublicId}", PersonDetails?.Count ?? 0, publicId);
                 }
                 catch (Exception ex)
                 {
+                    _log.LogError(ex, "[GetPerson] Failed for PublicId={PublicId}", publicId);
                     Errors.Add(ex.Message);
                 }
             }
@@ -90,6 +105,7 @@ namespace XRoadFolkWeb.Pages
             if (!ModelState.IsValid)
             {
                 Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
+                _log.LogWarning("[Search] Model validation failed with {ErrorCount} errors. Keys={Keys}", Errors.Count, string.Join(",", ModelState.Keys));
                 return Page();
             }
 
@@ -105,6 +121,7 @@ namespace XRoadFolkWeb.Pages
                 LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
                 ModelState.AddModelError(string.Empty, msg);
                 Errors = [msg];
+                _log.LogWarning("[Search] Missing name/DOB fields. First={First} Last={Last} DOB={Dob}", first, last, dobInput);
                 return Page();
             }
 
@@ -125,11 +142,14 @@ namespace XRoadFolkWeb.Pages
                 }
 
                 Errors = errs;
+                _log.LogWarning("[Search] Criteria validation failed: {Errors}", string.Join(" | ", errs));
                 return Page();
             }
 
+            var sw = Stopwatch.StartNew();
             try
             {
+                _log.LogInformation("[Search] GetPeoplePublicInfo start. UsingSSN={UsingSsn} SSN={MaskedSsn} First={First} Last={Last} DOB={Dob}", usingSsn, MaskSsn(ssnNorm), first, last, dob?.ToString("yyyy-MM-dd"));
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
                 PeoplePublicInfoResponseXml = xml;
                 PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
@@ -140,9 +160,14 @@ namespace XRoadFolkWeb.Pages
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
                 });
+
+                sw.Stop();
+                _log.LogInformation("[Search] Completed in {ElapsedMs} ms. Results={Count}", sw.ElapsedMilliseconds, Results.Count);
             }
             catch (Exception ex)
             {
+                sw.Stop();
+                _log.LogError(ex, "[Search] Failed after {ElapsedMs} ms", sw.ElapsedMilliseconds);
                 Errors.Add(ex.Message);
             }
             return Page();
@@ -157,6 +182,7 @@ namespace XRoadFolkWeb.Pages
             SelectedNameSuffix = string.Empty;
             PeoplePublicInfoResponseXml = null;
             PeoplePublicInfoResponseXmlPretty = null;
+            _log.LogInformation("[Search] Cleared form and results by user");
             return RedirectToPage();
         }
 
@@ -329,6 +355,8 @@ namespace XRoadFolkWeb.Pages
                 return BadRequest(new { ok = false, error = "Missing publicId." });
             }
 
+            _log.LogInformation("[GetPerson API] Fetching details for PublicId={PublicId}", publicId);
+            var sw = Stopwatch.StartNew();
             try
             {
                 string xml = await _service.GetPersonAsync(publicId);
@@ -347,6 +375,9 @@ namespace XRoadFolkWeb.Pages
                     })
                     .ToList();
 
+                sw.Stop();
+                _log.LogInformation("[GetPerson API] Done in {ElapsedMs} ms with {PairCount} pairs for PublicId={PublicId}", sw.ElapsedMilliseconds, filtered.Count, publicId);
+
                 return new JsonResult(new
                 {
                     ok = true,
@@ -358,6 +389,8 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
+                sw.Stop();
+                _log.LogError(ex, "[GetPerson API] Failed for PublicId={PublicId} after {ElapsedMs} ms", publicId, sw.ElapsedMilliseconds);
                 return new JsonResult(new { ok = false, error = ex.Message });
             }
         }
