@@ -87,6 +87,10 @@ namespace XRoadFolkWeb.Pages
         // Replace the ValidateCriteria call in OnPostAsync with this guarded version
         public async Task<IActionResult> OnPostAsync()
         {
+            // Clear person details on every new search
+            PersonDetails = null;
+            SelectedNameSuffix = string.Empty;
+
             if (!ModelState.IsValid)
             {
                 Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
@@ -134,7 +138,6 @@ namespace XRoadFolkWeb.Pages
                 PeoplePublicInfoResponseXml = xml;
                 PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
                 Results = ParsePeopleList(xml);
-                SelectedNameSuffix = string.Empty;
 
                 _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
                 {

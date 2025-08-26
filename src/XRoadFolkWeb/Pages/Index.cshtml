@@ -15,7 +15,7 @@
                 <h5 class="card-title">@L["SearchCriteria"]</h5>
                 <p class="text-muted mb-3">@L["ProvideCriteria"]</p>
 
-                <form method="post" class="row gy-3">
+                <form method="post" class="row gy-3" id="gpip-search-form">
                     <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
 
                     <div class="col-12">
@@ -197,7 +197,8 @@
       var curr = root;
       for (var i = 0; i < path.length; i++) {
         var seg = path[i];
-        var m = seg.match(/^(.+)\[(\d+)\]$/);
+        var m = seg.match(/^(.+)[(\[](?:(\d+))[)\]]$/);
+        if(!m){ m = seg.match(/^(.+)\[(\d+)\]$/); }
         if (m) {
           var base = m[1], idx = parseInt(m[2], 10);
           curr[base] = curr[base] || [];
@@ -276,7 +277,7 @@
       if (!cache || !cache.details) return;
       pdBody.innerHTML = '';
       var acc = renderPairsWithUX(cache.details, pid);
-      if acc) pdBody.appendChild(acc);
+      if (acc) pdBody.appendChild(acc);
       saveAccState(pid);
     }catch{}
   }
@@ -335,6 +336,33 @@
     });
     if (pdBody) mo.observe(pdBody, { childList: true });
   }catch{}
+})();
+</script>
+<script>
+// Clear/hide Person Details immediately on new search submit
+(function(){
+  var form = document.getElementById('gpip-search-form');
+  if (!form) return;
+  form.addEventListener('submit', function(){
+    try{
+      var sec = document.getElementById('person-details-section');
+      var body = document.getElementById('person-details-body');
+      var err = document.getElementById('person-details-error');
+      var loading = document.getElementById('person-details-loading');
+      if (sec) sec.classList.add('d-none');
+      if (body) body.innerHTML='';
+      if (err) { err.classList.add('d-none'); err.textContent=''; }
+      if (loading) loading.classList.add('d-none');
+      window.lastPid = null;
+      if (window.personCache && window.personCache.clear) window.personCache.clear();
+      // also remove focus query param if present
+      try{
+        var url = new URL(window.location.href);
+        url.searchParams.delete('gpivPublicId');
+        history.replaceState(null,'',url.toString());
+      }catch{}
+    }catch{}
+  });
 })();
 </script>
 }
