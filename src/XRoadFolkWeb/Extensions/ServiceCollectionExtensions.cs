@@ -25,7 +25,7 @@ public static class ServiceCollectionExtensions
             builder.AddFilter("Microsoft", LogLevel.Warning);
         });
 
-        // Localization and Razor Pages
+        // Localization and Razor Pages (single chain)
         services
             .AddRazorPages()
             .AddViewLocalization()
@@ -33,6 +33,11 @@ public static class ServiceCollectionExtensions
             {
                 opts.DataAnnotationLocalizerProvider = (type, factory) =>
                     factory.Create(typeof(XRoadFolkWeb.SharedResource));
+            })
+            .AddMvcOptions(options =>
+            {
+                // Custom model binder for Razor Pages
+                options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
             });
 
         services.AddLocalization(opts => opts.ResourcesPath = "Resources");
@@ -152,17 +157,11 @@ public static class ServiceCollectionExtensions
             opts.MimeTypes = XRoadFolkWeb.Program.ResponseCompressionMimeTypes;
         });
 
-        // Custom model binder
+        // Custom model binder for Controllers
         services.AddControllers(options =>
         {
             options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
         });
-
-        services.AddRazorPages()
-            .AddMvcOptions(options =>
-            {
-                options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
-            });
 
         // Localization config binding + validation
         services.AddOptions<LocalizationConfig>()
