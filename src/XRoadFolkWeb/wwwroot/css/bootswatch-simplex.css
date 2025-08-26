@@ -1,0 +1,59 @@
+/* Bootswatch Simplex-inspired theme, local and CSP-safe.
+   Clean, flat look using red accents and simple typography. */
+
+:root,
+[data-bs-theme="brand"] {
+  /* Simplex palette */
+  --bs-primary: #d9230f;  /* red tone */
+  --bs-secondary: #6c757d;
+  --bs-success: #28a745;
+  --bs-info: #17a2b8;
+  --bs-warning: #ffc107;
+  --bs-danger: #dc3545;
+  --bs-light: #f8f9fa;
+  --bs-dark: #343a40;
+
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #212529;
+  --bs-link-color: var(--bs-primary);
+  --bs-link-hover-color: #a91b0c;
+
+  --bs-border-radius: .4rem;
+}
+
+/* Buttons */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #a91b0c;
+  --bs-btn-hover-border-color: #8f160a;
+}
+
+/* Navbar */
+.navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+
+/* Cards */
+.card { border: 1px solid rgba(0,0,0,.06); border-radius: var(--bs-border-radius); }
+
+/* Tables */
+.table > :not(caption) > * > * { padding-block: .65rem; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(217, 35, 15, .03); }
+
+/* Forms */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .2rem rgba(217,35,15,.2);
+}
+
+/* Dark theme variant */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #111;
+  --bs-body-color: #e9ecef;
+  --bs-primary: #ef6a5b;
+  --bs-card-bg: #161616;
+  --bs-card-color: var(--bs-body-color);
+  --bs-border-color: #2b2b2b;
+}
+[data-bs-theme="brand-dark"] .navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+[data-bs-theme="brand-dark"] .card { border-color: rgba(255,255,255,.08); }

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
+using XRoadFolkRaw.Lib.Options; // add options types
 
 // Use the Generic Host only (remove mixed top-level + class blocks)
 
@@ -101,6 +102,9 @@ builder.Services.AddScoped(sp =>
         retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
+// Register options validator used by PeopleService
+builder.Services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
+
 builder.Services.AddScoped(sp =>
 {
     FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
@@ -108,7 +112,8 @@ builder.Services.AddScoped(sp =>
     XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
     ILogger<PeopleService> log = sp.GetRequiredService<ILogger<PeopleService>>();
     IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
-    return new PeopleService(client, cfg, xr, log, loc);
+    IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
+    return new PeopleService(client, cfg, xr, log, loc, validator);
 });
 
 builder.Services.AddScoped<ConsoleUi>();

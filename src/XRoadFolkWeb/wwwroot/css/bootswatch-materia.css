@@ -1,0 +1,84 @@
+/* Bootswatch Materia-inspired theme (Material design cues), CSP-safe and local.
+   Approximates Bootswatch Materia using Bootstrap variables and subtle component tweaks. */
+
+:root,
+[data-bs-theme="brand"] {
+  /* Materia palette */
+  --bs-primary: #2196f3;   /* material blue 500 */
+  --bs-secondary: #9e9e9e;  /* grey 500 */
+  --bs-success: #4caf50;   /* green 500 */
+  --bs-info: #00bcd4;      /* cyan 500 */
+  --bs-warning: #ffc107;   /* amber 500 */
+  --bs-danger: #f44336;    /* red 500 */
+  --bs-light: #f8f9fa;
+  --bs-dark: #212121;      /* grey 900 */
+
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #212121;
+  --bs-link-color: var(--bs-primary);
+  --bs-link-hover-color: #1976d2; /* blue 700 */
+
+  --bs-border-radius: .5rem;
+  --bs-border-radius-sm: .375rem;
+  --bs-border-radius-lg: .75rem;
+
+  /* Elevation feel */
+  --bs-box-shadow: 0 .125rem .25rem rgba(0,0,0,.075), 0 .5rem 1rem rgba(0,0,0,.08);
+}
+
+/* Buttons */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #1976d2; /* blue 700 */
+  --bs-btn-hover-border-color: #1565c0; /* blue 800 */
+  --bs-btn-focus-shadow-rgb: 33, 150, 243;
+}
+.btn-outline-secondary {
+  --bs-btn-color: #616161; /* grey 700 */
+  --bs-btn-border-color: #bdbdbd; /* grey 400 */
+  --bs-btn-hover-bg: #f5f5f5; /* grey 100 */
+}
+
+/* Navbar */
+.navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+
+/* Cards */
+.card {
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: var(--bs-border-radius);
+  box-shadow: var(--bs-box-shadow);
+}
+
+/* Tables */
+.table > :not(caption) > * > * { padding-block: .75rem; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(33, 150, 243, .03); }
+
+/* Forms */
+.form-control,
+.form-select { border-radius: .375rem; }
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .2rem rgba(33,150,243,.2);
+}
+
+/* Material-ish elevation on hover */
+.btn:hover { filter: brightness(0.98); }
+.card:hover { box-shadow: 0 .125rem .5rem rgba(0,0,0,.12), 0 .5rem 1.25rem rgba(0,0,0,.10); }
+
+/* Dark theme */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #121212; /* material dark */
+  --bs-body-color: #e0e0e0;
+  --bs-primary: #90caf9;  /* blue 200 for contrast */
+  --bs-success: #a5d6a7;
+  --bs-info: #80deea;
+  --bs-warning: #ffe082;
+  --bs-danger: #ef9a9a;
+  --bs-card-bg: #1e1e1e;
+  --bs-card-color: var(--bs-body-color);
+  --bs-border-color: #2a2a2a;
+}
+[data-bs-theme="brand-dark"] .navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+[data-bs-theme="brand-dark"] .card { border-color: rgba(255,255,255,.08); box-shadow: 0 .125rem .25rem rgba(0,0,0,.3), 0 .5rem 1rem rgba(0,0,0,.35); }

@@ -1,0 +1,75 @@
+/* Bootswatch-like Flatly variables and component tweaks (local, CSP-safe)
+   This is not the full Bootswatch theme. It overrides Bootstrap 5 variables
+   to approximate the Flatly palette and feel without external CDNs. */
+
+/* Light theme */
+:root,
+[data-bs-theme="brand"] {
+  /* Palette inspired by Flatly */
+  --bs-primary: #2c3e50; /* midnight blue */
+  --bs-secondary: #95a5a6;
+  --bs-success: #18bc9c;
+  --bs-info: #3498db;
+  --bs-warning: #f39c12;
+  --bs-danger: #e74c3c;
+  --bs-light: #ecf0f1;
+  --bs-dark: #2d3436;
+
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #2c3e50;
+  --bs-link-color: var(--bs-info);
+  --bs-link-hover-color: #2a7fb8;
+
+  --bs-border-radius: .5rem;
+}
+
+/* Buttons */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #22303f;
+  --bs-btn-hover-border-color: #1d2936;
+}
+.btn-success {
+  --bs-btn-bg: var(--bs-success);
+  --bs-btn-border-color: var(--bs-success);
+}
+.btn-info {
+  --bs-btn-bg: var(--bs-info);
+  --bs-btn-border-color: var(--bs-info);
+}
+
+/* Navbar */
+.navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+
+/* Cards */
+.card {
+  border: 1px solid rgba(44, 62, 80, .12);
+  border-radius: var(--bs-border-radius);
+}
+
+/* Tables */
+.table > :not(caption) > * > * { padding-block: .7rem; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(44, 62, 80, .03); }
+
+/* Forms */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-info);
+  box-shadow: 0 0 0 .2rem rgba(52,152,219,.2);
+}
+
+/* Dark theme approximation */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #0e141b;
+  --bs-body-color: #e5e7eb;
+  --bs-primary: #3b4a5a;
+  --bs-info: #5dade2;
+  --bs-success: #20cfae;
+  --bs-warning: #f1c40f;
+  --bs-danger: #ff6b57;
+  --bs-card-bg: #121923;
+  --bs-card-color: var(--bs-body-color);
+}
+[data-bs-theme="brand-dark"] .navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+[data-bs-theme="brand-dark"] .card { border-color: rgba(255,255,255,.08); }

@@ -10,8 +10,7 @@ using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkWeb.Infrastructure;
 using System.Security.Cryptography.X509Certificates; // add
-using Microsoft.Extensions.Options;
-using XRoadFolkRaw.Lib.Options;
+using XRoadFolkRaw.Lib.Options; // add options types
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -82,16 +81,6 @@ builder.Services.Configure<RequestLocalizationOptions>(opts =>
     opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
     opts.SupportedCultures = [.. cultures];
     opts.SupportedUICultures = [.. cultures];
-
-    // Explicitly enable parent fallback
-    opts.FallBackToParentCultures = true;
-    opts.FallBackToParentUICultures = true;
-
-    // Optional mapping from appsettings: Localization:FallbackMap
-    var locCfg = builder.Configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
-    // Insert our best-match provider before the built-ins (Cookie/Query/Accept-Language)
-    opts.RequestCultureProviders.Insert(0, new XRoadFolkWeb.Infrastructure.BestMatchRequestCultureProvider(
-        opts.SupportedUICultures, locCfg.FallbackMap));
 });
 
 // Register IHttpClientFactory + handler with client certificate (resolve settings at runtime from DI)
@@ -103,7 +92,7 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
 })
 .ConfigurePrimaryHttpMessageHandler(sp =>
 {
-    SocketsHttpHandler handler = new SocketsHttpHandler
+    SocketsHttpHandler handler = new()
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
@@ -117,8 +106,11 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     try
     {
         X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
-        handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
-        _ = handler.SslOptions.ClientCertificates.Add(cert);
+        if (handler.SslOptions.ClientCertificates is null)
+        {
+            handler.SslOptions.ClientCertificates = new X509CertificateCollection();
+        }
+        handler.SslOptions.ClientCertificates.Add(cert);
     }
     catch (Exception ex)
     {
@@ -153,23 +145,18 @@ builder.Services.AddScoped(sp =>
         retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
 });
 
-// Bind GetPerson request options (do not ValidateOnStart; we validate per-request in PeopleService)
-builder.Services
-    .AddOptions<GetPersonRequestOptions>()
-    .Bind(builder.Configuration.GetSection("Operations:GetPerson:Request"));
-
-// Register validator
+// Register options validator used by PeopleService
 builder.Services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
 
-// PeopleService registration (inject the validator)
+// PeopleService (resolve XRoadSettings from DI, not a captured local)
 builder.Services.AddScoped(sp =>
 {
-    var client   = sp.GetRequiredService<FolkRawClient>();
-    var cfg      = sp.GetRequiredService<IConfiguration>();
-    var xr       = sp.GetRequiredService<XRoadSettings>();
-    var logger   = sp.GetRequiredService<ILogger<PeopleService>>();
-    var loc      = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
-    var validator= sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
+    FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
+    IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+    ILogger<PeopleService> logger = sp.GetRequiredService<ILogger<PeopleService>>();
+    IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+    XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+    IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
     return new PeopleService(client, cfg, xr, logger, loc, validator);
 });
 
@@ -192,68 +179,51 @@ builder.Services.AddRazorPages()
         options.ModelBinderProviders.Insert(0, new XRoadFolkWeb.Validation.TrimDigitsModelBinderProvider());
     });
 
-// Bind + validate Localization config from appsettings
-builder.Services
-    .AddOptions<LocalizationConfig>()
-    .Bind(builder.Configuration.GetSection("Localization"))
-    .Validate(o => !string.IsNullOrWhiteSpace(o.DefaultCulture), "Localization: DefaultCulture is required.")
-    .Validate(o => o.SupportedCultures is { Count: > 0 }, "Localization: SupportedCultures must have at least one value.")
-    .Validate(o =>
-    {
-        try { _ = CultureInfo.GetCultureInfo(o.DefaultCulture!); }
-        catch { return false; }
-        foreach (var c in o.SupportedCultures)
-        {
-            try { _ = CultureInfo.GetCultureInfo(c); }
-            catch { return false; }
-        }
-        return true;
-    }, "Localization: One or more culture names are invalid.")
-    .Validate(o => o.SupportedCultures.Contains(o.DefaultCulture!, StringComparer.OrdinalIgnoreCase),
-        "Localization: DefaultCulture must be included in SupportedCultures.")
-    .ValidateOnStart();
-
 WebApplication app = builder.Build();
 app.UseResponseCompression();
 
-// Redirect to HTTPS in dev so secure cookies work
+// Basic exception handling + HSTS in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+// Redirect to HTTPS so secure cookies work
 app.UseHttpsRedirection();
+
+// Log content/web root paths early for diagnostics
+app.Logger.LogInformation("ContentRoot: {ContentRoot}", app.Environment.ContentRootPath);
+app.Logger.LogInformation("WebRoot:     {WebRoot}", app.Environment.WebRootPath);
+
+// Minimal security headers + restrictive CSP (allows inline due to inline scripts)
+app.Use(async (ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["X-Frame-Options"] = "DENY";
+    h["Referrer-Policy"] = "no-referrer";
+    h["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+    h["X-XSS-Protection"] = "0"; // modern browsers ignore; kept to avoid legacy behavior
+    h["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests";
+    await next();
+});
 
 // Localization middleware
 RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
 app.UseRequestLocalization(locOpts);
 
-// After app.UseRequestLocalization(locOpts);
-var locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
-var locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
-locLogger.LogInformation("Localization config: Default={Default}, Supported=[{Supported}]",
-    locCfg.DefaultCulture, string.Join(", ", locCfg.SupportedCultures));
-
-// Diagnostic endpoint to verify applied culture at runtime
-app.MapGet("/__culture", (HttpContext ctx,
-                          IOptions<RequestLocalizationOptions> locOpts,
-                          IOptions<LocalizationConfig> cfg) =>
+// Static files (only from WebRoot) with cache headers
+app.UseStaticFiles(new StaticFileOptions
 {
-    var feature = ctx.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
-    return Results.Json(new
+    OnPrepareResponse = ctx =>
     {
-        FromConfig = new
-        {
-            cfg.Value.DefaultCulture,
-            cfg.Value.SupportedCultures
-        },
-        Applied = new
-        {
-            Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-            Supported = locOpts.Value.SupportedCultures.Select(c => c.Name).ToArray(),
-            Current = feature?.RequestCulture.Culture.Name,
-            CurrentUI = feature?.RequestCulture.UICulture.Name
-        }
-    });
+        // 7 days immutable cache for static assets
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=604800,immutable");
+    }
 });
 
-// Static files + routing + pages
-app.UseStaticFiles();
+// Routing
 app.UseRouting();
 
 // Anti-forgery middleware

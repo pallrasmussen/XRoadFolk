@@ -1,0 +1,74 @@
+/* Bootswatch Quartz-inspired theme, local and CSP-safe.
+   This approximates the Quartz palette (violet/cyan) using Bootstrap variables. */
+
+:root,
+[data-bs-theme="brand"] {
+  /* Quartz palette */
+  --bs-primary: #6f42c1;  /* purple */
+  --bs-secondary: #495057;
+  --bs-success: #2fb380;  /* tealish green */
+  --bs-info: #17a2b8;     /* cyan */
+  --bs-warning: #f0ad4e;  /* amber */
+  --bs-danger: #e55353;   /* coral red */
+  --bs-light: #f8f9fa;
+  --bs-dark: #212529;
+
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #212529;
+  --bs-link-color: #6f42c1;
+  --bs-link-hover-color: #5a36a1;
+
+  --bs-border-radius: .75rem;
+  --bs-border-radius-sm: .5rem;
+  --bs-border-radius-lg: 1rem;
+}
+
+/* Buttons */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #5a36a1;
+  --bs-btn-hover-border-color: #4e308f;
+  --bs-btn-focus-shadow-rgb: 111, 66, 193;
+}
+.btn-info {
+  --bs-btn-bg: var(--bs-info);
+  --bs-btn-border-color: var(--bs-info);
+}
+.btn-success {
+  --bs-btn-bg: var(--bs-success);
+  --bs-btn-border-color: var(--bs-success);
+}
+
+/* Navbar */
+.navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+
+/* Cards */
+.card { border: 1px solid rgba(111, 66, 193, .12); border-radius: var(--bs-border-radius); }
+
+/* Tables */
+.table > :not(caption) > * > * { padding-block: .7rem; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(111, 66, 193, .03); }
+
+/* Forms */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .2rem rgba(111,66,193,.25);
+}
+
+/* Dark theme */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #0f1216;
+  --bs-body-color: #e5e7eb;
+  --bs-primary: #8d6bd8;
+  --bs-info: #4dd0e1;
+  --bs-success: #3bd399;
+  --bs-warning: #f7c873;
+  --bs-danger: #ff7b7b;
+  --bs-card-bg: #131821;
+  --bs-card-color: var(--bs-body-color);
+  --bs-border-color: #232b36;
+}
+[data-bs-theme="brand-dark"] .navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+[data-bs-theme="brand-dark"] .card { border-color: rgba(255,255,255,.08); }

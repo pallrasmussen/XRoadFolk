@@ -1,0 +1,69 @@
+/* Bootswatch Zephyr-inspired theme, local and CSP-safe.
+   Zephyr: airy, crisp, and slightly cool palette (indigo/blue/gray). */
+
+:root,
+[data-bs-theme="brand"] {
+  /* Zephyr palette approximation */
+  --bs-primary: #5a67d8;  /* indigo 500-ish */
+  --bs-secondary: #718096; /* gray 600 */
+  --bs-success: #38a169;  /* green 500 */
+  --bs-info: #4299e1;     /* blue 400 */
+  --bs-warning: #dd6b20;  /* orange 500 */
+  --bs-danger: #e53e3e;   /* red 500 */
+  --bs-light: #f7fafc;
+  --bs-dark: #1a202c;
+
+  --bs-body-bg: #ffffff;
+  --bs-body-color: #1a202c;
+  --bs-link-color: var(--bs-primary);
+  --bs-link-hover-color: #4c51bf; /* darker indigo */
+
+  --bs-border-radius: .6rem;
+  --bs-border-radius-sm: .4rem;
+  --bs-border-radius-lg: .9rem;
+}
+
+/* Buttons */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: #4c51bf;
+  --bs-btn-hover-border-color: #434190;
+}
+.btn-outline-secondary {
+  --bs-btn-color: var(--bs-secondary);
+  --bs-btn-border-color: #a0aec0; /* gray 400 */
+}
+
+/* Navbar */
+.navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+
+/* Cards */
+.card { border: 1px solid rgba(90,103,216,.12); border-radius: var(--bs-border-radius); }
+
+/* Tables */
+.table > :not(caption) > * > * { padding-block: .7rem; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: rgba(90,103,216,.04); }
+
+/* Forms */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 .2rem rgba(90,103,216,.22);
+}
+
+/* Dark theme */
+[data-bs-theme="brand-dark"] {
+  --bs-body-bg: #0f1320;
+  --bs-body-color: #e5e7eb;
+  --bs-primary: #7f89e9;
+  --bs-info: #63b3ed;
+  --bs-success: #48bb78;
+  --bs-warning: #f6ad55;
+  --bs-danger: #fc8181;
+  --bs-card-bg: #12182a;
+  --bs-card-color: var(--bs-body-color);
+  --bs-border-color: #27304a;
+}
+[data-bs-theme="brand-dark"] .navbar-dark.bg-primary { background-color: var(--bs-primary) !important; }
+[data-bs-theme="brand-dark"] .card { border-color: rgba(255,255,255,.08); }
