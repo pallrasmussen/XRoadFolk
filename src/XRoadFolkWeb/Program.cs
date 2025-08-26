@@ -12,6 +12,8 @@ using XRoadFolkWeb.Infrastructure;
 using System.Security.Cryptography.X509Certificates; // add
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
+using Microsoft.AspNetCore.Mvc;
+using XRoadFolkWeb.Infrastructure;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -213,6 +215,10 @@ builder.Services
         "Localization: DefaultCulture must be included in SupportedCultures.")
     .ValidateOnStart();
 
+// Register in-memory HTTP/SOAP log store + logger provider (uses same singleton)
+builder.Services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLogStore(1000));
+builder.Services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
+
 WebApplication app = builder.Build();
 app.UseResponseCompression();
 
@@ -290,6 +296,25 @@ app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string?
 
 app.MapRazorPages();
 
+// HTTP/SOAP logs endpoints
+app.MapGet("/logs/http", (IHttpLogStore store) => Results.Json(new { ok = true, items = store.GetAll() }));
+app.MapPost("/logs/http/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
+app.MapPost("/logs/http/write", ([FromBody] XRoadFolkWeb.LogWriteDto dto, IHttpLogStore store) =>
+{
+    if (dto is null) return Results.BadRequest();
+    if (!Enum.TryParse<LogLevel>(dto.Level ?? "Information", true, out var lvl)) lvl = LogLevel.Information;
+    store.Add(new XRoadFolkWeb.Infrastructure.LogEntry
+    {
+        Timestamp = DateTimeOffset.UtcNow,
+        Level = lvl,
+        Category = dto.Category ?? "Manual",
+        EventId = dto.EventId ?? 0,
+        Message = dto.Message ?? string.Empty,
+        Exception = null
+    });
+    return Results.Json(new { ok = true });
+});
+
 // Culture defaults for threads (optional)
 CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
 CultureInfo.DefaultThreadCurrentCulture = culture;
@@ -301,6 +326,8 @@ namespace XRoadFolkWeb
 {
     // Marker class for shared localization resources (layout, nav, etc.)
     public sealed class SharedResource { }
+
+    public record LogWriteDto(string? Message, string? Category, string? Level, int? EventId);
 }
 
 // add at the very end of the file (for WebApplicationFactory)

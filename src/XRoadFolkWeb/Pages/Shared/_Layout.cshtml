@@ -67,9 +67,12 @@
             </button>
 
             <div id="mainNav" class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
                     <li class="nav-item">
                         <a class="nav-link @(Context.Request.Path == "/" ? "active" : null)" href="/">@SR["Nav_Home"]</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-sm btn-outline-light @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="/Logs/Http">@SR["Nav_Logs"]</a>
                     </li>
                 </ul>
 
