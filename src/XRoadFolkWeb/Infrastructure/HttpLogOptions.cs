@@ -12,7 +12,7 @@ namespace XRoadFolkWeb.Infrastructure
         public bool AlwaysAllowWarningsAndErrors { get; set; } = true;
 
         // Persistence to rolling file (optional)
-        public bool PersistToFile { get; set; } = false;
+        public bool PersistToFile { get; set; }
         public string? FilePath { get; set; }
         public long MaxFileBytes { get; set; } = 5_000_000; // 5 MB
         public int MaxRolls { get; set; } = 3; // keep N rolled files

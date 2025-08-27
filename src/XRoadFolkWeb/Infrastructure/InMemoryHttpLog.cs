@@ -23,20 +23,13 @@ namespace XRoadFolkWeb.Infrastructure
         IReadOnlyList<LogEntry> GetAll();
     }
 
-    public sealed class InMemoryHttpLog : IHttpLogStore
+    public sealed class InMemoryHttpLog(IConfiguration cfg) : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
-        private readonly long _maxFileBytes;
-        private readonly int _maxRolls;
-        private string? _filePath;
+        private readonly long _maxFileBytes = Math.Max(1024 * 1024, cfg.GetValue("HttpLog:MaxFileBytes", 1024 * 1024 * 5));
+        private readonly int _maxRolls = Math.Max(1, cfg.GetValue("HttpLog:MaxRolls", 5));
+        private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         private readonly object _fileLock = new();
-
-        public InMemoryHttpLog(IConfiguration cfg)
-        {
-            _maxFileBytes = Math.Max(1024 * 1024, cfg.GetValue("HttpLog:MaxFileBytes", 1024 * 1024 * 5));
-            _maxRolls = Math.Max(1, cfg.GetValue("HttpLog:MaxRolls", 5));
-            _filePath = cfg.GetValue<string>("HttpLog:FilePath");
-        }
 
         public void Add(LogEntry e)
         {

@@ -21,6 +21,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public FileBackedHttpLogStore(IOptions<HttpLogOptions> options, ILogStream? stream, ILogger<FileBackedHttpLogStore> log)
         {
+            ArgumentNullException.ThrowIfNull(options);
             HttpLogOptions cfg = options.Value;
             Capacity = Math.Max(50, cfg.Capacity);
             _maxQueue = Math.Max(100, cfg.MaxQueue);
@@ -42,21 +43,23 @@ namespace XRoadFolkWeb.Infrastructure
         public int Capacity { get; }
         public int Count => _ring.Count;
 
-        public void Add(LogEntry entry)
+        public void Add(LogEntry e)
         {
+            ArgumentNullException.ThrowIfNull(e);
+
             // Ring buffer
-            _ring.Enqueue(entry);
+            _ring.Enqueue(e);
             while (_ring.Count > Capacity && _ring.TryDequeue(out _)) { }
 
-            try { _stream?.Publish(entry); } catch { }
+            try { _stream?.Publish(e); } catch { }
 
             // Back-pressure: try to enqueue; if full and not important, it may drop the oldest
-            if (!_channel.Writer.TryWrite(entry))
+            if (!_channel.Writer.TryWrite(e))
             {
-                if (_alwaysAllowWarnError && entry.Level >= LogLevel.Warning)
+                if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
                 {
                     // Force write by dropping one and retrying
-                    _ = _channel.Writer.TryWrite(entry);
+                    _ = _channel.Writer.TryWrite(e);
                 }
             }
         }
@@ -69,7 +72,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public IReadOnlyList<LogEntry> GetAll()
         {
-            return _ring.ToArray();
+            return [.. _ring];
         }
 
         internal ChannelReader<LogEntry> GetReader()
@@ -83,16 +86,10 @@ namespace XRoadFolkWeb.Infrastructure
     }
 
     // Background worker that drains the channel and persists to file in batches
-    public sealed class FileBackedLogWriter : BackgroundService
+    public sealed class FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts) : BackgroundService
     {
-        private readonly FileBackedHttpLogStore _store;
-        private readonly IOptions<HttpLogOptions> _opts;
-
-        public FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts)
-        {
-            _store = store;
-            _opts = opts;
-        }
+        private readonly FileBackedHttpLogStore _store = store;
+        private readonly IOptions<HttpLogOptions> _opts = opts;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -110,7 +107,10 @@ namespace XRoadFolkWeb.Infrastructure
                         while (reader.TryRead(out LogEntry? item))
                         {
                             batch.Add(item);
-                            if (batch.Count >= 1024) break;
+                            if (batch.Count >= 1024)
+                            {
+                                break;
+                            }
                         }
                     }
 
@@ -137,7 +137,10 @@ namespace XRoadFolkWeb.Infrastructure
         {
             string path = _store.FilePath;
             string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir)) Directory.CreateDirectory(dir);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                _ = Directory.CreateDirectory(dir);
+            }
 
             RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls);
 
@@ -148,7 +151,7 @@ namespace XRoadFolkWeb.Infrastructure
                 string line = $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}";
                 await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
             }
-            await sw.FlushAsync().ConfigureAwait(false);
+            await sw.FlushAsync(ct).ConfigureAwait(false);
             await fs.FlushAsync(ct).ConfigureAwait(false);
         }
 
@@ -163,8 +166,15 @@ namespace XRoadFolkWeb.Infrastructure
                     {
                         string from = i == 1 ? path : path + "." + (i - 1);
                         string to = path + "." + i;
-                        if (File.Exists(to)) File.Delete(to);
-                        if (File.Exists(from)) File.Move(from, to);
+                        if (File.Exists(to))
+                        {
+                            File.Delete(to);
+                        }
+
+                        if (File.Exists(from))
+                        {
+                            File.Move(from, to);
+                        }
                     }
                 }
             }
@@ -177,11 +187,18 @@ namespace XRoadFolkWeb.Infrastructure
             try
             {
                 string path = _store.FilePath;
-                if (File.Exists(path)) File.Delete(path);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
                 for (int i = 1; i <= _store.MaxRolls; i++)
                 {
                     string roll = path + "." + i;
-                    if (File.Exists(roll)) File.Delete(roll);
+                    if (File.Exists(roll))
+                    {
+                        File.Delete(roll);
+                    }
                 }
             }
             catch { }
