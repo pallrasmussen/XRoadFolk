@@ -30,7 +30,9 @@ public static partial class ServiceCollectionExtensions
         services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLogStore(
             sp.GetRequiredService<IOptions<HttpLogOptions>>(),
             sp.GetRequiredService<ILogStream>()));
-        // Provider is added in Program after ClearProviders
+
+        // Register the custom logger provider so all logs also flow into IHttpLogStore
+        services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
         return services;
     }
 }
