@@ -41,29 +41,51 @@
     #gpiv-xml-summary .summary-group > summary {
         cursor: pointer;
         list-style: none;
-        padding: .5rem .75rem;
+        padding: .5rem .75rem; /* match person-details accordion-button */
         font-weight: 600;
-        background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle));
-        color: var(--bs-secondary-color);
+        background: var(--bs-accordion-btn-bg, var(--bs-body-bg));
+        color: var(--bs-accordion-btn-color, var(--bs-body-color));
         user-select: none;
         display: flex; align-items: center; justify-content: space-between;
+        border: 0;
     }
+    #gpiv-xml-summary .summary-group > summary:hover { background: var(--bs-accordion-btn-hover-bg, var(--bs-secondary-bg)); }
+    #gpiv-xml-summary .summary-group > summary:focus { outline: 0; box-shadow: var(--bs-accordion-btn-focus-box-shadow, 0 0 0 .2rem rgba(var(--bs-primary-rgb, 13,110,253), .1)); }
     #gpiv-xml-summary .summary-group > summary::-webkit-details-marker { display: none; }
     #gpiv-xml-summary .summary-group > summary::after {
-        content: '\25BC'; /* down triangle */
-        font-size: .75rem; opacity: .6; margin-left: .5rem;
-        transition: transform .15s ease-in-out;
+        content: '';
+        flex-shrink: 0;
+        width: 1rem; height: 1rem;
+        margin-left: auto; margin-right: .125rem;
+        background-image: var(--bs-accordion-btn-icon);
+        background-repeat: no-repeat;
+        background-size: 1rem;
+        transition: transform .2s ease-in-out;
+        opacity: .85;
     }
-    #gpiv-xml-summary .summary-group[open] > summary::after { transform: rotate(180deg); }
+    #gpiv-xml-summary .summary-group[open] > summary::after {
+        transform: rotate(-180deg);
+        background-image: var(--bs-accordion-btn-active-icon, var(--bs-accordion-btn-icon));
+        opacity: 1;
+    }
     #gpiv-xml-summary .summary-group > *:not(summary) { padding: .5rem .75rem; }
 
+    /* Table readability tweaks to match person-details */
     #gpiv-xml-summary .table { margin: 0; }
     #gpiv-xml-summary .table th {
-        width: 40%;
+        width: 35%;
         background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle));
         color: var(--bs-secondary-color);
     }
-    #gpiv-xml-summary .table th, #gpiv-xml-summary .table td { vertical-align: top; }
+    #gpiv-xml-summary .table th,
+    #gpiv-xml-summary .table td {
+        vertical-align: top;
+        word-break: break-word;
+    }
+    #gpiv-xml-summary .table tbody tr:hover th,
+    #gpiv-xml-summary .table tbody tr:hover td {
+        background: var(--bs-secondary-bg-subtle);
+    }
 </style>
 
 <div class="card shadow-sm mb-4 gpiv-card">
