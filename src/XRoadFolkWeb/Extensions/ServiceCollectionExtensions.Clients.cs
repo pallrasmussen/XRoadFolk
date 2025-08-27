@@ -8,7 +8,7 @@ public static partial class ServiceCollectionExtensions
     // Registers FolkRawClient factory using the named HttpClient "XRoadFolk"
     public static IServiceCollection AddFolkRawClientFactory(this IServiceCollection services)
     {
-        services.AddScoped(sp =>
+        services.AddSingleton(sp =>
         {
             HttpClient http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("XRoadFolk");
             ILogger<FolkRawClient> logger = sp.GetRequiredService<ILogger<FolkRawClient>>();

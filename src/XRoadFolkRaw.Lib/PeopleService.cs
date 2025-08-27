@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,12 @@ namespace XRoadFolkRaw.Lib
 
     public sealed partial class PeopleService : IDisposable
     {
+        private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresUtc)> TokenCache = new();
+        private static string ComputeKey(XRoadSettings s)
+            => string.Join("|", s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
+                            s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
+                            s.Auth.UserId, s.Auth.Username);
+
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
         private readonly XRoadSettings _settings;
@@ -71,7 +78,21 @@ namespace XRoadFolkRaw.Lib
 
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
+            string key = ComputeKey(_settings);
+            var skew = TimeSpan.FromSeconds(60);
+
+            if (TokenCache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow.Add(skew) < entry.ExpiresUtc)
+            {
+                LogTokenReused(_log); // explicitly log token reuse
+                return entry.Token;
+            }
+
             string token = await _tokenProvider.GetTokenAsync(ct).ConfigureAwait(false);
+
+            // Ideally read expiry from provider; we approximate to +5 minutes like provider default
+            DateTimeOffset expires = DateTimeOffset.UtcNow.AddMinutes(5);
+            TokenCache[key] = (token, expires);
+
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new InvalidOperationException(_localizer["TokenMissing"]);
@@ -174,6 +195,9 @@ namespace XRoadFolkRaw.Lib
 
         [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Error fetching person")]
         static partial void LogGetPersonError(ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Token reused")]
+        static partial void LogTokenReused(ILogger logger);
 
         public void Dispose()
         {
