@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using XRoadFolkRaw.Lib;
+using System.Net.Http;
 
 namespace XRoadFolkRaw
 {
@@ -64,9 +65,15 @@ namespace XRoadFolkRaw
                 {
                     responseXml = await _service.GetPeoplePublicInfoAsync(SsnNorm, fnInput, lnInput, Dob);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Operation cancelled.");
+                    break;
+                }
+                catch (HttpRequestException ex)
                 {
                     LogFailedGetPeoplePublicInfo(_log, ex);
+                    Console.WriteLine(ex.Message);
                     continue;
                 }
 
@@ -78,9 +85,10 @@ namespace XRoadFolkRaw
 
                 XDocument listDoc;
                 try { listDoc = XDocument.Parse(responseXml); }
-                catch (Exception ex)
+                catch (System.Xml.XmlException ex)
                 {
                     LogFailedParseGetPeoplePublicInfo(_log, ex);
+                    Console.WriteLine(ex.Message);
                     continue;
                 }
 
@@ -130,9 +138,20 @@ namespace XRoadFolkRaw
                             PrintGetPersonAllPairs(doc, _log, _loc);
                         }
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException)
+                    {
+                        Console.WriteLine("Operation cancelled.");
+                        break;
+                    }
+                    catch (HttpRequestException ex)
                     {
                         LogFailedGetPerson(_log, ex);
+                        Console.WriteLine(ex.Message);
+                    }
+                    catch (System.Xml.XmlException ex)
+                    {
+                        LogFailedGetPerson(_log, ex);
+                        Console.WriteLine(ex.Message);
                     }
                 }
             }

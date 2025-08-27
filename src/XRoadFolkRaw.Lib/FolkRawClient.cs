@@ -571,42 +571,58 @@ namespace XRoadFolkRaw.Lib
             else if (!string.IsNullOrWhiteSpace(options?.Ssn)) SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
             if (!string.IsNullOrWhiteSpace(options?.ExternalId)) SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
 
-            // Helper to write Include* flags if set
-            void SetFlag(string elementName, bool? val)
+            // Include flags: normalize keys from HashSet into element names
+            if (options?.Include is { Count: > 0 })
             {
-                if (val.HasValue) SetChildValue(requestBodyEl, elementName, val.Value ? "true" : "false");
-            }
+                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["addresses"] = "IncludeAddresses",
+                    ["includeaddresses"] = "IncludeAddresses",
+                    ["address"] = "IncludeAddresses",
+                    ["addresseshistory"] = "IncludeAddressesHistory",
+                    ["includeaddresseshistory"] = "IncludeAddressesHistory",
+                    ["biologicalparents"] = "IncludeBiologicalParents",
+                    ["churchmembership"] = "IncludeChurchMembership",
+                    ["churchmembershiphistory"] = "IncludeChurchMembershipHistory",
+                    ["citizenships"] = "IncludeCitizenships",
+                    ["citizenship"] = "IncludeCitizenships",
+                    ["citizenshipshistory"] = "IncludeCitizenshipsHistory",
+                    ["civilstatus"] = "IncludeCivilStatus",
+                    ["civilstatushistory"] = "IncludeCivilStatusHistory",
+                    ["foreignssns"] = "IncludeForeignSsns",
+                    ["incapacity"] = "IncludeIncapacity",
+                    ["incapacityhistory"] = "IncludeIncapacityHistory",
+                    ["juridicalchildren"] = "IncludeJuridicalChildren",
+                    ["juridicalchildrenhistory"] = "IncludeJuridicalChildrenHistory",
+                    ["juridicalparents"] = "IncludeJuridicalParents",
+                    ["juridicalparentshistory"] = "IncludeJuridicalParentsHistory",
+                    ["names"] = "IncludeNames",
+                    ["nameshistory"] = "IncludeNamesHistory",
+                    ["notes"] = "IncludeNotes",
+                    ["noteshistory"] = "IncludeNotesHistory",
+                    ["postbox"] = "IncludePostbox",
+                    ["specialmarks"] = "IncludeSpecialMarks",
+                    ["specialmarkshistory"] = "IncludeSpecialMarksHistory",
+                    ["spouse"] = "IncludeSpouse",
+                    ["spousehistory"] = "IncludeSpouseHistory",
+                    ["ssn"] = "IncludeSsn",
+                    ["ssnhistory"] = "IncludeSsnHistory"
+                };
 
-            var inc = options?.Include;
-            if (inc != null)
-            {
-                SetFlag("IncludeAddresses", inc.Addresses);
-                SetFlag("IncludeAddressesHistory", inc.AddressesHistory);
-                SetFlag("IncludeBiologicalParents", inc.BiologicalParents);
-                SetFlag("IncludeChurchMembership", inc.ChurchMembership);
-                SetFlag("IncludeChurchMembershipHistory", inc.ChurchMembershipHistory);
-                SetFlag("IncludeCitizenships", inc.Citizenships);
-                SetFlag("IncludeCitizenshipsHistory", inc.CitizenshipsHistory);
-                SetFlag("IncludeCivilStatus", inc.CivilStatus);
-                SetFlag("IncludeCivilStatusHistory", inc.CivilStatusHistory);
-                SetFlag("IncludeForeignSsns", inc.ForeignSsns);
-                SetFlag("IncludeIncapacity", inc.Incapacity);
-                SetFlag("IncludeIncapacityHistory", inc.IncapacityHistory);
-                SetFlag("IncludeJuridicalChildren", inc.JuridicalChildren);
-                SetFlag("IncludeJuridicalChildrenHistory", inc.JuridicalChildrenHistory);
-                SetFlag("IncludeJuridicalParents", inc.JuridicalParents);
-                SetFlag("IncludeJuridicalParentsHistory", inc.JuridicalParentsHistory);
-                SetFlag("IncludeNames", inc.Names);
-                SetFlag("IncludeNamesHistory", inc.NamesHistory);
-                SetFlag("IncludeNotes", inc.Notes);
-                SetFlag("IncludeNotesHistory", inc.NotesHistory);
-                SetFlag("IncludePostbox", inc.Postbox);
-                SetFlag("IncludeSpecialMarks", inc.SpecialMarks);
-                SetFlag("IncludeSpecialMarksHistory", inc.SpecialMarksHistory);
-                SetFlag("IncludeSpouse", inc.Spouse);
-                SetFlag("IncludeSpouseHistory", inc.SpouseHistory);
-                SetFlag("IncludeSsn", inc.Ssn);
-                SetFlag("IncludeSsnHistory", inc.SsnHistory);
+                foreach (string rawKey in options.Include)
+                {
+                    if (string.IsNullOrWhiteSpace(rawKey)) continue;
+                    string k = rawKey.Replace("_", string.Empty).Replace("-", string.Empty).Replace(" ", string.Empty);
+                    if (map.TryGetValue(k, out string? elementName))
+                    {
+                        SetChildValue(requestBodyEl, elementName, "true");
+                    }
+                    else if (k.StartsWith("Include", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Trust as element name if already prefixed
+                        SetChildValue(requestBodyEl, rawKey, "true");
+                    }
+                }
             }
 
             // Token in requestHeader

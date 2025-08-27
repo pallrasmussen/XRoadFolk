@@ -1,123 +1,47 @@
 using System.Collections.Concurrent;
-using System.Text;
 using System.Globalization;
-using Microsoft.Extensions.Options;
+using System.Text;
 using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
-    public interface IHttpLogStore
+    public sealed record LogEntry
     {
-        void Add(LogEntry entry);
-        void Clear();
-        IReadOnlyList<LogEntry> GetAll();
-        int Capacity { get; }
-        int Count { get; }
-    }
-
-    public sealed class LogEntry
-    {
-        public required DateTimeOffset Timestamp { get; init; }
-        public required LogLevel Level { get; init; }
-        public required string Category { get; init; }
-        public required int EventId { get; init; }
-        public required string Kind { get; init; } // http | soap | app
-        public string? Message { get; init; }
+        public DateTimeOffset Timestamp { get; init; }
+        public LogLevel Level { get; init; }
+        public string Kind { get; init; } = string.Empty; // http|soap|app
+        public string Category { get; init; } = string.Empty;
+        public int EventId { get; init; }
+        public string Message { get; init; } = string.Empty;
         public string? Exception { get; init; }
     }
 
-    public sealed class InMemoryHttpLogStore : IHttpLogStore
+    public interface IHttpLogStore
+    {
+        void Add(LogEntry e);
+        void Clear();
+        IReadOnlyList<LogEntry> GetAll();
+    }
+
+    public sealed class InMemoryHttpLog : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
-        private readonly ILogStream? _stream; // optional realtime broadcaster
-
-        // Rate limiting (simple token bucket)
-        private readonly int _maxWritesPerSecond;
-        private readonly bool _alwaysAllowWarnError;
-        private double _tokens;
-        private DateTime _lastRefillUtc;
-        private readonly object _rateLock = new();
-
-        // Optional file persistence
-        private readonly bool _persistToFile;
-        private readonly string? _filePath;
         private readonly long _maxFileBytes;
         private readonly int _maxRolls;
+        private string? _filePath;
         private readonly object _fileLock = new();
 
-        public InMemoryHttpLogStore(int capacity = 500, ILogStream? stream = null)
-            : this(Options.Create(new HttpLogOptions { Capacity = capacity }), stream) { }
-
-        public InMemoryHttpLogStore(IOptions<HttpLogOptions> options, ILogStream? stream = null)
+        public InMemoryHttpLog(IConfiguration cfg)
         {
-            HttpLogOptions cfg = options?.Value ?? new HttpLogOptions();
-            Capacity = Math.Max(50, cfg.Capacity);
-            _stream = stream;
-
-            _maxWritesPerSecond = Math.Max(0, cfg.MaxWritesPerSecond);
-            _alwaysAllowWarnError = cfg.AlwaysAllowWarningsAndErrors;
-            _tokens = _maxWritesPerSecond; _lastRefillUtc = DateTime.UtcNow;
-
-            _persistToFile = cfg.PersistToFile && !string.IsNullOrWhiteSpace(cfg.FilePath);
-            _filePath = cfg.FilePath;
-            _maxFileBytes = Math.Max(50_000, cfg.MaxFileBytes);
-            _maxRolls = Math.Max(1, cfg.MaxRolls);
+            _maxFileBytes = Math.Max(1024 * 1024, cfg.GetValue("HttpLog:MaxFileBytes", 1024 * 1024 * 5));
+            _maxRolls = Math.Max(1, cfg.GetValue("HttpLog:MaxRolls", 5));
+            _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         }
 
-        public int Capacity { get; }
-        public int Count => _queue.Count;
-
-        public void Add(LogEntry entry)
+        public void Add(LogEntry e)
         {
-            ArgumentNullException.ThrowIfNull(entry);
+            _queue.Enqueue(e);
 
-            if (!AllowWrite(entry.Level))
-            {
-                return; // drop if rate-limited and not important
-            }
-
-            _queue.Enqueue(entry);
-            while (_queue.Count > Capacity && _queue.TryDequeue(out _)) { }
-            try { _stream?.Publish(entry); } catch { }
-
-            if (_persistToFile)
-            {
-                try { AppendToFile(entry); } catch { }
-            }
-        }
-
-        private bool AllowWrite(LogLevel level)
-        {
-            if (_maxWritesPerSecond <= 0)
-            {
-                return true; // limiter disabled
-            }
-
-            if (_alwaysAllowWarnError && (level >= LogLevel.Warning))
-            {
-                return true;
-            }
-
-            lock (_rateLock)
-            {
-                DateTime now = DateTime.UtcNow;
-                double elapsed = (now - _lastRefillUtc).TotalSeconds;
-                if (elapsed > 0)
-                {
-                    _tokens = Math.Min(_maxWritesPerSecond, _tokens + (elapsed * _maxWritesPerSecond));
-                    _lastRefillUtc = now;
-                }
-                if (_tokens >= 1)
-                {
-                    _tokens -= 1;
-                    return true;
-                }
-                return false;
-            }
-        }
-
-        private void AppendToFile(LogEntry e)
-        {
             if (string.IsNullOrWhiteSpace(_filePath))
             {
                 return;
@@ -161,7 +85,14 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-            catch { }
+            catch (IOException)
+            {
+                // ignore file IO issues when rolling; logging continues in memory
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // ignore permission issues; logging continues in memory
+            }
         }
 
         private static string FormatLine(LogEntry e)
@@ -227,15 +158,16 @@ namespace XRoadFolkWeb.Infrastructure
                 }
 
                 string msg = formatter(state, exception);
+                string kind = ComputeKind(_category, eventId, msg);
                 _store.Add(new LogEntry
                 {
                     Timestamp = DateTimeOffset.UtcNow,
                     Level = logLevel,
                     Category = _category,
                     EventId = eventId.Id,
-                    Kind = ComputeKind(_category, eventId, msg),
+                    Kind = kind,
                     Message = msg,
-                    Exception = exception?.ToString()
+                    Exception = exception?.Message
                 });
             }
         }

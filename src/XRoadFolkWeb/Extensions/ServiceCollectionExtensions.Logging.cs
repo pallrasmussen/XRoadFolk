@@ -43,9 +43,7 @@ public static partial class ServiceCollectionExtensions
         else
         {
             // Default: in-memory store
-            services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLogStore(
-                sp.GetRequiredService<IOptions<HttpLogOptions>>(),
-                sp.GetRequiredService<ILogStream>()));
+            services.AddSingleton<IHttpLogStore>(sp => new InMemoryHttpLog(sp.GetRequiredService<IConfiguration>()));
         }
 
         // Register the custom logger provider so all logs also flow into IHttpLogStore

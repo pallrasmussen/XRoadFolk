@@ -4,6 +4,8 @@ using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
+using System.Net.Http;
+using System.Xml;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -128,10 +130,19 @@ namespace XRoadFolkRaw.Lib
                     dateOfBirth: dateOfBirth,
                     ct: ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw; // preserve cancellation
+            }
+            catch (HttpRequestException ex)
             {
                 LogPeoplePublicInfoError(_log, ex);
-                throw new InvalidOperationException(_localizer["PeoplePublicInfoError"], ex);
+                throw new HttpRequestException(_localizer["PeoplePublicInfoError"], ex);
+            }
+            catch (IOException ex)
+            {
+                LogPeoplePublicInfoError(_log, ex);
+                throw new IOException(_localizer["PeoplePublicInfoError"], ex);
             }
         }
 
@@ -180,10 +191,19 @@ namespace XRoadFolkRaw.Lib
                     options: req,
                     ct: ct).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw; // preserve cancellation
+            }
+            catch (HttpRequestException ex)
             {
                 LogGetPersonError(_log, ex);
-                throw new InvalidOperationException(_localizer["GetPersonError"], ex);
+                throw new HttpRequestException(_localizer["GetPersonError"], ex);
+            }
+            catch (IOException ex)
+            {
+                LogGetPersonError(_log, ex);
+                throw new IOException(_localizer["GetPersonError"], ex);
             }
         }
 

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +70,12 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
         handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
         handler.SslOptions.ClientCertificates.Add(cert);
     }
-    catch (Exception ex)
+    catch (CryptographicException ex)
+    {
+        ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
+        log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
+    }
+    catch (IOException ex)
     {
         ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
         log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
