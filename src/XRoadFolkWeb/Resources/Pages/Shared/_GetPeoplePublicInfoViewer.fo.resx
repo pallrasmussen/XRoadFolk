@@ -1,46 +1,228 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
-  <resheader name="version"><value>2.0</value></resheader>
-  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
-  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
 
-  <!-- Toolbar/labels -->
-  <data name="GetPeoplePublicInfo" xml:space="preserve"><value>Heinta almennar fólkaupplýsingar</value></data>
-  <data name="Pretty" xml:space="preserve"><value>Sniðgjørt</value></data>
-  <data name="Raw" xml:space="preserve"><value>Rátt</value></data>
-  <data name="Tree" xml:space="preserve"><value>Greinayvirlit</value></data>
-  <data name="Summary" xml:space="preserve"><value>Samandráttur</value></data>
-  <data name="MaskSensitive" xml:space="preserve"><value>Maskera viðkvæmar</value></data>
-  <data name="Search" xml:space="preserve"><value>Leita</value></data>
-  <data name="SearchPlaceholder" xml:space="preserve"><value>tag/virði…</value></data>
-  <data name="Clear" xml:space="preserve"><value>Tøm</value></data>
-  <data name="Expand" xml:space="preserve"><value>Víðka</value></data>
-  <data name="Collapse" xml:space="preserve"><value>Fella saman</value></data>
-  <data name="Copy" xml:space="preserve"><value>Avrita</value></data>
-  <data name="Download" xml:space="preserve"><value>Heinta</value></data>
-  <data name="ExportCsvTitle" xml:space="preserve"><value>Útflut samandrátt sum CSV</value></data>
-  <data name="Height" xml:space="preserve"><value>Hædd</value></data>
-  <data name="AdjustHeightTitle" xml:space="preserve"><value>Rætta sýnihædd (vh)</value></data>
-  <data name="Fullscreen" xml:space="preserve"><value>Fullskíggja</value></data>
-  <data name="ToggleFullscreen" xml:space="preserve"><value>Skift fullskíggju</value></data>
-  <data name="DropXmlHint" xml:space="preserve"><value>Slepp XML-fílu ella teksti her fyri at lesa inn</value></data>
-  <data name="EmptyState" xml:space="preserve"><value>Eingi svar løgd inn enn.</value></data>
-
-  <!-- JS messages -->
-  <data name="NoXmlToDisplay" xml:space="preserve"><value>Eingin XML at vísa.</value></data>
-  <data name="NoXmlRoot" xml:space="preserve"><value>Einki XML-rotelement.</value></data>
-  <data name="FailedToRenderTreePrefix" xml:space="preserve"><value>Kundi ikki vísa greinayvirlit:</value></data>
-  <data name="NoPeopleFound" xml:space="preserve"><value>Eingi PersonPublicInfo-element funnin.</value></data>
-  <data name="PeopleLabel" xml:space="preserve"><value>Fólk</value></data>
-  <data name="Basics" xml:space="preserve"><value>Grundupplýsingar</value></data>
-  <data name="Names" xml:space="preserve"><value>Nøvn</value></data>
-  <data name="Name" xml:space="preserve"><value>Navn</value></data>
-  <data name="NoMatchesClear" xml:space="preserve"><value>Eingi úrslit. Tøm leitina fyri at vísa alt.</value></data>
-  <data name="NoMatchesSummaryClear" xml:space="preserve"><value>Eingi úrslit í samandrátti. Tøm leitina fyri at vísa alt.</value></data>
-  <data name="CopyXml" xml:space="preserve"><value>Avrita XML</value></data>
-  <data name="Copied" xml:space="preserve"><value>Avritað</value></data>
-  <data name="PublicId" xml:space="preserve"><value>Alment ID</value></data>
-  <data name="DOB" xml:space="preserve"><value>Føðingardagur</value></data>
-  <data name="Status" xml:space="preserve"><value>Støða</value></data>
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="GetPeoplePublicInfo" xml:space="preserve">
+    <value>Heinta almennar fólkaupplýsingar</value>
+  </data>
+  <data name="Pretty" xml:space="preserve">
+    <value>Sniðgjørt</value>
+  </data>
+  <data name="Raw" xml:space="preserve">
+    <value>Rátt</value>
+  </data>
+  <data name="Tree" xml:space="preserve">
+    <value>Greinayvirlit</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>Samandráttur</value>
+  </data>
+  <data name="MaskSensitive" xml:space="preserve">
+    <value>Maskera viðkvæmar</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>Leita</value>
+  </data>
+  <data name="SearchPlaceholder" xml:space="preserve">
+    <value>tag/virði…</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Tøm</value>
+  </data>
+  <data name="Expand" xml:space="preserve">
+    <value>Víðka</value>
+  </data>
+  <data name="Collapse" xml:space="preserve">
+    <value>Fella saman</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Avrita</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Heinta</value>
+  </data>
+  <data name="ExportCsvTitle" xml:space="preserve">
+    <value>Útflut samandrátt sum CSV</value>
+  </data>
+  <data name="Height" xml:space="preserve">
+    <value>Hædd</value>
+  </data>
+  <data name="AdjustHeightTitle" xml:space="preserve">
+    <value>Rætta sýnihædd (vh)</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fullskíggja</value>
+  </data>
+  <data name="ToggleFullscreen" xml:space="preserve">
+    <value>Skift fullskíggju</value>
+  </data>
+  <data name="DropXmlHint" xml:space="preserve">
+    <value>Slepp XML-fílu ella teksti her fyri at lesa inn</value>
+  </data>
+  <data name="EmptyState" xml:space="preserve">
+    <value>Eingi svar løgd inn enn.</value>
+  </data>
+  <data name="NoXmlToDisplay" xml:space="preserve">
+    <value>Eingin XML at vísa.</value>
+  </data>
+  <data name="NoXmlRoot" xml:space="preserve">
+    <value>Einki XML-rotelement.</value>
+  </data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve">
+    <value>Kundi ikki vísa greinayvirlit:</value>
+  </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>Eingi PersonPublicInfo-element funnin.</value>
+  </data>
+  <data name="PeopleLabel" xml:space="preserve">
+    <value>Fólk</value>
+  </data>
+  <data name="Basics" xml:space="preserve">
+    <value>Grundupplýsingar</value>
+  </data>
+  <data name="Names" xml:space="preserve">
+    <value>Nøvn</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="NoMatchesClear" xml:space="preserve">
+    <value>Eingi úrslit. Tøm leitina fyri at vísa alt.</value>
+  </data>
+  <data name="NoMatchesSummaryClear" xml:space="preserve">
+    <value>Eingi úrslit í samandrátti. Tøm leitina fyri at vísa alt.</value>
+  </data>
+  <data name="CopyXml" xml:space="preserve">
+    <value>Avrita XML</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>Avritað</value>
+  </data>
+  <data name="PublicId" xml:space="preserve">
+    <value>Alment ID</value>
+  </data>
+  <data name="DOB" xml:space="preserve">
+    <value>Føðingardagur</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Støða</value>
+  </data>
+  <data name="ExtendedSearch" xml:space="preserve">
+    <value>Víðkað leiting...</value>
+  </data>
 </root>

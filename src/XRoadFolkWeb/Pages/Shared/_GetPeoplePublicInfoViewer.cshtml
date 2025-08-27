@@ -15,7 +15,10 @@
         Name = L["Name"].Value,
         PublicId = L["PublicId"].Value,
         DOB = L["DOB"].Value,
-        Status = L["Status"].Value
+        Status = L["Status"].Value,
+        Expand = L["Expand"].Value,
+        Collapse = L["Collapse"].Value,
+        ExtendedSearch = L["ExtendedSearch"].Value
     };
 }
 <style>
@@ -104,7 +107,7 @@
               <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
               <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
             </div>
-            <div class="btn-group" role="group" aria-label="Tree commands">
+            <div id="gpiv-tree-commands" class="btn-group" role="group" aria-label="Tree commands">
               <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
               <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">@L["Collapse"]</button>
             </div>
@@ -152,6 +155,7 @@
     var summaryHost = document.getElementById('gpiv-xml-summary');
     var emptyMsg = document.getElementById('gpiv-empty');
     var card = document.querySelector('.gpiv-card');
+    var treeCmds = document.getElementById('gpiv-tree-commands');
 
     var sourcePretty = prePretty ? (prePretty.textContent || '') : '';
     var sourceRaw = preRaw ? (preRaw.textContent || '') : '';
@@ -334,7 +338,21 @@
             var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
             var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
             hdr.appendChild(cnt);
+
+            // Add Expand/Collapse buttons next to the count
+            var grp = el('div', 'btn-group btn-group-sm ms-auto', null);
+            var bExpand = el('button', 'btn btn-outline-secondary', I18N.Expand || 'Expand');
+            bExpand.id = 'gpiv-summary-expand';
+            var bCollapse = el('button', 'btn btn-outline-secondary', I18N.Collapse || 'Collapse');
+            bCollapse.id = 'gpiv-summary-collapse';
+            grp.appendChild(bExpand); grp.appendChild(bCollapse);
+            hdr.appendChild(grp);
+
             summaryHost.appendChild(hdr);
+
+            // Wire header buttons
+            bExpand.addEventListener('click', function(){ expandSummaryAll(true); });
+            bCollapse.addEventListener('click', function(){ expandSummaryAll(false); });
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
@@ -371,16 +389,17 @@
                 wrap.dataset.publicId = publicId || '';
                 wrap.dataset.dob = dob || '';
 
+                if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
+
                 if (publicId) {
                     var pidBtn = document.createElement('button');
                     pidBtn.type = 'button';
-                    pidBtn.className = 'btn btn-sm btn-outline-secondary gpiv-pid';
+                    pidBtn.className = 'btn btn-sm btn-outline-secondary gpiv-pid ms-auto';
                     pidBtn.setAttribute('data-public-id', publicId);
-                    pidBtn.textContent = (I18N.PublicId || 'PublicId') + ': ' + publicId;
+                    // Change label to Extended search
+                    pidBtn.textContent = (I18N.ExtendedSearch || 'Extended search');
                     header.appendChild(pidBtn);
                 }
-
-                if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
                 wrap.appendChild(header);
 
@@ -504,6 +523,9 @@
         if (expandBtn) expandBtn.disabled = !canExpand;
         if (collapseBtn) collapseBtn.disabled = !canExpand;
 
+        // Hide tree expand/collapse when in summary mode (moved into summary header)
+        if (treeCmds) treeCmds.style.display = summaryActive ? 'none' : '';
+
         setActive();
         savePrefs();
     }
@@ -550,8 +572,14 @@
         if (e.key === '1') { if (prettyBtn) prettyBtn.click(); }
         if (e.key === '3') { if (treeBtn)   treeBtn.click(); }
         if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
-        if (e.key.toLowerCase() === 'e') { if (!expandBtn || expandBtn.disabled) return; expandBtn.click(); }
-        if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click(); }
+        if (e.key.toLowerCase() === 'e') {
+            if (mode === 'summary') { expandSummaryAll(true); return; }
+            if (!expandBtn || expandBtn.disabled) return; expandBtn.click();
+        }
+        if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) {
+            if (mode === 'summary') { expandSummaryAll(false); return; }
+            if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click();
+        }
     });
 
     window.gpiv = {
@@ -567,7 +595,8 @@
             mode = 'summary'; updateView();
             var badges = summaryHost.querySelectorAll('.gpiv-pid');
             for (var i = 0; i < badges.length; i++) {
-                if ((badges[i].textContent || '').indexOf(publicId) >= 0) {
+                var pidAttr = badges[i].getAttribute('data-public-id') || '';
+                if (pidAttr === publicId || (badges[i].textContent || '').indexOf(publicId) >= 0) {
                     var wrap = badges[i];
                     while (wrap && wrap !== summaryHost && !wrap.classList.contains('border')) wrap = wrap.parentElement;
                     if (wrap && wrap.scrollIntoView) { wrap.scrollIntoView({ block: 'center' }); wrap.classList.add('gpiv-highlight'); setTimeout(function () { wrap.classList.remove('gpiv-highlight'); }, 1500); }
@@ -801,5 +830,22 @@
       }
     }
   }catch{}
+
+  // Expand/Collapse all panels inside Person Details (accordion)
+  function pdToggleAll(open){
+    try{
+      var host = document.getElementById('person-details-section');
+      if (!host) return;
+      var panes = host.querySelectorAll('.accordion-collapse');
+      panes.forEach(function(p){ p.classList.toggle('show', !!open); });
+      var btns = host.querySelectorAll('.accordion-button');
+      btns.forEach(function(b){ b.classList.toggle('collapsed', !open); });
+    }catch{}
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target && e.target.id || '';
+    if (t === 'pd-expand-all') pdToggleAll(true);
+    if (t === 'pd-collapse-all') pdToggleAll(false);
+  });
 })();
 </script>
