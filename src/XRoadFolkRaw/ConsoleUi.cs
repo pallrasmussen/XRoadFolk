@@ -16,14 +16,23 @@ namespace XRoadFolkRaw
         private readonly IStringLocalizer<ConsoleUi> _loc = loc;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
 
-        public async Task RunAsync()
+        public async Task RunAsync(CancellationToken ct = default)
         {
             PrintBanner();
 
             while (true)
             {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 var (ssnInput, fnInput, lnInput, dobInput, quit) = CollectInputs();
                 if (quit) { break; }
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
 
                 var validation = ValidateInputs(ssnInput, fnInput, lnInput, dobInput);
                 if (!validation.Ok)
@@ -37,7 +46,7 @@ namespace XRoadFolkRaw
                 XDocument? listDoc;
                 try
                 {
-                    listDoc = await FetchPeopleListAsync(validation.SsnNorm, fnInput, lnInput, validation.Dob).ConfigureAwait(false);
+                    listDoc = await FetchPeopleListAsync(validation.SsnNorm, fnInput, lnInput, validation.Dob, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -58,7 +67,7 @@ namespace XRoadFolkRaw
 
                 PrintPeopleDetails(listDoc);
 
-                await ChainGetPersonAsync(listDoc).ConfigureAwait(false);
+                await ChainGetPersonAsync(listDoc, ct).ConfigureAwait(false);
             }
         }
 
@@ -117,12 +126,12 @@ namespace XRoadFolkRaw
         }
 
         // 2) Data fetching / parsing
-        private async Task<XDocument?> FetchPeopleListAsync(string? ssnNorm, string? firstName, string? lastName, DateTimeOffset? dob)
+        private async Task<XDocument?> FetchPeopleListAsync(string? ssnNorm, string? firstName, string? lastName, DateTimeOffset? dob, CancellationToken ct)
         {
             string responseXml;
             try
             {
-                responseXml = await _service.GetPeoplePublicInfoAsync(ssnNorm, firstName, lastName, dob).ConfigureAwait(false);
+                responseXml = await _service.GetPeoplePublicInfoAsync(ssnNorm, firstName, lastName, dob, ct).ConfigureAwait(false);
             }
             catch (HttpRequestException ex)
             {
@@ -161,13 +170,18 @@ namespace XRoadFolkRaw
         }
 
         // 3) Chaining to GetPerson
-        private async Task ChainGetPersonAsync(XDocument listDoc)
+        private async Task ChainGetPersonAsync(XDocument listDoc, CancellationToken ct)
         {
             int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
             int count = 0;
 
             foreach (XElement p in EnumeratePeople(listDoc))
             {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 if (++count > maxChain)
                 {
                     break;
@@ -179,7 +193,7 @@ namespace XRoadFolkRaw
                 string personDesc = fields.PublicId ?? fields.Ssn ?? ($"{fields.First} {fields.Last}");
                 Console.WriteLine(_loc["FetchingGetPerson", personDesc, dobPart]);
 
-                await TryFetchAndPrintPersonAsync(fields.PublicId).ConfigureAwait(false);
+                await TryFetchAndPrintPersonAsync(fields.PublicId, ct).ConfigureAwait(false);
             }
         }
 
@@ -199,11 +213,11 @@ namespace XRoadFolkRaw
             return (publicId, personSsn, fn, ln, dob);
         }
 
-        private async Task<bool> TryFetchAndPrintPersonAsync(string? publicId)
+        private async Task<bool> TryFetchAndPrintPersonAsync(string? publicId, CancellationToken ct)
         {
             try
             {
-                string personResp = await _service.GetPersonAsync(publicId).ConfigureAwait(false);
+                string personResp = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(personResp))
                 {
                     XDocument doc = XDocument.Parse(personResp);

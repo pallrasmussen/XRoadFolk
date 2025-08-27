@@ -24,6 +24,9 @@ public static partial class ServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
 
+        // Token cache options
+        services.Configure<TokenCacheOptions>(configuration.GetSection("TokenCache"));
+
         return services;
     }
 }

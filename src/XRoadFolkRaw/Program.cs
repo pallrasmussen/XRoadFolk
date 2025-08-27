@@ -50,6 +50,9 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<XRoadSettings>(builder.Configuration.GetSection("XRoad"));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
+// Bind TokenCacheOptions
+builder.Services.Configure<TokenCacheOptions>(builder.Configuration.GetSection("TokenCache"));
+
 // HttpClient with certificate (warn if missing)
 builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
 {
@@ -131,7 +134,7 @@ builder.Services.AddScoped<ConsoleUi>();
 
 // Build and run
 IHost app = builder.Build();
-await app.Services.GetRequiredService<ConsoleUi>().RunAsync();
+await app.Services.GetRequiredService<ConsoleUi>().RunAsync(app.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
 
 // LoggerMessage helpers (types must come after top-level statements)
 internal static partial class Program

@@ -29,6 +29,7 @@ namespace XRoadFolkRaw.Lib
         private readonly string _personXmlPath;
         private readonly IValidateOptions<GetPersonRequestOptions> _requestValidator;
         private readonly IMemoryCache _cache;
+        private readonly TokenCacheOptions _cacheOptions;
 
         public PeopleService(
             FolkRawClient client,
@@ -37,7 +38,8 @@ namespace XRoadFolkRaw.Lib
             ILogger log,
             IStringLocalizer<PeopleService> localizer,
             IValidateOptions<GetPersonRequestOptions> requestValidator,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            IOptions<TokenCacheOptions>? cacheOptions = null)
         {
             ArgumentNullException.ThrowIfNull(client);
             ArgumentNullException.ThrowIfNull(config);
@@ -53,6 +55,7 @@ namespace XRoadFolkRaw.Lib
             _localizer = localizer;
             _requestValidator = requestValidator;
             _cache = cache;
+            _cacheOptions = cacheOptions?.Value ?? new TokenCacheOptions();
 
             _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
             _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
@@ -61,6 +64,7 @@ namespace XRoadFolkRaw.Lib
             // Preload all XML templates
             _client.PreloadTemplates([_loginXmlPath, _peopleInfoXmlPath, _personXmlPath]);
 
+            TimeSpan refreshSkew = TimeSpan.FromSeconds(Math.Max(0, _cacheOptions.RefreshSkewSeconds));
             _tokenProvider = new FolkTokenProviderRaw(client, ct => client.LoginAsync(
                 loginXmlPath: _loginXmlPath,
                 xId: Guid.NewGuid().ToString("N"),
@@ -79,12 +83,12 @@ namespace XRoadFolkRaw.Lib
                 serviceCode: settings.Service.ServiceCode,
                 serviceVersion: settings.Service.ServiceVersion ?? "v1",
                 ct: ct
-            ), refreshSkew: TimeSpan.FromSeconds(60));
+            ), refreshSkew: refreshSkew);
         }
 
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
-            string key = "folk-token|" + ComputeKey(_settings);
+            string key = (_cacheOptions.KeyPrefix ?? "folk-token|") + ComputeKey(_settings);
 
             if (_cache.TryGetValue<string>(key, out var token) && !string.IsNullOrWhiteSpace(token))
             {
@@ -98,9 +102,10 @@ namespace XRoadFolkRaw.Lib
                 throw new InvalidOperationException(_localizer["TokenMissing"]);
             }
 
+            TimeSpan defaultTtl = TimeSpan.FromSeconds(Math.Max(1, _cacheOptions.DefaultTtlSeconds));
             TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
                 ? ExpiresUtc - DateTimeOffset.UtcNow
-                : TimeSpan.FromMinutes(5);
+                : defaultTtl;
 
             _cache.Set(key, Token, new MemoryCacheEntryOptions
             {
