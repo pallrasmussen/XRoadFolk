@@ -4,9 +4,7 @@ namespace XRoadFolkWeb.Extensions
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Decompose into focused registrations
-
-            _ = services
+            return services
                 .AddAppLogging()
                 .AddAppLocalization(configuration)
                 .AddAppAntiforgery()
@@ -15,16 +13,8 @@ namespace XRoadFolkWeb.Extensions
                 .AddFolkRawClientFactory()
                 .AddPeopleServices()
                 .AddMvcCustomizations()
-                .AddHttpLogging(configuration);
-
-            // Response compression
-            _ = services.AddResponseCompression(static opts =>
-            {
-                opts.EnableForHttps = true;
-                opts.MimeTypes = Program.ResponseCompressionMimeTypes;
-            });
-
-            return services;
+                .AddHttpLogging(configuration)
+                .AddResponseCompressionDefaults();
         }
     }
 }
