@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="AppName" xml:space="preserve">
-    <value>HeldHeldin Fólk</value>
+    <value>Heldin Fólk</value>
   </data>
   <data name="Nav_Home" xml:space="preserve">
     <value>Home</value>
@@ -130,7 +130,7 @@
     <value>Theme</value>
   </data>
   <data name="BuiltWith" xml:space="preserve">
-    <value>Built with ASP.NET Core + BootStrap</value>
+    <value>PR</value>
   </data>
   <data name="Culture_en-US" xml:space="preserve">
     <value>English (United States)</value>
