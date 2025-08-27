@@ -1,24 +1,42 @@
 using Microsoft.Extensions.Options;
 
-namespace XRoadFolkRaw.Lib.Options;
-
-public sealed class GetPersonRequestOptionsValidator : IValidateOptions<GetPersonRequestOptions>
+namespace XRoadFolkRaw.Lib.Options
 {
-    public ValidateOptionsResult Validate(string? name, GetPersonRequestOptions options)
+    public sealed class GetPersonRequestOptionsValidator : IValidateOptions<GetPersonRequestOptions>
     {
-        if (options is null) return ValidateOptionsResult.Fail("Options are required.");
+        public ValidateOptionsResult Validate(string? name, GetPersonRequestOptions options)
+        {
+            if (options is null)
+            {
+                return ValidateOptionsResult.Fail("Options are required.");
+            }
 
-        int idCount = 0;
-        if (!string.IsNullOrWhiteSpace(options.Id)) idCount++;
-        if (!string.IsNullOrWhiteSpace(options.PublicId)) idCount++;
-        if (!string.IsNullOrWhiteSpace(options.Ssn)) idCount++;
-        if (!string.IsNullOrWhiteSpace(options.ExternalId)) idCount++;
+            int idCount = 0;
+            if (!string.IsNullOrWhiteSpace(options.Id))
+            {
+                idCount++;
+            }
 
-        if (idCount == 0)
-            return ValidateOptionsResult.Fail("One of Id, PublicId, Ssn, or ExternalId must be provided.");
-        if (idCount > 1)
-            return ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.");
+            if (!string.IsNullOrWhiteSpace(options.PublicId))
+            {
+                idCount++;
+            }
 
-        return ValidateOptionsResult.Success;
+            if (!string.IsNullOrWhiteSpace(options.Ssn))
+            {
+                idCount++;
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ExternalId))
+            {
+                idCount++;
+            }
+
+            return idCount == 0
+                ? ValidateOptionsResult.Fail("One of Id, PublicId, Ssn, or ExternalId must be provided.")
+                : idCount > 1
+                ? ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.")
+                : ValidateOptionsResult.Success;
+        }
     }
 }
