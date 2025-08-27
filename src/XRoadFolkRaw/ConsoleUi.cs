@@ -18,6 +18,53 @@ namespace XRoadFolkRaw
 
         public async Task RunAsync()
         {
+            PrintBanner();
+
+            while (true)
+            {
+                var (ssnInput, fnInput, lnInput, dobInput, quit) = CollectInputs();
+                if (quit) { break; }
+
+                var validation = ValidateInputs(ssnInput, fnInput, lnInput, dobInput);
+                if (!validation.Ok)
+                {
+                    ReportValidationErrors(validation.Errors);
+                    continue;
+                }
+
+                AnnounceCriteria(validation.SsnNorm, fnInput, lnInput, validation.Dob);
+
+                XDocument? listDoc;
+                try
+                {
+                    listDoc = await FetchPeopleListAsync(validation.SsnNorm, fnInput, lnInput, validation.Dob).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Operation cancelled.");
+                    break;
+                }
+
+                if (listDoc is null)
+                {
+                    continue; // already reported
+                }
+
+                if (!HasPeople(listDoc))
+                {
+                    Console.WriteLine(_loc["NoMatches"]);
+                    continue;
+                }
+
+                PrintPeopleDetails(listDoc);
+
+                await ChainGetPersonAsync(listDoc).ConfigureAwait(false);
+            }
+        }
+
+        // 1) UI helpers
+        private void PrintBanner()
+        {
             Console.WriteLine();
             Console.WriteLine(_loc["BannerSeparator"]);
             Console.WriteLine(_loc["InputModeStrict"]);
@@ -25,135 +72,161 @@ namespace XRoadFolkRaw
             Console.WriteLine(_loc["ExampleInput"]);
             Console.WriteLine(_loc["QuitPrompt"]);
             Console.WriteLine(_loc["BannerSeparator"]);
+        }
 
-            while (true)
+        private (string? SsnInput, string? FirstName, string? LastName, string? DobInput, bool Quit) CollectInputs()
+        {
+            Console.WriteLine();
+            Console.WriteLine(_loc["EnterSearchCriteria"]);
+            string? ssnInput = Prompt(_loc["SSN"], out bool quit);
+            if (quit) { return (null, null, null, null, true); }
+            string? fnInput = Prompt(_loc["FirstName"], out quit);
+            if (quit) { return (null, null, null, null, true); }
+            string? lnInput = Prompt(_loc["LastName"], out quit);
+            if (quit) { return (null, null, null, null, true); }
+            string? dobInput = Prompt(_loc["DateOfBirthPrompt"], out quit);
+            if (quit) { return (null, null, null, null, true); }
+            return (ssnInput, fnInput, lnInput, dobInput, false);
+        }
+
+        private (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) ValidateInputs(string? ssnInput, string? fnInput, string? lnInput, string? dobInput)
+        {
+            return InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput, _valLoc);
+        }
+
+        private void ReportValidationErrors(List<string> errors)
+        {
+            Console.WriteLine(_loc["InputInvalid"]);
+            foreach (string e in errors)
             {
-                Console.WriteLine();
-                Console.WriteLine(_loc["EnterSearchCriteria"]);
-                string? ssnInput = Prompt(_loc["SSN"], out bool quit);
-                if (quit) { break; }
-                string? fnInput = Prompt(_loc["FirstName"], out quit);
-                if (quit) { break; }
-                string? lnInput = Prompt(_loc["LastName"], out quit);
-                if (quit) { break; }
-                string? dobInput = Prompt(_loc["DateOfBirthPrompt"], out quit);
-                if (quit) { break; }
+                Console.WriteLine(_loc["ErrorBullet"] + e);
+            }
+            Console.WriteLine(_loc["PleaseTryAgain"]);
+        }
 
-                (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob) = InputValidation.ValidateCriteria(ssnInput, fnInput, lnInput, dobInput, _valLoc);
-                if (!Ok)
-                {
-                    Console.WriteLine(_loc["InputInvalid"]);
-                    foreach (string e in Errors)
-                    {
-                        Console.WriteLine(_loc["ErrorBullet"] + e);
-                    }
-                    Console.WriteLine(_loc["PleaseTryAgain"]);
-                    continue;
-                }
+        private void AnnounceCriteria(string? ssnNorm, string? firstName, string? lastName, DateTimeOffset? dob)
+        {
+            if (!string.IsNullOrWhiteSpace(ssnNorm))
+            {
+                Console.WriteLine(_loc["UsingSsn", MaskSsn(ssnNorm)]);
+            }
+            else
+            {
+                Console.WriteLine(_loc["UsingNameDob", firstName ?? "", lastName ?? "", dob?.ToString("yyyy-MM-dd") ?? ""]);
+            }
+        }
 
-                if (!string.IsNullOrWhiteSpace(SsnNorm))
-                {
-                    Console.WriteLine(_loc["UsingSsn", MaskSsn(SsnNorm)]);
-                }
-                else
-                {
-                    Console.WriteLine(_loc["UsingNameDob", fnInput ?? "", lnInput ?? "", Dob?.ToString("yyyy-MM-dd") ?? ""]);
-                }
+        // 2) Data fetching / parsing
+        private async Task<XDocument?> FetchPeopleListAsync(string? ssnNorm, string? firstName, string? lastName, DateTimeOffset? dob)
+        {
+            string responseXml;
+            try
+            {
+                responseXml = await _service.GetPeoplePublicInfoAsync(ssnNorm, firstName, lastName, dob).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex)
+            {
+                LogFailedGetPeoplePublicInfo(_log, ex);
+                Console.WriteLine(ex.Message);
+                return null;
+            }
 
-                string responseXml;
-                try
+            if (string.IsNullOrWhiteSpace(responseXml))
+            {
+                Console.WriteLine(_loc["NoResponse"]);
+                return null;
+            }
+
+            try
+            {
+                return XDocument.Parse(responseXml);
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                LogFailedParseGetPeoplePublicInfo(_log, ex);
+                Console.WriteLine(ex.Message);
+                return null;
+            }
+        }
+
+        private static bool HasPeople(XDocument doc)
+        {
+            return doc.Descendants().Any(e => e.Name.LocalName == "PersonPublicInfo");
+        }
+
+        private void PrintPeopleDetails(XDocument listDoc)
+        {
+            PrintGetPeoplePublicInfoAllPairs(listDoc, _log, _loc);
+            PrintGetPeoplePublicInfoSummary(listDoc, _log, _loc);
+        }
+
+        // 3) Chaining to GetPerson
+        private async Task ChainGetPersonAsync(XDocument listDoc)
+        {
+            int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
+            int count = 0;
+
+            foreach (XElement p in EnumeratePeople(listDoc))
+            {
+                if (++count > maxChain)
                 {
-                    responseXml = await _service.GetPeoplePublicInfoAsync(SsnNorm, fnInput, lnInput, Dob);
-                }
-                catch (OperationCanceledException)
-                {
-                    Console.WriteLine("Operation cancelled.");
                     break;
                 }
-                catch (HttpRequestException ex)
+
+                var fields = ExtractPersonFields(p);
+                Console.WriteLine();
+                string dobPart = string.IsNullOrWhiteSpace(fields.Dob) ? "" : $" {_loc["DOB"]}:{fields.Dob}";
+                string personDesc = fields.PublicId ?? fields.Ssn ?? ($"{fields.First} {fields.Last}");
+                Console.WriteLine(_loc["FetchingGetPerson", personDesc, dobPart]);
+
+                await TryFetchAndPrintPersonAsync(fields.PublicId).ConfigureAwait(false);
+            }
+        }
+
+        private static IEnumerable<XElement> EnumeratePeople(XDocument doc)
+        {
+            return doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
+        }
+
+        private static (string? PublicId, string? Ssn, string? First, string? Last, string? Dob) ExtractPersonFields(XElement p)
+        {
+            string? Get(string ln) => p.Elements().FirstOrDefault(x => x.Name.LocalName == ln)?.Value?.Trim();
+            string? publicId = Get("PublicId") ?? Get("PersonId");
+            string? personSsn = Get("SSN");
+            string? fn = Get("FirstName");
+            string? ln = Get("LastName");
+            string? dob = Get("DateOfBirth") ?? Get("BirthDate");
+            return (publicId, personSsn, fn, ln, dob);
+        }
+
+        private async Task<bool> TryFetchAndPrintPersonAsync(string? publicId)
+        {
+            try
+            {
+                string personResp = await _service.GetPersonAsync(publicId).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(personResp))
                 {
-                    LogFailedGetPeoplePublicInfo(_log, ex);
-                    Console.WriteLine(ex.Message);
-                    continue;
+                    XDocument doc = XDocument.Parse(personResp);
+                    PrintGetPersonAllPairs(doc, _log, _loc);
                 }
-
-                if (string.IsNullOrWhiteSpace(responseXml))
-                {
-                    Console.WriteLine(_loc["NoResponse"]);
-                    continue;
-                }
-
-                XDocument listDoc;
-                try { listDoc = XDocument.Parse(responseXml); }
-                catch (System.Xml.XmlException ex)
-                {
-                    LogFailedParseGetPeoplePublicInfo(_log, ex);
-                    Console.WriteLine(ex.Message);
-                    continue;
-                }
-
-                List<XElement> people = [.. listDoc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
-                if (people.Count == 0)
-                {
-                    Console.WriteLine(_loc["NoMatches"]);
-                    continue;
-                }
-
-                // Print all pairs for each PersonPublicInfo
-                PrintGetPeoplePublicInfoAllPairs(listDoc, _log, _loc);
-
-                // Print summary only for each PersonPublicInfo
-                PrintGetPeoplePublicInfoSummary(listDoc, _log, _loc);
-
-                int maxChain = Math.Max(1, _config.GetValue("Chaining:MaxPersons", 25));
-                int count = 0;
-                foreach (XElement p in people)
-                {
-                    if (++count > maxChain)
-                    {
-                        break;
-                    }
-
-                    string? Get(string ln)
-                    {
-                        return p.Elements().FirstOrDefault(x => x.Name.LocalName == ln)?.Value?.Trim();
-                    }
-
-                    string? publicId = Get("PublicId") ?? Get("PersonId");
-                    string? personSsn = Get("SSN");
-                    string? fn = Get("FirstName");
-                    string? ln = Get("LastName");
-                    string? dob = Get("DateOfBirth") ?? Get("BirthDate");
-
-                    Console.WriteLine();
-                    string dobPart = string.IsNullOrWhiteSpace(dob) ? "" : $" {_loc["DOB"]}:{dob}";
-                    Console.WriteLine(_loc["FetchingGetPerson", publicId ?? personSsn ?? (fn + " " + ln), dobPart]);
-
-                    try
-                    {
-                        string personResp = await _service.GetPersonAsync(publicId);
-                        if (!string.IsNullOrWhiteSpace(personResp))
-                        {
-                            XDocument doc = XDocument.Parse(personResp);
-                            PrintGetPersonAllPairs(doc, _log, _loc);
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Console.WriteLine("Operation cancelled.");
-                        break;
-                    }
-                    catch (HttpRequestException ex)
-                    {
-                        LogFailedGetPerson(_log, ex);
-                        Console.WriteLine(ex.Message);
-                    }
-                    catch (System.Xml.XmlException ex)
-                    {
-                        LogFailedGetPerson(_log, ex);
-                        Console.WriteLine(ex.Message);
-                    }
-                }
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("Operation cancelled.");
+                return false;
+            }
+            catch (HttpRequestException ex)
+            {
+                LogFailedGetPerson(_log, ex);
+                Console.WriteLine(ex.Message);
+                return false;
+            }
+            catch (System.Xml.XmlException ex)
+            {
+                LogFailedGetPerson(_log, ex);
+                Console.WriteLine(ex.Message);
+                return false;
             }
         }
 
