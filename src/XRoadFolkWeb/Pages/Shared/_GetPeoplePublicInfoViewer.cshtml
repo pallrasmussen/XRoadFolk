@@ -33,47 +33,10 @@
     @@keyframes gpivFlash { 0% { background: rgba(255, 243, 205, .9); } 100% { background: transparent; } }
     .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
 
-    /* Make details-based summary read like an accordion */
-    #gpiv-xml-summary .summary-group {
-        border: 1px solid var(--bs-border-color);
-        border-radius: .375rem;
-        margin-bottom: .5rem;
-        overflow: hidden;
-        background: var(--bs-body-bg);
-    }
-    #gpiv-xml-summary .summary-group > summary {
-        cursor: pointer;
-        list-style: none;
-        padding: .5rem .75rem; /* match person-details accordion-button */
-        font-weight: 600;
-        background: var(--bs-accordion-btn-bg, var(--bs-body-bg));
-        color: var(--bs-accordion-btn-color, var(--bs-body-color));
-        user-select: none;
-        display: flex; align-items: center; justify-content: space-between;
-        border: 0;
-    }
-    #gpiv-xml-summary .summary-group > summary:hover { background: var(--bs-accordion-btn-hover-bg, var(--bs-secondary-bg)); }
-    #gpiv-xml-summary .summary-group > summary:focus { outline: 0; box-shadow: var(--bs-accordion-btn-focus-box-shadow, 0 0 0 .2rem rgba(var(--bs-primary-rgb, 13,110,253), .1)); }
-    #gpiv-xml-summary .summary-group > summary::-webkit-details-marker { display: none; }
-    #gpiv-xml-summary .summary-group > summary::after {
-        content: '';
-        flex-shrink: 0;
-        width: 1rem; height: 1rem;
-        margin-left: auto; margin-right: .125rem;
-        background-image: var(--bs-accordion-btn-icon, url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'%3e%3cpath d='M2 5l6 6 6-6'/%3e%3c/svg%3e"));
-        background-repeat: no-repeat;
-        background-position: center right;
-        background-size: 1rem;
-        transition: transform .2s ease-in-out;
-        opacity: .85;
-        display: inline-block;
-    }
-    #gpiv-xml-summary .summary-group[open] > summary::after {
-        transform: rotate(-180deg);
-        background-image: var(--bs-accordion-btn-active-icon, var(--bs-accordion-btn-icon, url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'%3e%3cpath d='M2 5l6 6 6-6'/%3e%3c/svg%3e")));
-        opacity: 1;
-    }
-    #gpiv-xml-summary .summary-group > *:not(summary) { padding: .5rem .75rem; }
+    /* SUMMARY: match person-details accordion exactly */
+    #gpiv-xml-summary .accordion-button { padding: .5rem .75rem; font-weight: 600; }
+    #gpiv-xml-summary .accordion-item + .accordion-item { border-top: 1px solid var(--bs-border-color); }
+    #gpiv-xml-summary .accordion-body { padding: 0; }
 
     /* Table readability tweaks to match person-details */
     #gpiv-xml-summary .table { margin: 0; }
@@ -241,16 +204,17 @@
         }
       }
       if (!rows.length) return null;
-      var t = document.createElement('table'); t.className = 'table table-sm table-striped align-middle mb-2';
+      var wrap = document.createElement('div'); wrap.className = 'table-responsive';
+      var t = document.createElement('table'); t.className = 'table table-sm table-striped align-middle mb-0';
       var tb = document.createElement('tbody');
       for (var r = 0; r < rows.length; r++) {
         var tr = document.createElement('tr');
-        var th = document.createElement('th'); th.className = 'text-muted fw-normal'; th.style.width = '40%'; th.textContent = rows[r].key;
+        var th = document.createElement('th'); th.className = 'text-muted fw-normal'; th.style.width = '36%'; th.textContent = rows[r].key;
         var td = document.createElement('td'); td.textContent = rows[r].val;
         tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
       }
-      t.appendChild(tb);
-      return t;
+      t.appendChild(tb); wrap.appendChild(t);
+      return wrap;
     }
     function getTextLocal(elx, name) {
       if (!elx || !elx.children) return '';
@@ -288,6 +252,25 @@
         return details;
     }
 
+    // Build a single accordion item helper
+    function accItem(accId, idx, title, bodyContent, open) {
+        var item = document.createElement('div'); item.className = 'accordion-item';
+        var hid = accId + '-h-' + idx; var cid = accId + '-c-' + idx;
+        var h2 = document.createElement('h2'); h2.className = 'accordion-header'; h2.id = hid;
+        var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'accordion-button' + (open ? '' : ' collapsed');
+        btn.setAttribute('data-bs-toggle', 'collapse'); btn.setAttribute('data-bs-target', '#' + cid);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.setAttribute('aria-controls', cid);
+        btn.textContent = title || '';
+        h2.appendChild(btn);
+        var col = document.createElement('div'); col.id = cid; col.className = 'accordion-collapse collapse' + (open ? ' show' : '');
+        col.setAttribute('aria-labelledby', hid);
+        var body = document.createElement('div'); body.className = 'accordion-body p-0';
+        if (bodyContent) body.appendChild(bodyContent);
+        col.appendChild(body);
+        item.appendChild(h2); item.appendChild(col);
+        return item;
+    }
+
     function renderTree() {
         treeHost.innerHTML = '';
         try {
@@ -304,28 +287,8 @@
         }
     }
 
-    // Summary
+    // Summary using Bootstrap accordion to match Person Details exactly
     function renderSummary() {
-        function buildDetailsLocal(node, title) {
-            var d = document.createElement('details');
-            d.className = 'summary-group';
-            d.open = false;
-            var s = document.createElement('summary');
-            s.className = 'fw-semibold';
-            s.textContent = title || (node && node.localName) || '';
-            d.appendChild(s);
-            var table = buildKvpTableIncludingAttributes(node);
-            if (table) d.appendChild(table);
-            var kids = (node && node.children) ? node.children : [];
-            for (var i = 0; i < kids.length; i++) {
-                var k = kids[i];
-                if (!isNil(k) && hasElementChildren(k)) {
-                    d.appendChild(buildDetailsLocal(k));
-                }
-            }
-            return d;
-        }
-
         summaryHost.innerHTML = '';
         try {
             var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
@@ -341,28 +304,25 @@
 
             // Add Expand/Collapse buttons next to the count
             var grp = el('div', 'btn-group btn-group-sm ms-auto', null);
-            var bExpand = el('button', 'btn btn-outline-secondary', I18N.Expand || 'Expand');
-            bExpand.id = 'gpiv-summary-expand';
-            var bCollapse = el('button', 'btn btn-outline-secondary', I18N.Collapse || 'Collapse');
-            bCollapse.id = 'gpiv-summary-collapse';
+            var bExpand = el('button', 'btn btn-outline-secondary', I18N.Expand || 'Expand'); bExpand.id = 'gpiv-summary-expand';
+            var bCollapse = el('button', 'btn btn-outline-secondary', I18N.Collapse || 'Collapse'); bCollapse.id = 'gpiv-summary-collapse';
             grp.appendChild(bExpand); grp.appendChild(bCollapse);
             hdr.appendChild(grp);
-
             summaryHost.appendChild(hdr);
 
-            // Wire header buttons
             bExpand.addEventListener('click', function(){ expandSummaryAll(true); });
             bCollapse.addEventListener('click', function(){ expandSummaryAll(false); });
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
-
                 var wrap = el('div', 'mb-3 p-2 border rounded', null);
                 wrap.setAttribute('data-idx', String(p));
 
+                // Header row
                 var header = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
                 header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
 
+                // Build name display
                 var nameRoot = null;
                 for (var nc = 0; nc < person.children.length; nc++) { if (person.children[nc].localName === 'Names') { nameRoot = person.children[nc]; break; } }
                 var fullName = '';
@@ -384,7 +344,6 @@
                 var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
                 var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
 
-                // dataset retained for potential future use
                 wrap.dataset.name = fullName || '';
                 wrap.dataset.publicId = publicId || '';
                 wrap.dataset.dob = dob || '';
@@ -396,29 +355,27 @@
                     pidBtn.type = 'button';
                     pidBtn.className = 'btn btn-sm btn-outline-secondary gpiv-pid ms-auto';
                     pidBtn.setAttribute('data-public-id', publicId);
-                    // Change label to Extended search
                     pidBtn.textContent = (I18N.ExtendedSearch || 'Extended search');
                     header.appendChild(pidBtn);
                 }
 
                 wrap.appendChild(header);
 
-                if (nameRoot) {
-                    var namesSection = document.createElement('details'); namesSection.className = 'summary-group'; namesSection.open = false;
-                    var namesSum = document.createElement('summary'); namesSum.className = 'fw-semibold'; namesSum.textContent = I18N.Names || 'Names';
-                    namesSection.appendChild(namesSum);
-                    var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
+                // Accordion for this person
+                var accId = 'gpiv-acc-' + p + '-' + Date.now();
+                var acc = document.createElement('div'); acc.className = 'accordion'; acc.id = accId;
 
+                // Names section
+                if (nameRoot) {
+                    var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
                     var nameItems = [];
                     for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
                         var nItem = nameRoot.children[n2];
                         if (nItem.localName !== 'Name' || isNil(nItem)) continue;
-                        var ord = parseInt(getTextLocal(nItem, 'Order') || '9999', 10);
-                        if (isNaN(ord)) ord = 9999;
+                        var ord = parseInt(getTextLocal(nItem, 'Order') || '9999', 10); if (isNaN(ord)) ord = 9999;
                         nameItems.push({ node: nItem, order: ord });
                     }
                     nameItems.sort(function(a,b){ return a.order - b.order; });
-
                     for (var ix = 0; ix < nameItems.length; ix++) {
                         var nNode = nameItems[ix].node;
                         var card2 = el('div', 'p-2 border rounded', null);
@@ -427,17 +384,14 @@
                         var t2 = buildKvpTableIncludingAttributes(nNode); if (t2) card2.appendChild(t2);
                         list.appendChild(card2);
                     }
-
-                    namesSection.appendChild(list);
-                    wrap.appendChild(namesSection);
+                    acc.appendChild(accItem(accId, acc.childElementCount, I18N.Names || 'Names', list, false));
                 }
 
-                var basics = document.createElement('details'); basics.className = 'summary-group'; basics.open = false;
-                var basicsSum = document.createElement('summary'); basicsSum.className = 'fw-semibold'; basicsSum.textContent = I18N.Basics || 'Basics';
-                basics.appendChild(basicsSum);
-                var basicsTable = buildKvpTableIncludingAttributes(person); if (basicsTable) basics.appendChild(basicsTable);
-                wrap.appendChild(basics);
+                // Basics section
+                var basicsTable = buildKvpTableIncludingAttributes(person);
+                if (basicsTable) acc.appendChild(accItem(accId, acc.childElementCount, I18N.Basics || 'Basics', basicsTable, false));
 
+                // Other groups
                 var groups = [];
                 for (var g = 0; g < person.children.length; g++) {
                     var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
@@ -447,10 +401,6 @@
                     var counts = {}; for (var kk = 0; kk < group.children.length; kk++) { var lk = group.children[kk]; if (isNil(lk)) continue; var nm2 = lk.localName; counts[nm2] = (counts[nm2] || 0) + 1; }
                     var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
 
-                    var section = document.createElement('details'); section.className = 'summary-group'; section.open = false;
-                    var secSum = document.createElement('summary'); secSum.className = 'fw-semibold'; secSum.textContent = group.localName;
-                    section.appendChild(secSum);
-
                     if (repeated) {
                         var items = []; for (var ii = 0; ii < group.children.length; ii++) { var it = group.children[ii]; if (!isNil(it) && it.localName === repeated) items.push(it); }
                         var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
@@ -459,18 +409,21 @@
                             var title3 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx + 1));
                             card3.appendChild(title3);
                             var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card3.appendChild(leaves2);
+                            // build nested details as simple blocks
                             var nested = []; for (var nc = 0; nc < items[itx].children.length; nc++) { var kid = items[itx].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
-                            for (var nx = 0; nx < nested.length; nx++) card3.appendChild(buildDetailsLocal(nested[nx]));
+                            for (var nx = 0; nx < nested.length; nx++) {
+                                var sub = buildKvpTableIncludingAttributes(nested[nx]); if (sub) card3.appendChild(sub);
+                            }
                             listWrap.appendChild(card3);
                         }
-                        section.appendChild(listWrap);
+                        acc.appendChild(accItem(accId, acc.childElementCount, group.localName, listWrap, false));
                     } else {
-                        var leaves = buildKvpTableIncludingAttributes(group); if (leaves) section.appendChild(leaves);
-                        var subComplex = []; for (var sc = 0; sc < group.children.length; sc++) { var scn = group.children[sc]; if (!isNil(scn) && hasElementChildren(scn)) subComplex.push(scn); }
-                        for (var sx = 0; sx < subComplex.length; sx++) section.appendChild(buildDetailsLocal(subComplex[sx]));
+                        var leaves = buildKvpTableIncludingAttributes(group);
+                        acc.appendChild(accItem(accId, acc.childElementCount, group.localName, leaves, false));
                     }
-                    wrap.appendChild(section);
                 }
+
+                wrap.appendChild(acc);
                 summaryHost.appendChild(wrap);
             }
         } catch (e) {
@@ -486,8 +439,10 @@
     }
     function expandSummaryAll(open) {
         if (!summaryHost) return;
-        var groups = summaryHost.querySelectorAll('details.summary-group');
-        for (var i = 0; i < groups.length; i++) groups[i].open = !!open;
+        var panes = summaryHost.querySelectorAll('.accordion-collapse');
+        panes.forEach(function(p){ p.classList.toggle('show', !!open); });
+        var btns = summaryHost.querySelectorAll('.accordion-button');
+        btns.forEach(function(b){ b.classList.toggle('collapsed', !open); });
     }
 
     function setActive() {
@@ -518,7 +473,7 @@
         if (treeActive) {
             canExpand = !!(treeHost && treeHost.querySelector('details.xml-node'));
         } else if (summaryActive) {
-            canExpand = !!(summaryHost && summaryHost.querySelector('details.summary-group'));
+            canExpand = !!(summaryHost && summaryHost.querySelector('.accordion-collapse'));
         }
         if (expandBtn) expandBtn.disabled = !canExpand;
         if (collapseBtn) collapseBtn.disabled = !canExpand;
