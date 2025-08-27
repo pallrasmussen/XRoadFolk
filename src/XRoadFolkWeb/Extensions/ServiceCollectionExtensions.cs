@@ -1,5 +1,3 @@
-
-
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class ServiceCollectionExtensions
@@ -17,7 +15,7 @@ namespace XRoadFolkWeb.Extensions
                 .AddFolkRawClientFactory()
                 .AddPeopleServices()
                 .AddMvcCustomizations()
-                .AddInMemoryHttpLogging();
+                .AddHttpLogging(configuration);
 
             // Response compression
             _ = services.AddResponseCompression(static opts =>

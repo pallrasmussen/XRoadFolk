@@ -12,9 +12,15 @@ namespace XRoadFolkWeb.Infrastructure
         public bool AlwaysAllowWarningsAndErrors { get; set; } = true;
 
         // Persistence to rolling file (optional)
-        public bool PersistToFile { get; set; }
+        public bool PersistToFile { get; set; } = false;
         public string? FilePath { get; set; }
         public long MaxFileBytes { get; set; } = 5_000_000; // 5 MB
         public int MaxRolls { get; set; } = 3; // keep N rolled files
+
+        // Bounded channel queue size for file-backed writer (back-pressure)
+        public int MaxQueue { get; set; } = 5000;
+
+        // Flush interval (milliseconds) for batching writes to file
+        public int FlushIntervalMs { get; set; } = 250;
     }
 }
