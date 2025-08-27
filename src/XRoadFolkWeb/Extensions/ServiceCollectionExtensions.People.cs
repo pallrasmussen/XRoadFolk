@@ -11,12 +11,12 @@ public static partial class ServiceCollectionExtensions
     {
         services.AddScoped(sp =>
         {
-            var client   = sp.GetRequiredService<FolkRawClient>();
-            var cfg      = sp.GetRequiredService<IConfiguration>();
-            var xr       = sp.GetRequiredService<XRoadSettings>();
-            var logger   = sp.GetRequiredService<ILogger<PeopleService>>();
-            var loc      = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
-            var validator= sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
+            FolkRawClient client   = sp.GetRequiredService<FolkRawClient>();
+            IConfiguration cfg      = sp.GetRequiredService<IConfiguration>();
+            XRoadSettings xr       = sp.GetRequiredService<XRoadSettings>();
+            ILogger<PeopleService> logger   = sp.GetRequiredService<ILogger<PeopleService>>();
+            IStringLocalizer<PeopleService> loc      = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
+            IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
             return new PeopleService(client, cfg, xr, logger, loc, validator);
         });
         return services;

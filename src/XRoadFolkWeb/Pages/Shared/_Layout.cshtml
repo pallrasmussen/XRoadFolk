@@ -1,8 +1,9 @@
 ﻿@using System.Globalization
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
+@using XRoadFolkWeb.Shared
 @inject IOptions<RequestLocalizationOptions> LocOpts
-@inject Microsoft.Extensions.Localization.IStringLocalizer<XRoadFolkWeb.SharedResource> SR
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @{
     Layout = null;

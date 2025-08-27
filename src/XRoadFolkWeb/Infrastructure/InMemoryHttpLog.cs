@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Globalization;
-using Microsoft.Extensions.Logging;
+//using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Logging;
 
@@ -30,7 +30,6 @@ namespace XRoadFolkWeb.Infrastructure
     public sealed class InMemoryHttpLogStore : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
-        private readonly int _capacity;
         private readonly ILogStream? _stream; // optional realtime broadcaster
 
         // Rate limiting (simple token bucket)
@@ -53,7 +52,7 @@ namespace XRoadFolkWeb.Infrastructure
         public InMemoryHttpLogStore(IOptions<HttpLogOptions> options, ILogStream? stream = null)
         {
             HttpLogOptions cfg = options?.Value ?? new HttpLogOptions();
-            _capacity = Math.Max(50, cfg.Capacity);
+            Capacity = Math.Max(50, cfg.Capacity);
             _stream = stream;
 
             _maxWritesPerSecond = Math.Max(0, cfg.MaxWritesPerSecond);
@@ -66,15 +65,20 @@ namespace XRoadFolkWeb.Infrastructure
             _maxRolls = Math.Max(1, cfg.MaxRolls);
         }
 
-        public int Capacity => _capacity;
+        public int Capacity { get; }
         public int Count => _queue.Count;
 
         public void Add(LogEntry entry)
         {
-            if (!AllowWrite(entry.Level)) return; // drop if rate-limited and not important
+            ArgumentNullException.ThrowIfNull(entry);
+
+            if (!AllowWrite(entry.Level))
+            {
+                return; // drop if rate-limited and not important
+            }
 
             _queue.Enqueue(entry);
-            while (_queue.Count > _capacity && _queue.TryDequeue(out _)) { }
+            while (_queue.Count > Capacity && _queue.TryDequeue(out _)) { }
             try { _stream?.Publish(entry); } catch { }
 
             if (_persistToFile)
@@ -85,8 +89,15 @@ namespace XRoadFolkWeb.Infrastructure
 
         private bool AllowWrite(LogLevel level)
         {
-            if (_maxWritesPerSecond <= 0) return true; // limiter disabled
-            if (_alwaysAllowWarnError && (level >= LogLevel.Warning)) return true;
+            if (_maxWritesPerSecond <= 0)
+            {
+                return true; // limiter disabled
+            }
+
+            if (_alwaysAllowWarnError && (level >= LogLevel.Warning))
+            {
+                return true;
+            }
 
             lock (_rateLock)
             {
@@ -94,7 +105,7 @@ namespace XRoadFolkWeb.Infrastructure
                 double elapsed = (now - _lastRefillUtc).TotalSeconds;
                 if (elapsed > 0)
                 {
-                    _tokens = Math.Min(_maxWritesPerSecond, _tokens + elapsed * _maxWritesPerSecond);
+                    _tokens = Math.Min(_maxWritesPerSecond, _tokens + (elapsed * _maxWritesPerSecond));
                     _lastRefillUtc = now;
                 }
                 if (_tokens >= 1)
@@ -108,11 +119,15 @@ namespace XRoadFolkWeb.Infrastructure
 
         private void AppendToFile(LogEntry e)
         {
-            if (string.IsNullOrWhiteSpace(_filePath)) return;
+            if (string.IsNullOrWhiteSpace(_filePath))
+            {
+                return;
+            }
+
             string line = FormatLine(e);
             lock (_fileLock)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_filePath!)!);
+                _ = Directory.CreateDirectory(Path.GetDirectoryName(_filePath!)!);
                 RollIfNeeded();
                 File.AppendAllText(_filePath!, line, Encoding.UTF8);
             }
@@ -120,10 +135,14 @@ namespace XRoadFolkWeb.Infrastructure
 
         private void RollIfNeeded()
         {
-            if (string.IsNullOrWhiteSpace(_filePath)) return;
+            if (string.IsNullOrWhiteSpace(_filePath))
+            {
+                return;
+            }
+
             try
             {
-                FileInfo fi = new FileInfo(_filePath!);
+                FileInfo fi = new(_filePath!);
                 if (fi.Exists && fi.Length > _maxFileBytes)
                 {
                     // roll: file.log -> file.log.1/.2...
@@ -131,8 +150,15 @@ namespace XRoadFolkWeb.Infrastructure
                     {
                         string from = i == 1 ? _filePath! : _filePath! + "." + (i - 1);
                         string to = _filePath! + "." + i;
-                        if (File.Exists(to)) File.Delete(to);
-                        if (File.Exists(from)) File.Move(from, to);
+                        if (File.Exists(to))
+                        {
+                            File.Delete(to);
+                        }
+
+                        if (File.Exists(from))
+                        {
+                            File.Move(from, to);
+                        }
                     }
                 }
             }
@@ -151,18 +177,13 @@ namespace XRoadFolkWeb.Infrastructure
 
         public IReadOnlyList<LogEntry> GetAll()
         {
-            return _queue.ToArray();
+            return [.. _queue];
         }
     }
 
-    public sealed class InMemoryHttpLogLoggerProvider : ILoggerProvider
+    public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store) : ILoggerProvider
     {
-        private readonly IHttpLogStore _store;
-
-        public InMemoryHttpLogLoggerProvider(IHttpLogStore store)
-        {
-            _store = store ?? throw new ArgumentNullException(nameof(store));
-        }
+        private readonly IHttpLogStore _store = store ?? throw new ArgumentNullException(nameof(store));
 
         public ILogger CreateLogger(string categoryName)
         {
@@ -171,41 +192,41 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Dispose() { }
 
-        private sealed class SinkLogger : ILogger
+        private sealed class SinkLogger(string category, IHttpLogStore store) : ILogger
         {
-            private readonly string _category;
-            private readonly IHttpLogStore _store;
+            private readonly string _category = category;
+            private readonly IHttpLogStore _store = store;
 
-            public SinkLogger(string category, IHttpLogStore store)
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
-                _category = category;
-                _store = store;
+                return null;
             }
 
-            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-            public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return logLevel != LogLevel.None;
+            }
 
             private static string ComputeKind(string category, EventId eventId, string? msg)
             {
-                if (eventId.Id == SafeSoapLogger.SoapRequestEvent.Id ||
+                return eventId.Id == SafeSoapLogger.SoapRequestEvent.Id ||
                     eventId.Id == SafeSoapLogger.SoapResponseEvent.Id ||
-                    eventId.Id == SafeSoapLogger.SoapGeneralEvent.Id)
-                {
-                    return "soap";
-                }
-                if (category.Contains("HttpClient", StringComparison.OrdinalIgnoreCase) ||
+                    eventId.Id == SafeSoapLogger.SoapGeneralEvent.Id
+                    ? "soap"
+                    : category.Contains("HttpClient", StringComparison.OrdinalIgnoreCase) ||
                     category.Contains("System.Net.Http", StringComparison.OrdinalIgnoreCase) ||
-                    (msg != null && msg.StartsWith("HTTP", StringComparison.OrdinalIgnoreCase)))
-                {
-                    return "http";
-                }
-                return "app";
+                    (msg != null && msg.StartsWith("HTTP", StringComparison.OrdinalIgnoreCase))
+                    ? "http"
+                    : "app";
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
-                if (!IsEnabled(logLevel)) return;
+                if (!IsEnabled(logLevel))
+                {
+                    return;
+                }
+
                 string msg = formatter(state, exception);
                 _store.Add(new LogEntry
                 {

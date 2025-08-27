@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
-using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -17,8 +16,8 @@ namespace XRoadFolkWeb.Infrastructure
 
         public (ChannelReader<LogEntry> Reader, Guid SubscriptionId) Subscribe()
         {
-            var id = Guid.NewGuid();
-            var channel = Channel.CreateUnbounded<LogEntry>(new UnboundedChannelOptions
+            Guid id = Guid.NewGuid();
+            Channel<LogEntry> channel = Channel.CreateUnbounded<LogEntry>(new UnboundedChannelOptions
             {
                 SingleReader = false,
                 SingleWriter = false,
@@ -30,15 +29,15 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Unsubscribe(Guid id)
         {
-            if (_subscribers.TryRemove(id, out var ch))
+            if (_subscribers.TryRemove(id, out Channel<LogEntry>? ch))
             {
-                try { ch.Writer.TryComplete(); } catch { }
+                try { _ = ch.Writer.TryComplete(); } catch { }
             }
         }
 
         public void Publish(LogEntry entry)
         {
-            foreach (var kv in _subscribers)
+            foreach (KeyValuePair<Guid, Channel<LogEntry>> kv in _subscribers)
             {
                 try { _ = kv.Value.Writer.TryWrite(entry); } catch { }
             }

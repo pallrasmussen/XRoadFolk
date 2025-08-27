@@ -1,32 +1,32 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
-namespace XRoadFolkWeb.Extensions;
 
-public static partial class ServiceCollectionExtensions
+namespace XRoadFolkWeb.Extensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
+    public static partial class ServiceCollectionExtensions
     {
-        // Decompose into focused registrations
-        services
-            .AddAppLogging()
-            .AddAppLocalization(configuration)
-            .AddAppAntiforgery()
-            .AddAppOptions(configuration)
-            .AddXRoadHttpClient()
-            .AddFolkRawClientFactory()
-            .AddPeopleServices()
-            .AddMvcCustomizations()
-            .AddInMemoryHttpLogging();
-
-        // Response compression
-        services.AddResponseCompression(opts =>
+        public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
-            opts.EnableForHttps = true;
-            opts.MimeTypes = XRoadFolkWeb.Program.ResponseCompressionMimeTypes;
-        });
+            // Decompose into focused registrations
 
-        return services;
+            _ = services
+                .AddAppLogging()
+                .AddAppLocalization(configuration)
+                .AddAppAntiforgery()
+                .AddAppOptions(configuration)
+                .AddXRoadHttpClient()
+                .AddFolkRawClientFactory()
+                .AddPeopleServices()
+                .AddMvcCustomizations()
+                .AddInMemoryHttpLogging();
+
+            // Response compression
+            _ = services.AddResponseCompression(static opts =>
+            {
+                opts.EnableForHttps = true;
+                opts.MimeTypes = Program.ResponseCompressionMimeTypes;
+            });
+
+            return services;
+        }
     }
 }

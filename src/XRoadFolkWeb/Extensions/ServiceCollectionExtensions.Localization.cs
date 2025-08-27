@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
+using XRoadFolkWeb.Shared;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -17,7 +18,7 @@ public static partial class ServiceCollectionExtensions
             .AddDataAnnotationsLocalization(opts =>
             {
                 opts.DataAnnotationLocalizerProvider = (type, factory) =>
-                    factory.Create(typeof(XRoadFolkWeb.SharedResource));
+                    factory.Create(typeof(SharedResource));
             })
             .AddMvcOptions(options =>
             {
@@ -35,7 +36,7 @@ public static partial class ServiceCollectionExtensions
             opts.FallBackToParentCultures = true;
             opts.FallBackToParentUICultures = true;
 
-            var locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
+            LocalizationConfig locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
             opts.RequestCultureProviders.Insert(0, new XRoadFolkWeb.Infrastructure.BestMatchRequestCultureProvider(
                 opts.SupportedUICultures, locCfg.FallbackMap));
         });
@@ -49,7 +50,7 @@ public static partial class ServiceCollectionExtensions
             {
                 try { _ = CultureInfo.GetCultureInfo(o.DefaultCulture!); }
                 catch { return false; }
-                foreach (var c in o.SupportedCultures)
+                foreach (string c in o.SupportedCultures)
                 {
                     try { _ = CultureInfo.GetCultureInfo(c); }
                     catch { return false; }

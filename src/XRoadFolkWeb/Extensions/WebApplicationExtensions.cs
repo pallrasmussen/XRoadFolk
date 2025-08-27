@@ -3,135 +3,163 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using XRoadFolkWeb.Infrastructure;
+using XRoadFolkWeb.Shared;
 
-namespace XRoadFolkWeb.Extensions;
-
-public static class WebApplicationExtensions
+namespace XRoadFolkWeb.Extensions
 {
-    public static WebApplication ConfigureRequestPipeline(this WebApplication app)
+    public static partial class WebApplicationExtensions
     {
-        app.UseResponseCompression();
+        // LoggerMessage delegates for performance
+        private static readonly Action<ILogger, DateTimeOffset, Exception?> _logAppStarted =
+            LoggerMessage.Define<DateTimeOffset>(
+                LogLevel.Information,
+                new EventId(1000, "AppStarted"),
+                "Application started at {Utc}");
 
-        // Redirect to HTTPS in dev so secure cookies work
-        app.UseHttpsRedirection();
+        private static readonly Action<ILogger, string, string, Exception?> _logHttpRequest =
+            LoggerMessage.Define<string, string>(
+                LogLevel.Information,
+                new EventId(1001, "HttpRequest"),
+                "HTTP {Method} {Path}");
 
-        // Localization middleware
-        RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
-        app.UseRequestLocalization(locOpts);
+        private static readonly Action<ILogger, string, string, Exception?> _logLocalizationConfig =
+            LoggerMessage.Define<string, string>(
+                LogLevel.Information,
+                new EventId(1002, "LocalizationConfig"),
+                "Localization config: Default={Default}, Supported=[{Supported}]");
 
-        // Emit a startup log entry (app kind)
-        app.Services.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("App.Startup")
-            .LogInformation("Application started at {Utc}", DateTimeOffset.UtcNow);
-
-        // Request logging middleware (non-Microsoft category)
-        var reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
-        app.Use(async (ctx, next) =>
+        public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
-            reqLog.LogInformation("HTTP {Method} {Path}", ctx.Request?.Method, ctx.Request?.Path.Value);
-            await next();
-        });
+            ArgumentNullException.ThrowIfNull(app);
 
-        // After app.UseRequestLocalization(locOpts);
-        var locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
-        var locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
-        locLogger.LogInformation("Localization config: Default={Default}, Supported=[{Supported}]",
-            locCfg.DefaultCulture, string.Join(", ", locCfg.SupportedCultures));
+            _ = app.UseResponseCompression();
 
-        // Diagnostic endpoint to verify applied culture at runtime
-        app.MapGet("/__culture", (HttpContext ctx,
-                                  IOptions<RequestLocalizationOptions> locOpts,
-                                  IOptions<LocalizationConfig> cfg) =>
-        {
-            var feature = ctx.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>();
-            return Results.Json(new
+            // Redirect to HTTPS in dev so secure cookies work
+            _ = app.UseHttpsRedirection();
+
+            // Localization middleware
+            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+            _ = app.UseRequestLocalization(locOpts);
+
+            // Emit a startup log entry (app kind)
+            ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("App.Startup");
+            _logAppStarted(startupLogger, DateTimeOffset.UtcNow, null);
+
+            // Request logging middleware (non-Microsoft category)
+            ILogger reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
+            _ = app.Use(async (ctx, next) =>
             {
-                FromConfig = new
-                {
-                    cfg.Value.DefaultCulture,
-                    cfg.Value.SupportedCultures
-                },
-                Applied = new
-                {
-                    Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-                    Supported = locOpts.Value.SupportedCultures.Select(c => c.Name).ToArray(),
-                    Current = feature?.RequestCulture.Culture.Name,
-                    CurrentUI = feature?.RequestCulture.UICulture.Name
-                }
+                _logHttpRequest(reqLog, ctx.Request?.Method ?? "", ctx.Request?.Path.Value ?? "", null);
+                await next();
             });
-        });
 
-        // Static files + routing + pages
-        app.UseStaticFiles();
-        app.UseRouting();
+            // After app.UseRequestLocalization(locOpts);
+            ILogger locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
+            LocalizationConfig locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
+            _logLocalizationConfig(locLogger, locCfg.DefaultCulture, string.Join(", ", locCfg.SupportedCultures), null);
 
-        // Anti-forgery middleware
-        app.UseAntiforgery();
-
-        // Culture switch endpoint with manual antiforgery validation
-        app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
-        {
-            await af.ValidateRequestAsync(ctx);
-
-            // Ensure the requested culture is one of the supported UI cultures
-            bool supported = locOpts.SupportedUICultures != null &&
-                locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
-            if (!supported)
+            // Diagnostic endpoint to verify applied culture at runtime
+            _ = app.MapGet("/__culture", (HttpContext ctx,
+                                      IOptions<RequestLocalizationOptions> locOpts,
+                                      IOptions<LocalizationConfig> cfg) =>
             {
-                return Results.BadRequest();
-            }
-
-            string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
-            ctx.Response.Cookies.Append(
-                CookieRequestCultureProvider.DefaultCookieName,
-                cookieValue,
-                new CookieOptions
+                IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
+                return Results.Json(new
                 {
-                    Expires = DateTimeOffset.UtcNow.AddYears(1),
-                    IsEssential = true,
-                    Secure = ctx.Request.IsHttps, // allow in dev over HTTP
-                    SameSite = SameSiteMode.Lax,
-                    Path = "/"
+                    FromConfig = new
+                    {
+                        cfg.Value.DefaultCulture,
+                        cfg.Value.SupportedCultures
+                    },
+                    Applied = new
+                    {
+                        Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
+                        Supported = locOpts.Value.SupportedCultures.Select(c => c.Name).ToArray(),
+                        Current = feature?.RequestCulture.Culture.Name,
+                        CurrentUI = feature?.RequestCulture.UICulture.Name
+                    }
                 });
-
-            return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
-        });
-
-        app.MapRazorPages();
-
-        // Logs endpoints (generic with kind=http|soap|app)
-        app.MapGet("/logs", ([FromQuery] string? kind, IHttpLogStore store) =>
-        {
-            var items = store.GetAll();
-            if (!string.IsNullOrWhiteSpace(kind))
-            {
-                items = items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-            return Results.Json(new { ok = true, items });
-        });
-        app.MapPost("/logs/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
-        app.MapPost("/logs/write", ([FromBody] XRoadFolkWeb.LogWriteDto dto, IHttpLogStore store) =>
-        {
-            if (dto is null) return Results.BadRequest();
-            if (!Enum.TryParse<LogLevel>(dto.Level ?? "Information", true, out var lvl)) lvl = LogLevel.Information;
-            store.Add(new XRoadFolkWeb.Infrastructure.LogEntry
-            {
-                Timestamp = DateTimeOffset.UtcNow,
-                Level = lvl,
-                Category = dto.Category ?? "Manual",
-                EventId = dto.EventId ?? 0,
-                Kind = "app",
-                Message = dto.Message ?? string.Empty,
-                Exception = null
             });
-            return Results.Json(new { ok = true });
-        });
 
-        // Culture defaults for threads (optional)
-        CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
+            // Static files + routing + pages
+            _ = app.UseStaticFiles();
+            _ = app.UseRouting();
 
-        return app;
+            // Anti-forgery middleware
+            _ = app.UseAntiforgery();
+
+            // Culture switch endpoint with manual antiforgery validation
+            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
+            {
+                await af.ValidateRequestAsync(ctx);
+
+                // Ensure the requested culture is one of the supported UI cultures
+                bool supported = locOpts.SupportedUICultures != null &&
+                    locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
+                if (!supported)
+                {
+                    return Results.BadRequest();
+                }
+
+                string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
+                ctx.Response.Cookies.Append(
+                    CookieRequestCultureProvider.DefaultCookieName,
+                    cookieValue,
+                    new CookieOptions
+                    {
+                        Expires = DateTimeOffset.UtcNow.AddYears(1),
+                        IsEssential = true,
+                        Secure = ctx.Request.IsHttps, // allow in dev over HTTP
+                        SameSite = SameSiteMode.Lax,
+                        Path = "/"
+                    });
+
+                return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+            });
+
+            _ = app.MapRazorPages();
+
+            // Logs endpoints (generic with kind=http|soap|app)
+            _ = app.MapGet("/logs", ([FromQuery] string? kind, IHttpLogStore store) =>
+            {
+                IReadOnlyList<LogEntry> items = store.GetAll();
+                if (!string.IsNullOrWhiteSpace(kind))
+                {
+                    items = [.. items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase))];
+                }
+                return Results.Json(new { ok = true, items });
+            });
+            _ = app.MapPost("/logs/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
+            _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, IHttpLogStore store) =>
+            {
+                if (dto is null)
+                {
+                    return Results.BadRequest();
+                }
+                if (!Enum.TryParse(dto.Level ?? "Information", true, out LogLevel lvl))
+                {
+                    lvl = LogLevel.Information;
+                }
+                store.Add(new LogEntry
+                {
+                    Timestamp = DateTimeOffset.UtcNow,
+                    Level = lvl,
+                    Category = dto.Category ?? "Manual",
+                    EventId = dto.EventId ?? 0,
+                    Kind = "app",
+                    Message = dto.Message ?? string.Empty,
+                    Exception = null
+                });
+                return Results.Json(new { ok = true });
+            });
+
+            // Culture defaults for threads (optional)
+            CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+            return app;
+        }
     }
 }

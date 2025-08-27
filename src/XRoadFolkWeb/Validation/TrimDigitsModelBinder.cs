@@ -1,34 +1,35 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using System.Threading.Tasks;
 
 namespace XRoadFolkWeb.Validation
 {
     // Normalizes SSN by stripping non-digits before validation
     public sealed class TrimDigitsModelBinder : IModelBinder
     {
-        public Task BindModelAsync(ModelBindingContext context)
+        public Task BindModelAsync(ModelBindingContext bindingContext)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            string? value = context.ValueProvider.GetValue(context.ModelName).FirstValue;
+            ArgumentNullException.ThrowIfNull(bindingContext);
+
+            string? value = bindingContext.ValueProvider.GetValue(bindingContext.ModelName).FirstValue;
             if (value is null)
             {
                 return Task.CompletedTask;
             }
-            string digits = new string(value.Where(char.IsDigit).ToArray());
-            context.Result = ModelBindingResult.Success(string.IsNullOrEmpty(digits) ? value : digits);
+            string digits = new([.. value.Where(char.IsDigit)]);
+            bindingContext.Result = ModelBindingResult.Success(string.IsNullOrEmpty(digits) ? value : digits);
             return Task.CompletedTask;
         }
     }
 
     public sealed class TrimDigitsModelBinderProvider : IModelBinderProvider
     {
-        public IModelBinder? GetBinder(ModelBinderProviderContext ctx)
+        public IModelBinder? GetBinder(ModelBinderProviderContext context)
         {
-            if (ctx.Metadata.ContainerType == typeof(Pages.IndexModel) && ctx.Metadata.PropertyName == "Ssn")
-            {
-                return new TrimDigitsModelBinder();
-            }
-            return null;
+            ArgumentNullException.ThrowIfNull(context);
+
+            // IDE0046: 'if' statement can be simplified
+            return (context.Metadata.ContainerType == typeof(Pages.IndexModel) && context.Metadata.PropertyName == "Ssn")
+                ? new TrimDigitsModelBinder()
+                : null;
         }
     }
 }

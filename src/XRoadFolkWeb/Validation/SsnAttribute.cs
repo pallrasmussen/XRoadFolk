@@ -7,27 +7,30 @@ namespace XRoadFolkWeb.Validation
     {
         public SsnAttribute()
         {
-            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages);
+            ErrorMessageResourceType = typeof(Resources.ValidationMessages);
             ErrorMessageResourceName = "Ssn_Invalid";
         }
 
-        protected override ValidationResult? IsValid(object? value, ValidationContext context)
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
+            ArgumentNullException.ThrowIfNull(validationContext);
+
             string? s = value as string;
 
             // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
-            if (string.IsNullOrWhiteSpace(s))
-                return ValidationResult.Success;
-
-            return XRoadFolkRaw.Lib.InputValidation.LooksLikeValidSsn(s, out _)
+            return string.IsNullOrWhiteSpace(s)
                 ? ValidationResult.Success
-                : new ValidationResult(FormatErrorMessage(context.DisplayName));
+                : XRoadFolkRaw.Lib.InputValidation.LooksLikeValidSsn(s, out _)
+                ? ValidationResult.Success
+                : new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
         }
 
-        public void AddValidation(ClientModelValidationContext ctx)
+        public void AddValidation(ClientModelValidationContext context)
         {
-            ctx.Attributes["data-val"] = "true";
-            ctx.Attributes["data-val-ssn"] = ErrorMessageString; // localized via resx
+            ArgumentNullException.ThrowIfNull(context);
+
+            context.Attributes["data-val"] = "true";
+            context.Attributes["data-val-ssn"] = ErrorMessageString; // localized via resx
         }
     }
 }

@@ -14,7 +14,7 @@ namespace XRoadFolkWeb.Infrastructure
         {
             IConfigurationSection section = configuration.GetSection(SectionName);
             string[] names = section.GetSection("SupportedCultures").Get<string[]>() ?? FallbackCultureNames;
-            string defaultName = section.GetValue<string>("DefaultCulture");
+            string? defaultName = section.GetValue<string>("DefaultCulture");
 
             // Ensure default is present and valid
             if (string.IsNullOrWhiteSpace(defaultName) ||

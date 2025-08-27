@@ -1,16 +1,4 @@
-using System.Globalization;
-using System.Net;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-
-using Microsoft.AspNetCore.Localization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
-
-using XRoadFolkRaw.Lib;
-using XRoadFolkRaw.Lib.Logging;
-using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Extensions;
 

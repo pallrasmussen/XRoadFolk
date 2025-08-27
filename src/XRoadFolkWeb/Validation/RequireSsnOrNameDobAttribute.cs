@@ -1,4 +1,4 @@
-using System;
+//using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Localization;
 using XRoadFolkRaw.Lib;
@@ -26,8 +26,12 @@ namespace XRoadFolkWeb.Validation
 
         protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
-            if (validationContext is null) throw new ArgumentNullException(nameof(validationContext));
-            if (value is null) return ValidationResult.Success;
+            ArgumentNullException.ThrowIfNull(validationContext);
+
+            if (value is null)
+            {
+                return ValidationResult.Success;
+            }
 
             string? ssn = GetString(validationContext.ObjectInstance, _ssn);
             string? first = GetString(validationContext.ObjectInstance, _first);
@@ -69,8 +73,7 @@ namespace XRoadFolkWeb.Validation
                 System.Reflection.BindingFlags.Public |
                 System.Reflection.BindingFlags.IgnoreCase);
 
-            if (pi is null) return null;
-            return (string?)pi.GetValue(instance);
+            return pi is null ? null : (string?)pi.GetValue(instance);
         }
     }
 }

@@ -7,23 +7,31 @@ namespace XRoadFolkWeb.Validation
     {
         public DobAttribute()
         {
-            ErrorMessageResourceType = typeof(global::XRoadFolkWeb.Resources.ValidationMessages);
+            ErrorMessageResourceType = typeof(Resources.ValidationMessages);
             ErrorMessageResourceName = "Dob_Format";
         }
 
-        protected override ValidationResult? IsValid(object? value, ValidationContext ctx)
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
+            ArgumentNullException.ThrowIfNull(validationContext);
+
             string? s = value as string;
-            if (string.IsNullOrWhiteSpace(s)) return ValidationResult.Success; // not [Required]
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return ValidationResult.Success; // not [Required]
+            }
+
             return XRoadFolkRaw.Lib.InputValidation.TryParseDob(s, out _)
                 ? ValidationResult.Success
-                : new ValidationResult(FormatErrorMessage(ctx.DisplayName));
+                : new ValidationResult(FormatErrorMessage(name: validationContext.DisplayName));
         }
 
-        public void AddValidation(ClientModelValidationContext ctx)
+        public void AddValidation(ClientModelValidationContext context)
         {
-            ctx.Attributes["data-val"] = "true";
-            ctx.Attributes["data-val-dob"] = ErrorMessageString; // localized via resx
+            ArgumentNullException.ThrowIfNull(context);
+
+            context.Attributes["data-val"] = "true";
+            context.Attributes["data-val-dob"] = ErrorMessageString; // localized via resx
         }
     }
 }
