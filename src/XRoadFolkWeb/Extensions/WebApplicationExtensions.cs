@@ -33,8 +33,6 @@ namespace XRoadFolkWeb.Extensions
             ArgumentNullException.ThrowIfNull(app);
 
             _ = app.UseResponseCompression();
-
-            // Redirect to HTTPS in dev so secure cookies work
             _ = app.UseHttpsRedirection();
 
             // Localization middleware
@@ -110,7 +108,7 @@ namespace XRoadFolkWeb.Extensions
                     {
                         Expires = DateTimeOffset.UtcNow.AddYears(1),
                         IsEssential = true,
-                        Secure = ctx.Request.IsHttps, // allow in dev over HTTP
+                        Secure = ctx.Request.IsHttps,
                         SameSite = SameSiteMode.Lax,
                         Path = "/"
                     });
@@ -152,6 +150,35 @@ namespace XRoadFolkWeb.Extensions
                     Exception = null
                 });
                 return Results.Json(new { ok = true });
+            });
+
+            // Server-Sent Events: real-time log stream (accepts kind filter)
+            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogStream stream, CancellationToken ct) =>
+            {
+                ctx.Response.Headers.CacheControl = "no-cache";
+                ctx.Response.Headers.Connection = "keep-alive";
+                ctx.Response.Headers.Append("X-Accel-Buffering", "no");
+                ctx.Response.ContentType = "text/event-stream";
+
+                var (reader, id) = stream.Subscribe();
+                try
+                {
+                    await foreach (var entry in reader.ReadAllAsync(ct))
+                    {
+                        if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        string json = System.Text.Json.JsonSerializer.Serialize(entry);
+                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+                        await ctx.Response.Body.FlushAsync(ct);
+                    }
+                }
+                catch (OperationCanceledException) { }
+                finally
+                {
+                    stream.Unsubscribe(id);
+                }
             });
 
             // Culture defaults for threads (optional)
