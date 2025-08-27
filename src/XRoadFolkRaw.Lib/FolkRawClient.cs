@@ -458,6 +458,7 @@ namespace XRoadFolkRaw.Lib
             XElement requestBodyEl = requestEl.Element("requestBody")
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
 
+            // Identifiers from parameters
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 SetChildValue(requestBodyEl, "PublicId", publicId);
@@ -467,6 +468,7 @@ namespace XRoadFolkRaw.Lib
                 SetChildValue(requestBodyEl, "SSN", ssnForPerson);
             }
 
+            // Include booleans from parameters
             void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
             SetBool("IncludeAddress", includeAddress);
             SetBool("IncludeContact", includeContact);
@@ -565,64 +567,45 @@ namespace XRoadFolkRaw.Lib
             XElement requestBodyEl = requestEl.Element("requestBody")
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
 
-            // Identifiers
+            // Identifiers from options
             if (!string.IsNullOrWhiteSpace(options?.Id)) SetChildValue(requestBodyEl, "Id", options!.Id!);
             if (!string.IsNullOrWhiteSpace(options?.PublicId)) SetChildValue(requestBodyEl, "PublicId", options!.PublicId!);
             else if (!string.IsNullOrWhiteSpace(options?.Ssn)) SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
             if (!string.IsNullOrWhiteSpace(options?.ExternalId)) SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
 
-            // Include flags: normalize keys from HashSet into element names
-            if (options?.Include is { Count: > 0 })
+            // Include flags: map [Flags] enum to element names
+            if (options is not null && options.Include != GetPersonInclude.None)
             {
-                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["addresses"] = "IncludeAddresses",
-                    ["includeaddresses"] = "IncludeAddresses",
-                    ["address"] = "IncludeAddresses",
-                    ["addresseshistory"] = "IncludeAddressesHistory",
-                    ["includeaddresseshistory"] = "IncludeAddressesHistory",
-                    ["biologicalparents"] = "IncludeBiologicalParents",
-                    ["churchmembership"] = "IncludeChurchMembership",
-                    ["churchmembershiphistory"] = "IncludeChurchMembershipHistory",
-                    ["citizenships"] = "IncludeCitizenships",
-                    ["citizenship"] = "IncludeCitizenships",
-                    ["citizenshipshistory"] = "IncludeCitizenshipsHistory",
-                    ["civilstatus"] = "IncludeCivilStatus",
-                    ["civilstatushistory"] = "IncludeCivilStatusHistory",
-                    ["foreignssns"] = "IncludeForeignSsns",
-                    ["incapacity"] = "IncludeIncapacity",
-                    ["incapacityhistory"] = "IncludeIncapacityHistory",
-                    ["juridicalchildren"] = "IncludeJuridicalChildren",
-                    ["juridicalchildrenhistory"] = "IncludeJuridicalChildrenHistory",
-                    ["juridicalparents"] = "IncludeJuridicalParents",
-                    ["juridicalparentshistory"] = "IncludeJuridicalParentsHistory",
-                    ["names"] = "IncludeNames",
-                    ["nameshistory"] = "IncludeNamesHistory",
-                    ["notes"] = "IncludeNotes",
-                    ["noteshistory"] = "IncludeNotesHistory",
-                    ["postbox"] = "IncludePostbox",
-                    ["specialmarks"] = "IncludeSpecialMarks",
-                    ["specialmarkshistory"] = "IncludeSpecialMarksHistory",
-                    ["spouse"] = "IncludeSpouse",
-                    ["spousehistory"] = "IncludeSpouseHistory",
-                    ["ssn"] = "IncludeSsn",
-                    ["ssnhistory"] = "IncludeSsnHistory"
-                };
+                GetPersonInclude inc = options.Include;
+                void SetIf(GetPersonInclude flag, string element) { if ((inc & flag) == flag) SetChildValue(requestBodyEl, element, "true"); }
 
-                foreach (string rawKey in options.Include)
-                {
-                    if (string.IsNullOrWhiteSpace(rawKey)) continue;
-                    string k = rawKey.Replace("_", string.Empty).Replace("-", string.Empty).Replace(" ", string.Empty);
-                    if (map.TryGetValue(k, out string? elementName))
-                    {
-                        SetChildValue(requestBodyEl, elementName, "true");
-                    }
-                    else if (k.StartsWith("Include", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Trust as element name if already prefixed
-                        SetChildValue(requestBodyEl, rawKey, "true");
-                    }
-                }
+                SetIf(GetPersonInclude.Addresses, "IncludeAddresses");
+                SetIf(GetPersonInclude.AddressesHistory, "IncludeAddressesHistory");
+                SetIf(GetPersonInclude.BiologicalParents, "IncludeBiologicalParents");
+                SetIf(GetPersonInclude.ChurchMembership, "IncludeChurchMembership");
+                SetIf(GetPersonInclude.ChurchMembershipHistory, "IncludeChurchMembershipHistory");
+                SetIf(GetPersonInclude.Citizenships, "IncludeCitizenships");
+                SetIf(GetPersonInclude.CitizenshipsHistory, "IncludeCitizenshipsHistory");
+                SetIf(GetPersonInclude.CivilStatus, "IncludeCivilStatus");
+                SetIf(GetPersonInclude.CivilStatusHistory, "IncludeCivilStatusHistory");
+                SetIf(GetPersonInclude.ForeignSsns, "IncludeForeignSsns");
+                SetIf(GetPersonInclude.Incapacity, "IncludeIncapacity");
+                SetIf(GetPersonInclude.IncapacityHistory, "IncludeIncapacityHistory");
+                SetIf(GetPersonInclude.JuridicalChildren, "IncludeJuridicalChildren");
+                SetIf(GetPersonInclude.JuridicalChildrenHistory, "IncludeJuridicalChildrenHistory");
+                SetIf(GetPersonInclude.JuridicalParents, "IncludeJuridicalParents");
+                SetIf(GetPersonInclude.JuridicalParentsHistory, "IncludeJuridicalParentsHistory");
+                SetIf(GetPersonInclude.Names, "IncludeNames");
+                SetIf(GetPersonInclude.NamesHistory, "IncludeNamesHistory");
+                SetIf(GetPersonInclude.Notes, "IncludeNotes");
+                SetIf(GetPersonInclude.NotesHistory, "IncludeNotesHistory");
+                SetIf(GetPersonInclude.Postbox, "IncludePostbox");
+                SetIf(GetPersonInclude.SpecialMarks, "IncludeSpecialMarks");
+                SetIf(GetPersonInclude.SpecialMarksHistory, "IncludeSpecialMarksHistory");
+                SetIf(GetPersonInclude.Spouse, "IncludeSpouse");
+                SetIf(GetPersonInclude.SpouseHistory, "IncludeSpouseHistory");
+                SetIf(GetPersonInclude.Ssn, "IncludeSsn");
+                SetIf(GetPersonInclude.SsnHistory, "IncludeSsnHistory");
             }
 
             // Token in requestHeader
