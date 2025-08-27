@@ -19,6 +19,19 @@ public static class WebApplicationExtensions
         RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
         app.UseRequestLocalization(locOpts);
 
+        // Emit a startup log entry (app kind)
+        app.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("App.Startup")
+            .LogInformation("Application started at {Utc}", DateTimeOffset.UtcNow);
+
+        // Request logging middleware (non-Microsoft category)
+        var reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
+        app.Use(async (ctx, next) =>
+        {
+            reqLog.LogInformation("HTTP {Method} {Path}", ctx.Request?.Method, ctx.Request?.Path.Value);
+            await next();
+        });
+
         // After app.UseRequestLocalization(locOpts);
         var locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
         var locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
@@ -112,35 +125,6 @@ public static class WebApplicationExtensions
                 Exception = null
             });
             return Results.Json(new { ok = true });
-        });
-
-        // Server-Sent Events: real-time log stream (accepts kind filter)
-        app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogStream stream, CancellationToken ct) =>
-        {
-            ctx.Response.Headers.CacheControl = "no-cache";
-            ctx.Response.Headers.Connection = "keep-alive";
-            ctx.Response.Headers.Add("X-Accel-Buffering", "no"); // for proxies like nginx
-            ctx.Response.ContentType = "text/event-stream";
-
-            var (reader, id) = stream.Subscribe();
-            try
-            {
-                await foreach (var entry in reader.ReadAllAsync(ct))
-                {
-                    if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                    string json = System.Text.Json.JsonSerializer.Serialize(entry);
-                    await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-                    await ctx.Response.Body.FlushAsync(ct);
-                }
-            }
-            catch (OperationCanceledException) { }
-            finally
-            {
-                stream.Unsubscribe(id);
-            }
         });
 
         // Culture defaults for threads (optional)
