@@ -2,6 +2,7 @@ using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -9,6 +10,8 @@ public static partial class ServiceCollectionExtensions
 {
     public static IServiceCollection AddPeopleServices(this IServiceCollection services)
     {
+        services.AddMemoryCache();
+
         services.AddScoped(sp =>
         {
             FolkRawClient client   = sp.GetRequiredService<FolkRawClient>();
@@ -17,7 +20,8 @@ public static partial class ServiceCollectionExtensions
             ILogger<PeopleService> logger   = sp.GetRequiredService<ILogger<PeopleService>>();
             IStringLocalizer<PeopleService> loc      = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
             IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
-            return new PeopleService(client, cfg, xr, logger, loc, validator);
+            IMemoryCache cache = sp.GetRequiredService<IMemoryCache>();
+            return new PeopleService(client, cfg, xr, logger, loc, validator, cache);
         });
         return services;
     }

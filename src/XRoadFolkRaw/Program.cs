@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options; // added for GetPersonRequestOptions & validator
+using Microsoft.Extensions.Caching.Memory;
 
 // Use the Generic Host only (remove mixed top-level + class blocks)
 
@@ -41,6 +42,9 @@ builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 
 // Localization
 builder.Services.AddLocalization();
+
+// Memory cache
+builder.Services.AddMemoryCache();
 
 // Bind and expose XRoad settings via DI
 builder.Services.Configure<XRoadSettings>(builder.Configuration.GetSection("XRoad"));
@@ -119,7 +123,8 @@ builder.Services.AddScoped(sp =>
     ILogger<PeopleService> log = sp.GetRequiredService<ILogger<PeopleService>>();
     IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
     IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
-    return new PeopleService(client, cfg, xr, log, loc, validator);
+    IMemoryCache cache = sp.GetRequiredService<IMemoryCache>();
+    return new PeopleService(client, cfg, xr, log, loc, validator, cache);
 });
 
 builder.Services.AddScoped<ConsoleUi>();

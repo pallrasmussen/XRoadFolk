@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
 using System.Net.Http;
 using System.Xml;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkRaw.Lib
 {
 
     public sealed partial class PeopleService : IDisposable
     {
-        private static readonly ConcurrentDictionary<string, (string Token, DateTimeOffset ExpiresUtc)> TokenCache = new();
         private static string ComputeKey(XRoadSettings s)
             => string.Join("|", s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
                             s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
@@ -28,6 +28,7 @@ namespace XRoadFolkRaw.Lib
         private readonly string _peopleInfoXmlPath;
         private readonly string _personXmlPath;
         private readonly IValidateOptions<GetPersonRequestOptions> _requestValidator;
+        private readonly IMemoryCache _cache;
 
         public PeopleService(
             FolkRawClient client,
@@ -35,13 +36,15 @@ namespace XRoadFolkRaw.Lib
             XRoadSettings settings,
             ILogger log,
             IStringLocalizer<PeopleService> localizer,
-            IValidateOptions<GetPersonRequestOptions> requestValidator)
+            IValidateOptions<GetPersonRequestOptions> requestValidator,
+            IMemoryCache cache)
         {
             ArgumentNullException.ThrowIfNull(client);
             ArgumentNullException.ThrowIfNull(config);
             ArgumentNullException.ThrowIfNull(settings);
             ArgumentNullException.ThrowIfNull(log);
             ArgumentNullException.ThrowIfNull(localizer);
+            ArgumentNullException.ThrowIfNull(cache);
 
             _client = client;
             _config = config;
@@ -49,6 +52,7 @@ namespace XRoadFolkRaw.Lib
             _log = log;
             _localizer = localizer;
             _requestValidator = requestValidator;
+            _cache = cache;
 
             _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
             _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
@@ -80,27 +84,31 @@ namespace XRoadFolkRaw.Lib
 
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
-            string key = ComputeKey(_settings);
-            var skew = TimeSpan.FromSeconds(60);
+            string key = "folk-token|" + ComputeKey(_settings);
 
-            if (TokenCache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow.Add(skew) < entry.ExpiresUtc)
+            if (_cache.TryGetValue<string>(key, out var token) && !string.IsNullOrWhiteSpace(token))
             {
-                LogTokenReused(_log); // explicitly log token reuse
-                return entry.Token;
+                LogTokenReused(_log);
+                return token;
             }
 
-            string token = await _tokenProvider.GetTokenAsync(ct).ConfigureAwait(false);
-
-            // Ideally read expiry from provider; we approximate to +5 minutes like provider default
-            DateTimeOffset expires = DateTimeOffset.UtcNow.AddMinutes(5);
-            TokenCache[key] = (token, expires);
-
-            if (string.IsNullOrWhiteSpace(token))
+            (string Token, DateTimeOffset ExpiresUtc) = await _tokenProvider.GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(Token))
             {
                 throw new InvalidOperationException(_localizer["TokenMissing"]);
             }
-            LogTokenAcquired(_log, token.Length);
-            return token;
+
+            TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
+                ? ExpiresUtc - DateTimeOffset.UtcNow
+                : TimeSpan.FromMinutes(5);
+
+            _cache.Set(key, Token, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = ttl
+            });
+
+            LogTokenAcquired(_log, Token.Length);
+            return Token;
         }
 
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)

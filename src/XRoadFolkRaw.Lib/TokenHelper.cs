@@ -20,14 +20,20 @@ namespace XRoadFolkRaw.Lib
         private string? _token;
         private DateTimeOffset _expiresUtc = DateTimeOffset.MinValue;
 
-        // Coalesce concurrent refreshes
+        // Coalesce concurrent refreshs
         private Task<string>? _refreshTask;
 
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
+            var tup = await GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
+            return tup.Token;
+        }
+
+        public async Task<(string Token, DateTimeOffset ExpiresUtc)> GetTokenWithExpiryAsync(CancellationToken ct = default)
+        {
             if (!NeedsRefresh())
             {
-                return _token ?? throw new InvalidOperationException("Token not initialized.");
+                return (_token ?? throw new InvalidOperationException("Token not initialized."), _expiresUtc);
             }
 
             Task<string> refresh;
@@ -36,7 +42,7 @@ namespace XRoadFolkRaw.Lib
             {
                 if (!NeedsRefresh())
                 {
-                    return _token ?? throw new InvalidOperationException("Token not initialized.");
+                    return (_token ?? throw new InvalidOperationException("Token not initialized."), _expiresUtc);
                 }
 
                 _refreshTask ??= RefreshAsync(ct);
@@ -68,7 +74,7 @@ namespace XRoadFolkRaw.Lib
                 }
             }
 
-            return token;
+            return (token, _expiresUtc);
         }
 
         private async Task<string> RefreshAsync(CancellationToken ct)
