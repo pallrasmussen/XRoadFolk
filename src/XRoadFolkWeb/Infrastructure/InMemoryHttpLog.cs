@@ -156,7 +156,7 @@ namespace XRoadFolkWeb.Infrastructure
                 string kind = ComputeKind(_category, eventId, msg);
                 _store.Add(new LogEntry
                 {
-                    Timestamp = DateTimeOffset.UtcNow,
+                    Timestamp = DateTimeOffset.Now,
                     Level = logLevel,
                     Category = _category,
                     EventId = eventId.Id,

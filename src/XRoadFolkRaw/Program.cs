@@ -11,6 +11,7 @@ using XRoadFolkRaw;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options; // added for GetPersonRequestOptions & validator
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Console; // ensure available
 
 // Use the Generic Host only (remove mixed top-level + class blocks)
 
@@ -34,15 +35,17 @@ if (resName is not null)
 // Keep appsettings.json (added by default) and environment variables as overrides
 builder.Configuration.AddEnvironmentVariables();
 
-// Logging
+// Logging: drive everything from configuration so it’s consistent per environment
 builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole(options =>
+builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+builder.Logging.AddConsole(); // picks up Console settings + formatter options from config
+
+// Enforce local timestamps for console logging regardless of environment/config
+builder.Services.PostConfigure<SimpleConsoleFormatterOptions>(opts =>
 {
-    options.UseUtcTimestamp = false; // local time
-    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fff zzz ";
+    opts.UseUtcTimestamp = false;                     // local time
+    opts.TimestampFormat ??= "yyyy-MM-ddTHH:mm:ss.fff zzz "; // show local offset
 });
-builder.Logging.SetMinimumLevel(LogLevel.Information);
-builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 
 // Localization
 builder.Services.AddLocalization();
@@ -84,7 +87,7 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     catch (CryptographicException ex)
     {
         ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
-        Program.LogClientCertNotConfigured(log, ex);
+        LogClientCertNotConfigured(log, ex);
     }
     catch (IOException ex)
     {

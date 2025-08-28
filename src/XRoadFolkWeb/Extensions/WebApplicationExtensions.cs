@@ -14,7 +14,7 @@ namespace XRoadFolkWeb.Extensions
             LoggerMessage.Define<DateTimeOffset>(
                 LogLevel.Information,
                 new EventId(1000, "AppStarted"),
-                "Application started at {Utc}");
+                "Application started at {Local}");
 
         private static readonly Action<ILogger, string, string, Exception?> _logHttpRequest =
             LoggerMessage.Define<string, string>(
@@ -42,7 +42,7 @@ namespace XRoadFolkWeb.Extensions
             // Emit a startup log entry (app kind)
             ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("App.Startup");
-            _logAppStarted(startupLogger, DateTimeOffset.UtcNow, null);
+            _logAppStarted(startupLogger, DateTimeOffset.Now, null);
 
             // Request logging middleware (non-Microsoft category)
             ILogger reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
@@ -109,7 +109,7 @@ namespace XRoadFolkWeb.Extensions
                     cookieValue,
                     new CookieOptions
                     {
-                        Expires = DateTimeOffset.UtcNow.AddYears(1),
+                        Expires = DateTimeOffset.Now.AddYears(1),
                         IsEssential = true,
                         Secure = ctx.Request.IsHttps,
                         SameSite = SameSiteMode.Lax,
@@ -144,7 +144,7 @@ namespace XRoadFolkWeb.Extensions
                 }
                 store.Add(new LogEntry
                 {
-                    Timestamp = DateTimeOffset.UtcNow,
+                    Timestamp = DateTimeOffset.Now,
                     Level = lvl,
                     Category = dto.Category ?? "Manual",
                     EventId = dto.EventId ?? 0,
