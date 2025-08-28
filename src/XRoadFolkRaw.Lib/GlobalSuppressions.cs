@@ -10,3 +10,17 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "Public API namespace kept for backward compatibility across solutions; 'Lib' is not a C# keyword and VB interop is not a target.",
     Scope = "namespace",
     Target = "~N:XRoadFolkRaw.Lib.Options")]
+
+[assembly: SuppressMessage(
+    "Naming",
+    "CA1716:Identifiers should not match keywords",
+    Justification = "Public API namespace kept for backward compatibility across solutions; 'Lib' is not a C# keyword and VB interop is not a target.",
+    Scope = "namespace",
+    Target = "~N:XRoadFolkRaw.Lib")]
+
+[assembly: SuppressMessage(
+    "Naming",
+    "CA1716:Identifiers should not match keywords",
+    Justification = "Public API namespace kept for backward compatibility across solutions; 'Lib' is not a C# keyword and VB interop is not a target.",
+    Scope = "namespace",
+    Target = "~N:XRoadFolkRaw.Lib.Logging")]

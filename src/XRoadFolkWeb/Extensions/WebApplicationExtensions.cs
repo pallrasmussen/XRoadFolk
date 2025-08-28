@@ -55,7 +55,10 @@ namespace XRoadFolkWeb.Extensions
             // After app.UseRequestLocalization(locOpts);
             ILogger locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
             LocalizationConfig locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
-            _logLocalizationConfig(locLogger, locCfg.DefaultCulture, string.Join(", ", locCfg.SupportedCultures), null);
+            string defaultCulture = locCfg.DefaultCulture ?? string.Empty;
+            IEnumerable<string> supportedList = locCfg.SupportedCultures ?? Enumerable.Empty<string>();
+            string supported = string.Join(", ", supportedList);
+            _logLocalizationConfig(locLogger, defaultCulture, supported, null);
 
             // Diagnostic endpoint to verify applied culture at runtime
             _ = app.MapGet("/__culture", (HttpContext ctx,

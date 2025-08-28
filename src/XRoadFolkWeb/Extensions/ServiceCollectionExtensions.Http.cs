@@ -75,16 +75,41 @@ namespace XRoadFolkWeb.Extensions
                 return true;
             }
 
-            X509Certificate2 cert2 = certificate as X509Certificate2 ?? new X509Certificate2(certificate);
-            chain ??= new X509Chain();
-            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-            chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown
-                                                 | X509VerificationFlags.IgnoreEndRevocationUnknown
-                                                 | X509VerificationFlags.AllowUnknownCertificateAuthority;
-            bool chainOk = chain.Build(cert2);
+            X509Certificate2? toDisposeCert = null;
+            X509Chain? toDisposeChain = null;
+            try
+            {
+                X509Certificate2 cert2;
+                if (certificate is X509Certificate2 existing)
+                {
+                    cert2 = existing;
+                }
+                else
+                {
+                    toDisposeCert = new X509Certificate2(certificate);
+                    cert2 = toDisposeCert;
+                }
 
-            // In development, allow only hostname mismatch if the chain is otherwise valid
-            return chainOk || errors == SslPolicyErrors.RemoteCertificateNameMismatch;
+                if (chain is null)
+                {
+                    toDisposeChain = new X509Chain();
+                    chain = toDisposeChain;
+                }
+
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown
+                                                     | X509VerificationFlags.IgnoreEndRevocationUnknown
+                                                     | X509VerificationFlags.AllowUnknownCertificateAuthority;
+                bool chainOk = chain.Build(cert2);
+
+                // In development, allow only hostname mismatch if the chain is otherwise valid
+                return chainOk || errors == SslPolicyErrors.RemoteCertificateNameMismatch;
+            }
+            finally
+            {
+                toDisposeChain?.Dispose();
+                toDisposeCert?.Dispose();
+            }
         }
     }
 }

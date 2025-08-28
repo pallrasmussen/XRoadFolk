@@ -1,4 +1,5 @@
 // Strongly-typed accessor used by DataAnnotations DisplayAttribute
+#nullable enable annotations
 namespace XRoadFolkWeb.Resources
 {
     using System.Globalization;

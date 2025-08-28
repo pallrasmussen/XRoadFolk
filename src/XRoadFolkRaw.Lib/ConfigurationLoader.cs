@@ -84,21 +84,25 @@ namespace XRoadFolkRaw.Lib
                 errs.Add(loc[Messages.XRoadBaseUrlInvalidUri, xr.BaseUrl]);
             }
 
-            Req(xr.Headers != null && !string.IsNullOrWhiteSpace(xr.Headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
+            var headers = xr.Headers;
+            Req(headers != null && !string.IsNullOrWhiteSpace(headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
 
-            Req(xr.Client != null, Messages.XRoadClientSectionMissing);
-            Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
-            Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberClass), Messages.XRoadClientMemberClassMissing);
-            Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.MemberCode), Messages.XRoadClientMemberCodeMissing);
-            Req(xr.Client != null && !string.IsNullOrWhiteSpace(xr.Client.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
+            var cli = xr.Client;
+            Req(cli != null, Messages.XRoadClientSectionMissing);
+            Req(cli != null && !string.IsNullOrWhiteSpace(cli.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
+            Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberClass), Messages.XRoadClientMemberClassMissing);
+            Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberCode), Messages.XRoadClientMemberCodeMissing);
+            Req(cli != null && !string.IsNullOrWhiteSpace(cli.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
 
-            Req(xr.Service != null, Messages.XRoadServiceSectionMissing);
-            Req(!string.IsNullOrWhiteSpace(xr.Service.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
-            Req(!string.IsNullOrWhiteSpace(xr.Service.MemberClass), Messages.XRoadServiceMemberClassMissing);
-            Req(!string.IsNullOrWhiteSpace(xr.Service.MemberCode), Messages.XRoadServiceMemberCodeMissing);
-            Req(!string.IsNullOrWhiteSpace(xr.Service.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
+            var svc = xr.Service;
+            Req(svc != null, Messages.XRoadServiceSectionMissing);
+            Req(svc != null && !string.IsNullOrWhiteSpace(svc.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
+            Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberClass), Messages.XRoadServiceMemberClassMissing);
+            Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberCode), Messages.XRoadServiceMemberCodeMissing);
+            Req(svc != null && !string.IsNullOrWhiteSpace(svc.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
 
-            Req(xr.Auth != null && !string.IsNullOrWhiteSpace(xr.Auth.UserId), Messages.XRoadAuthUserIdMissing);
+            var auth = xr.Auth;
+            Req(auth != null && !string.IsNullOrWhiteSpace(auth.UserId), Messages.XRoadAuthUserIdMissing);
 
             string tokenMode = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim().ToLowerInvariant();
             if (tokenMode is not "request" and not "header")
