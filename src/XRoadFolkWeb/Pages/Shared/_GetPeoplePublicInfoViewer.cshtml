@@ -65,15 +65,6 @@
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <div class="btn-group" role="group" aria-label="View mode">
-              <button id="gpiv-pretty" type="button" class="btn btn-sm btn-outline-secondary" title="1">@L["Pretty"]</button>
-              <button id="gpiv-tree" type="button" class="btn btn-sm btn-outline-secondary" title="3">@L["Tree"]</button>
-              <button id="gpiv-summary" type="button" class="btn btn-sm btn-outline-secondary" title="4">@L["Summary"]</button>
-            </div>
-            <div id="gpiv-tree-commands" class="btn-group" role="group" aria-label="Tree commands">
-              <button id="gpiv-expand" type="button" class="btn btn-sm btn-outline-secondary" disabled title="E">@L["Expand"]</button>
-              <button id="gpiv-collapse" type="button" class="btn btn-sm btn-outline-secondary" disabled title="C">@L["Collapse"]</button>
-            </div>
             <div class="input-group input-group-sm" style="width: 180px;">
               <span class="input-group-text">@L["Height"]</span>
               <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeight"]">
@@ -83,11 +74,7 @@
         </div>
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
-
-        <pre id="gpiv-xml-pretty" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="white-space: pre; overflow: auto;">@pretty</pre>
-
-        <div id="gpiv-xml-tree" class="gpiv-viewport mb-0 small bg-body-tertiary p-3 border rounded" style="display:none; overflow:auto; font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);"></div>
-        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small p-3 border rounded" style="display:none; overflow:auto;"></div>
+        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small p-3 border rounded" style="overflow:auto;"></div>
     </div>
 </div>
 
@@ -103,39 +90,26 @@
         if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
     } catch {}
 
-    var prettyBtn = document.getElementById('gpiv-pretty');
-    var treeBtn = document.getElementById('gpiv-tree');
-    var summaryBtn = document.getElementById('gpiv-summary');
-    var expandBtn = document.getElementById('gpiv-expand');
-    var collapseBtn = document.getElementById('gpiv-collapse');
     var heightRange = document.getElementById('gpiv-height');
     var fullscreenBtn = document.getElementById('gpiv-fullscreen');
     var dropOverlay = document.getElementById('gpiv-drop');
 
-    var prePretty = document.getElementById('gpiv-xml-pretty');
-    var preRaw = document.getElementById('gpiv-xml-raw'); // may not exist
-    var treeHost = document.getElementById('gpiv-xml-tree');
     var summaryHost = document.getElementById('gpiv-xml-summary');
     var emptyMsg = document.getElementById('gpiv-empty');
     var card = document.querySelector('.gpiv-card');
-    var treeCmds = document.getElementById('gpiv-tree-commands');
 
-    var sourcePretty = prePretty ? (prePretty.textContent || '') : '';
-    var sourceRaw = preRaw ? (preRaw.textContent || '') : '';
+    var sourcePretty = '';
+    var sourceRaw = '';
 
-    var prefKey = 'gpiv-pref-v1';
-    var mode = 'pretty';
+    var prefKey = 'gpiv-pref-v2';
     var saved = null;
     try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
-    if (saved && typeof saved.mode === 'string' ) mode = saved.mode;
-    if (mode === 'raw') mode = 'pretty';
     var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
     if (heightRange) { heightRange.value = savedH; if (card) card.style.setProperty('--gpiv-h', savedH + 'vh'); }
 
     function savePrefs() {
         try {
             localStorage.setItem(prefKey, JSON.stringify({
-                mode: mode,
                 h: heightRange ? parseInt(heightRange.value || '40', 10) : 40
             }));
         } catch {}
@@ -231,27 +205,6 @@
       return b;
     }
 
-    // Tree
-    function buildTree(node) {
-        if (!node || node.nodeType !== 1) return document.createTextNode('');
-        var details = el('details', 'xml-node', null);
-        details.open = false;
-        var sum = el('summary', 'xml-summary', null);
-        sum.appendChild(el('span', 'xml-name fw-bold', node.nodeName));
-        if (node.attributes && node.attributes.length) {
-            var attrs = [];
-            for (var i = 0; i < node.attributes.length; i++) { var a = node.attributes[i]; attrs.push(a.name + '="' + a.value + '"'); }
-            sum.appendChild(el('span', 'text-muted ms-2', attrs.join(' ')));
-        }
-        var hasChildren = false;
-        for (var c = 0; c < node.childNodes.length; c++) if (node.childNodes[c].nodeType === 1) { hasChildren = true; break; }
-        var txt = (node.textContent || '').trim();
-        if (!hasChildren && txt) sum.appendChild(el('span', 'xml-text ms-2', '= "' + txt + '"'));
-        details.appendChild(sum);
-        for (var j = 0; j < node.childNodes.length; j++) { var ch = node.childNodes[j]; if (ch.nodeType === 1) details.appendChild(buildTree(ch)); }
-        return details;
-    }
-
     // Build a single accordion item helper
     function accItem(accId, idx, title, bodyContent, open) {
         var item = document.createElement('div'); item.className = 'accordion-item';
@@ -271,23 +224,7 @@
         return item;
     }
 
-    function renderTree() {
-        treeHost.innerHTML = '';
-        try {
-            var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
-            if (!xmlText || !xmlText.trim()) { treeHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
-            var xml = parseXml(xmlText);
-            if (!xml.documentElement) { treeHost.textContent = I18N.NoXmlRoot || 'No XML root element.'; return; }
-            var tree = buildTree(xml.documentElement);
-            tree.open = true;
-            treeHost.appendChild(tree);
-        } catch (e) {
-            var pfx = I18N.FailedToRenderTreePrefix || 'Failed to render tree:';
-            treeHost.textContent = pfx + ' ' + (e && e.message ? e.message : e);
-        }
-    }
-
-    // Summary using Bootstrap accordion to match Person Details exactly
+    // Summary using Bootstrap accordion
     function renderSummary() {
         summaryHost.innerHTML = '';
         try {
@@ -302,7 +239,7 @@
             var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
             hdr.appendChild(cnt);
 
-            // Add Expand/Collapse buttons next to the count
+            // Expand/Collapse buttons next to the count
             var grp = el('div', 'btn-group btn-group-sm ms-auto', null);
             var bExpand = el('button', 'btn btn-outline-secondary', I18N.Expand || 'Expand'); bExpand.id = 'gpiv-summary-expand';
             var bCollapse = el('button', 'btn btn-outline-secondary', I18N.Collapse || 'Collapse'); bCollapse.id = 'gpiv-summary-collapse';
@@ -402,15 +339,15 @@
                     var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
 
                     if (repeated) {
-                        var items = []; for (var ii = 0; ii < group.children.length; ii++) { var it = group.children[ii]; if (!isNil(it) && it.localName === repeated) items.push(it); }
+                        var items = []; for (var itx = 0; itx < group.children.length; itx++) { var it = group.children[itx]; if (!isNil(it) && it.localName === repeated) items.push(it); }
                         var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
-                        for (var itx = 0; itx < items.length; itx++) {
+                        for (var itx2 = 0; itx2 < items.length; itx2++) {
                             var card3 = el('div', 'p-2 border rounded', null);
-                            var title3 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx + 1));
+                            var title3 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx2 + 1));
                             card3.appendChild(title3);
-                            var leaves2 = buildKvpTableIncludingAttributes(items[itx]); if (leaves2) card3.appendChild(leaves2);
+                            var leaves2 = buildKvpTableIncludingAttributes(items[itx2]); if (leaves2) card3.appendChild(leaves2);
                             // build nested details as simple blocks
-                            var nested = []; for (var nc = 0; nc < items[itx].children.length; nc++) { var kid = items[itx].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
+                            var nested = []; for (var nc = 0; nc < items[itx2].children.length; nc++) { var kid = items[itx2].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
                             for (var nx = 0; nx < nested.length; nx++) {
                                 var sub = buildKvpTableIncludingAttributes(nested[nx]); if (sub) card3.appendChild(sub);
                             }
@@ -431,12 +368,7 @@
         }
     }
 
-    // Expand/Collapse helpers (tree & summary)
-    function expandAll(open) {
-        if (!treeHost) return;
-        var nodes = treeHost.querySelectorAll('details.xml-node');
-        for (var i = 0; i < nodes.length; i++) nodes[i].open = !!open;
-    }
+    // Expand/Collapse helpers (summary)
     function expandSummaryAll(open) {
         if (!summaryHost) return;
         var panes = summaryHost.querySelectorAll('.accordion-collapse');
@@ -445,43 +377,12 @@
         btns.forEach(function(b){ b.classList.toggle('collapsed', !open); });
     }
 
-    function setActive() {
-        var btns = [prettyBtn, treeBtn, summaryBtn];
-        for (var i = 0; i < btns.length; i++) if (btns[i]) btns[i].classList.remove('active');
-        if (mode === 'pretty' && prettyBtn) prettyBtn.classList.add('active');
-        if (mode === 'tree' && treeBtn) treeBtn.classList.add('active');
-        if (mode === 'summary' && summaryBtn) summaryBtn.classList.add('active');
-    }
-
     function updateView() {
         var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
         var hasAny = combined.length > 0;
 
         if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-        if (prePretty) prePretty.style.display = (mode === 'pretty') ? 'block' : 'none';
-        if (treeHost) treeHost.style.display  = (mode === 'tree')   ? 'block' : 'none';
-        if (summaryHost) summaryHost.style.display = (mode === 'summary') ? 'block' : 'none';
-        if (prePretty) prePretty.textContent = (sourcePretty || '');
-
-        var treeActive = (mode === 'tree');
-        var summaryActive = (mode === 'summary');
-
-        if (treeActive && hasAny) renderTree();
-        if (summaryActive && hasAny) { renderSummary(); }
-
-        var canExpand = false;
-        if (treeActive) {
-            canExpand = !!(treeHost && treeHost.querySelector('details.xml-node'));
-        } else if (summaryActive) {
-            canExpand = !!(summaryHost && summaryHost.querySelector('.accordion-collapse'));
-        }
-        if (expandBtn) expandBtn.disabled = !canExpand;
-        if (collapseBtn) collapseBtn.disabled = !canExpand;
-
-        // Hide tree expand/collapse when in summary mode (moved into summary header)
-        if (treeCmds) treeCmds.style.display = summaryActive ? 'none' : '';
-
-        setActive();
+        if (hasAny) { renderSummary(); }
         savePrefs();
     }
 
@@ -509,45 +410,29 @@
     });
 
     // Toolbar actions
-    prettyBtn && prettyBtn.addEventListener('click', function(){ mode='pretty'; updateView(); });
-    treeBtn && treeBtn.addEventListener('click',   function(){ mode='tree';   updateView(); });
-    summaryBtn && summaryBtn.addEventListener('click',function(){ mode='summary'; updateView(); });
-    expandBtn && expandBtn.addEventListener('click',   function(){ if (mode==='summary') expandSummaryAll(true); else expandAll(true); });
-    collapseBtn && collapseBtn.addEventListener('click', function(){ if (mode==='summary') expandSummaryAll(false); else expandAll(false); });
     heightRange && heightRange.addEventListener('input', function () { var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs(); });
     fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
 
-    // Keyboard shortcuts
+    // Keyboard shortcuts: expand/collapse all in summary
     document.addEventListener('keydown', function (e) {
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
         var inEditable = t && (t.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
         if (inEditable) return;
 
-        if (e.key === '1') { if (prettyBtn) prettyBtn.click(); }
-        if (e.key === '3') { if (treeBtn)   treeBtn.click(); }
-        if (e.key === '4') { if (summaryBtn) summaryBtn.click(); }
-        if (e.key.toLowerCase() === 'e') {
-            if (mode === 'summary') { expandSummaryAll(true); return; }
-            if (!expandBtn || expandBtn.disabled) return; expandBtn.click();
-        }
-        if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) {
-            if (mode === 'summary') { expandSummaryAll(false); return; }
-            if (!collapseBtn || collapseBtn.disabled) return; collapseBtn.click();
-        }
+        if (e.key.toLowerCase() === 'e') { expandSummaryAll(true); }
+        if (e.key.toLowerCase() === 'c' && !(e.ctrlKey || e.metaKey)) { expandSummaryAll(false); }
     });
 
     window.gpiv = {
         setXml: function (raw, pretty) {
             if (typeof raw === 'string') sourceRaw = raw;
             if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string' ) sourcePretty = raw;
-            if (preRaw) preRaw.textContent = (sourceRaw || '');
-            if (prePretty) prePretty.textContent = (sourcePretty || '');
             updateView();
         },
         focusPerson: function (publicId) {
             if (!publicId) return;
-            mode = 'summary'; updateView();
+            updateView();
             var badges = summaryHost.querySelectorAll('.gpiv-pid');
             for (var i = 0; i < badges.length; i++) {
                 var pidAttr = badges[i].getAttribute('data-public-id') || '';
@@ -581,7 +466,7 @@
     } catch {}
 })();
 </script>
-<!-- Remaining scripts from the original file preserved below -->
+<!-- Remaining scripts preserved below (Person Details loader) -->
 <script>
 // Restore PublicId click -> load PersonDetails panel behavior (logs removed)
 (function(){
@@ -753,7 +638,7 @@
         els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
-        retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
+        retry2 && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
         ensureShownAndFocus();
       }
       try { console.error('GetPerson fetch failed', err); } catch {}
