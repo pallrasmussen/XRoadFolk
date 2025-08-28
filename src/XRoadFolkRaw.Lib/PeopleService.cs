@@ -90,7 +90,7 @@ namespace XRoadFolkRaw.Lib
         {
             string key = (_cacheOptions.KeyPrefix ?? "folk-token|") + ComputeKey(_settings);
 
-            if (_cache.TryGetValue<string>(key, out var token) && !string.IsNullOrWhiteSpace(token))
+            if (_cache.TryGetValue<string>(key, out string? token) && !string.IsNullOrWhiteSpace(token))
             {
                 LogTokenReused(_log);
                 return token;

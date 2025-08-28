@@ -76,7 +76,7 @@ namespace XRoadFolkWeb.Extensions
                     Applied = new
                     {
                         Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-                        Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? Array.Empty<string>(),
+                        Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
                         Current = feature?.RequestCulture.Culture.Name,
                         CurrentUI = feature?.RequestCulture.UICulture.Name
                     }
@@ -163,10 +163,10 @@ namespace XRoadFolkWeb.Extensions
                 ctx.Response.Headers.Append("X-Accel-Buffering", "no");
                 ctx.Response.ContentType = "text/event-stream";
 
-                var (reader, id) = stream.Subscribe();
+                (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
                 try
                 {
-                    await foreach (var entry in reader.ReadAllAsync(ct))
+                    await foreach (LogEntry entry in reader.ReadAllAsync(ct))
                     {
                         if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
                         {

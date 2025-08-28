@@ -84,24 +84,24 @@ namespace XRoadFolkRaw.Lib
                 errs.Add(loc[Messages.XRoadBaseUrlInvalidUri, xr.BaseUrl]);
             }
 
-            var headers = xr.Headers;
+            HeaderSettings headers = xr.Headers;
             Req(headers != null && !string.IsNullOrWhiteSpace(headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
 
-            var cli = xr.Client;
+            ClientIdSettings? cli = xr.Client;
             Req(cli != null, Messages.XRoadClientSectionMissing);
             Req(cli != null && !string.IsNullOrWhiteSpace(cli.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
             Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberClass), Messages.XRoadClientMemberClassMissing);
             Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberCode), Messages.XRoadClientMemberCodeMissing);
             Req(cli != null && !string.IsNullOrWhiteSpace(cli.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
 
-            var svc = xr.Service;
+            ServiceIdSettings? svc = xr.Service;
             Req(svc != null, Messages.XRoadServiceSectionMissing);
             Req(svc != null && !string.IsNullOrWhiteSpace(svc.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
             Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberClass), Messages.XRoadServiceMemberClassMissing);
             Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberCode), Messages.XRoadServiceMemberCodeMissing);
             Req(svc != null && !string.IsNullOrWhiteSpace(svc.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
 
-            var auth = xr.Auth;
+            AuthSettings auth = xr.Auth;
             Req(auth != null && !string.IsNullOrWhiteSpace(auth.UserId), Messages.XRoadAuthUserIdMissing);
 
             string tokenMode = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim().ToLowerInvariant();
@@ -172,8 +172,8 @@ namespace XRoadFolkRaw.Lib
             {
                 throw new InvalidOperationException("XRoad configuration missing Client or Service section.");
             }
-            var client = xr.Client;
-            var service = xr.Service;
+            ClientIdSettings client = xr.Client;
+            ServiceIdSettings service = xr.Service;
 
             ClientSubsystem(log, $"{client.XRoadInstance}/{client.MemberClass}/{client.MemberCode}/{client.SubsystemCode}");
             ServiceSubsystem(log, $"{service.XRoadInstance}/{service.MemberClass}/{service.MemberCode}/{service.SubsystemCode}");

@@ -27,7 +27,7 @@ namespace XRoadFolkRaw.Lib
 
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
-            var tup = await GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
+            (string Token, DateTimeOffset ExpiresUtc) tup = await GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
             return tup.Token;
         }
 
