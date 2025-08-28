@@ -13,7 +13,9 @@ namespace XRoadFolkRaw.Lib
         // private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
         // No replacement needed; simply delete the line.
-        private readonly TimeSpan _skew = refreshSkew ?? TimeSpan.Zero;
+        private readonly TimeSpan _skew = client is null
+            ? throw new ArgumentNullException(nameof(client))
+            : (refreshSkew ?? TimeSpan.Zero);
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly Func<CancellationToken, Task<string>> _loginCall = loginCall ?? throw new ArgumentNullException(nameof(loginCall));
 

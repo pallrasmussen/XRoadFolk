@@ -112,19 +112,19 @@ namespace XRoadFolkRaw.Lib.Logging
             {
                 if (evt == SoapRequestEvent)
                 {
-                    _logRequestWithTitle(logger, title, safe, null);
+                    _logRequestWithTitle(logger, title!, safe, null);
                 }
                 else if (evt == SoapResponseEvent)
                 {
-                    _logResponseWithTitle(logger, title, safe, null);
+                    _logResponseWithTitle(logger, title!, safe, null);
                 }
                 else if (level == LogLevel.Information)
                 {
-                    _logInfoWithTitle(logger, title, safe, null);
+                    _logInfoWithTitle(logger, title!, safe, null);
                 }
                 else
                 {
-                    _logGeneralWithTitle(logger, title, safe, null);
+                    _logGeneralWithTitle(logger, title!, safe, null);
                 }
             }
             else

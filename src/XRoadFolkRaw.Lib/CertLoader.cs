@@ -61,8 +61,9 @@ namespace XRoadFolkRaw.Lib
                 throw new FileNotFoundException($"PEM key not found '{keyPath}'", keyPath);
             }
 
-            X509Certificate2 cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
-            return new X509Certificate2(cert.Export(X509ContentType.Pkcs12), (string?)null, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+            using X509Certificate2 cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+            string? password = null; // disambiguate ctor
+            return new X509Certificate2(cert.Export(X509ContentType.Pkcs12), password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
     }
 }

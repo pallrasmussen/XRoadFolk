@@ -163,8 +163,16 @@ namespace XRoadFolkRaw.Lib
                 throw new InvalidOperationException(loc[Messages.ConfigSanityCheckFailedException]);
             }
 
-            ClientSubsystem(log, $"{xr.Client.XRoadInstance}/{xr.Client.MemberClass}/{xr.Client.MemberCode}/{xr.Client.SubsystemCode}");
-            ServiceSubsystem(log, $"{xr.Service.XRoadInstance}/{xr.Service.MemberClass}/{xr.Service.MemberCode}/{xr.Service.SubsystemCode}");
+            // After validation, ensure required sections are present and use non-null locals
+            if (xr.Client is null || xr.Service is null)
+            {
+                throw new InvalidOperationException("XRoad configuration missing Client or Service section.");
+            }
+            var client = xr.Client;
+            var service = xr.Service;
+
+            ClientSubsystem(log, $"{client.XRoadInstance}/{client.MemberClass}/{client.MemberCode}/{client.SubsystemCode}");
+            ServiceSubsystem(log, $"{service.XRoadInstance}/{service.MemberClass}/{service.MemberCode}/{service.SubsystemCode}");
 
             return (config, xr);
         }

@@ -73,7 +73,7 @@ namespace XRoadFolkWeb.Extensions
                     Applied = new
                     {
                         Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-                        Supported = locOpts.Value.SupportedCultures.Select(c => c.Name).ToArray(),
+                        Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? Array.Empty<string>(),
                         Current = feature?.RequestCulture.Culture.Name,
                         CurrentUI = feature?.RequestCulture.UICulture.Name
                     }
