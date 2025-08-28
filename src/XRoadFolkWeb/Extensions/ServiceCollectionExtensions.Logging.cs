@@ -31,7 +31,7 @@ namespace XRoadFolkWeb.Extensions
                     .Validate(o => o.Capacity >= 50, "HttpLogs:Capacity must be >= 50")
                     .ValidateOnStart();
 
-            _ = services.AddSingleton<ILogStream, LogStreamBroadcaster>();
+            _ = services.AddSingleton<ILogFeed, LogStreamBroadcaster>();
 
             // Read configuration at registration time to decide which implementation to use
             HttpLogOptions opts = new();

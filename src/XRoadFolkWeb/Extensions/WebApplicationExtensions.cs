@@ -153,7 +153,7 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // Server-Sent Events: real-time log stream (accepts kind filter)
-            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogStream stream, CancellationToken ct) =>
+            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogFeed stream, CancellationToken ct) =>
             {
                 ctx.Response.Headers.CacheControl = "no-cache";
                 ctx.Response.Headers.Connection = "keep-alive";

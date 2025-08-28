@@ -12,14 +12,14 @@ namespace XRoadFolkWeb.Infrastructure
     public sealed class FileBackedHttpLogStore : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _ring = new();
-        private readonly ILogStream? _stream;
+        private readonly ILogFeed? _stream;
         private readonly int _maxQueue;
         private readonly bool _alwaysAllowWarnError;
 
         private readonly Channel<LogEntry> _channel;
         private readonly ILogger<FileBackedHttpLogStore> _log;
 
-        public FileBackedHttpLogStore(IOptions<HttpLogOptions> options, ILogStream? stream, ILogger<FileBackedHttpLogStore> log)
+        public FileBackedHttpLogStore(IOptions<HttpLogOptions> options, ILogFeed? stream, ILogger<FileBackedHttpLogStore> log)
         {
             ArgumentNullException.ThrowIfNull(options);
             HttpLogOptions cfg = options.Value;

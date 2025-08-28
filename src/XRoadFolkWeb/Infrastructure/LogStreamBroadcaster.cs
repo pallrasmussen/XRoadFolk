@@ -3,14 +3,14 @@ using System.Threading.Channels;
 
 namespace XRoadFolkWeb.Infrastructure
 {
-    public interface ILogStream
+    public interface ILogFeed
     {
         (ChannelReader<LogEntry> Reader, Guid SubscriptionId) Subscribe();
         void Unsubscribe(Guid id);
         void Publish(LogEntry entry);
     }
 
-    public sealed class LogStreamBroadcaster : ILogStream
+    public sealed class LogStreamBroadcaster : ILogFeed
     {
         private readonly ConcurrentDictionary<Guid, Channel<LogEntry>> _subscribers = new();
 

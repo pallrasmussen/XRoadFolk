@@ -84,12 +84,12 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     catch (CryptographicException ex)
     {
         ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
-        log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
+        Program.LogClientCertNotConfigured(log, ex);
     }
     catch (IOException ex)
     {
         ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
-        log.LogWarning(ex, "Client certificate not configured. Proceeding without certificate.");
+        Program.LogClientCertNotConfigured(log, ex);
     }
 
     IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
@@ -154,4 +154,8 @@ internal static partial class Program
     [LoggerMessage(EventId = 3, Level = LogLevel.Information,
         Message = "[culture] Using {Culture}")]
     public static partial void LogCultureSelection(ILogger logger, string culture);
+
+    [LoggerMessage(EventId = 4, Level = LogLevel.Warning,
+        Message = "Client certificate not configured. Proceeding without certificate.")]
+    public static partial void LogClientCertNotConfigured(ILogger logger, Exception ex);
 }

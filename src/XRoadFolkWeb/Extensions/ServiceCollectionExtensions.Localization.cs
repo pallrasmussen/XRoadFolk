@@ -12,6 +12,9 @@ public static partial class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAppLocalization(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
         services
             .AddRazorPages()
             .AddViewLocalization()

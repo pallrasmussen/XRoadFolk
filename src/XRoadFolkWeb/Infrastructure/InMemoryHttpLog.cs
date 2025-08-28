@@ -33,6 +33,8 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Add(LogEntry e)
         {
+            ArgumentNullException.ThrowIfNull(e);
+
             _queue.Enqueue(e);
 
             if (string.IsNullOrWhiteSpace(_filePath))

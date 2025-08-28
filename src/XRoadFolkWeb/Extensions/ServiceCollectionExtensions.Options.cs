@@ -10,6 +10,9 @@ public static partial class ServiceCollectionExtensions
 {
     public static IServiceCollection AddAppOptions(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
         // XRoad settings
         services.Configure<XRoadSettings>(configuration.GetSection("XRoad"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);

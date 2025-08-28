@@ -12,7 +12,7 @@ public class IndexModelLocalizationTests
     [InlineData("en-US", " (Name)")]
     [InlineData("da-DK", " (Name)")]
     [InlineData("fo-FO", " (Name)")]
-    public void SelectedNameSuffixFormat_ComesFromPageResources(string culture, string expected)
+    public void SelectedNameSuffixFormatComesFromPageResources(string culture, string expected)
     {
         var services = new ServiceCollection();
         services.AddLocalization(opts => opts.ResourcesPath = "Resources");

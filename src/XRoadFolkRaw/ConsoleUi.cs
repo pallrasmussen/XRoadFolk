@@ -197,7 +197,7 @@ namespace XRoadFolkRaw
             }
         }
 
-        private static IEnumerable<XElement> EnumeratePeople(XDocument doc)
+        private static List<XElement> EnumeratePeople(XDocument doc)
         {
             return doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
         }
@@ -328,6 +328,9 @@ namespace XRoadFolkRaw
         [LoggerMessage(Level = LogLevel.Warning, Message = "GetPerson response element not found.")]
         public static partial void LogGetPersonResponseNotFound(ILogger logger);
 
+        [LoggerMessage(Level = LogLevel.Warning, Message = "No PersonPublicInfo elements found in response.")]
+        public static partial void LogNoPersonPublicInfo(ILogger logger);
+
         private static void PrintGetPersonAllPairs(XDocument doc, ILogger log, IStringLocalizer loc)
         {
             PrintSeparator(loc["GetPersonAllPairs"]);
@@ -356,7 +359,7 @@ namespace XRoadFolkRaw
             var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
             if (people.Count == 0)
             {
-                log.LogWarning("No PersonPublicInfo elements found in response.");
+                LogNoPersonPublicInfo(log);
                 return;
             }
             int idx = 0;
@@ -373,7 +376,7 @@ namespace XRoadFolkRaw
             var people = doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo").ToList();
             if (people.Count == 0)
             {
-                log.LogWarning("No PersonPublicInfo elements found in response.");
+                LogNoPersonPublicInfo(log);
                 return;
             }
 

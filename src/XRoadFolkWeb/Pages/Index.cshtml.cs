@@ -442,11 +442,11 @@ namespace XRoadFolkWeb.Pages
                     .Where(p =>
                     {
                         if (string.IsNullOrEmpty(p.Key)) return true;
-                        string k = p.Key.ToLowerInvariant();
-                        return !(k.StartsWith("requestheader")
-                              || k.StartsWith("requestbody")
-                              || k.Contains(".requestheader")
-                              || k.Contains(".requestbody"));
+                        string k = p.Key;
+                        return !(k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
+                              || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
+                              || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
+                              || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase));
                     })
                     // Also remove the same noise fields used by Summary: Id, Fixed, AuthorityCode, PersonAddressId
                     .Where(p =>
@@ -495,9 +495,9 @@ namespace XRoadFolkWeb.Pages
                     // Relaxed matching: equal or prefix match either way (to handle plural/list variants)
                     static bool Matches(string seg, string allowedKey)
                     {
-                        string a = allowedKey.ToLowerInvariant();
-                        string s = seg.ToLowerInvariant();
-                        return s == a || s.StartsWith(a) || a.StartsWith(s);
+                        return seg.Equals(allowedKey, StringComparison.OrdinalIgnoreCase)
+                            || seg.StartsWith(allowedKey, StringComparison.OrdinalIgnoreCase)
+                            || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
                     }
 
                     filtered = filtered.Where(p =>

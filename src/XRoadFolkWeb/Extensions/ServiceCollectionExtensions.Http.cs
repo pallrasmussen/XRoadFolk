@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using XRoadFolkRaw.Lib;
 //using XRoadFolkRaw.Lib.Logging;
@@ -53,13 +54,37 @@ namespace XRoadFolkWeb.Extensions
                 IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
                 if (env.IsDevelopment() && bypass)
                 {
-                    handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+                    handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;
                 }
 
                 return handler;
             });
 
             return services;
+        }
+
+        private static bool DevCertificateValidation(object _, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors)
+        {
+            if (certificate is null)
+            {
+                return false;
+            }
+
+            if (errors == SslPolicyErrors.None)
+            {
+                return true;
+            }
+
+            X509Certificate2 cert2 = certificate as X509Certificate2 ?? new X509Certificate2(certificate);
+            chain ??= new X509Chain();
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            chain.ChainPolicy.VerificationFlags = X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown
+                                                 | X509VerificationFlags.IgnoreEndRevocationUnknown
+                                                 | X509VerificationFlags.AllowUnknownCertificateAuthority;
+            bool chainOk = chain.Build(cert2);
+
+            // In development, allow only hostname mismatch if the chain is otherwise valid
+            return chainOk || errors == SslPolicyErrors.RemoteCertificateNameMismatch;
         }
     }
 }
