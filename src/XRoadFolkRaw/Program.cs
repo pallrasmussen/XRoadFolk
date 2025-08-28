@@ -27,7 +27,7 @@ if (resName is not null)
     using Stream? s = libAsm.GetManifestResourceStream(resName);
     if (s is not null)
     {
-        builder.Configuration.AddJsonStream(s);
+        IConfigurationBuilder configurationBuilder = builder.Configuration.AddJsonStream(s);
     }
 }
 
@@ -36,7 +36,11 @@ builder.Configuration.AddEnvironmentVariables();
 
 // Logging
 builder.Logging.ClearProviders();
-builder.Logging.AddSimpleConsole();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.UseUtcTimestamp = false; // local time
+    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fff zzz ";
+});
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
 
@@ -60,7 +64,7 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
     c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
 })
-.ConfigurePrimaryHttpMessageHandler(sp =>
+.ConfigurePrimaryHttpMessageHandler(static sp =>
 {
     SocketsHttpHandler handler = new()
     {
@@ -75,7 +79,7 @@ builder.Services.AddHttpClient("XRoadFolk", (sp, c) =>
     {
         X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
         handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
-        handler.SslOptions.ClientCertificates.Add(cert);
+        _ = handler.SslOptions.ClientCertificates.Add(cert);
     }
     catch (CryptographicException ex)
     {
