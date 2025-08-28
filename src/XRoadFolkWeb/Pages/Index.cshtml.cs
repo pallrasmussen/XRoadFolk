@@ -4,18 +4,21 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Configuration;
 using XRoadFolkRaw.Lib;
+using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Validation;
 
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache) : PageModel
+    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
         private readonly IMemoryCache _cache = cache;
+        private readonly IConfiguration _config = config;
 
         [BindProperty, Ssn]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
@@ -53,6 +56,9 @@ namespace XRoadFolkWeb.Pages
         public string? PeoplePublicInfoResponseXml { get; private set; }
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
+        // Expose enabled include keys to the view
+        public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
+
         private const string ResponseKey = "PeoplePublicInfoResponse";
 
         public async Task OnGetAsync(
@@ -62,6 +68,9 @@ namespace XRoadFolkWeb.Pages
             string? lastName = null,
             string? dateOfBirth = null)
         {
+            // Load enabled include keys once per request
+            EnabledPersonIncludeKeys = ReadEnabledIncludeKeys();
+
             // Prefill bound properties from query to retain form values after redirects or navigation
             if (!string.IsNullOrWhiteSpace(ssn)) Ssn = ssn;
             if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
@@ -132,6 +141,9 @@ namespace XRoadFolkWeb.Pages
             // Clear person details on every new search
             PersonDetails = null;
             SelectedNameSuffix = string.Empty;
+
+            // Load enabled include keys once per request
+            EnabledPersonIncludeKeys = ReadEnabledIncludeKeys();
 
             if (!ModelState.IsValid)
             {
@@ -218,6 +230,34 @@ namespace XRoadFolkWeb.Pages
         public IActionResult OnGetClear()
         {
             return RedirectToPage();
+        }
+
+        private List<string> ReadEnabledIncludeKeys()
+        {
+            List<string> list = [];
+            IConfigurationSection incSec = _config.GetSection("Operations:GetPerson:Request:Include");
+            foreach (IConfigurationSection c in incSec.GetChildren())
+            {
+                if (bool.TryParse(c.Value, out bool on) && on)
+                {
+                    list.Add(c.Key);
+                }
+            }
+            // Also read flags enum if configured that way
+            GetPersonRequestOptions? req = _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
+            if (req is not null && req.Include != GetPersonInclude.None)
+            {
+                foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
+                {
+                    if (flag == GetPersonInclude.None) continue;
+                    if ((req.Include & flag) == flag)
+                    {
+                        string name = Enum.GetName(flag) ?? string.Empty;
+                        if (!string.IsNullOrEmpty(name) && !list.Contains(name, StringComparer.OrdinalIgnoreCase)) list.Add(name);
+                    }
+                }
+            }
+            return list;
         }
 
         private static string PrettyFormatXml(string xml)
@@ -421,6 +461,60 @@ namespace XRoadFolkWeb.Pages
                         return s != "id" && s != "fixed" && s != "authoritycode" && s != "personaddressid";
                     })
                     .ToList();
+
+                // Build allow-list from appsettings Include booleans and flags enum
+                HashSet<string> allowed = new(StringComparer.OrdinalIgnoreCase);
+                IConfigurationSection incSec = _config.GetSection("Operations:GetPerson:Request:Include");
+                foreach (IConfigurationSection c in incSec.GetChildren())
+                {
+                    if (bool.TryParse(c.Value, out bool on) && on)
+                    {
+                        allowed.Add(c.Key);
+                    }
+                }
+                GetPersonRequestOptions? req = _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
+                if (req is not null && req.Include != GetPersonInclude.None)
+                {
+                    foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
+                    {
+                        if (flag == GetPersonInclude.None) continue;
+                        if ((req.Include & flag) == flag)
+                        {
+                            string? name = Enum.GetName(flag);
+                            if (!string.IsNullOrEmpty(name)) allowed.Add(name);
+                        }
+                    }
+                }
+                // Always allow Summary/basic identification
+                allowed.Add("Summary");
+                // Common synonyms
+                if (allowed.Contains("Ssn")) allowed.Add("SSN");
+
+                if (allowed.Count > 0)
+                {
+                    // Relaxed matching: equal or prefix match either way (to handle plural/list variants)
+                    static bool Matches(string seg, string allowedKey)
+                    {
+                        string a = allowedKey.ToLowerInvariant();
+                        string s = seg.ToLowerInvariant();
+                        return s == a || s.StartsWith(a) || a.StartsWith(s);
+                    }
+
+                    filtered = filtered.Where(p =>
+                    {
+                        if (string.IsNullOrWhiteSpace(p.Key)) return false;
+                        string key = p.Key;
+                        int dot = key.IndexOf('.');
+                        string seg = dot >= 0 ? key[..dot] : key;
+                        int bpos = seg.IndexOf('[');
+                        if (bpos >= 0) seg = seg[..bpos];
+                        foreach (string a in allowed)
+                        {
+                            if (Matches(seg, a)) return true;
+                        }
+                        return false;
+                    }).ToList();
+                }
 
                 return new JsonResult(new
                 {
