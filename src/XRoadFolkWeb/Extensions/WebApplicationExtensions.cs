@@ -121,9 +121,14 @@ namespace XRoadFolkWeb.Extensions
 
             _ = app.MapRazorPages();
 
-            // Logs endpoints (generic with kind=http|soap|app)
-            _ = app.MapGet("/logs", ([FromQuery] string? kind, IHttpLogStore store) =>
+            // Logs endpoints (defensive when store/feed not registered)
+            _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>
             {
+                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                if (store is null)
+                {
+                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
                 IReadOnlyList<LogEntry> items = store.GetAll();
                 if (!string.IsNullOrWhiteSpace(kind))
                 {
@@ -131,12 +136,28 @@ namespace XRoadFolkWeb.Extensions
                 }
                 return Results.Json(new { ok = true, items });
             });
-            _ = app.MapPost("/logs/clear", (IHttpLogStore store) => { store.Clear(); return Results.Json(new { ok = true }); });
-            _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, IHttpLogStore store) =>
+
+            _ = app.MapPost("/logs/clear", (HttpContext ctx) =>
+            {
+                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                if (store is null)
+                {
+                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+                store.Clear();
+                return Results.Json(new { ok = true });
+            });
+
+            _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, HttpContext ctx) =>
             {
                 if (dto is null)
                 {
                     return Results.BadRequest();
+                }
+                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                if (store is null)
+                {
+                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
                 if (!Enum.TryParse(dto.Level ?? "Information", true, out LogLevel lvl))
                 {
@@ -156,8 +177,14 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // Server-Sent Events: real-time log stream (accepts kind filter)
-            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogFeed stream, CancellationToken ct) =>
+            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
             {
+                ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
+                if (stream is null)
+                {
+                    return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+
                 ctx.Response.Headers.CacheControl = "no-cache";
                 ctx.Response.Headers.Connection = "keep-alive";
                 ctx.Response.Headers.Append("X-Accel-Buffering", "no");
@@ -177,11 +204,15 @@ namespace XRoadFolkWeb.Extensions
                         await ctx.Response.Body.FlushAsync(ct);
                     }
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                }
                 finally
                 {
                     stream.Unsubscribe(id);
                 }
+
+                return Results.Empty;
             });
 
             // Culture defaults for threads (optional)

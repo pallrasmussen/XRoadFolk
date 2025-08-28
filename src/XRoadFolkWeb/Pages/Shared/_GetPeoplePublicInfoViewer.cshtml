@@ -54,6 +54,15 @@
     #gpiv-xml-summary .table tbody tr:hover td {
         background: var(--bs-secondary-bg-subtle);
     }
+
+    /* Person header inside the scrolling summary viewport (non-sticky) */
+    #gpiv-xml-summary .gpiv-person { position: static; }
+    #gpiv-xml-summary .gpiv-person-header {
+        position: static;
+        background: transparent;
+        border-bottom: none;
+        padding-block: .25rem;
+    }
 </style>
 
 <div class="card shadow-sm mb-4 gpiv-card">
@@ -252,11 +261,11 @@
 
             for (var p = 0; p < people.length; p++) {
                 var person = people[p];
-                var wrap = el('div', 'mb-3 p-2 border rounded', null);
+                var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
                 wrap.setAttribute('data-idx', String(p));
 
-                // Header row
-                var header = el('div', 'd-flex flex-wrap gap-2 align-items-baseline mb-2', null);
+                // Header row (non-sticky)
+                var header = el('div', 'gpiv-person-header d-flex flex-wrap gap-2 align-items-baseline mb-2', null);
                 header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
 
                 // Build name display
@@ -638,7 +647,7 @@
         els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
-        retry2 && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
+        retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
         ensureShownAndFocus();
       }
       try { console.error('GetPerson fetch failed', err); } catch {}
