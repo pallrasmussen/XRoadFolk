@@ -34,22 +34,13 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
     <title>@ViewData["Title"] - @SR["AppName"]</title>
 
     <script>
-        // Set theme before paint to avoid flash
+        // Force light theme before paint
         (function () {
-            const key = 'theme';
-            const light = 'brand';
-            const dark = 'brand-dark';
-            let theme = light;
-            try {
-                const saved = localStorage.getItem(key);
-                const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                theme = saved || (preferDark ? dark : light);
-            } catch {}
-            document.documentElement.setAttribute('data-bs-theme', theme);
+            try { localStorage.removeItem('theme'); } catch {}
+            try { document.documentElement.setAttribute('data-bs-theme', 'brand'); } catch {}
         })();
     </script>
 
@@ -89,11 +80,6 @@
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
-                    <!-- Theme toggle -->
-                    <button id="theme-toggle" type="button" class="btn btn-sm btn-outline-light" aria-pressed="false" title="@SR["ToggleTheme"]">
-                        <span class="theme-icon" aria-hidden="true">🌙</span>
-                        <span class="ms-1 d-none d-sm-inline">@SR["Theme"]</span>
-                    </button>
 
                     <!-- Culture switcher -->
                     <form class="d-flex align-items-center" method="post" action="/set-culture" asp-antiforgery="true">
