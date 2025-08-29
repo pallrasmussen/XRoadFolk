@@ -181,7 +181,7 @@
     <value>Eingin XML at vísa.</value>
   </data>
   <data name="NoXmlRoot" xml:space="preserve">
-    <value>Einki XML-rotelement.</value>
+    <value>Einki XML-rótelement.</value>
   </data>
   <data name="FailedToRenderTreePrefix" xml:space="preserve">
     <value>Kundi ikki vísa greinayvirlit:</value>
@@ -193,10 +193,10 @@
     <value>Fólk</value>
   </data>
   <data name="NoMatchesClear" xml:space="preserve">
-    <value>Eingi úrslit. Tøm leitina fyri at vísa alt.</value>
+    <value>Eingi úrslit. Tøm leitingina fyri at vísa alt.</value>
   </data>
   <data name="NoMatchesSummaryClear" xml:space="preserve">
-    <value>Eingi úrslit í samandrátti. Tøm leitina fyri at vísa alt.</value>
+    <value>Eingi úrslit í samandrátti. Tøm leitingina fyri at vísa alt.</value>
   </data>
   <data name="CopyXml" xml:space="preserve">
     <value>Avrita XML</value>
