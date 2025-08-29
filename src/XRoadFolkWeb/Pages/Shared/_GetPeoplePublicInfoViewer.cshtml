@@ -121,6 +121,32 @@
         return e;
     }
 
+    // Icon mapping for group titles (viewer)
+    function iconClassFor(title) {
+      var t = String(title || '').toLowerCase();
+      if (t === 'summary') return 'bi-list-check';
+      if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
+      if (t.includes('basic') || t.includes('personal') || t === 'basics') return 'bi-person-badge';
+      if (t.includes('address') || t.includes('resid') || t.includes('domic')) return 'bi-house-door';
+      if (t.includes('status') || t.includes('civilstatus')) return 'bi-person-check';
+      if (t.includes('family') || t.includes('relation')) return 'bi-people';
+      if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation')) return 'bi-briefcase';
+      if (t.includes('education') || t.includes('school') || t.includes('study')) return 'bi-mortarboard';
+      if (t.includes('document') || t.includes('certificate') || t.includes('doc')) return 'bi-file-earmark-text';
+      if (t.includes('bank') || t.includes('account') || t.includes('finance')) return 'bi-bank';
+      if (t.includes('email') || t.includes('mail')) return 'bi-envelope-at';
+      if (t.includes('contact') || t.includes('phone') || t.includes('mobile')) return 'bi-telephone';
+      if (t.includes('id') || t.includes('ident') || t.includes('passport')) return 'bi-fingerprint';
+      if (t.includes('nation') || t.includes('citizen')) return 'bi-flag';
+      return 'bi-list-ul';
+    }
+    function buildHeaderBtnContent(btn, titleText) {
+      btn.textContent = '';
+      var ic = document.createElement('i'); ic.className = 'bi ' + iconClassFor(titleText) + ' me-2'; ic.setAttribute('aria-hidden','true');
+      btn.appendChild(ic);
+      btn.appendChild(document.createTextNode(titleText || ''));
+    }
+
     // Summary helpers
     function isNil(node) {
       if (!node || node.nodeType !== 1 || !node.attributes) return false;
@@ -205,7 +231,7 @@
         var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'accordion-button' + (open ? '' : ' collapsed');
         btn.setAttribute('data-bs-toggle', 'collapse'); btn.setAttribute('data-bs-target', '#' + cid);
         btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.setAttribute('aria-controls', cid);
-        btn.textContent = title || '';
+        buildHeaderBtnContent(btn, title || '');
         h2.appendChild(btn);
         var col = document.createElement('div'); col.id = cid; col.className = 'accordion-collapse collapse' + (open ? ' show' : '');
         col.setAttribute('aria-labelledby', hid);
@@ -233,9 +259,13 @@
 
             // Expand/Collapse + Fullscreen buttons next to the count (match Person Details look)
             var grp = el('div', 'd-flex flex-wrap gap-2 ms-auto', null);
-            var bExpand = el('button', 'btn btn-sm btn-outline-secondary', I18N.Expand || 'Expand'); bExpand.id = 'gpiv-summary-expand';
+            var bExpand = el('button', 'btn btn-sm btn-outline-secondary', null); bExpand.id = 'gpiv-summary-expand';
+            bExpand.appendChild(el('i', 'bi bi-arrows-expand me-1', ''));
+            bExpand.appendChild(document.createTextNode(I18N.Expand || 'Expand'));
             var bFs = el('button', 'btn btn-sm btn-outline-secondary', I18N.Fullscreen || 'Fullscreen'); bFs.id = 'gpiv-fullscreen'; bFs.title = I18N.ToggleFullscreen || 'Toggle fullscreen';
-            var bCollapse = el('button', 'btn btn-sm btn-outline-secondary', I18N.Collapse || 'Collapse'); bCollapse.id = 'gpiv-summary-collapse';
+            var bCollapse = el('button', 'btn btn-sm btn-outline-secondary', null); bCollapse.id = 'gpiv-summary-collapse';
+            bCollapse.appendChild(el('i', 'bi bi-arrows-collapse me-1', ''));
+            bCollapse.appendChild(document.createTextNode(I18N.Collapse || 'Collapse'));
             grp.appendChild(bExpand); grp.appendChild(bCollapse); grp.appendChild(bFs);
             hdr.appendChild(grp);
             summaryHost.appendChild(hdr);
@@ -514,6 +544,25 @@
   }
 
   function defaultRenderPairsGrouped(pairs){
+    function iconClassForPd(name){
+      var t = String(name || '').toLowerCase();
+      if (t === 'summary') return 'bi-list-check';
+      if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
+      if (t.includes('basic') || t.includes('personal') || t === 'basics') return 'bi-person-badge';
+      if (t.includes('address') || t.includes('resid') || t.includes('domic')) return 'bi-house-door';
+      if (t.includes('status') || t.includes('civilstatus')) return 'bi-person-check';
+      if (t.includes('family') || t.includes('relation')) return 'bi-people';
+      if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation')) return 'bi-briefcase';
+      if (t.includes('education') || t.includes('school') || t.includes('study')) return 'bi-mortarboard';
+      if (t.includes('document') || t.includes('certificate') || t.includes('doc')) return 'bi-file-earmark-text';
+      if (t.includes('bank') || t.includes('account') || t.includes('finance')) return 'bi-bank';
+      if (t.includes('email') || t.includes('mail')) return 'bi-envelope-at';
+      if (t.includes('contact') || t.includes('phone') || t.includes('mobile')) return 'bi-telephone';
+      if (t.includes('id') || t.includes('ident') || t.includes('passport')) return 'bi-fingerprint';
+      if (t.includes('nation') || t.includes('citizen')) return 'bi-flag';
+      return 'bi-list-ul';
+    }
+
     var groups = {};
     (pairs||[]).forEach(function(p){
       var k=p.key||'', v=p.value||'';
@@ -537,7 +586,10 @@
       var btn=document.createElement('button'); btn.className='accordion-button'+(name.toLowerCase()==='summary'?'':' collapsed');
       btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
       btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false'); btn.setAttribute('aria-controls', cid);
-      btn.textContent=name; h2.appendChild(btn);
+      // Build header content with icon
+      var ic = document.createElement('i'); ic.className='bi '+iconClassForPd(name)+' me-2'; ic.setAttribute('aria-hidden','true');
+      btn.appendChild(ic); btn.appendChild(document.createTextNode(name));
+      h2.appendChild(btn);
 
       var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':'');
       col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
