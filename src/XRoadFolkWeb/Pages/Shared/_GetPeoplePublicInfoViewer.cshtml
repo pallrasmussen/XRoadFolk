@@ -71,13 +71,10 @@
     </div>
 
     <div class="card-body">
+        <!-- Toolbar: remove Height slider -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <div class="input-group input-group-sm" style="width: 180px;">
-              <span class="input-group-text">@L["Height"]</span>
-              <input id="gpiv-height" type="range" class="form-range form-control" min="30" max="90" step="5" value="40" title="@L["AdjustHeight"]">
-            </div>
             <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
           </div>
         </div>
@@ -93,13 +90,14 @@
 
 <script>
 (function () {
+    // Removed height option (slider + persistence). Kept fullscreen support.
+
     var I18N = {};
     try {
         var i18nEl = document.getElementById('gpiv-i18n-json');
         if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
     } catch {}
 
-    var heightRange = document.getElementById('gpiv-height');
     var fullscreenBtn = document.getElementById('gpiv-fullscreen');
     var dropOverlay = document.getElementById('gpiv-drop');
 
@@ -109,20 +107,6 @@
 
     var sourcePretty = '';
     var sourceRaw = '';
-
-    var prefKey = 'gpiv-pref-v2';
-    var saved = null;
-    try { saved = JSON.parse(localStorage.getItem(prefKey) || 'null'); } catch {}
-    var savedH = saved && typeof saved.h === 'number' ? saved.h : 40;
-    if (heightRange) { heightRange.value = savedH; if (card) card.style.setProperty('--gpiv-h', savedH + 'vh'); }
-
-    function savePrefs() {
-        try {
-            localStorage.setItem(prefKey, JSON.stringify({
-                h: heightRange ? parseInt(heightRange.value || '40', 10) : 40
-            }));
-        } catch {}
-    }
 
     function parseXml(text) {
         var parser = new DOMParser();
@@ -392,7 +376,6 @@
 
         if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
         if (hasAny) { renderSummary(); }
-        savePrefs();
     }
 
     // Load: Drag & Drop only
@@ -418,11 +401,12 @@
         }
     });
 
-    // Toolbar actions
-    heightRange && heightRange.addEventListener('input', function () { var v = parseInt(heightRange.value || '40', 10); if (card) card.style.setProperty('--gpiv-h', v + 'vh'); savePrefs(); });
-    fullscreenBtn && fullscreenBtn.addEventListener('click', function () { if (card) card.classList.toggle('gpiv-fullscreen'); });
+    // Fullscreen only (height slider removed)
+    fullscreenBtn && fullscreenBtn.addEventListener('click', function () {
+        if (card) card.classList.toggle('gpiv-fullscreen');
+    });
 
-    // Keyboard shortcuts: expand/collapse all in summary
+    // Keyboard shortcuts (unchanged)
     document.addEventListener('keydown', function (e) {
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
