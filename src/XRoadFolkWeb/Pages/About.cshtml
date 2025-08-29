@@ -1,0 +1,27 @@
+@page
+@model XRoadFolkWeb.Pages.AboutModel
+@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@{
+    ViewData["Title"] = L["Title"];
+}
+
+<div class="row">
+  <div class="col-12 col-lg-8">
+    <div class="mb-3">
+      <button type="button" class="btn btn-outline-secondary" onclick="try{ if(history.length>1){ history.back(); } else { window.location.href='@Url.Page("/Index")'; } }catch{ window.location.href='@Url.Page("/Index")'; }">@L["Back"]</button>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">@L["Title"]</h5>
+        <p class="text-muted">@L["Description"]</p>
+        <dl class="row small mb-0">
+          <dt class="col-sm-3">@L["Version"]</dt>
+          <dd class="col-sm-9">@System.Reflection.Assembly.GetExecutingAssembly().GetName().Version</dd>
+          <dt class="col-sm-3">@L["Author"]</dt>
+          <dd class="col-sm-9">@Config["Branding:AuthorName"]</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>

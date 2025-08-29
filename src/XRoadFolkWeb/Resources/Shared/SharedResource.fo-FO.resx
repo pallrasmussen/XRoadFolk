@@ -64,6 +64,12 @@
   <data name="Nav_Home" xml:space="preserve">
     <value>Heim</value>
   </data>
+  <data name="Nav_About" xml:space="preserve">
+    <value>Um</value>
+  </data>
+  <data name="Nav_Logs" xml:space="preserve">
+    <value>Loggar</value>
+  </data>
   <data name="ToggleTheme" xml:space="preserve">
     <value>Skift tema</value>
   </data>
