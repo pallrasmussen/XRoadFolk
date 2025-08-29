@@ -192,15 +192,6 @@
   <data name="PeopleLabel" xml:space="preserve">
     <value>People</value>
   </data>
-  <data name="Basics" xml:space="preserve">
-    <value>Basics</value>
-  </data>
-  <data name="Names" xml:space="preserve">
-    <value>Names</value>
-  </data>
-  <data name="Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
   <data name="NoMatchesClear" xml:space="preserve">
     <value>No matches. Clear search to show all.</value>
   </data>

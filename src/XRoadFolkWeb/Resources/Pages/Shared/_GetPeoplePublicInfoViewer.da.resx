@@ -192,15 +192,6 @@
   <data name="PeopleLabel" xml:space="preserve">
     <value>Personer</value>
   </data>
-  <data name="Basics" xml:space="preserve">
-    <value>Grundlæggende</value>
-  </data>
-  <data name="Names" xml:space="preserve">
-    <value>Navne</value>
-  </data>
-  <data name="Name" xml:space="preserve">
-    <value>Navn</value>
-  </data>
   <data name="NoMatchesClear" xml:space="preserve">
     <value>Ingen resultater. Ryd søgning for at vise alle.</value>
   </data>

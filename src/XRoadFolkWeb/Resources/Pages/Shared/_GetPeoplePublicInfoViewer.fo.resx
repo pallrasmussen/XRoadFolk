@@ -192,15 +192,6 @@
   <data name="PeopleLabel" xml:space="preserve">
     <value>Fólk</value>
   </data>
-  <data name="Basics" xml:space="preserve">
-    <value>Grundupplýsingar</value>
-  </data>
-  <data name="Names" xml:space="preserve">
-    <value>Nøvn</value>
-  </data>
-  <data name="Name" xml:space="preserve">
-    <value>Navn</value>
-  </data>
   <data name="NoMatchesClear" xml:space="preserve">
     <value>Eingi úrslit. Tøm leitina fyri at vísa alt.</value>
   </data>
