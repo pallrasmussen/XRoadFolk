@@ -43,9 +43,12 @@
             const key = 'theme';
             const light = 'brand';
             const dark = 'brand-dark';
-            const saved = localStorage.getItem(key);
-            const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = saved || (preferDark ? dark : light);
+            let theme = light;
+            try {
+                const saved = localStorage.getItem(key);
+                const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                theme = saved || (preferDark ? dark : light);
+            } catch {}
             document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>

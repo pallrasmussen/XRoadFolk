@@ -75,7 +75,24 @@ body {
 /* Utility: subdued separators */
 .text-muted-sep { color: #6b7280; /* slate-500 */ }
 
-/* Better Dark theme */
+/* Inputs */
+.form-control,
+.form-select { border-color: #cbd5e1; }
+
+/* Code blocks */
+pre, code, kbd, samp { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+pre { padding: .75rem; border-radius: .5rem; }
+
+/* Smooth theme transitions for common surfaces */
+.card, .navbar, .dropdown-menu, .modal-content, .popover { transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
+
+/* Accordion (light theme is default) */
+.accordion {
+  --bs-accordion-color: inherit;
+  --bs-accordion-bg: var(--bs-body-bg);
+}
+
+/* Modern Dark Theme */
 [data-bs-theme="brand-dark"] {
   /* Surfaces and text */
   --bs-body-bg: #0b1220;
@@ -90,6 +107,10 @@ body {
   --bs-primary: #60a5fa;
   --bs-link-color: #93c5fd;
   --bs-link-hover-color: #bfdbfe;
+
+  /* Subtle backgrounds used by components */
+  --bs-secondary-bg-subtle: rgba(255,255,255,.04);
+  --bs-tertiary-bg: #0f172a;
 
   /* Cards */
   --bs-card-bg: #0f172a;
@@ -125,7 +146,7 @@ body {
   --bs-modal-color: var(--bs-body-color);
   --bs-modal-border-color: var(--bs-border-color);
   --bs-popover-bg: #0f172a;
-  --bs-popover-border-color: var(--bs-border-color);
+  --bs-popover-border-color: #1f2937;
   --bs-tooltip-color: #0b1220;
   --bs-tooltip-bg: #e5e7eb;
 }
@@ -143,9 +164,6 @@ body {
   --bs-btn-hover-border-color: #50586b;
 }
 
-/* Inputs */
-.form-control,
-.form-select { border-color: #cbd5e1; }
 [data-bs-theme="brand-dark"] .form-control,
 [data-bs-theme="brand-dark"] .form-select {
   background-color: #111827;
@@ -161,7 +179,6 @@ body {
   color: #9ca3af;
 }
 
-/* Dropdowns */
 [data-bs-theme="brand-dark"] .dropdown-menu {
   background-color: var(--bs-dropdown-bg);
   color: var(--bs-dropdown-color);
@@ -173,23 +190,16 @@ body {
   background-color: var(--bs-dropdown-link-hover-bg);
 }
 
-/* Navbars */
 [data-bs-theme="brand-dark"] .navbar.bg-primary {
-  background-color: #0f172a !important; /* darker neutral */
+  background-color: #0f172a !important;
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* Code blocks */
-pre, code, kbd, samp { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 [data-bs-theme="brand-dark"] pre,
 [data-bs-theme="brand-dark"] code {
   background-color: #0a1020;
   color: #e5e7eb;
 }
-pre { padding: .75rem; border-radius: .5rem; }
-
-/* Smooth theme transitions for common surfaces */
-.card, .navbar, .dropdown-menu, .modal-content, .popover { transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
 
 /* Accordion: improve dark-mode contrast & focus */
 [data-bs-theme="brand-dark"] .accordion {
@@ -224,5 +234,4 @@ pre { padding: .75rem; border-radius: .5rem; }
   background-color: var(--bs-accordion-bg);
   color: var(--bs-accordion-color);
 }
-/* Make chevron visible on dark */
 [data-bs-theme="brand-dark"] .accordion-button::after { filter: invert(.85) saturate(1.2); }
