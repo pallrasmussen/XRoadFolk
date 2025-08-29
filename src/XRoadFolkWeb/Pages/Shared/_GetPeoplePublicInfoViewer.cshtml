@@ -18,7 +18,9 @@
         Status = L["Status"].Value,
         Expand = L["Expand"].Value,
         Collapse = L["Collapse"].Value,
-        ExtendedSearch = L["ExtendedSearch"].Value
+        ExtendedSearch = L["ExtendedSearch"].Value,
+        Fullscreen = L["Fullscreen"].Value,
+        ToggleFullscreen = L["ToggleFullscreen"].Value
     };
 }
 <style>
@@ -71,12 +73,10 @@
     </div>
 
     <div class="card-body">
-        <!-- Toolbar: remove Height slider -->
+        <!-- Toolbar: no buttons now (Fullscreen moved next to Expand/Collapse) -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <button id="gpiv-fullscreen" type="button" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">@L["Fullscreen"]</button>
-          </div>
+          <div class="d-flex flex-wrap gap-2 align-items-center"><!-- empty --></div>
         </div>
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
@@ -90,7 +90,7 @@
 
 <script>
 (function () {
-    // Removed height option (slider + persistence). Kept fullscreen support.
+    // Fullscreen is handled via delegated handler; button is created in summary header next to Expand/Collapse.
 
     var I18N = {};
     try {
@@ -98,7 +98,6 @@
         if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
     } catch {}
 
-    var fullscreenBtn = document.getElementById('gpiv-fullscreen');
     var dropOverlay = document.getElementById('gpiv-drop');
 
     var summaryHost = document.getElementById('gpiv-xml-summary');
@@ -232,11 +231,12 @@
             var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
             hdr.appendChild(cnt);
 
-            // Expand/Collapse buttons next to the count
-            var grp = el('div', 'btn-group btn-group-sm ms-auto', null);
-            var bExpand = el('button', 'btn btn-outline-secondary', I18N.Expand || 'Expand'); bExpand.id = 'gpiv-summary-expand';
-            var bCollapse = el('button', 'btn btn-outline-secondary', I18N.Collapse || 'Collapse'); bCollapse.id = 'gpiv-summary-collapse';
-            grp.appendChild(bExpand); grp.appendChild(bCollapse);
+            // Expand/Collapse + Fullscreen buttons next to the count (match Person Details look)
+            var grp = el('div', 'd-flex flex-wrap gap-2 ms-auto', null);
+            var bExpand = el('button', 'btn btn-sm btn-outline-secondary', I18N.Expand || 'Expand'); bExpand.id = 'gpiv-summary-expand';
+            var bFs = el('button', 'btn btn-sm btn-outline-secondary', I18N.Fullscreen || 'Fullscreen'); bFs.id = 'gpiv-fullscreen'; bFs.title = I18N.ToggleFullscreen || 'Toggle fullscreen';
+            var bCollapse = el('button', 'btn btn-sm btn-outline-secondary', I18N.Collapse || 'Collapse'); bCollapse.id = 'gpiv-summary-collapse';
+            grp.appendChild(bExpand); grp.appendChild(bCollapse); grp.appendChild(bFs);
             hdr.appendChild(grp);
             summaryHost.appendChild(hdr);
 
@@ -401,9 +401,12 @@
         }
     });
 
-    // Fullscreen only (height slider removed)
-    fullscreenBtn && fullscreenBtn.addEventListener('click', function () {
-        if (card) card.classList.toggle('gpiv-fullscreen');
+    // Delegated handlers: Fullscreen toggle
+    document.addEventListener('click', function(e){
+        var t = e.target;
+        if (t && (t.id === 'gpiv-fullscreen' || (t.closest && t.closest('#gpiv-fullscreen')))) {
+            if (card) card.classList.toggle('gpiv-fullscreen');
+        }
     });
 
     // Keyboard shortcuts (unchanged)
