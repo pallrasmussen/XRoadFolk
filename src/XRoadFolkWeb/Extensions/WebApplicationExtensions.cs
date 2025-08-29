@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
+using System.Text.RegularExpressions;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -18,7 +19,7 @@ namespace XRoadFolkWeb.Extensions
 
         private static readonly Action<ILogger, string, string, Exception?> _logHttpRequest =
             LoggerMessage.Define<string, string>(
-                LogLevel.Information,
+                LogLevel.Debug, // lowered verbosity
                 new EventId(1001, "HttpRequest"),
                 "HTTP {Method} {Path}");
 
@@ -27,6 +28,42 @@ namespace XRoadFolkWeb.Extensions
                 LogLevel.Information,
                 new EventId(1002, "LocalizationConfig"),
                 "Localization config: Default={Default}, Supported=[{Supported}]");
+
+        private static bool IsStaticAssetPath(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            // Common static prefixes
+            if (path.StartsWith('/'))
+            {
+                if (path.StartsWith("/css/") || path.StartsWith("/js/") || path.StartsWith("/lib/") ||
+                    path.StartsWith("/images/") || path.StartsWith("/img/") || path.StartsWith("/favicon") ||
+                    path.StartsWith("/bootstrap") || path.StartsWith("/bootswatch") || path.StartsWith("/bootstrap-icons") ||
+                    path.StartsWith("/_framework/"))
+                {
+                    return true;
+                }
+            }
+            // Common static extensions
+            ReadOnlySpan<string> exts = [
+                ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2",
+                ".ttf", ".eot", ".txt", ".json"
+            ];
+            foreach (var ext in exts)
+            {
+                if (path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        private static string RedactPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+            string p = path!;
+            // Mask long digit sequences (e.g., SSN-like) and GUIDs
+            p = Regex.Replace(p, @"\b\d{6,}\b", "***", RegexOptions.Compiled);
+            p = Regex.Replace(p, @"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", "***", RegexOptions.Compiled);
+            return p;
+        }
 
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
@@ -44,13 +81,26 @@ namespace XRoadFolkWeb.Extensions
                 .CreateLogger("App.Startup");
             _logAppStarted(startupLogger, DateTimeOffset.Now, null);
 
-            // Request logging middleware (non-Microsoft category)
-            ILogger reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
-            _ = app.Use(async (ctx, next) =>
+            // Request logging middleware (reduced verbosity, dev-only, redact potential PII)
+            IHostEnvironment envCurrent = app.Services.GetRequiredService<IHostEnvironment>();
+            if (envCurrent.IsDevelopment())
             {
-                _logHttpRequest(reqLog, ctx.Request?.Method ?? "", ctx.Request?.Path.Value ?? "", null);
-                await next();
-            });
+                ILogger reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
+                _ = app.Use(async (ctx, next) =>
+                {
+                    string method = ctx.Request?.Method ?? string.Empty;
+                    string rawPath = ctx.Request?.Path.Value ?? string.Empty;
+
+                    // Skip static assets to reduce noise
+                    if (!IsStaticAssetPath(rawPath))
+                    {
+                        string safePath = RedactPath(rawPath);
+                        _logHttpRequest(reqLog, method, safePath, null);
+                    }
+
+                    await next();
+                });
+            }
 
             // After app.UseRequestLocalization(locOpts);
             ILogger locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
