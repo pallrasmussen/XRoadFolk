@@ -62,7 +62,7 @@
     <value>Om</value>
   </data>
   <data name="Description" xml:space="preserve">
-    <value>Information om denne applikation.</value>
+    <value>Et letvægts X-Road-demo til persondata: søg via CPR eller navn/fødselsdato, se GetPeoplePublicInfo-resuméer og hent persondetaljer efter behov, kopiér/download JSON og skift sprog (EN/DA/FO). Indeholder fuldskærmsvisning og enkle logs.</value>
   </data>
   <data name="Version" xml:space="preserve">
     <value>Version</value>
