@@ -167,6 +167,13 @@ namespace XRoadFolkRaw.Lib
                 _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>()
                 ?? new GetPersonRequestOptions();
 
+            // Map Include booleans from configuration to flags (if provided)
+            GetPersonIncludeOptions? inc = _config.GetSection("Operations:GetPerson:Request:Include").Get<GetPersonIncludeOptions>();
+            if (inc is not null)
+            {
+                req.Include = ToFlags(inc);
+            }
+
             // runtime override from caller
             if (!string.IsNullOrWhiteSpace(publicId))
             {
@@ -218,6 +225,40 @@ namespace XRoadFolkRaw.Lib
                 LogGetPersonError(_log, ex);
                 throw new IOException(_localizer["GetPersonError"], ex);
             }
+        }
+
+        private static GetPersonInclude ToFlags(GetPersonIncludeOptions o)
+        {
+            GetPersonInclude inc = GetPersonInclude.None;
+            void Set(bool v, GetPersonInclude f) { if (v) inc |= f; }
+            Set(o.Addresses, GetPersonInclude.Addresses);
+            Set(o.AddressesHistory, GetPersonInclude.AddressesHistory);
+            Set(o.BiologicalParents, GetPersonInclude.BiologicalParents);
+            Set(o.ChurchMembership, GetPersonInclude.ChurchMembership);
+            Set(o.ChurchMembershipHistory, GetPersonInclude.ChurchMembershipHistory);
+            Set(o.Citizenships, GetPersonInclude.Citizenships);
+            Set(o.CitizenshipsHistory, GetPersonInclude.CitizenshipsHistory);
+            Set(o.CivilStatus, GetPersonInclude.CivilStatus);
+            Set(o.CivilStatusHistory, GetPersonInclude.CivilStatusHistory);
+            Set(o.ForeignSsns, GetPersonInclude.ForeignSsns);
+            Set(o.Incapacity, GetPersonInclude.Incapacity);
+            Set(o.IncapacityHistory, GetPersonInclude.IncapacityHistory);
+            Set(o.JuridicalChildren, GetPersonInclude.JuridicalChildren);
+            Set(o.JuridicalChildrenHistory, GetPersonInclude.JuridicalChildrenHistory);
+            Set(o.JuridicalParents, GetPersonInclude.JuridicalParents);
+            Set(o.JuridicalParentsHistory, GetPersonInclude.JuridicalParentsHistory);
+            Set(o.Names, GetPersonInclude.Names);
+            Set(o.NamesHistory, GetPersonInclude.NamesHistory);
+            Set(o.Notes, GetPersonInclude.Notes);
+            Set(o.NotesHistory, GetPersonInclude.NotesHistory);
+            Set(o.Postbox, GetPersonInclude.Postbox);
+            Set(o.SpecialMarks, GetPersonInclude.SpecialMarks);
+            Set(o.SpecialMarksHistory, GetPersonInclude.SpecialMarksHistory);
+            Set(o.Spouse, GetPersonInclude.Spouse);
+            Set(o.SpouseHistory, GetPersonInclude.SpouseHistory);
+            Set(o.Ssn, GetPersonInclude.Ssn);
+            Set(o.SsnHistory, GetPersonInclude.SsnHistory);
+            return inc;
         }
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Token acquired (len={TokenLength})")]

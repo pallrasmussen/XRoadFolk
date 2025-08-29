@@ -492,7 +492,14 @@ namespace XRoadFolkWeb.Pages
 
                 if (allowed.Count > 0)
                 {
-                    // Relaxed matching: equal or prefix match either way (to handle plural/list variants)
+                    // Relaxed matching: match ANY segment in the path against any allowed key
+                    static string RootOf(string segment)
+                    {
+                        if (string.IsNullOrEmpty(segment)) return segment;
+                        int b = segment.IndexOf('[');
+                        return b >= 0 ? segment[..b] : segment;
+                    }
+
                     static bool Matches(string seg, string allowedKey)
                     {
                         return seg.Equals(allowedKey, StringComparison.OrdinalIgnoreCase)
@@ -503,14 +510,15 @@ namespace XRoadFolkWeb.Pages
                     filtered = filtered.Where(p =>
                     {
                         if (string.IsNullOrWhiteSpace(p.Key)) return false;
-                        string key = p.Key;
-                        int dot = key.IndexOf('.');
-                        string seg = dot >= 0 ? key[..dot] : key;
-                        int bpos = seg.IndexOf('[');
-                        if (bpos >= 0) seg = seg[..bpos];
-                        foreach (string a in allowed)
+                        // Split path into segments and check each
+                        string[] parts = p.Key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        foreach (string part in parts)
                         {
-                            if (Matches(seg, a)) return true;
+                            string seg = RootOf(part);
+                            foreach (string a in allowed)
+                            {
+                                if (Matches(seg, a)) return true;
+                            }
                         }
                         return false;
                     }).ToList();
