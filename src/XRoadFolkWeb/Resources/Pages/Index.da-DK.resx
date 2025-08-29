@@ -177,4 +177,10 @@
   <data name="NoPeopleFound" xml:space="preserve">
     <value>Ingen personer fundet.</value>
   </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fuldskærm</value>
+  </data>
+  <data name="ToggleFullscreen" xml:space="preserve">
+    <value>Skift fuldskærm</value>
+  </data>
 </root>

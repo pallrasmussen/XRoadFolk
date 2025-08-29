@@ -8,4 +8,6 @@
   <data name="CopyJson" xml:space="preserve"><value>Avrita JSON</value></data>
   <data name="DownloadJson" xml:space="preserve"><value>Tak niður JSON</value></data>
   <data name="NoPeopleFound" xml:space="preserve"><value>Einki fólk funnið.</value></data>
+  <data name="Fullscreen" xml:space="preserve"><value>Fullskíggja</value></data>
+  <data name="ToggleFullscreen" xml:space="preserve"><value>Skift fullskíggju</value></data>
 </root>

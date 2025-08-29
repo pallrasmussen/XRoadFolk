@@ -105,7 +105,9 @@
               </div>
             </div>
 
-            <div id="person-details-loading" class="text-muted small d-none" aria-live="polite">@L["Loading"]?</div>
+            <div id="person-details-loading" class="d-none" aria-live="polite">
+              @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = L["Loading"].Value, ["Size"] = "sm", ["Color"] = "text-secondary" })
+            </div>
             <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
 
             <div id="person-details-body"><!-- accordion injected here --></div>

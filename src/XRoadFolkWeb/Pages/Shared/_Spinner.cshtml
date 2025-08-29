@@ -1,0 +1,32 @@
+@* Reusable spinner partial (Bootstrap 5)
+Usage examples:
+  @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = "Loading...", ["Size"] = "sm", ["Color"] = "text-primary" })
+  @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Kind"] = "grow" })
+
+Accepted ViewData keys:
+- Text: string? (optional helper text next to spinner)
+- Kind: "border" | "grow" (default: "border")
+- Size: "sm" for small, otherwise normal
+- Color: Bootstrap text-* class (default: "text-secondary")
+- Inline: bool (render inline as d-inline-flex; default false)
+- Class: string? extra classes for wrapper
+*@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    var text = (string?)ViewData["Text"];
+    var kind = ((string?)ViewData["Kind"])?.Trim().ToLowerInvariant();
+    if (kind != "grow") kind = "border"; // default
+    var size = ((string?)ViewData["Size"])?.Trim().ToLowerInvariant(); // "sm" or null
+    var color = ((string?)ViewData["Color"]) ?? "text-secondary";
+    var inline = (ViewData["Inline"] is bool b && b);
+    var addl = (string?)ViewData["Class"] ?? string.Empty;
+
+    var spinnerClass = kind == "grow" ? "spinner-grow" : "spinner-border";
+    if (size == "sm") spinnerClass += kind == "grow" ? " spinner-grow-sm" : " spinner-border-sm";
+    var wrapClass = (inline ? "d-inline-flex" : "d-flex") + " align-items-center gap-2 " + addl;
+}
+<div class="@wrapClass">
+  <span class="@spinnerClass @color" role="status" aria-hidden="true"></span>
+  <span class="visually-hidden">Loading...</span>
+  @if (!string.IsNullOrEmpty(text)) { <span>@text</span> }
+</div>
