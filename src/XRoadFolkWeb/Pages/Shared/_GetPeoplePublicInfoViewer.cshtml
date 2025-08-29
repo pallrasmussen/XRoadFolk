@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using XRoadFolkWeb.Extensions
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
@@ -22,14 +23,16 @@
         Fullscreen = L["Fullscreen"].Value,
         ToggleFullscreen = L["ToggleFullscreen"].Value
     };
+    var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
-<style>
+<style nonce="@nonce">
     .gpiv-card { position: relative; }
     .gpiv-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); padding-top: .25rem; }
-    .gpiv-card.gpiv-fullscreen { position: fixed; inset: 0; z-index: 1050; margin: 0; border-radius: 0; background: var(--bs-body-bg); }
-    .gpiv-card.gpiv-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
-    .gpiv-card .gpiv-viewport { max-height: var(--gpiv-h, 40vh); }
-    .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: calc(100dvh - 7.5rem); }
+    .gpiv-card.gpiv-fullscreen { position: fixed; inset: 0; z-index: 1050; margin: 0; border-radius: 0; background: var(--bs-body-bg); height: auto !important; }
+    .gpiv-card .card-body { display: flex; flex-direction: column; min-height: 0; }
+    .gpiv-card .gpiv-viewport { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .gpiv-card.gpiv-fullscreen .card-body { height: 100dvh; }
+    .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: none; }
     .gpiv-drop { display: none; position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary); align-items: center; justify-content: center; text-align: center; padding: 2rem; border-radius: .375rem; }
     .gpiv-drop .msg { font-size: .95rem; color: var(--bs-secondary); }
     @@keyframes gpivFlash { 0% { background: rgba(255, 243, 205, .9); } 100% { background: transparent; } }
@@ -80,7 +83,7 @@
         </div>
 
         <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
-        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small p-3 border rounded" style="overflow:auto;"></div>
+        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small p-3 border rounded"></div>
     </div>
 </div>
 
@@ -88,7 +91,7 @@
 <script type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 
-<script>
+<script nonce="@nonce">
 (function () {
     // Fullscreen is handled via delegated handler; button is created in summary header next to Expand/Collapse.
 
@@ -120,6 +123,28 @@
         if (text != null) e.textContent = text;
         return e;
     }
+
+    // Height sync with People Search card
+    function syncViewerHeight() {
+        try {
+            var search = document.getElementById('people-search-card');
+            if (!search || !card) return;
+            if (card.classList.contains('gpiv-fullscreen')) {
+                card.style.height = '';
+                return;
+            }
+            var h = Math.round(search.getBoundingClientRect().height);
+            if (h > 0) card.style.height = h + 'px';
+        } catch {}
+    }
+
+    // Observe left card and window resizes
+    try {
+        var ro = new ResizeObserver(function(){ syncViewerHeight(); });
+        var sc = document.getElementById('people-search-card');
+        if (sc) ro.observe(sc);
+    } catch {}
+    window.addEventListener('resize', syncViewerHeight);
 
     // Icon mapping for group titles (viewer)
     function iconClassFor(title) {
@@ -248,11 +273,11 @@
         summaryHost.innerHTML = '';
         try {
             var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
-            if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; return; }
+            if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; syncViewerHeight(); return; }
             var xml = parseXml(xmlText);
             var people = []; var all = xml.getElementsByTagName('*');
             for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
-            if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No PersonPublicInfo elements found.')); return; }
+            if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No PersonPublicInfo elements found.')); syncViewerHeight(); return; }
 
             var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
             var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
@@ -387,8 +412,12 @@
                 wrap.appendChild(acc);
                 summaryHost.appendChild(wrap);
             }
+
+            // After rendering, sync height once
+            syncViewerHeight();
         } catch (e) {
             summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to build summary:') + ' ' + (e && e.message ? e.message : e);
+            syncViewerHeight();
         }
     }
 
@@ -406,7 +435,7 @@
         var hasAny = combined.length > 0;
 
         if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-        if (hasAny) { renderSummary(); }
+        if (hasAny) { renderSummary(); } else { summaryHost.innerHTML = ''; syncViewerHeight(); }
     }
 
     // Load: Drag & Drop only
@@ -436,7 +465,12 @@
     document.addEventListener('click', function(e){
         var t = e.target;
         if (t && (t.id === 'gpiv-fullscreen' || (t.closest && t.closest('#gpiv-fullscreen')))) {
-            if (card) card.classList.toggle('gpiv-fullscreen');
+            if (card) {
+                var entering = !card.classList.contains('gpiv-fullscreen');
+                card.classList.toggle('gpiv-fullscreen');
+                if (entering) { card.style.height = ''; }
+                else { syncViewerHeight(); }
+            }
         }
     });
 
@@ -488,10 +522,11 @@
         if (linkPid) { setTimeout(function () { window.gpiv.focusPerson(linkPid); }, 50); }
     } catch {}
 
-    updateView();
+    // Initial height sync
+    syncViewerHeight();
 })();
 </script>
-<script>
+<script nonce="@nonce">
 (function () {
     try {
         var rawEl = document.getElementById('gpiv-raw-json');
@@ -503,7 +538,7 @@
 })();
 </script>
 <!-- Remaining scripts preserved below (Person Details loader) -->
-<script>
+<script nonce="@nonce">
 // Restore PublicId click -> load PersonDetails panel behavior (logs removed)
 (function(){
   if (window.__gpivPidHooked) return;
@@ -662,7 +697,7 @@
       if (!data || data.ok !== true) {
         if (els.err) {
           var msg = (data && data.error) ? String(data.error) : 'Failed to load details.';
-          els.err.innerHTML = msg + ' <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
+          els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
           els.err.classList.remove('d-none');
           var retry = document.getElementById('pd-retry');
           retry && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
