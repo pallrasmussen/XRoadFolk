@@ -65,10 +65,7 @@
 
             <div id="mainNav" class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
-                    <!-- Home button removed -->
-                    <li class="nav-item">
-                        <a class="nav-link @(Context.Request.Path.StartsWithSegments("/About") ? "active" : null)" asp-page="/About">@SR["Nav_About"]</a>
-                    </li>
+                    <!-- About option removed -->
                     <li class="nav-item dropdown">
                         <a class="btn btn-sm btn-outline-light dropdown-toggle @(Context.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">@SR["Nav_Logs"]</a>
                         <ul class="dropdown-menu">
