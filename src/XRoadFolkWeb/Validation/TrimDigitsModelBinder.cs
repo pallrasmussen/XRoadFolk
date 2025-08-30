@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 
 namespace XRoadFolkWeb.Validation
 {
@@ -20,16 +21,29 @@ namespace XRoadFolkWeb.Validation
         }
     }
 
+    // Marker attribute to request TrimDigitsModelBinder for a property
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+    public sealed class TrimDigitsAttribute : Attribute, IBinderTypeProviderMetadata, IBindingSourceMetadata
+    {
+        public Type BinderType => typeof(TrimDigitsModelBinder);
+        public BindingSource BindingSource => BindingSource.ModelBinding;
+    }
+
     public sealed class TrimDigitsModelBinderProvider : IModelBinderProvider
     {
         public IModelBinder? GetBinder(ModelBinderProviderContext context)
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            // IDE0046: 'if' statement can be simplified
-            return (context.Metadata.ContainerType == typeof(Pages.IndexModel) && context.Metadata.PropertyName == "Ssn")
-                ? new TrimDigitsModelBinder()
-                : null;
+            if (context.Metadata is DefaultModelMetadata dmm && dmm.Attributes?.PropertyAttributes is not null)
+            {
+                bool has = dmm.Attributes.PropertyAttributes.Any(a => a is TrimDigitsAttribute);
+                if (has)
+                {
+                    return new TrimDigitsModelBinder();
+                }
+            }
+            return null;
         }
     }
 }

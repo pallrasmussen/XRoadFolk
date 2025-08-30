@@ -15,24 +15,26 @@ using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(
+    public partial class IndexModel(
         PeopleSearchCoordinator search,
         PersonDetailsProvider details,
         IStringLocalizer<InputValidation> valLoc,
         IStringLocalizer<IndexModel> loc,
         IMemoryCache cache,
         IConfiguration config,
-        PeopleResponseParser parser) : PageModel
+        PeopleResponseParser parser,
+        ILogger<IndexModel> logger) : PageModel
     {
         private readonly PeopleSearchCoordinator _search = search;
         private readonly PersonDetailsProvider _details = details;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
-        private readonly IMemoryCache _cache = cache;
+        private readonly IMemoryCache _cache = cache; // used by dependent services
         private readonly IConfiguration _config = config;
         private readonly PeopleResponseParser _parser = parser;
+        private readonly ILogger<IndexModel> _logger = logger;
 
-        [BindProperty, Ssn]
+        [BindProperty, Ssn, TrimDigits]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
         public string? Ssn { get; set; }
 
@@ -71,8 +73,6 @@ namespace XRoadFolkWeb.Pages
         // Expose enabled include keys to the view
         public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
 
-        private const string ResponseKey = "PeoplePublicInfoResponse";
-
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -99,6 +99,7 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
+                    LogPersonDetailsError(_logger, ex, publicId);
                     Errors.Add(ex.Message);
                 }
             }
@@ -116,6 +117,7 @@ namespace XRoadFolkWeb.Pages
 
                 if (!ok)
                 {
+                    LogValidationFailed(_logger, errs.Count);
                     Errors = errs;
                     return;
                 }
@@ -129,6 +131,7 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
+                    LogSearchError(_logger, ex);
                     Errors.Add(ex.Message);
                 }
             }
@@ -145,6 +148,8 @@ namespace XRoadFolkWeb.Pages
 
             if (!ModelState.IsValid)
             {
+                int count = ModelState.Values.SelectMany(v => v.Errors).Count();
+                LogValidationFailed(_logger, count);
                 Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
                 return Page();
             }
@@ -159,6 +164,7 @@ namespace XRoadFolkWeb.Pages
             if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
             {
                 LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
+                LogValidationFailed(_logger, 1);
                 ModelState.AddModelError(string.Empty, msg);
                 Errors = [msg];
                 return Page();
@@ -175,6 +181,7 @@ namespace XRoadFolkWeb.Pages
 
             if (!ok)
             {
+                LogValidationFailed(_logger, errs.Count);
                 foreach (string err in errs)
                 {
                     ModelState.AddModelError(string.Empty, err);
@@ -194,6 +201,7 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
+                LogSearchError(_logger, ex);
                 Errors.Add(ex.Message);
                 return Page();
             }
@@ -229,7 +237,9 @@ namespace XRoadFolkWeb.Pages
         {
             if (string.IsNullOrWhiteSpace(publicId))
             {
-                return BadRequest(new { ok = false, error = "Missing publicId." });
+                LocalizedString msg = _loc["MissingPublicId"]; // expects localization resource key
+                string text = msg.ResourceNotFound ? "Missing publicId." : msg.Value;
+                return BadRequest(new { ok = false, error = text });
             }
 
             try
@@ -246,8 +256,18 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
+                LogPersonDetailsError(_logger, ex, publicId!);
                 return new JsonResult(new { ok = false, error = ex.Message });
             }
         }
+
+        [LoggerMessage(EventId = 2001, Level = LogLevel.Error, Message = "Index: Failed to load person details for PublicId '{PublicId}'")]
+        private static partial void LogPersonDetailsError(ILogger logger, Exception ex, string PublicId);
+
+        [LoggerMessage(EventId = 2002, Level = LogLevel.Error, Message = "Index: People search failed")]
+        private static partial void LogSearchError(ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 2003, Level = LogLevel.Warning, Message = "Index: Input validation failed with {ErrorCount} errors")]
+        private static partial void LogValidationFailed(ILogger logger, int ErrorCount);
     }
 }
