@@ -35,35 +35,57 @@ namespace XRoadFolkWeb.Extensions
         [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled)]
         private static partial Regex GuidRegex();
 
+        // Central lists to keep static asset detection maintainable
+        private static readonly string[] StaticPathPrefixes =
+        [
+            "/css/",
+            "/js/",
+            "/lib/",
+            "/images/",
+            "/img/",
+            "/favicon",
+            "/bootstrap",
+            "/bootswatch",
+            "/bootstrap-icons",
+            "/_framework/"
+        ];
+
+        private static readonly string[] StaticFileExtensions =
+        [
+            ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
+            ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json"
+        ];
+
         private static bool IsStaticAssetPath(string? path)
         {
             if (string.IsNullOrEmpty(path)) return false;
-            // Common static prefixes
-            if (path.StartsWith('/'))
+
+            // Prefix check for common static folders
+            if (path[0] == '/')
             {
-                if (path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/js/", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/images/", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/img/", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/favicon", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/bootstrap", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/bootswatch", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/bootstrap-icons", StringComparison.OrdinalIgnoreCase)
-                    || path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase))
+                foreach (string prefix in StaticPathPrefixes)
                 {
-                    return true;
+                    if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
                 }
             }
-            // Common static extensions
-            ReadOnlySpan<string> exts = [
-                ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2",
-                ".ttf", ".eot", ".txt", ".json"
-            ];
-            foreach (var ext in exts)
+
+            // Extension check (only compute once)
+            int dot = path.LastIndexOf('.') ;
+            if (dot >= 0)
             {
-                if (path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return true;
+                ReadOnlySpan<char> ext = path.AsSpan(dot);
+                foreach (string e in StaticFileExtensions)
+                {
+                    if (ext.Equals(e, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
             }
+
             return false;
         }
 

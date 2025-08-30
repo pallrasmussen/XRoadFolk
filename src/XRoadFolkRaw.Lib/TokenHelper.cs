@@ -6,13 +6,6 @@ namespace XRoadFolkRaw.Lib
 
     public sealed class FolkTokenProviderRaw(FolkRawClient client, Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
     {
-        //private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
-
-        // Removed the unused private member '_client' to fix IDE0052
-        // Original line:
-        // private readonly FolkRawClient _client = client ?? throw new ArgumentNullException(nameof(client));
-
-        // No replacement needed; simply delete the line.
         private readonly TimeSpan _skew = client is null
             ? throw new ArgumentNullException(nameof(client))
             : (refreshSkew ?? TimeSpan.Zero);
