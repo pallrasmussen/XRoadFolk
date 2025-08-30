@@ -147,12 +147,7 @@ namespace XRoadFolkRaw.Lib
 
                 // 3) Built-in fallback templates
                 string? xml = GetBuiltInTemplate(fileName);
-                if (!string.IsNullOrEmpty(xml))
-                {
-                    return XDocument.Parse(xml);
-                }
-
-                throw new FileNotFoundException($"{p} not found", p);
+                return !string.IsNullOrEmpty(xml) ? XDocument.Parse(xml) : throw new FileNotFoundException($"{p} not found", p);
             });
         }
 
@@ -606,16 +601,30 @@ namespace XRoadFolkRaw.Lib
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
 
             // Identifiers from options
-            if (!string.IsNullOrWhiteSpace(options?.Id)) SetChildValue(requestBodyEl, "Id", options!.Id!);
-            if (!string.IsNullOrWhiteSpace(options?.PublicId)) SetChildValue(requestBodyEl, "PublicId", options!.PublicId!);
-            else if (!string.IsNullOrWhiteSpace(options?.Ssn)) SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
-            if (!string.IsNullOrWhiteSpace(options?.ExternalId)) SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
+            if (!string.IsNullOrWhiteSpace(options?.Id))
+            {
+                SetChildValue(requestBodyEl, "Id", options!.Id!);
+            }
+
+            if (!string.IsNullOrWhiteSpace(options?.PublicId))
+            {
+                SetChildValue(requestBodyEl, "PublicId", options!.PublicId!);
+            }
+            else if (!string.IsNullOrWhiteSpace(options?.Ssn))
+            {
+                SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
+            }
+
+            if (!string.IsNullOrWhiteSpace(options?.ExternalId))
+            {
+                SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
+            }
 
             // Include flags: map [Flags] enum to element names
             if (options is not null && options.Include != GetPersonInclude.None)
             {
                 GetPersonInclude inc = options.Include;
-                void SetIf(GetPersonInclude flag, string element) { if ((inc & flag) == flag) SetChildValue(requestBodyEl, element, "true"); }
+                void SetIf(GetPersonInclude flag, string element) { if ((inc & flag) == flag) { SetChildValue(requestBodyEl, element, "true"); } }
 
                 SetIf(GetPersonInclude.Addresses, "IncludeAddresses");
                 SetIf(GetPersonInclude.AddressesHistory, "IncludeAddressesHistory");
@@ -648,7 +657,11 @@ namespace XRoadFolkRaw.Lib
 
             // Token in requestHeader
             XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
-            if (requestHeader.Parent == null) requestEl.Add(requestHeader);
+            if (requestHeader.Parent == null)
+            {
+                requestEl.Add(requestHeader);
+            }
+
             SetChildValue(requestHeader, "token", token);
 
             string xmlString = doc.Declaration != null

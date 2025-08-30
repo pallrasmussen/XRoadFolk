@@ -1,11 +1,8 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
-using System.Net.Http;
-using System.Xml;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkRaw.Lib
@@ -14,9 +11,11 @@ namespace XRoadFolkRaw.Lib
     public sealed partial class PeopleService : IDisposable
     {
         private static string ComputeKey(XRoadSettings s)
-            => string.Join("|", s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
-                            s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
-                            s.Auth.UserId, s.Auth.Username);
+        {
+            return string.Join("|", s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
+                                    s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
+                                    s.Auth.UserId, s.Auth.Username);
+        }
 
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
@@ -106,8 +105,7 @@ namespace XRoadFolkRaw.Lib
             TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
                 ? ExpiresUtc - DateTimeOffset.UtcNow
                 : defaultTtl;
-
-            _cache.Set(key, Token, new MemoryCacheEntryOptions
+            _ = _cache.Set(key, Token, new MemoryCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = ttl
             });
@@ -230,7 +228,7 @@ namespace XRoadFolkRaw.Lib
         private static GetPersonInclude ToFlags(GetPersonIncludeOptions o)
         {
             GetPersonInclude inc = GetPersonInclude.None;
-            void Set(bool v, GetPersonInclude f) { if (v) inc |= f; }
+            void Set(bool v, GetPersonInclude f) { if (v) { inc |= f; } }
             Set(o.Addresses, GetPersonInclude.Addresses);
             Set(o.AddressesHistory, GetPersonInclude.AddressesHistory);
             Set(o.BiologicalParents, GetPersonInclude.BiologicalParents);

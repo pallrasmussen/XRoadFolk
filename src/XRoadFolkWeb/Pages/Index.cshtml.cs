@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
-using Microsoft.Extensions.Configuration;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Validation;
@@ -78,10 +77,22 @@ namespace XRoadFolkWeb.Pages
             EnabledPersonIncludeKeys = ReadEnabledIncludeKeys();
 
             // Prefill bound properties from query to retain form values after redirects or navigation
-            if (!string.IsNullOrWhiteSpace(ssn)) Ssn = ssn;
-            if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
-            if (!string.IsNullOrWhiteSpace(lastName)) LastName = lastName;
-            if (!string.IsNullOrWhiteSpace(dateOfBirth)) DateOfBirth = dateOfBirth;
+            if (!string.IsNullOrWhiteSpace(ssn))
+            {
+                Ssn = ssn;
+            }
+            if (!string.IsNullOrWhiteSpace(firstName))
+            {
+                FirstName = firstName;
+            }
+            if (!string.IsNullOrWhiteSpace(lastName))
+            {
+                LastName = lastName;
+            }
+            if (!string.IsNullOrWhiteSpace(dateOfBirth))
+            {
+                DateOfBirth = dateOfBirth;
+            }
 
             // Optional: load person details by PublicId (AJAX panel)
             if (!string.IsNullOrWhiteSpace(publicId))
@@ -249,11 +260,18 @@ namespace XRoadFolkWeb.Pages
             {
                 foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
                 {
-                    if (flag == GetPersonInclude.None) continue;
+                    if (flag == GetPersonInclude.None)
+                    {
+                        continue;
+                    }
+
                     if ((req.Include & flag) == flag)
                     {
                         string name = Enum.GetName(flag) ?? string.Empty;
-                        if (!string.IsNullOrEmpty(name) && !list.Contains(name, StringComparer.OrdinalIgnoreCase)) list.Add(name);
+                        if (!string.IsNullOrEmpty(name) && !list.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            list.Add(name);
+                        }
                     }
                 }
             }
@@ -273,10 +291,14 @@ namespace XRoadFolkWeb.Pages
                 List<(string Key, string Value)> pairs = PeopleXmlParser.FlattenResponse(xml);
 
                 // Filter out any RequestHeader/requestBody
-                List<(string Key, string Value)> filtered = pairs
+                List<(string Key, string Value)> filtered = [.. pairs
                     .Where(p =>
                     {
-                        if (string.IsNullOrEmpty(p.Key)) return true;
+                        if (string.IsNullOrEmpty(p.Key))
+                        {
+                            return true;
+                        }
+
                         string k = p.Key;
                         return !(k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
                               || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
@@ -285,45 +307,68 @@ namespace XRoadFolkWeb.Pages
                     })
                     .Where(p =>
                     {
-                        if (string.IsNullOrEmpty(p.Key)) return true;
+                        if (string.IsNullOrEmpty(p.Key))
+                        {
+                            return true;
+                        }
+
                         string key = p.Key;
                         int lastDot = key.LastIndexOf('.');
                         string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
                         int bpos = sub.IndexOf('[');
-                        if (bpos >= 0) sub = sub[..bpos];
+                        if (bpos >= 0)
+                        {
+                            sub = sub[..bpos];
+                        }
                         string s = sub.ToLowerInvariant();
-                        return s != "id" && s != "fixed" && s != "authoritycode" && s != "personaddressid";
-                    })
-                    .ToList();
+                        return s is not "id" and not "fixed" and not "authoritycode" and not "personaddressid";
+                    })];
 
                 // Allow-list from config
                 HashSet<string> allowed = new(StringComparer.OrdinalIgnoreCase);
                 IConfigurationSection incSec = _config.GetSection("Operations:GetPerson:Request:Include");
                 foreach (IConfigurationSection c in incSec.GetChildren())
                 {
-                    if (bool.TryParse(c.Value, out bool on) && on) allowed.Add(c.Key);
+                    if (bool.TryParse(c.Value, out bool on) && on)
+                    {
+                        _ = allowed.Add(c.Key);
+                    }
                 }
                 GetPersonRequestOptions? req = _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
                 if (req is not null && req.Include != GetPersonInclude.None)
                 {
                     foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
                     {
-                        if (flag == GetPersonInclude.None) continue;
+                        if (flag == GetPersonInclude.None)
+                        {
+                            continue;
+                        }
+
                         if ((req.Include & flag) == flag)
                         {
                             string? name = Enum.GetName(flag);
-                            if (!string.IsNullOrEmpty(name)) allowed.Add(name);
+                            if (!string.IsNullOrEmpty(name))
+                            {
+                                _ = allowed.Add(name);
+                            }
                         }
                     }
                 }
-                allowed.Add("Summary");
-                if (allowed.Contains("Ssn")) allowed.Add("SSN");
+                _ = allowed.Add("Summary");
+                if (allowed.Contains("Ssn"))
+                {
+                    _ = allowed.Add("SSN");
+                }
 
                 if (allowed.Count > 0)
                 {
                     static string RootOf(string segment)
                     {
-                        if (string.IsNullOrEmpty(segment)) return segment;
+                        if (string.IsNullOrEmpty(segment))
+                        {
+                            return segment;
+                        }
+
                         int b = segment.IndexOf('[');
                         return b >= 0 ? segment[..b] : segment;
                     }
@@ -335,20 +380,27 @@ namespace XRoadFolkWeb.Pages
                             || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
                     }
 
-                    filtered = filtered.Where(p =>
+                    filtered = [.. filtered.Where(p =>
                     {
-                        if (string.IsNullOrWhiteSpace(p.Key)) return false;
+                        if (string.IsNullOrWhiteSpace(p.Key))
+                        {
+                            return false;
+                        }
+
                         string[] parts = p.Key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                         foreach (string part in parts)
                         {
                             string seg = RootOf(part);
                             foreach (string a in allowed)
                             {
-                                if (Matches(seg, a)) return true;
+                                if (Matches(seg, a))
+                                {
+                                    return true;
+                                }
                             }
                         }
                         return false;
-                    }).ToList();
+                    })];
                 }
 
                 return new JsonResult(new
