@@ -29,16 +29,28 @@ namespace XRoadFolkWeb.Extensions
                 new EventId(1002, "LocalizationConfig"),
                 "Localization config: Default={Default}, Supported=[{Supported}]");
 
+        [GeneratedRegex(@"\b\d{6,}\b", RegexOptions.Compiled)]
+        private static partial Regex LongDigitsRegex();
+
+        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled)]
+        private static partial Regex GuidRegex();
+
         private static bool IsStaticAssetPath(string? path)
         {
             if (string.IsNullOrEmpty(path)) return false;
             // Common static prefixes
             if (path.StartsWith('/'))
             {
-                if (path.StartsWith("/css/") || path.StartsWith("/js/") || path.StartsWith("/lib/") ||
-                    path.StartsWith("/images/") || path.StartsWith("/img/") || path.StartsWith("/favicon") ||
-                    path.StartsWith("/bootstrap") || path.StartsWith("/bootswatch") || path.StartsWith("/bootstrap-icons") ||
-                    path.StartsWith("/_framework/"))
+                if (path.StartsWith("/css/", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/js/", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/lib/", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/images/", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/img/", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/favicon", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/bootstrap", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/bootswatch", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/bootstrap-icons", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -60,8 +72,8 @@ namespace XRoadFolkWeb.Extensions
             if (string.IsNullOrWhiteSpace(path)) return string.Empty;
             string p = path!;
             // Mask long digit sequences (e.g., SSN-like) and GUIDs
-            p = Regex.Replace(p, @"\b\d{6,}\b", "***", RegexOptions.Compiled);
-            p = Regex.Replace(p, @"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", "***", RegexOptions.Compiled);
+            p = LongDigitsRegex().Replace(p, "***");
+            p = GuidRegex().Replace(p, "***");
             return p;
         }
 
