@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using Microsoft.Extensions.Caching.Memory;
+using XRoadFolkWeb.Features.People;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -11,6 +12,9 @@ public static partial class ServiceCollectionExtensions
     public static IServiceCollection AddPeopleServices(this IServiceCollection services)
     {
         services.AddMemoryCache();
+
+        // Parser is stateless; register as singleton
+        services.AddSingleton<PeopleResponseParser>();
 
         services.AddScoped(sp =>
         {
