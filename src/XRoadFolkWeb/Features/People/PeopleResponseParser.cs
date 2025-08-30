@@ -6,6 +6,13 @@ namespace XRoadFolkWeb.Features.People
 {
     public sealed class PeopleResponseParser
     {
+        private readonly ILogger<PeopleResponseParser> _logger;
+
+        public PeopleResponseParser(ILogger<PeopleResponseParser> logger)
+        {
+            _logger = logger;
+        }
+
         private static XmlReader CreateSafeReader(string xml)
         {
             XmlReaderSettings settings = new()
@@ -98,8 +105,9 @@ namespace XRoadFolkWeb.Features.People
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "PeopleResponseParser: ParsePeopleList failed (xmlLength={Length})", xml?.Length ?? 0);
                 // malformed/unsafe XML -> return empty list
             }
             return rows;
@@ -169,8 +177,9 @@ namespace XRoadFolkWeb.Features.People
                     Flatten(child, "");
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "PeopleResponseParser: FlattenResponse failed (xmlLength={Length})", xml?.Length ?? 0);
                 // malformed/unsafe XML -> return empty
             }
             return pairs;
@@ -184,8 +193,9 @@ namespace XRoadFolkWeb.Features.People
                 XDocument doc = XDocument.Load(reader, LoadOptions.None);
                 return doc.ToString(SaveOptions.None);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "PeopleResponseParser: PrettyFormatXml failed (xmlLength={Length})", xml?.Length ?? 0);
                 return xml;
             }
         }

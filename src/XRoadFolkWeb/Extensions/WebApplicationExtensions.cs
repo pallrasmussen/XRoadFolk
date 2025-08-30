@@ -188,28 +188,31 @@ namespace XRoadFolkWeb.Extensions
             string supported = string.Join(", ", supportedList);
             _logLocalizationConfig(locLogger, defaultCulture, supported, null);
 
-            // Diagnostic endpoint to verify applied culture at runtime
-            _ = app.MapGet("/__culture", (HttpContext ctx,
-                                      IOptions<RequestLocalizationOptions> locOpts,
-                                      IOptions<LocalizationConfig> cfg) =>
+            // Diagnostic endpoint to verify applied culture at runtime (Development only)
+            if (app.Services.GetRequiredService<IHostEnvironment>().IsDevelopment())
             {
-                IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
-                return Results.Json(new
+                _ = app.MapGet("/__culture", (HttpContext ctx,
+                                          IOptions<RequestLocalizationOptions> locOpts,
+                                          IOptions<LocalizationConfig> cfg) =>
                 {
-                    FromConfig = new
+                    IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
+                    return Results.Json(new
                     {
-                        cfg.Value.DefaultCulture,
-                        cfg.Value.SupportedCultures
-                    },
-                    Applied = new
-                    {
-                        Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-                        Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
-                        Current = feature?.RequestCulture.Culture.Name,
-                        CurrentUI = feature?.RequestCulture.UICulture.Name
-                    }
+                        FromConfig = new
+                        {
+                            cfg.Value.DefaultCulture,
+                            cfg.Value.SupportedCultures
+                        },
+                        Applied = new
+                        {
+                            Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
+                            Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
+                            Current = feature?.RequestCulture.Culture.Name,
+                            CurrentUI = feature?.RequestCulture.UICulture.Name
+                        }
+                    });
                 });
-            });
+            }
 
             // Static files + routing + pages
             _ = app.UseStaticFiles();
@@ -240,6 +243,7 @@ namespace XRoadFolkWeb.Extensions
                         Expires = DateTimeOffset.Now.AddYears(1),
                         IsEssential = true,
                         Secure = true, // force HTTPS-only
+                        HttpOnly = true, // disallow script access
                         SameSite = SameSiteMode.Lax,
                         Path = "/"
                     });

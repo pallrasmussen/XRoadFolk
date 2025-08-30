@@ -122,7 +122,7 @@ namespace XRoadFolkWeb.Pages
 
                 try
                 {
-                    var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                    var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
                     PeoplePublicInfoResponseXml = res.Xml;
                     PeoplePublicInfoResponseXmlPretty = res.Pretty;
                     Results = res.Results;
@@ -192,7 +192,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
                 PeoplePublicInfoResponseXml = res.Xml;
                 PeoplePublicInfoResponseXmlPretty = res.Pretty;
                 Results = res.Results;
