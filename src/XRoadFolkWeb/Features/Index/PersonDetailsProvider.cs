@@ -18,7 +18,11 @@ namespace XRoadFolkWeb.Features.Index
             _config = config;
         }
 
-        public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(string publicId, Microsoft.Extensions.Localization.IStringLocalizer loc, CancellationToken ct = default)
+        public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(
+            string publicId,
+            Microsoft.Extensions.Localization.IStringLocalizer loc,
+            IReadOnlyCollection<string>? allowedIncludeKeys = null,
+            CancellationToken ct = default)
         {
             string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
             List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
@@ -47,8 +51,11 @@ namespace XRoadFolkWeb.Features.Index
                 })
                 .ToList();
 
-            // Include allow-list filter
-            HashSet<string> allowed = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            // Include allow-list filter (use provided keys if present, else from configuration)
+            HashSet<string> allowed = (allowedIncludeKeys is not null && allowedIncludeKeys.Count > 0)
+                ? new HashSet<string>(allowedIncludeKeys, StringComparer.OrdinalIgnoreCase)
+                : IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+
             if (allowed.Count > 0)
             {
                 static bool Matches(string seg, string allowedKey)

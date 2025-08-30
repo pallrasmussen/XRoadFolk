@@ -33,6 +33,7 @@ namespace XRoadFolkRaw.Lib
         private readonly IValidateOptions<GetPersonRequestOptions> _requestValidator;
         private readonly IMemoryCache _cache;
         private readonly TokenCacheOptions _cacheOptions;
+        private readonly SemaphoreSlim _tokenGate = new(1, 1);
 
         public PeopleService(
             FolkRawClient client,
@@ -95,30 +96,50 @@ namespace XRoadFolkRaw.Lib
         {
             string key = (_cacheOptions.KeyPrefix ?? "folk-token|") + ComputeKey(_settings);
 
-            if (_cache.TryGetValue<string>(key, out string? token) && !string.IsNullOrWhiteSpace(token))
+            if (_cache.TryGetValue<string>(key, out string? cached) && !string.IsNullOrWhiteSpace(cached))
             {
                 LogTokenReused(_log);
+                return cached;
+            }
+
+            await _tokenGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                // Double-check under lock
+                if (_cache.TryGetValue<string>(key, out cached) && !string.IsNullOrWhiteSpace(cached))
+                {
+                    LogTokenReused(_log);
+                    return cached;
+                }
+
+                string token = await _cache.GetOrCreateAsync(key, async entry =>
+                {
+                    (string Token, DateTimeOffset ExpiresUtc) res = await _tokenProvider.GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(res.Token))
+                    {
+                        throw new InvalidOperationException(_localizer["TokenMissing"]);
+                    }
+
+                    TimeSpan defaultTtl = TimeSpan.FromSeconds(Math.Max(1, _cacheOptions.DefaultTtlSeconds));
+                    TimeSpan ttl = res.ExpiresUtc > DateTimeOffset.UtcNow
+                        ? res.ExpiresUtc - DateTimeOffset.UtcNow
+                        : defaultTtl;
+
+                    entry.AbsoluteExpirationRelativeToNow = ttl;
+                    LogTokenAcquired(_log, res.Token.Length);
+                    return res.Token;
+                }).ConfigureAwait(false) ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    throw new InvalidOperationException(_localizer["TokenMissing"]);
+                }
                 return token;
             }
-
-            (string Token, DateTimeOffset ExpiresUtc) = await _tokenProvider.GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(Token))
+            finally
             {
-                throw new InvalidOperationException(_localizer["TokenMissing"]);
+                _ = _tokenGate.Release();
             }
-
-            TimeSpan defaultTtl = TimeSpan.FromSeconds(Math.Max(1, _cacheOptions.DefaultTtlSeconds));
-            TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
-                ? ExpiresUtc - DateTimeOffset.UtcNow
-                : defaultTtl;
-
-            _cache.Set(key, Token, new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = ttl
-            });
-
-            LogTokenAcquired(_log, Token.Length);
-            return Token;
         }
 
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)

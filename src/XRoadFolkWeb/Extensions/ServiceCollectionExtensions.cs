@@ -25,8 +25,8 @@ namespace XRoadFolkWeb.Extensions
             {
                 options.Cookie.Name = ".XRoadFolk.Session";
                 options.Cookie.HttpOnly = true;
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SameSite = SameSiteMode.Strict; // tighten CSRF surface
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS-only
                 options.Cookie.IsEssential = true; // required for auth/csrf-related flows
                 options.IdleTimeout = TimeSpan.FromMinutes(30);
             });

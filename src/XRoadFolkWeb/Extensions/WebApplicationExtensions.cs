@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Diagnostics;
+using System.Diagnostics;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -28,6 +30,12 @@ namespace XRoadFolkWeb.Extensions
                 LogLevel.Information,
                 new EventId(1002, "LocalizationConfig"),
                 "Localization config: Default={Default}, Supported=[{Supported}]");
+
+        private static readonly Action<ILogger, string?, string?, Exception?> _logUnhandledException =
+            LoggerMessage.Define<string?, string?>(
+                LogLevel.Error,
+                new EventId(1003, "UnhandledException"),
+                "Unhandled exception at {Path}. TraceId={TraceId}");
 
         [GeneratedRegex(@"\b\d{6,}\b", RegexOptions.Compiled)]
         private static partial Regex LongDigitsRegex();
@@ -102,6 +110,39 @@ namespace XRoadFolkWeb.Extensions
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
+
+            // Global exception handling (no stack traces leaked)
+            ILogger errorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Error");
+            _ = app.UseExceptionHandler(errorApp =>
+            {
+                errorApp.Run(async context =>
+                {
+                    IExceptionHandlerPathFeature? feature = context.Features.Get<IExceptionHandlerPathFeature>();
+                    string? traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+                    _logUnhandledException(errorLogger, feature?.Path, traceId, feature?.Error);
+
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+                    string accept = context.Request.Headers.Accept.ToString();
+                    if (!string.IsNullOrWhiteSpace(accept) && accept.Contains("text/html", StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Response.ContentType = "text/html; charset=utf-8";
+                        await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>");
+                    }
+                    else
+                    {
+                        ProblemDetails problem = new()
+                        {
+                            Status = StatusCodes.Status500InternalServerError,
+                            Title = "An unexpected error occurred.",
+                            Type = "about:blank",
+                            Instance = context.Request?.Path
+                        };
+                        problem.Extensions["traceId"] = traceId;
+                        await context.Response.WriteAsJsonAsync(problem);
+                    }
+                });
+            });
 
             _ = app.UseResponseCompression();
             _ = app.UseHttpsRedirection();

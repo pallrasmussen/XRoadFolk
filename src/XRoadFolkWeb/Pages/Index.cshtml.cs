@@ -93,14 +93,15 @@ namespace XRoadFolkWeb.Pages
             {
                 try
                 {
-                    var res = await _details.GetAsync(publicId, _loc, HttpContext?.RequestAborted ?? CancellationToken.None);
+                    var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                     PersonDetails = res.Details;
                     SelectedNameSuffix = res.SelectedNameSuffix;
                 }
                 catch (Exception ex)
                 {
                     LogPersonDetailsError(_logger, ex, publicId);
-                    Errors.Add(ex.Message);
+                    var msg = _loc["UnexpectedError"];
+                    Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                 }
             }
 
@@ -132,7 +133,8 @@ namespace XRoadFolkWeb.Pages
                 catch (Exception ex)
                 {
                     LogSearchError(_logger, ex);
-                    Errors.Add(ex.Message);
+                    var msg = _loc["UnexpectedError"];
+                    Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                 }
             }
         }
@@ -201,7 +203,8 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogSearchError(_logger, ex);
-                Errors.Add(ex.Message);
+                var msg = _loc["UnexpectedError"];
+                Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                 return Page();
             }
 
@@ -243,7 +246,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                var res = await _details.GetAsync(publicId, _loc, HttpContext?.RequestAborted ?? CancellationToken.None);
+                var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                 return new JsonResult(new
                 {
                     ok = true,
@@ -256,7 +259,9 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId!);
-                return new JsonResult(new { ok = false, error = ex.Message });
+                var msg = _loc["UnexpectedError"];
+                string text = msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value;
+                return new JsonResult(new { ok = false, error = text });
             }
         }
 
