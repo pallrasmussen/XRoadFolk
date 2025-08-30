@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:id="http://x-road.eu/xsd/identifiers"
+                  xmlns:xrd="http://x-road.eu/xsd/xroad.xsd"
+                  xmlns:prod="http://us-folk-v2.x-road.eu/producer">
+  <soapenv:Header>
+    <xrd:protocolVersion>4.0</xrd:protocolVersion>
+    <xrd:id></xrd:id>
+    <xrd:client id:objectType="SUBSYSTEM">
+      <id:xRoadInstance></id:xRoadInstance>
+      <id:memberClass></id:memberClass>
+      <id:memberCode></id:memberCode>
+      <id:subsystemCode></id:subsystemCode>
+    </xrd:client>
+    <xrd:service id:objectType="SERVICE">
+      <id:xRoadInstance></id:xRoadInstance>
+      <id:memberClass></id:memberClass>
+      <id:memberCode></id:memberCode>
+      <id:subsystemCode></id:subsystemCode>
+      <id:serviceCode>GetPerson</id:serviceCode>
+      <id:serviceVersion>v1</id:serviceVersion>
+    </xrd:service>
+  </soapenv:Header>
+  <soapenv:Body>
+    <prod:GetPerson>
+      <request>
+        <requestBody>
+        </requestBody>
+        <requestHeader>
+          <token></token>
+        </requestHeader>
+      </request>
+    </prod:GetPerson>
+  </soapenv:Body>
+</soapenv:Envelope>

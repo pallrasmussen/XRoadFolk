@@ -27,6 +27,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\appsettings.xroad.json" />
+    <EmbeddedResource Include="Resources\Login.xml" />
+    <EmbeddedResource Include="Resources\GetPeoplePublicInfo.xml" />
+    <EmbeddedResource Include="Resources\GetPerson.xml" />
   </ItemGroup>
 
   <ItemGroup>
