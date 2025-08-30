@@ -7,10 +7,82 @@ namespace XRoadFolkWeb.Features.People
     public sealed class PeopleResponseParser
     {
         private readonly ILogger<PeopleResponseParser> _logger;
+        private const int MaxElementDepth = 128; // reasonable anti-recursion cap
 
         public PeopleResponseParser(ILogger<PeopleResponseParser> logger)
         {
             _logger = logger;
+        }
+
+        // Wrapper that enforces a maximum element depth while delegating to the inner reader
+        private sealed class DepthLimitingXmlReader : XmlReader
+        {
+            private readonly XmlReader _inner;
+            private readonly int _maxDepth;
+
+            public DepthLimitingXmlReader(XmlReader inner, int maxDepth)
+            {
+                _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+                _maxDepth = Math.Max(1, maxDepth);
+            }
+
+            private void CheckDepth()
+            {
+                // Depth counts the current node nesting level. Enforce on elements and general nodes.
+                if (_inner.Depth > _maxDepth)
+                {
+                    throw new XmlException($"XML maximum depth {_maxDepth} exceeded");
+                }
+            }
+
+            public override bool Read()
+            {
+                bool res = _inner.Read();
+                if (res)
+                {
+                    CheckDepth();
+                }
+                return res;
+            }
+
+            public override int AttributeCount => _inner.AttributeCount;
+            public override string BaseURI => _inner.BaseURI;
+            public override int Depth => _inner.Depth;
+            public override bool EOF => _inner.EOF;
+            public override bool HasValue => _inner.HasValue;
+            public override bool IsDefault => _inner.IsDefault;
+            public override bool IsEmptyElement => _inner.IsEmptyElement;
+            public override string LocalName => _inner.LocalName;
+            public override string Name => _inner.Name;
+            public override string NamespaceURI => _inner.NamespaceURI;
+            public override XmlNameTable NameTable => _inner.NameTable;
+            public override XmlNodeType NodeType => _inner.NodeType;
+            public override string Prefix => _inner.Prefix;
+            public override char QuoteChar => _inner.QuoteChar;
+            public override ReadState ReadState => _inner.ReadState;
+            public override string Value => _inner.Value;
+            public override string XmlLang => _inner.XmlLang;
+            public override XmlSpace XmlSpace => _inner.XmlSpace;
+
+            public override void Close() => _inner.Close();
+            public override string GetAttribute(int i) => _inner.GetAttribute(i);
+            public override string? GetAttribute(string name) => _inner.GetAttribute(name);
+            public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
+            public override string LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
+            public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
+            public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
+            public override bool MoveToElement() => _inner.MoveToElement();
+            public override bool MoveToFirstAttribute() => _inner.MoveToFirstAttribute();
+            public override bool MoveToNextAttribute() => _inner.MoveToNextAttribute();
+            public override bool ReadAttributeValue() => _inner.ReadAttributeValue();
+            public override void ResolveEntity() => _inner.ResolveEntity();
+            public override string ReadInnerXml() => _inner.ReadInnerXml();
+            public override string ReadOuterXml() => _inner.ReadOuterXml();
+            public override XmlReader ReadSubtree()
+            {
+                // Wrap subtree as well to maintain protection
+                return new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
+            }
         }
 
         private static XmlReader CreateSafeReader(string xml)
@@ -22,7 +94,8 @@ namespace XRoadFolkWeb.Features.People
                 MaxCharactersFromEntities = 0,
                 MaxCharactersInDocument = 10 * 1024 * 1024 // 10 MB cap to avoid memory DoS
             };
-            return XmlReader.Create(new StringReader(xml), settings);
+            XmlReader inner = XmlReader.Create(new StringReader(xml), settings);
+            return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
         public List<PersonRow> ParsePeopleList(string xml)
