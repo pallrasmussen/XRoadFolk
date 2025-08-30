@@ -21,6 +21,7 @@ namespace XRoadFolkRaw.Lib
         private readonly int _retryAttempts;
         private readonly int _retryBaseDelayMs;
         private readonly int _retryJitterMs;
+        private readonly Polly.Retry.AsyncRetryPolicy _retryPolicy;
         private static readonly Random JitterRandom = Random.Shared;
         private static readonly HashSet<string> SourceHeaders =
             new(["service", "client", "id", "protocolVersion", "userId"]);
@@ -44,6 +45,7 @@ namespace XRoadFolkRaw.Lib
             _retryAttempts = retryAttempts;
             _retryBaseDelayMs = retryBaseDelayMs;
             _retryJitterMs = retryJitterMs;
+            _retryPolicy = BuildRetryPolicy();
         }
 
         // Backwards-compatible constructor (this instance OWNS the HttpClient)
@@ -99,6 +101,24 @@ namespace XRoadFolkRaw.Lib
             _retryAttempts = retryAttempts;
             _retryBaseDelayMs = retryBaseDelayMs;
             _retryJitterMs = retryJitterMs;
+            _retryPolicy = BuildRetryPolicy();
+        }
+
+        private Polly.Retry.AsyncRetryPolicy BuildRetryPolicy()
+        {
+            // Build once per client instance. Uses current retry settings and logs warnings on retry.
+            return Policy.Handle<HttpRequestException>()
+                         .Or<TaskCanceledException>()
+                         .WaitAndRetryAsync(
+                             _retryAttempts,
+                             attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
+                             (ex, ts, attempt, ctx) =>
+                             {
+                                 if (_log != null)
+                                 {
+                                     LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
+                                 }
+                             });
         }
 
         public void PreloadTemplates(IEnumerable<string> paths)
@@ -337,19 +357,7 @@ namespace XRoadFolkRaw.Lib
                 _log.SafeSoapInfo(xmlString, $"SOAP Request [{opName}]");
             }
 
-            Polly.Retry.AsyncRetryPolicy policy = Policy.Handle<HttpRequestException>()
-                               .Or<TaskCanceledException>()
-                               .WaitAndRetryAsync(_retryAttempts,
-                                   i => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (i - 1))) + JitterRandom.Next(0, _retryJitterMs)),
-                                   (ex, ts, attempt, ctx) =>
-                                   {
-                                       if (_log != null)
-                                       {
-                                           LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
-                                       }
-                                   });
-
-            string respText = await policy.ExecuteAsync(async () =>
+            string respText = await _retryPolicy.ExecuteAsync(async () =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
                 request.Content = new StringContent(xmlString);
@@ -459,6 +467,7 @@ namespace XRoadFolkRaw.Lib
             return (doc, requestBodyEl);
         }
 
+        // Long-parameter overload (legacy; still used by service code and request-object overload)
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -551,6 +560,7 @@ namespace XRoadFolkRaw.Lib
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
+        // Options overload (maps flags and identifiers)
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -666,6 +676,79 @@ namespace XRoadFolkRaw.Lib
                 : doc.ToString(SaveOptions.DisableFormatting);
 
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
+        }
+
+        // Request-object overloads for simplified calling
+        public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(req);
+            ArgumentNullException.ThrowIfNull(req.Header);
+            string xmlPath = req.XmlPath;
+            XRoadHeaderOptions h = req.Header;
+            string xId = h.XId; string userId = h.UserId; string protocolVersion = h.ProtocolVersion;
+            string clientXRoadInstance = h.ClientXRoadInstance; string clientMemberClass = h.ClientMemberClass; string clientMemberCode = h.ClientMemberCode; string clientSubsystemCode = h.ClientSubsystemCode;
+            string serviceXRoadInstance = h.ServiceXRoadInstance; string serviceMemberClass = h.ServiceMemberClass; string serviceMemberCode = h.ServiceMemberCode; string serviceSubsystemCode = h.ServiceSubsystemCode; string serviceCode = h.ServiceCode; string serviceVersion = h.ServiceVersion;
+
+            return await GetPeoplePublicInfoAsync(
+                xmlPath: xmlPath,
+                xId: xId,
+                userId: userId,
+                token: req.Token,
+                protocolVersion: protocolVersion,
+                clientXRoadInstance: clientXRoadInstance,
+                clientMemberClass: clientMemberClass,
+                clientMemberCode: clientMemberCode,
+                clientSubsystemCode: clientSubsystemCode,
+                serviceXRoadInstance: serviceXRoadInstance,
+                serviceMemberClass: serviceMemberClass,
+                serviceMemberCode: serviceMemberCode,
+                serviceSubsystemCode: serviceSubsystemCode,
+                serviceCode: serviceCode,
+                serviceVersion: serviceVersion,
+                ssn: req.Ssn,
+                firstName: req.FirstName,
+                lastName: req.LastName,
+                dateOfBirth: req.DateOfBirth,
+                ct: ct).ConfigureAwait(false);
+        }
+
+        public async Task<string> GetPersonAsync(GetPersonRequest req, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(req);
+            ArgumentNullException.ThrowIfNull(req.Header);
+            string xmlPath = req.XmlPath;
+            XRoadHeaderOptions h = req.Header;
+            string xId = h.XId; string userId = h.UserId; string protocolVersion = h.ProtocolVersion;
+            string clientXRoadInstance = h.ClientXRoadInstance; string clientMemberClass = h.ClientMemberClass; string clientMemberCode = h.ClientMemberCode; string clientSubsystemCode = h.ClientSubsystemCode;
+            string serviceXRoadInstance = h.ServiceXRoadInstance; string serviceMemberClass = h.ServiceMemberClass; string serviceMemberCode = h.ServiceMemberCode; string serviceSubsystemCode = h.ServiceSubsystemCode; string serviceCode = h.ServiceCode; string serviceVersion = h.ServiceVersion;
+
+            GetPersonRequestOptions options = new()
+            {
+                Id = req.Id,
+                PublicId = req.PublicId,
+                Ssn = req.Ssn,
+                ExternalId = req.ExternalId,
+                Include = req.Include
+            };
+
+            return await GetPersonAsync(
+                xmlPath: xmlPath,
+                xId: xId,
+                userId: userId,
+                token: req.Token,
+                protocolVersion: protocolVersion,
+                clientXRoadInstance: clientXRoadInstance,
+                clientMemberClass: clientMemberClass,
+                clientMemberCode: clientMemberCode,
+                clientSubsystemCode: clientSubsystemCode,
+                serviceXRoadInstance: serviceXRoadInstance,
+                serviceMemberClass: serviceMemberClass,
+                serviceMemberCode: serviceMemberCode,
+                serviceSubsystemCode: serviceSubsystemCode,
+                serviceCode: serviceCode,
+                serviceVersion: serviceVersion,
+                options: options,
+                ct: ct).ConfigureAwait(false);
         }
 
         public void Dispose()
