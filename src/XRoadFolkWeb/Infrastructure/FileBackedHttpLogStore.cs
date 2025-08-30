@@ -32,7 +32,8 @@ namespace XRoadFolkWeb.Infrastructure
             _alwaysAllowWarnError = cfg.AlwaysAllowWarningsAndErrors;
             _channel = Channel.CreateBounded<LogEntry>(new BoundedChannelOptions(_maxQueue)
             {
-                FullMode = BoundedChannelFullMode.DropOldest,
+                // Use Wait so writes fail (TryWrite=false) when full; we will explicitly manage eviction below
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false,
                 AllowSynchronousContinuations = true
@@ -59,15 +60,30 @@ namespace XRoadFolkWeb.Infrastructure
                 LogStreamPublishError(_log, ex);
             }
 
-            // Back-pressure: try to enqueue; if full and not important, it may drop the oldest
-            if (!_channel.Writer.TryWrite(e))
+            // Back-pressure handling:
+            // - For low-severity, best-effort enqueue; if full, drop silently.
+            // - For Warning+ (if enabled), ensure space by evicting oldest items and write.
+            if (_channel.Writer.TryWrite(e))
             {
-                if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
-                {
-                    // Force write by dropping one and retrying
-                    _ = _channel.Writer.TryWrite(e);
-                }
+                return;
             }
+
+            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
+            {
+                // Create room by evicting oldest queued entries (if any) and retry a few times
+                for (int i = 0; i < 4; i++)
+                {
+                    _ = _channel.Reader.TryRead(out _); // discard one if available
+                    if (_channel.Writer.TryWrite(e))
+                    {
+                        return;
+                    }
+                }
+                // Last attempt: block very briefly by yielding to let reader drain
+                Thread.Yield();
+                _ = _channel.Writer.TryWrite(e); // best effort final try
+            }
+            // else: low severity and full -> drop
         }
 
         public void Clear()
@@ -132,7 +148,20 @@ namespace XRoadFolkWeb.Infrastructure
                     await AppendBatchAsync(batch, stoppingToken).ConfigureAwait(false);
                     batch.Clear();
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                    // Flush any buffered entries before exiting
+                    try
+                    {
+                        if (batch.Count > 0)
+                        {
+                            await AppendBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
+                            batch.Clear();
+                        }
+                    }
+                    catch { }
+                    break;
+                }
                 catch (Exception ex)
                 {
                     // Log and retry later
@@ -141,6 +170,27 @@ namespace XRoadFolkWeb.Infrastructure
                     await Task.Delay(flushInterval, stoppingToken).ConfigureAwait(false);
                 }
             }
+
+            // Final drain on shutdown: write any remaining items still in the channel
+            try
+            {
+                List<LogEntry> tail = new(capacity: 512);
+                while (reader.TryRead(out LogEntry? item))
+                {
+                    tail.Add(item);
+                    if (tail.Count >= 1024)
+                    {
+                        await AppendBatchAsync(tail, CancellationToken.None).ConfigureAwait(false);
+                        tail.Clear();
+                    }
+                }
+                if (tail.Count > 0)
+                {
+                    await AppendBatchAsync(tail, CancellationToken.None).ConfigureAwait(false);
+                    tail.Clear();
+                }
+            }
+            catch { }
         }
 
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)

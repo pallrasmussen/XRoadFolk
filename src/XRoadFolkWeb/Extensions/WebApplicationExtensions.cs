@@ -239,7 +239,7 @@ namespace XRoadFolkWeb.Extensions
                     {
                         Expires = DateTimeOffset.Now.AddYears(1),
                         IsEssential = true,
-                        Secure = ctx.Request.IsHttps,
+                        Secure = true, // force HTTPS-only
                         SameSite = SameSiteMode.Lax,
                         Path = "/"
                     });
