@@ -7,6 +7,7 @@ using XRoadFolkWeb.Shared;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Diagnostics;
+using System.Security.Cryptography;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -107,9 +108,67 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
+        private static bool IsSafeLocalReturnUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            // Must be relative and start with a single '/'; reject '//' or '/\' to avoid protocol-relative
+            if (!url.StartsWith('/')) return false;
+            if (url.StartsWith("//") || url.StartsWith("/\\")) return false;
+            // Disallow newline or control chars
+            foreach (char ch in url)
+            {
+                if (char.IsControl(ch)) return false;
+            }
+            return true;
+        }
+
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
+
+            // CSP + security headers middleware with per-request nonce
+            _ = app.Use(async (ctx, next) =>
+            {
+                string nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+                ctx.Items["CSP_NONCE"] = nonce;
+
+                ctx.Response.OnStarting(() =>
+                {
+                    var headers = ctx.Response.Headers;
+
+                    // Standard security headers
+                    if (!headers.ContainsKey("X-Content-Type-Options")) headers["X-Content-Type-Options"] = "nosniff";
+                    if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                    if (!headers.ContainsKey("X-Frame-Options")) headers["X-Frame-Options"] = "DENY";
+
+                    // CSP header
+                    if (!headers.ContainsKey("Content-Security-Policy"))
+                    {
+                        const string JsDelivr = "https://cdn.jsdelivr.net";
+                        const string GoogleFontsCss = "https://fonts.googleapis.com";
+                        const string GoogleFontsStatic = "https://fonts.gstatic.com";
+
+                        string csp = "default-src 'self'; " +
+                                     "base-uri 'self'; " +
+                                     "frame-ancestors 'none'; " +
+                                     "object-src 'none'; " +
+                                     $"img-src 'self' data: {JsDelivr}; " +
+                                     $"font-src 'self' data: {JsDelivr} {GoogleFontsStatic}; " +
+                                     $"script-src 'self' 'nonce-{nonce}'; " +
+                                     $"script-src-elem 'self' 'nonce-{nonce}'; " +
+                                     $"style-src 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
+                                     $"style-src-elem 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
+                                     $"style-src-attr 'unsafe-inline'; " +
+                                     "connect-src 'self'; " +
+                                     "form-action 'self'; " +
+                                     "upgrade-insecure-requests";
+                        headers["Content-Security-Policy"] = csp;
+                    }
+                    return Task.CompletedTask;
+                });
+
+                await next();
+            });
 
             // Global exception handling (no stack traces leaked)
             ILogger errorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Error");
@@ -248,7 +307,8 @@ namespace XRoadFolkWeb.Extensions
                         Path = "/"
                     });
 
-                return Results.LocalRedirect(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
+                string target = IsSafeLocalReturnUrl(returnUrl) ? returnUrl! : "/";
+                return Results.LocalRedirect(target);
             });
 
             _ = app.MapRazorPages();

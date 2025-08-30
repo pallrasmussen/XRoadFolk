@@ -28,6 +28,7 @@
     {
         culturesToShow = supported.ToList();
     }
+    var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -36,7 +37,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - @SR["AppName"]</title>
 
-    <script>
+    <script nonce="@nonce">
         // Force light theme before paint
         (function () {
             try { localStorage.removeItem('theme'); } catch {}
@@ -118,7 +119,8 @@
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <!-- Local Bootstrap JS (CSP-friendly) -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js"></script>
 
     <environment include="Development">
