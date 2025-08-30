@@ -114,12 +114,14 @@ namespace XRoadFolkRaw.Lib
             string personPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
             if (!File.Exists(gpPath))
             {
-                errs.Add(loc[Messages.OperationsGetPeoplePublicInfoXmlPathNotFound, gpPath]);
+                // Do not fail: FolkRawClient has built-in fallback templates
+                log.LogWarning(loc[Messages.OperationsGetPeoplePublicInfoXmlPathNotFound, gpPath]);
             }
 
             if (!File.Exists(personPath))
             {
-                errs.Add(loc[Messages.OperationsGetPersonXmlPathNotFound, personPath]);
+                // Do not fail: FolkRawClient has built-in fallback templates
+                log.LogWarning(loc[Messages.OperationsGetPersonXmlPathNotFound, personPath]);
             }
 
             string? pfx = xr.Certificate?.PfxPath;
