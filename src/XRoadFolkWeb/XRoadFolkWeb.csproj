@@ -10,6 +10,14 @@
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\XRoadFolkRaw.Lib\Resources\*.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+    </None>
+  </ItemGroup>
+
   <!-- Remove any explicit EmbeddedResource entries to avoid duplicates.
        The SDK already includes Resources\**\*.resx automatically. -->
 </Project>

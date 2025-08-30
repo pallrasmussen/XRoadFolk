@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
@@ -83,7 +82,7 @@ namespace XRoadFolkWeb.Pages
                 try
                 {
                     string xml = await _service.GetPersonAsync(publicId);
-                    PersonDetails = FlattenResponse(xml);
+                    PersonDetails = PeopleXmlParser.FlattenResponse(xml);
 
                     string? first = PersonDetails
                         ?.FirstOrDefault(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
@@ -120,8 +119,8 @@ namespace XRoadFolkWeb.Pages
                 {
                     string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
                     PeoplePublicInfoResponseXml = xml;
-                    PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
-                    Results = ParsePeopleList(xml);
+                    PeoplePublicInfoResponseXmlPretty = PeopleXmlParser.FormatPretty(xml);
+                    Results = PeopleXmlParser.ParsePeopleList(xml);
 
                     _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
                     {
@@ -191,8 +190,8 @@ namespace XRoadFolkWeb.Pages
             {
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
                 PeoplePublicInfoResponseXml = xml;
-                PeoplePublicInfoResponseXmlPretty = PrettyFormatXml(xml);
-                Results = ParsePeopleList(xml);
+                PeoplePublicInfoResponseXmlPretty = PeopleXmlParser.FormatPretty(xml);
+                Results = PeopleXmlParser.ParsePeopleList(xml);
 
                 _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
                 {
@@ -260,171 +259,6 @@ namespace XRoadFolkWeb.Pages
             return list;
         }
 
-        private static string PrettyFormatXml(string xml)
-        {
-            try
-            {
-                XDocument doc = XDocument.Parse(xml);
-                return doc.ToString(SaveOptions.None);
-            }
-            catch
-            {
-                return xml;
-            }
-        }
-
-        private static List<PersonRow> ParsePeopleList(string xml)
-        {
-            List<PersonRow> rows = [];
-            if (string.IsNullOrWhiteSpace(xml))
-            {
-                return rows;
-            }
-
-            XDocument doc = XDocument.Parse(xml);
-
-            List<XElement> people = [.. doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
-
-            string? requestSsn = doc
-                .Descendants().FirstOrDefault(e => e.Name.LocalName == "ListOfPersonPublicInfoCriteria")?
-                .Descendants().FirstOrDefault(e => e.Name.LocalName == "PersonPublicInfoCriteria")?
-                .Elements().FirstOrDefault(e => e.Name.LocalName == "SSN")?
-                .Value?.Trim();
-
-            foreach (XElement? p in people)
-            {
-                string? publicId = p.Elements().FirstOrDefault(x => x.Name.LocalName == "PublicId")?.Value?.Trim()
-                                ?? p.Elements().FirstOrDefault(x => x.Name.LocalName == "PersonId")?.Value?.Trim();
-
-                IEnumerable<XElement> nameItems = p.Elements().FirstOrDefault(x => x.Name.LocalName == "Names")?
-                               .Elements().Where(x => x.Name.LocalName == "Name")
-                            ?? [];
-
-                List<string?> firstNames = [.. nameItems
-                    .Where(n => string.Equals(
-                        n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
-                        "FirstName", StringComparison.OrdinalIgnoreCase))
-                    .Select(n => new
-                    {
-                        OrderText = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Order")?.Value,
-                        Value = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim()
-                    })
-                    .OrderBy(n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
-                    .Select(n => n.Value)
-                    .Where(v => !string.IsNullOrWhiteSpace(v))];
-
-                string? firstName = firstNames.Count > 0 ? string.Join(" ", firstNames) : null;
-
-                string? lastName = nameItems
-                    .Where(n => string.Equals(
-                        n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
-                        "LastName", StringComparison.OrdinalIgnoreCase))
-                    .Select(n => n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim())
-                    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-
-                string? civilStatusDate = p.Elements().FirstOrDefault(x => x.Name.LocalName == "CivilStatusDate")?.Value?.Trim();
-                string? dateOfBirth = !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
-                    ? civilStatusDate[..10]
-                    : civilStatusDate;
-
-                string? ssn = p.Elements().FirstOrDefault(x => x.Name.LocalName == "SSN")?.Value?.Trim();
-                if (string.IsNullOrWhiteSpace(ssn) && people.Count == 1 && !string.IsNullOrWhiteSpace(requestSsn))
-                {
-                    ssn = requestSsn;
-                }
-
-                // Skip entries that have no identifiers or names at all
-                bool hasIdentifier = !string.IsNullOrWhiteSpace(publicId) || !string.IsNullOrWhiteSpace(ssn);
-                bool hasAnyName = !string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName);
-                if (!hasIdentifier && !hasAnyName)
-                {
-                    continue;
-                }
-
-                rows.Add(new PersonRow
-                {
-                    PublicId = publicId,
-                    SSN = ssn,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    DateOfBirth = dateOfBirth
-                });
-            }
-            return rows;
-        }
-
-        private static List<(string Key, string Value)> FlattenResponse(string xml)
-        {
-            List<(string, string)> pairs = [];
-            if (string.IsNullOrWhiteSpace(xml))
-            {
-                return pairs;
-            }
-
-            XDocument doc = XDocument.Parse(xml);
-            XElement? body = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
-            if (body == null)
-            {
-                return pairs;
-            }
-
-            XElement? resp = body.Elements().FirstOrDefault(e => e.Name.LocalName.EndsWith("Response", StringComparison.OrdinalIgnoreCase));
-            if (resp == null)
-            {
-                return pairs;
-            }
-
-            void Flatten(XElement el, string path)
-            {
-                List<XElement> children = [.. el.Elements()];
-                if (children.Count == 0)
-                {
-                    string? v = el.Value?.Trim();
-                    if (!string.IsNullOrEmpty(v))
-                    {
-                        string key = string.IsNullOrEmpty(path) ? el.Name.LocalName : path;
-                        pairs.Add((key, v));
-                    }
-                    return;
-                }
-
-                foreach (IGrouping<string, XElement> grp in children.GroupBy(c => c.Name.LocalName))
-                {
-                    if (grp.Count() == 1)
-                    {
-                        XElement child = grp.First();
-                        string next = string.IsNullOrEmpty(path) ? grp.Key : $"{path}.{grp.Key}";
-                        Flatten(child, next);
-                    }
-                    else
-                    {
-                        int idx = 0;
-                        foreach (XElement? child in grp)
-                        {
-                            string next = string.IsNullOrEmpty(path) ? $"{grp.Key}[{idx}]" : $"{path}.{grp.Key}[{idx}]";
-                            Flatten(child, next);
-                            idx++;
-                        }
-                    }
-                }
-            }
-
-            foreach (XElement child in resp.Elements())
-            {
-                Flatten(child, "");
-            }
-            return pairs;
-        }
-
-        public sealed class PersonRow
-        {
-            public string? PublicId { get; set; }
-            public string? SSN { get; set; }
-            public string? FirstName { get; set; }
-            public string? LastName { get; set; }
-            public string? DateOfBirth { get; set; }
-        }
-
         public async Task<IActionResult> OnGetPersonDetailsAsync(string? publicId)
         {
             if (string.IsNullOrWhiteSpace(publicId))
@@ -435,9 +269,9 @@ namespace XRoadFolkWeb.Pages
             try
             {
                 string xml = await _service.GetPersonAsync(publicId);
-                List<(string Key, string Value)> pairs = FlattenResponse(xml);
+                List<(string Key, string Value)> pairs = PeopleXmlParser.FlattenResponse(xml);
 
-                // Filter out any RequestHeader/requestBody content (any level, case-insensitive)
+                // Filter out any RequestHeader/requestBody
                 List<(string Key, string Value)> filtered = pairs
                     .Where(p =>
                     {
@@ -448,7 +282,6 @@ namespace XRoadFolkWeb.Pages
                               || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
                               || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase));
                     })
-                    // Also remove the same noise fields used by Summary: Id, Fixed, AuthorityCode, PersonAddressId
                     .Where(p =>
                     {
                         if (string.IsNullOrEmpty(p.Key)) return true;
@@ -462,15 +295,12 @@ namespace XRoadFolkWeb.Pages
                     })
                     .ToList();
 
-                // Build allow-list from appsettings Include booleans and flags enum
+                // Allow-list from config
                 HashSet<string> allowed = new(StringComparer.OrdinalIgnoreCase);
                 IConfigurationSection incSec = _config.GetSection("Operations:GetPerson:Request:Include");
                 foreach (IConfigurationSection c in incSec.GetChildren())
                 {
-                    if (bool.TryParse(c.Value, out bool on) && on)
-                    {
-                        allowed.Add(c.Key);
-                    }
+                    if (bool.TryParse(c.Value, out bool on) && on) allowed.Add(c.Key);
                 }
                 GetPersonRequestOptions? req = _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
                 if (req is not null && req.Include != GetPersonInclude.None)
@@ -485,14 +315,11 @@ namespace XRoadFolkWeb.Pages
                         }
                     }
                 }
-                // Always allow Summary/basic identification
                 allowed.Add("Summary");
-                // Common synonyms
                 if (allowed.Contains("Ssn")) allowed.Add("SSN");
 
                 if (allowed.Count > 0)
                 {
-                    // Relaxed matching: match ANY segment in the path against any allowed key
                     static string RootOf(string segment)
                     {
                         if (string.IsNullOrEmpty(segment)) return segment;
@@ -510,7 +337,6 @@ namespace XRoadFolkWeb.Pages
                     filtered = filtered.Where(p =>
                     {
                         if (string.IsNullOrWhiteSpace(p.Key)) return false;
-                        // Split path into segments and check each
                         string[] parts = p.Key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                         foreach (string part in parts)
                         {
@@ -529,7 +355,7 @@ namespace XRoadFolkWeb.Pages
                     ok = true,
                     publicId,
                     raw = xml,
-                    pretty = PrettyFormatXml(xml),
+                    pretty = PeopleXmlParser.FormatPretty(xml),
                     details = filtered.Select(p => new { key = p.Key, value = p.Value }).ToArray()
                 });
             }

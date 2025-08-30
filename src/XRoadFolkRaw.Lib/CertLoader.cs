@@ -40,13 +40,47 @@ namespace XRoadFolkRaw.Lib
 
             throw new InvalidOperationException("No certificate configured.");
         }
+
         public static X509Certificate2 LoadFromPfx(string path, string? password = null)
         {
             ArgumentNullException.ThrowIfNull(path);
-            return !File.Exists(path)
-                ? throw new FileNotFoundException($"PFX not found '{path}'", path)
-                : new X509Certificate2(path, password ?? string.Empty, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+
+            // When a relative path is provided, try to resolve it against common base dirs
+            string? resolved = ResolvePathCandidates(path);
+            if (resolved is null)
+            {
+                throw new FileNotFoundException($"PFX not found '{path}'", path);
+            }
+
+            return new X509Certificate2(resolved, password ?? string.Empty,
+                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
+
+        private static string? ResolvePathCandidates(string path)
+        {
+            if (Path.IsPathRooted(path))
+            {
+                return File.Exists(path) ? path : null;
+            }
+
+            // Try as-given (relative to current working dir)
+            if (File.Exists(path)) return Path.GetFullPath(path);
+
+            // Try next to the app binaries (bin folder)
+            string binPath = Path.Combine(AppContext.BaseDirectory, path);
+            if (File.Exists(binPath)) return binPath;
+
+            // Try under a Resources folder next to the app binaries
+            string binRes = Path.Combine(AppContext.BaseDirectory, "Resources", Path.GetFileName(path));
+            if (File.Exists(binRes)) return binRes;
+
+            // Try relative to the current directory explicitly
+            string cwdPath = Path.Combine(Directory.GetCurrentDirectory(), path);
+            if (File.Exists(cwdPath)) return cwdPath;
+
+            return null;
+        }
+
         public static X509Certificate2 LoadFromPem(string certPath, string keyPath)
         {
             ArgumentNullException.ThrowIfNull(certPath);

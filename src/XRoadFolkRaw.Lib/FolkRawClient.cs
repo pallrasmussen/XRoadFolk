@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
+using System.Reflection;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -110,11 +111,48 @@ namespace XRoadFolkRaw.Lib
             }
         }
 
+        private static string? GetBuiltInTemplate(string fileName)
+        {
+            return fileName switch
+            {
+                "Login.xml" => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\n                  xmlns:id=\"http://x-road.eu/xsd/identifiers\"\n                  xmlns:xrd=\"http://x-road.eu/xsd/xroad.xsd\"\n                  xmlns:prod=\"http://us-folk-v2.x-road.eu/producer\">\n  <soapenv:Header>\n    <xrd:protocolVersion>4.0</xrd:protocolVersion>\n    <xrd:id></xrd:id>\n    <xrd:client id:objectType=\"SUBSYSTEM\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n    </xrd:client>\n    <xrd:service id:objectType=\"SERVICE\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n      <id:serviceCode>Login</id:serviceCode>\n      <id:serviceVersion>v1</id:serviceVersion>\n    </xrd:service>\n  </soapenv:Header>\n  <soapenv:Body>\n    <prod:Login>\n      <request>\n        <username></username>\n        <password></password>\n      </request>\n    </prod:Login>\n  </soapenv:Body>\n</soapenv:Envelope>\n",
+                "GetPeoplePublicInfo.xml" => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\n                  xmlns:id=\"http://x-road.eu/xsd/identifiers\"\n                  xmlns:xrd=\"http://x-road.eu/xsd/xroad.xsd\"\n                  xmlns:prod=\"http://us-folk-v2.x-road.eu/producer\">\n  <soapenv:Header>\n    <xrd:protocolVersion>4.0</xrd:protocolVersion>\n    <xrd:id></xrd:id>\n    <xrd:client id:objectType=\"SUBSYSTEM\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n    </xrd:client>\n    <xrd:service id:objectType=\"SERVICE\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n      <id:serviceCode>GetPeoplePublicInfo</id:serviceCode>\n      <id:serviceVersion>v1</id:serviceVersion>\n    </xrd:service>\n  </soapenv:Header>\n  <soapenv:Body>\n    <prod:GetPeoplePublicInfo>\n      <request>\n        <requestBody>\n          <ListOfPersonPublicInfoCriteria>\n            <PersonPublicInfoCriteria>\n              <SSN></SSN>\n              <FirstName></FirstName>\n              <LastName></LastName>\n              <DateOfBirth></DateOfBirth>\n            </PersonPublicInfoCriteria>\n          </ListOfPersonPublicInfoCriteria>\n        </requestBody>\n        <requestHeader>\n          <token></token>\n        </requestHeader>\n      </request>\n    </prod:GetPeoplePublicInfo>\n  </soapenv:Body>\n</soapenv:Envelope>\n",
+                "GetPerson.xml" => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\n                  xmlns:id=\"http://x-road.eu/xsd/identifiers\"\n                  xmlns:xrd=\"http://x-road.eu/xsd/xroad.xsd\"\n                  xmlns:prod=\"http://us-folk-v2.x-road.eu/producer\">\n  <soapenv:Header>\n    <xrd:protocolVersion>4.0</xrd:protocolVersion>\n    <xrd:id></xrd:id>\n    <xrd:client id:objectType=\"SUBSYSTEM\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n    </xrd:client>\n    <xrd:service id:objectType=\"SERVICE\">\n      <id:xRoadInstance></id:xRoadInstance>\n      <id:memberClass></id:memberClass>\n      <id:memberCode></id:memberCode>\n      <id:subsystemCode></id:subsystemCode>\n      <id:serviceCode>GetPerson</id:serviceCode>\n      <id:serviceVersion>v1</id:serviceVersion>\n    </xrd:service>\n  </soapenv:Header>\n  <soapenv:Body>\n    <prod:GetPerson>\n      <request>\n        <requestBody>\n        </requestBody>\n        <requestHeader>\n          <token></token>\n        </requestHeader>\n      </request>\n    </prod:GetPerson>\n  </soapenv:Body>\n</soapenv:Envelope>\n",
+                _ => null
+            };
+        }
+
         private XDocument LoadTemplate(string path)
         {
             return _templateCache.GetOrAdd(path, p =>
             {
-                return !File.Exists(p) ? throw new FileNotFoundException($"{p} not found", p) : XDocument.Load(p);
+                // 1) Try file path
+                if (File.Exists(p))
+                {
+                    return XDocument.Load(p);
+                }
+
+                // 2) Try embedded resource from Lib
+                string fileName = Path.GetFileName(p);
+                Assembly asm = typeof(FolkRawClient).Assembly;
+                string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
+                if (res is not null)
+                {
+                    using Stream? s = asm.GetManifestResourceStream(res);
+                    if (s is not null)
+                    {
+                        return XDocument.Load(s);
+                    }
+                }
+
+                // 3) Built-in fallback templates
+                string? xml = GetBuiltInTemplate(fileName);
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    return XDocument.Parse(xml);
+                }
+
+                throw new FileNotFoundException($"{p} not found", p);
             });
         }
 
