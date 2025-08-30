@@ -1,6 +1,0 @@
-/* Allow flex/grid children to shrink even with long content */
-.min-w-0 { min-width: 0; }
-
-@media (max-width: 575.98px) {
-  .gpiv-card .gpiv-viewport { max-height: 55vh; }
-}

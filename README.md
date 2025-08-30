@@ -1,43 +1,83 @@
-# XRoadFolk
+# XRoadFolk (Razor Pages)
 
-## Project Goals
-XRoadFolk is a .NET console application and supporting library for interacting with X-Road services. It demonstrates how to perform raw requests against a Folk registry service and display the results in a simple console UI.
+## Overview
+XRoadFolk is a .NET 8 web application built with ASP.NET Core Razor Pages. It provides a UI for querying people data via X-Road SOAP services using a shared library.
+
+- Web UI: src/XRoadFolkWeb
+- Shared client library: src/XRoadFolkRaw.Lib (SOAP client, options, logging)
+
+The older console UI referenced in prior versions has been removed. Use the Razor Pages app.
 
 ## Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/) is required to build and run the solution.
-- Access to a valid X-Road environment and client certificate (PFX or PEM).
+- .NET 8 SDK
+- Access to an X-Road endpoint and client certificate (PFX or PEM) if required
+
+## Quick start
+From the repository root:
+
+```bash
+# run the web app
+dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj
+```
+
+Open http://localhost:5000 or https://localhost:7000 (default Kestrel ports).
 
 ## Configuration
-Application settings are read from `src/XRoadFolkRaw/appsettings.json` with optional overrides from `appsettings.Development.json` or `appsettings.Production.json`. Use the following fields to configure your X-Road endpoint, credentials, and client details. Environment variables can override JSON settings:
+The web app loads default X‑Road settings from the library at startup, then applies appsettings and environment overrides.
 
-### Certificate Configuration
-Provide a client certificate either as a single PFX file or as a PEM certificate/key pair.
-- JSON settings: `XRoad:Certificate:PfxPath`, `XRoad:Certificate:PfxPassword`, `XRoad:Certificate:PemCertPath`, `XRoad:Certificate:PemKeyPath`.
-- Environment variables: `XR_PFX_PATH`, `XR_PFX_PASSWORD`, `XR_PEM_CERT_PATH`, `XR_PEM_KEY_PATH`.
+- Appsettings: src/XRoadFolkWeb/appsettings.json (+ appsettings.Development.json)
+- Important sections:
+  - XRoad: base URL, client/service identifiers, headers, auth, certificate
+  - Operations:GetPeoplePublicInfo:XmlPath (template path)
+  - Operations:GetPerson:XmlPath (template path)
+  - Operations:GetPerson:Request
+    - Include (boolean switches) or Include flags via GetPersonRequestOptions.Include
+  - Localization (DefaultCulture, SupportedCultures, optional FallbackMap)
+  - Logging (MaskTokens, Verbose)
 
-### Environment Variables
-- `XR_BASE_URL` – base URL for X-Road requests.
-- `XR_USER` / `XR_PASSWORD` – credentials used for authentication.
-- `XR_PFX_PATH` / `XR_PFX_PASSWORD` – PFX certificate path and password.
-- `XR_PEM_CERT_PATH` / `XR_PEM_KEY_PATH` – PEM certificate and key paths.
-- `DOTNET_ENVIRONMENT` – select which appsettings file to use (e.g. `Development`, `Production`).
+Environment variable overrides (examples):
+- XR_BASE_URL, XR_USER, XR_PASSWORD
+- XR_PFX_PATH / XR_PFX_PASSWORD or XR_PEM_CERT_PATH / XR_PEM_KEY_PATH
+- DOTNET_ENVIRONMENT=Development
 
-### Localization
-Supported cultures are configured in `src/XRoadFolkRaw/appsettings.json` under `Localization:SupportedCultures`. Set `Localization:Culture` to choose the default. To add a new culture, append its code (e.g. `"fr-FR"`) to the array and supply corresponding `.resx` files in `src/XRoadFolkRaw/Resources`.
+## Features
+- People search (SSN or First/Last + Date of Birth)
+- Detail panel via GetPerson with pretty-printed XML
+- Centralized include configuration helper merges boolean Include keys and flags
+- Request logging (Development) with static-asset filtering and PII redaction
+- SOAP logging sanitizer (SafeSoapLogger) masks secrets/tokens/SSN-like values
+- Localization with culture switch endpoint
 
-## Building and Running
-Restore dependencies and run the console application:
+## Diagnostics (Development only)
+- GET /__culture – shows configured and applied cultures
+- Logs endpoints (require IHttpLogStore):
+  - GET /logs?kind=http|soap|app
+  - POST /logs/clear
+  - POST /logs/write
+  - GET /logs/stream (Server-Sent Events)
+
+## Dependency Injection
+- PeopleService encapsulates X‑Road calls and token handling
+- PeopleResponseParser (singleton) parses/pretty-prints XML responses
+
+## Certificates
+Configure under XRoad:Certificate in appsettings (PFX or PEM). In Development, server certificate validation can be bypassed when enabled in configuration.
+
+## Build and test
 ```bash
-dotnet run --project src/XRoadFolkRaw
-```
-Press `Ctrl+Q` in the console to exit.
+# build all
+dotnet build
 
-## Running Tests
-Execute the test suite:
-```bash
-dotnet test src/XRoadFolkRaw.Tests
+# run web app
+dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj
+
+# run tests (if present)
+dotnet test
 ```
 
-## External Resources
-- [X-Road Documentation](https://x-road.global/documentation)
-- [X-Road GitHub Repository](https://github.com/nordic-institute/X-Road)
+## Repository layout
+- src/XRoadFolkWeb – Razor Pages app (Pages, Extensions, Features, Infrastructure)
+- src/XRoadFolkRaw.Lib – SOAP client, options, logging, configuration helpers
+
+## Notes
+The console application previously located under src/XRoadFolkRaw is no longer part of this solution. All usage is via the Razor Pages app.
