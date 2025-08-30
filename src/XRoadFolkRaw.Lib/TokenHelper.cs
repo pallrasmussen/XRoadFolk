@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Xml;
 using System.Xml.Linq;
+using System.IO;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -74,7 +76,16 @@ namespace XRoadFolkRaw.Lib
         {
             string xml = await _loginCall(ct).ConfigureAwait(false);
 
-            XDocument doc = XDocument.Parse(xml);
+            XmlReaderSettings settings = new()
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersFromEntities = 0,
+                MaxCharactersInDocument = 10 * 1024 * 1024
+            };
+            using XmlReader reader = XmlReader.Create(new StringReader(xml), settings);
+            XDocument doc = XDocument.Load(reader, LoadOptions.None);
+
             XElement? tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
             XElement? expEl = doc.Descendants().FirstOrDefault(e =>
                 e.Name.LocalName.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
@@ -88,26 +99,38 @@ namespace XRoadFolkRaw.Lib
 
             _token = tokenEl.Value.Trim();
 
-            _expiresUtc =
-                expEl != null &&
-                DateTimeOffset.TryParse(expEl.Value.Trim(), CultureInfo.InvariantCulture,
-                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                    out DateTimeOffset exp)
-                    ? exp.ToUniversalTime()
-                    : DateTimeOffset.UtcNow.AddMinutes(5);
+            if (expEl != null)
+            {
+                string txt = expEl.Value.Trim();
+                if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
+                {
+                    _expiresUtc = exp - _skew;
+                }
+                else if (long.TryParse(txt, out long seconds))
+                {
+                    _expiresUtc = DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew;
+                }
+                else
+                {
+                    _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
+                }
+            }
+            else
+            {
+                _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
+            }
 
-            string token = _token ?? throw new InvalidOperationException("Token not parsed.");
-            return token;
+            return _token;
         }
 
         private bool NeedsRefresh()
         {
-            return string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow.Add(_skew) >= _expiresUtc;
+            return string.IsNullOrWhiteSpace(_token) || DateTimeOffset.UtcNow >= _expiresUtc;
         }
 
         public void Dispose()
         {
-            _gate.Dispose();
+            // nothing to dispose here
         }
     }
 }

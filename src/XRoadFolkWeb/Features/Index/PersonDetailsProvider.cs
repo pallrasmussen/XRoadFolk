@@ -18,9 +18,9 @@ namespace XRoadFolkWeb.Features.Index
             _config = config;
         }
 
-        public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(string publicId, Microsoft.Extensions.Localization.IStringLocalizer loc)
+        public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(string publicId, Microsoft.Extensions.Localization.IStringLocalizer loc, CancellationToken ct = default)
         {
-            string xml = await _service.GetPersonAsync(publicId).ConfigureAwait(false);
+            string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
             List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
 
             // Filter out request header/body and noisy IDs

@@ -93,7 +93,7 @@ namespace XRoadFolkWeb.Pages
             {
                 try
                 {
-                    var res = await _details.GetAsync(publicId, _loc);
+                    var res = await _details.GetAsync(publicId, _loc, HttpContext?.RequestAborted ?? CancellationToken.None);
                     PersonDetails = res.Details;
                     SelectedNameSuffix = res.SelectedNameSuffix;
                 }
@@ -191,7 +191,6 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // Perform the operation
             try
             {
                 var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
@@ -244,7 +243,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                var res = await _details.GetAsync(publicId, _loc);
+                var res = await _details.GetAsync(publicId, _loc, HttpContext?.RequestAborted ?? CancellationToken.None);
                 return new JsonResult(new
                 {
                     ok = true,

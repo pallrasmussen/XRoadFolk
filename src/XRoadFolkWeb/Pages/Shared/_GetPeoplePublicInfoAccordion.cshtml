@@ -1,4 +1,6 @@
 @using System.Xml.Linq
+@using System.Xml
+@using System.IO
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     var raw = (string?)ViewData["RawXml"] ?? "";
@@ -12,7 +14,15 @@
     {
         try
         {
-            var doc = XDocument.Parse(xmlForSummary);
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersFromEntities = 0,
+                MaxCharactersInDocument = 10 * 1024 * 1024
+            };
+            using var reader = XmlReader.Create(new StringReader(xmlForSummary), settings);
+            var doc = XDocument.Load(reader, LoadOptions.None);
             string GetTextLocal(XElement owner, string name)
                 => owner.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value?.Trim() ?? string.Empty;
 
