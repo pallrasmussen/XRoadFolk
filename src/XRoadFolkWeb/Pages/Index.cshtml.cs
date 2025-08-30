@@ -205,14 +205,8 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // PRG: Redirect to GET with criteria in query string so Back never re-submits the form
-            return RedirectToPage(new
-            {
-                ssn = Ssn,
-                firstName = FirstName,
-                lastName = LastName,
-                dateOfBirth = DateOfBirth
-            });
+            // Do not leak criteria via query string; render results directly
+            return Page();
         }
 
         public IActionResult OnPostClear()

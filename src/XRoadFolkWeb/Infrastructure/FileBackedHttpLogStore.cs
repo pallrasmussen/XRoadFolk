@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using System.Threading;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,7 @@ namespace XRoadFolkWeb.Infrastructure
     public sealed partial class FileBackedHttpLogStore : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _ring = new();
+        private int _ringSize; // approximate size to avoid O(n) ConcurrentQueue.Count
         private readonly ILogFeed? _stream;
         private readonly int _maxQueue;
         private readonly bool _alwaysAllowWarnError;
@@ -44,15 +46,27 @@ namespace XRoadFolkWeb.Infrastructure
         internal ILogger Logger => _log;
 
         public int Capacity { get; }
-        public int Count => _ring.Count;
+        public int Count => Math.Min(Volatile.Read(ref _ringSize), Capacity);
 
         public void Add(LogEntry e)
         {
             ArgumentNullException.ThrowIfNull(e);
 
-            // Ring buffer
+            // Ring buffer (approximate size tracking to avoid O(n) Count)
             _ring.Enqueue(e);
-            while (_ring.Count > Capacity && _ring.TryDequeue(out _)) { }
+            int newSize = Interlocked.Increment(ref _ringSize);
+            int overflow = newSize - Capacity;
+            for (int i = 0; i < overflow; i++)
+            {
+                if (_ring.TryDequeue(out _))
+                {
+                    _ = Interlocked.Decrement(ref _ringSize);
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             try { _stream?.Publish(e); }
             catch (Exception ex)
@@ -89,6 +103,7 @@ namespace XRoadFolkWeb.Infrastructure
         public void Clear()
         {
             while (_ring.TryDequeue(out _)) { }
+            Volatile.Write(ref _ringSize, 0);
             // Note: file is not truncated here; call FileBackedLogWriter.ClearAsync for persistence if needed
         }
 
