@@ -110,6 +110,9 @@ namespace XRoadFolkWeb.Extensions
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
             _ = app.UseRequestLocalization(locOpts);
 
+            // Session for per-user cached data
+            _ = app.UseSession();
+
             // Emit a startup log entry (app kind)
             ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("App.Startup");

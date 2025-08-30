@@ -66,6 +66,16 @@ namespace XRoadFolkWeb.Pages
             return s.ResourceNotFound ? "An unexpected error occurred. Please try again later." : s.Value;
         }
 
+        private string GetScopedCacheKey()
+        {
+            string sid = HttpContext?.Session?.Id;
+            if (string.IsNullOrWhiteSpace(sid))
+            {
+                sid = HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString("N");
+            }
+            return $"{ResponseKey}|{sid}";
+        }
+
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -139,7 +149,8 @@ namespace XRoadFolkWeb.Pages
                     PeoplePublicInfoResponseXmlPretty = PeopleXmlParser.FormatPretty(xml);
                     Results = PeopleXmlParser.ParsePeopleList(xml);
 
-                    _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
+                    string key = GetScopedCacheKey();
+                    _ = _cache.Set(key, Results, new MemoryCacheEntryOptions
                     {
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
                     });
@@ -204,7 +215,8 @@ namespace XRoadFolkWeb.Pages
                 PeoplePublicInfoResponseXmlPretty = PeopleXmlParser.FormatPretty(xml);
                 Results = PeopleXmlParser.ParsePeopleList(xml);
 
-                _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
+                string key = GetScopedCacheKey();
+                _ = _cache.Set(key, Results, new MemoryCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
                 });

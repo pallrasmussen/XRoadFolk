@@ -14,7 +14,23 @@ namespace XRoadFolkWeb.Extensions
                 .AddPeopleServices()
                 .AddMvcCustomizations()
                 .AddHttpLogging(configuration)
-                .AddResponseCompressionDefaults();
+                .AddResponseCompressionDefaults()
+                .AddSessionServices();
+        }
+
+        private static IServiceCollection AddSessionServices(this IServiceCollection services)
+        {
+            services.AddDistributedMemoryCache();
+            services.AddSession(options =>
+            {
+                options.Cookie.Name = ".XRoadFolk.Session";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.IsEssential = true; // required for auth/csrf-related flows
+                options.IdleTimeout = TimeSpan.FromMinutes(30);
+            });
+            return services;
         }
     }
 }
