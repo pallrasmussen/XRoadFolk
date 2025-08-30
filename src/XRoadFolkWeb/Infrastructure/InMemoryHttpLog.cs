@@ -106,25 +106,34 @@ namespace XRoadFolkWeb.Infrastructure
         }
     }
 
-    public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store) : ILoggerProvider
+    public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store) : ILoggerProvider, ISupportExternalScope
     {
         private readonly IHttpLogStore _store = store ?? throw new ArgumentNullException(nameof(store));
+        private IExternalScopeProvider? _scopes;
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new SinkLogger(categoryName, _store);
+            return new SinkLogger(categoryName, _store, _scopes);
         }
 
         public void Dispose() { }
 
-        private sealed class SinkLogger(string category, IHttpLogStore store) : ILogger
+        public void SetScopeProvider(IExternalScopeProvider scopeProvider)
+        {
+            _scopes = scopeProvider;
+        }
+
+        private sealed class SinkLogger(string category, IHttpLogStore store, IExternalScopeProvider? scopes) : ILogger
         {
             private readonly string _category = category;
             private readonly IHttpLogStore _store = store;
+            private readonly IExternalScopeProvider? _scopes = scopes;
+
+            private sealed class NoopScope : IDisposable { public static readonly NoopScope Instance = new(); public void Dispose() { } }
 
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
-                return null;
+                return _scopes?.Push(state) ?? NoopScope.Instance;
             }
 
             public bool IsEnabled(LogLevel logLevel)
@@ -145,6 +154,36 @@ namespace XRoadFolkWeb.Infrastructure
                     : "app";
             }
 
+            private static string? RenderScopes(IExternalScopeProvider? provider)
+            {
+                if (provider is null) return null;
+                StringBuilder sb = new();
+                bool first = true;
+                provider.ForEachScope<object?>((scope, _) =>
+                {
+                    if (!first) sb.Append(" => ");
+                    switch (scope)
+                    {
+                        case IEnumerable<KeyValuePair<string, object?>> kvs:
+                            bool firstKv = true;
+                            sb.Append('{');
+                            foreach (var kv in kvs)
+                            {
+                                if (!firstKv) sb.Append(", ");
+                                sb.Append(kv.Key).Append('=').Append(kv.Value);
+                                firstKv = false;
+                            }
+                            sb.Append('}');
+                            break;
+                        default:
+                            sb.Append(scope?.ToString());
+                            break;
+                    }
+                    first = false;
+                }, null);
+                return sb.Length == 0 ? null : sb.ToString();
+            }
+
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
                 if (!IsEnabled(logLevel))
@@ -154,6 +193,12 @@ namespace XRoadFolkWeb.Infrastructure
 
                 string msg = formatter(state, exception);
                 string kind = ComputeKind(_category, eventId, msg);
+                string? scopes = RenderScopes(_scopes);
+                if (!string.IsNullOrEmpty(scopes))
+                {
+                    msg = string.Concat(msg, " | scopes: ", scopes);
+                }
+
                 _store.Add(new LogEntry
                 {
                     Timestamp = DateTimeOffset.Now,

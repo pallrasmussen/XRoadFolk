@@ -205,99 +205,102 @@ namespace XRoadFolkWeb.Extensions
 
             _ = app.MapRazorPages();
 
-            // Logs endpoints (defensive when store/feed not registered)
-            _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>
+            // Logs endpoints (defensive when store/feed not registered) - restrict to Development environment
+            if (envCurrent.IsDevelopment())
             {
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null)
+                _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>
                 {
-                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
-                IReadOnlyList<LogEntry> items = store.GetAll();
-                if (!string.IsNullOrWhiteSpace(kind))
-                {
-                    items = [.. items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase))];
-                }
-                return Results.Json(new { ok = true, items });
-            });
-
-            _ = app.MapPost("/logs/clear", (HttpContext ctx) =>
-            {
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null)
-                {
-                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
-                store.Clear();
-                return Results.Json(new { ok = true });
-            });
-
-            _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, HttpContext ctx) =>
-            {
-                if (dto is null)
-                {
-                    return Results.BadRequest();
-                }
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null)
-                {
-                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
-                if (!Enum.TryParse(dto.Level ?? "Information", true, out LogLevel lvl))
-                {
-                    lvl = LogLevel.Information;
-                }
-                store.Add(new LogEntry
-                {
-                    Timestamp = DateTimeOffset.Now,
-                    Level = lvl,
-                    Category = dto.Category ?? "Manual",
-                    EventId = dto.EventId ?? 0,
-                    Kind = "app",
-                    Message = dto.Message ?? string.Empty,
-                    Exception = null
-                });
-                return Results.Json(new { ok = true });
-            });
-
-            // Server-Sent Events: real-time log stream (accepts kind filter)
-            _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
-            {
-                ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
-                if (stream is null)
-                {
-                    return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
-
-                ctx.Response.Headers.CacheControl = "no-cache";
-                ctx.Response.Headers.Connection = "keep-alive";
-                ctx.Response.Headers.Append("X-Accel-Buffering", "no");
-                ctx.Response.ContentType = "text/event-stream";
-
-                (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
-                try
-                {
-                    await foreach (LogEntry entry in reader.ReadAllAsync(ct))
+                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                    if (store is null)
                     {
-                        if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-                        string json = System.Text.Json.JsonSerializer.Serialize(entry);
-                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-                        await ctx.Response.Body.FlushAsync(ct);
+                        return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                     }
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                finally
-                {
-                    stream.Unsubscribe(id);
-                }
+                    IReadOnlyList<LogEntry> items = store.GetAll();
+                    if (!string.IsNullOrWhiteSpace(kind))
+                    {
+                        items = [.. items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase))];
+                    }
+                    return Results.Json(new { ok = true, items });
+                });
 
-                return Results.Empty;
-            });
+                _ = app.MapPost("/logs/clear", (HttpContext ctx) =>
+                {
+                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                    if (store is null)
+                    {
+                        return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    }
+                    store.Clear();
+                    return Results.Json(new { ok = true });
+                });
+
+                _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, HttpContext ctx) =>
+                {
+                    if (dto is null)
+                    {
+                        return Results.BadRequest();
+                    }
+                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                    if (store is null)
+                    {
+                        return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    }
+                    if (!Enum.TryParse(dto.Level ?? "Information", true, out LogLevel lvl))
+                    {
+                        lvl = LogLevel.Information;
+                    }
+                    store.Add(new LogEntry
+                    {
+                        Timestamp = DateTimeOffset.Now,
+                        Level = lvl,
+                        Category = dto.Category ?? "Manual",
+                        EventId = dto.EventId ?? 0,
+                        Kind = "app",
+                        Message = dto.Message ?? string.Empty,
+                        Exception = null
+                    });
+                    return Results.Json(new { ok = true });
+                });
+
+                // Server-Sent Events: real-time log stream (accepts kind filter)
+                _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
+                {
+                    ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
+                    if (stream is null)
+                    {
+                        return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    }
+
+                    ctx.Response.Headers.CacheControl = "no-cache";
+                    ctx.Response.Headers.Connection = "keep-alive";
+                    ctx.Response.Headers.Append("X-Accel-Buffering", "no");
+                    ctx.Response.ContentType = "text/event-stream";
+
+                    (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
+                    try
+                    {
+                        await foreach (LogEntry entry in reader.ReadAllAsync(ct))
+                        {
+                            if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                            string json = System.Text.Json.JsonSerializer.Serialize(entry);
+                            await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+                            await ctx.Response.Body.FlushAsync(ct);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    finally
+                    {
+                        stream.Unsubscribe(id);
+                    }
+
+                    return Results.Empty;
+                });
+            }
 
             // Culture defaults for threads (optional)
             CultureInfo culture = locOpts.DefaultRequestCulture.Culture;

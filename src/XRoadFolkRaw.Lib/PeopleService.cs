@@ -1,8 +1,11 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
+using System.Net.Http;
+using System.Xml;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkRaw.Lib
@@ -11,11 +14,12 @@ namespace XRoadFolkRaw.Lib
     public sealed partial class PeopleService : IDisposable
     {
         private static string ComputeKey(XRoadSettings s)
-        {
-            return string.Join("|", s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
-                                    s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
-                                    s.Auth.UserId, s.Auth.Username);
-        }
+            => string.Join("|",
+                s.BaseUrl ?? string.Empty,
+                s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
+                s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
+                s.Service.ServiceCode ?? string.Empty, s.Service.ServiceVersion ?? string.Empty,
+                s.Auth.UserId, s.Auth.Username);
 
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
@@ -64,32 +68,34 @@ namespace XRoadFolkRaw.Lib
             _client.PreloadTemplates([_loginXmlPath, _peopleInfoXmlPath, _personXmlPath]);
 
             TimeSpan refreshSkew = TimeSpan.FromSeconds(Math.Max(0, _cacheOptions.RefreshSkewSeconds));
-            _tokenProvider = new FolkTokenProviderRaw(client, ct => client.LoginAsync(
-                loginXmlPath: _loginXmlPath,
-                xId: Guid.NewGuid().ToString("N"),
-                userId: settings.Auth.UserId,
-                username: settings.Auth.Username ?? string.Empty,
-                password: settings.Auth.Password ?? string.Empty,
-                protocolVersion: settings.Headers.ProtocolVersion,
-                clientXRoadInstance: settings.Client.XRoadInstance,
-                clientMemberClass: settings.Client.MemberClass,
-                clientMemberCode: settings.Client.MemberCode,
-                clientSubsystemCode: settings.Client.SubsystemCode,
-                serviceXRoadInstance: settings.Service.XRoadInstance,
-                serviceMemberClass: settings.Service.MemberClass,
-                serviceMemberCode: settings.Service.MemberCode,
-                serviceSubsystemCode: settings.Service.SubsystemCode,
-                serviceCode: settings.Service.ServiceCode,
-                serviceVersion: settings.Service.ServiceVersion ?? "v1",
-                ct: ct
-            ), refreshSkew: refreshSkew);
+            _tokenProvider = new FolkTokenProviderRaw(
+                ct => client.LoginAsync(
+                    loginXmlPath: _loginXmlPath,
+                    xId: Guid.NewGuid().ToString("N"),
+                    userId: settings.Auth.UserId,
+                    username: settings.Auth.Username ?? string.Empty,
+                    password: settings.Auth.Password ?? string.Empty,
+                    protocolVersion: settings.Headers.ProtocolVersion,
+                    clientXRoadInstance: settings.Client.XRoadInstance,
+                    clientMemberClass: settings.Client.MemberClass,
+                    clientMemberCode: settings.Client.MemberCode,
+                    clientSubsystemCode: settings.Client.SubsystemCode,
+                    serviceXRoadInstance: settings.Service.XRoadInstance,
+                    serviceMemberClass: settings.Service.MemberClass,
+                    serviceMemberCode: settings.Service.MemberCode,
+                    serviceSubsystemCode: settings.Service.SubsystemCode,
+                    serviceCode: settings.Service.ServiceCode,
+                    serviceVersion: settings.Service.ServiceVersion ?? "v1",
+                    ct: ct
+                ),
+                refreshSkew: refreshSkew);
         }
 
         private async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
             string key = (_cacheOptions.KeyPrefix ?? "folk-token|") + ComputeKey(_settings);
 
-            if (_cache.TryGetValue(key, out string? token) && !string.IsNullOrWhiteSpace(token))
+            if (_cache.TryGetValue<string>(key, out string? token) && !string.IsNullOrWhiteSpace(token))
             {
                 LogTokenReused(_log);
                 return token;
@@ -105,7 +111,8 @@ namespace XRoadFolkRaw.Lib
             TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
                 ? ExpiresUtc - DateTimeOffset.UtcNow
                 : defaultTtl;
-            _ = _cache.Set(key, Token, new MemoryCacheEntryOptions
+
+            _cache.Set(key, Token, new MemoryCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = ttl
             });

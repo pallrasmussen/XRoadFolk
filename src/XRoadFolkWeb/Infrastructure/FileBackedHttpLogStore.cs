@@ -9,7 +9,7 @@ namespace XRoadFolkWeb.Infrastructure
     // - Maintains an in-memory ring buffer (Capacity)
     // - Persists entries to rolling log files
     // - Uses a bounded channel to provide back-pressure; warnings/errors bypass drops
-    public sealed class FileBackedHttpLogStore : IHttpLogStore
+    public sealed partial class FileBackedHttpLogStore : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _ring = new();
         private readonly ILogFeed? _stream;
@@ -40,6 +40,8 @@ namespace XRoadFolkWeb.Infrastructure
             _log = log;
         }
 
+        internal ILogger Logger => _log;
+
         public int Capacity { get; }
         public int Count => _ring.Count;
 
@@ -51,7 +53,11 @@ namespace XRoadFolkWeb.Infrastructure
             _ring.Enqueue(e);
             while (_ring.Count > Capacity && _ring.TryDequeue(out _)) { }
 
-            try { _stream?.Publish(e); } catch { }
+            try { _stream?.Publish(e); }
+            catch (Exception ex)
+            {
+                LogStreamPublishError(_log, ex);
+            }
 
             // Back-pressure: try to enqueue; if full and not important, it may drop the oldest
             if (!_channel.Writer.TryWrite(e))
@@ -83,10 +89,13 @@ namespace XRoadFolkWeb.Infrastructure
         internal string FilePath { get; }
         internal long MaxFileBytes { get; }
         internal int MaxRolls { get; }
+
+        [LoggerMessage(EventId = 6001, Level = LogLevel.Error, Message = "Error publishing log entry to stream")] 
+        private static partial void LogStreamPublishError(ILogger logger, Exception ex);
     }
 
     // Background worker that drains the channel and persists to file in batches
-    public sealed class FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts) : BackgroundService
+    public sealed partial class FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts) : BackgroundService
     {
         private readonly FileBackedHttpLogStore _store = store;
         private readonly IOptions<HttpLogOptions> _opts = opts;
@@ -124,9 +133,10 @@ namespace XRoadFolkWeb.Infrastructure
                     batch.Clear();
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // swallow; next iteration will retry
+                    // Log and retry later
+                    LogWriteBatchError(_store.Logger, ex);
                     batch.Clear();
                     await Task.Delay(flushInterval, stoppingToken).ConfigureAwait(false);
                 }
@@ -142,7 +152,7 @@ namespace XRoadFolkWeb.Infrastructure
                 _ = Directory.CreateDirectory(dir);
             }
 
-            RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls);
+            RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
             using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read);
             using StreamWriter sw = new(fs, Encoding.UTF8);
@@ -155,7 +165,7 @@ namespace XRoadFolkWeb.Infrastructure
             await fs.FlushAsync(ct).ConfigureAwait(false);
         }
 
-        private static void RollIfNeeded(string path, long maxBytes, int maxRolls)
+        private static void RollIfNeeded(string path, long maxBytes, int maxRolls, ILogger log)
         {
             try
             {
@@ -178,7 +188,10 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogRollError(log, ex, path);
+            }
         }
 
         // Optional helper to clear persisted logs
@@ -201,8 +214,20 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogClearError(_store.Logger, ex);
+            }
             return Task.CompletedTask;
         }
+
+        [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "Error writing HTTP log batch to file")]
+        private static partial void LogWriteBatchError(ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 6003, Level = LogLevel.Error, Message = "Error rolling HTTP log files for path '{Path}'")]
+        private static partial void LogRollError(ILogger logger, Exception ex, string Path);
+
+        [LoggerMessage(EventId = 6004, Level = LogLevel.Error, Message = "Error clearing persisted HTTP logs")]
+        private static partial void LogClearError(ILogger logger, Exception ex);
     }
 }

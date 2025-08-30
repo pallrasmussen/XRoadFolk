@@ -4,11 +4,9 @@ using System.Xml.Linq;
 namespace XRoadFolkRaw.Lib
 {
 
-    public sealed class FolkTokenProviderRaw(FolkRawClient client, Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
+    public sealed class FolkTokenProviderRaw(Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
     {
-        private readonly TimeSpan _skew = client is null
-            ? throw new ArgumentNullException(nameof(client))
-            : (refreshSkew ?? TimeSpan.Zero);
+        private readonly TimeSpan _skew = refreshSkew ?? TimeSpan.Zero;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly Func<CancellationToken, Task<string>> _loginCall = loginCall ?? throw new ArgumentNullException(nameof(loginCall));
 
