@@ -11,13 +11,14 @@ using XRoadFolkWeb.Validation;
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config) : PageModel
+    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config, ILogger<IndexModel> logger) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
         private readonly IMemoryCache _cache = cache;
         private readonly IConfiguration _config = config;
+        private readonly ILogger<IndexModel> _logger = logger;
 
         [BindProperty, Ssn]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
@@ -60,6 +61,12 @@ namespace XRoadFolkWeb.Pages
 
         private const string ResponseKey = "PeoplePublicInfoResponse";
 
+        private string GetFriendlyError()
+        {
+            LocalizedString s = _loc["UnexpectedError"];
+            return s.ResourceNotFound ? "An unexpected error occurred. Please try again later." : s.Value;
+        }
+
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -94,18 +101,17 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
-                    Errors.Add(ex.Message);
+                    _logger.LogError(ex, "Error loading person details for PublicId={PublicId}", publicId);
+                    Errors.Add(GetFriendlyError());
                 }
             }
 
-            // If any search criteria provided via GET, perform the search (PRG target)
             bool hasCriteria = !string.IsNullOrWhiteSpace(Ssn)
                             || !string.IsNullOrWhiteSpace(FirstName)
                             || !string.IsNullOrWhiteSpace(LastName)
                             || !string.IsNullOrWhiteSpace(DateOfBirth);
             if (hasCriteria)
             {
-                // Only validate the present path (SSN vs Name+DOB)
                 (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
                     InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
 
@@ -129,19 +135,17 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
-                    Errors.Add(ex.Message);
+                    _logger.LogError(ex, "Error executing people search (hasSsn={HasSsn})", !string.IsNullOrWhiteSpace(Ssn));
+                    Errors.Add(GetFriendlyError());
                 }
             }
         }
 
-        // Replace the ValidateCriteria call in OnPostAsync with this guarded version
         public async Task<IActionResult> OnPostAsync()
         {
-            // Clear person details on every new search
             PersonDetails = null;
             SelectedNameSuffix = string.Empty;
 
-            // Load enabled include keys once per request
             EnabledPersonIncludeKeys = ReadEnabledIncludeKeys();
 
             if (!ModelState.IsValid)
@@ -150,13 +154,11 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // Decide the input path:
             bool usingSsn = !string.IsNullOrWhiteSpace(Ssn);
             string? first = FirstName;
             string? last = LastName;
             string? dobInput = DateOfBirth;
 
-            // If SSN is empty, require First + Last + DOB (presence only here).
             if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
             {
                 LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
@@ -165,7 +167,6 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // Only validate the chosen path to avoid spurious cross-field errors
             (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
                 InputValidation.ValidateCriteria(
                     usingSsn ? Ssn : null,
@@ -185,7 +186,6 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // Perform the operation
             try
             {
                 string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
@@ -200,7 +200,8 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                Errors.Add(ex.Message);
+                _logger.LogError(ex, "Error executing people search (POST)");
+                Errors.Add(GetFriendlyError());
                 return Page();
             }
 
@@ -361,7 +362,8 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                return new JsonResult(new { ok = false, error = ex.Message });
+                _logger.LogError(ex, "Error loading person details for PublicId={PublicId}", publicId);
+                return new JsonResult(new { ok = false, error = GetFriendlyError() });
             }
         }
     }
