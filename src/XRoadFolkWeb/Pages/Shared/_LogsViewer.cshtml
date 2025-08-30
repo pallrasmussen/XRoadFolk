@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div class="input-group input-group-sm mb-2" style="max-width: 520px;">
+    <div class="input-group input-group-sm mb-2 logs-filter-group">
       <span class="input-group-text">Filter</span>
       <input type="text" class="form-control" id="logs-filter" placeholder="text…">
       <select class="form-select" id="logs-level">
@@ -28,12 +28,12 @@
       </select>
     </div>
 
-    <div class="table-responsive" style="max-height: 60vh; overflow: auto;">
+    <div class="table-responsive logs-table-container">
       <table class="table table-sm table-striped align-middle" id="logs-table">
-        <thead class="table-light position-sticky" style="top:0; z-index:1;">
+        <thead class="table-light position-sticky thead-sticky">
           <tr>
-            <th style="width: 12rem;">Timestamp (UTC)</th>
-            <th style="width: 8rem;">Level</th>
+            <th class="th-width-ts">Timestamp (UTC)</th>
+            <th class="th-width-lvl">Level</th>
             <th>Category</th>
             <th>Message</th>
           </tr>

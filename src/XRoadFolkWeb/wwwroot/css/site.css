@@ -91,3 +91,10 @@ pre { padding: .75rem; border-radius: .5rem; }
   --bs-accordion-color: inherit;
   --bs-accordion-bg: var(--bs-body-bg);
 }
+
+/* Logs viewer helpers (replace inline styles) */
+.logs-filter-group { max-width: 520px; }
+.logs-table-container { max-height: 60vh; overflow: auto; }
+.thead-sticky { top: 0; z-index: 1; }
+.th-width-ts { width: 12rem; }
+.th-width-lvl { width: 8rem; }

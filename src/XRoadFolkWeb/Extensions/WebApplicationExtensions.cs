@@ -158,7 +158,7 @@ namespace XRoadFolkWeb.Extensions
                                      $"script-src-elem 'self' 'nonce-{nonce}'; " +
                                      $"style-src 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
                                      $"style-src-elem 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
-                                     $"style-src-attr 'unsafe-inline'; " +
+                                     // removed style-src-attr 'unsafe-inline'
                                      "connect-src 'self'; " +
                                      "form-action 'self'; " +
                                      "upgrade-insecure-requests";
@@ -166,6 +166,23 @@ namespace XRoadFolkWeb.Extensions
                     }
                     return Task.CompletedTask;
                 });
+
+                await next();
+            });
+
+            // Disable caching of search results (Index page and related JSON endpoints)
+            _ = app.Use(async (ctx, next) =>
+            {
+                PathString p = ctx.Request.Path;
+                if (p.Equals("/", StringComparison.OrdinalIgnoreCase) ||
+                    p.Equals("/Index", StringComparison.OrdinalIgnoreCase) ||
+                    p.Equals("/Index/PersonDetails", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Set headers before the response starts
+                    ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                    ctx.Response.Headers.Pragma = "no-cache";
+                    ctx.Response.Headers.Expires = "0";
+                }
 
                 await next();
             });

@@ -9,11 +9,13 @@ using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Validation;
 using XRoadFolkWeb.Features.People;
 using XRoadFolkWeb.Features.Index;
+using System.Text.RegularExpressions;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public partial class IndexModel(
         PeopleSearchCoordinator search,
         PersonDetailsProvider details,
@@ -70,6 +72,15 @@ namespace XRoadFolkWeb.Pages
         // Expose enabled include keys to the view
         public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
 
+        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex PublicIdRegex();
+
+        private static bool IsValidPublicId(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            return PublicIdRegex().IsMatch(s);
+        }
+
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -88,17 +99,25 @@ namespace XRoadFolkWeb.Pages
             // Optional: load person details by PublicId (AJAX panel)
             if (!string.IsNullOrWhiteSpace(publicId))
             {
-                try
+                if (!IsValidPublicId(publicId))
                 {
-                    var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
-                    PersonDetails = res.Details;
-                    SelectedNameSuffix = res.SelectedNameSuffix;
+                    var msg = _loc["InvalidPublicId"]; // optional localization key
+                    Errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
                 }
-                catch (Exception ex)
+                else
                 {
-                    LogPersonDetailsError(_logger, ex, publicId);
-                    var msg = _loc["UnexpectedError"];
-                    Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
+                    try
+                    {
+                        var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
+                        PersonDetails = res.Details;
+                        SelectedNameSuffix = res.SelectedNameSuffix;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogPersonDetailsError(_logger, ex, publicId);
+                        var msg = _loc["UnexpectedError"];
+                        Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
+                    }
                 }
             }
 
@@ -232,6 +251,13 @@ namespace XRoadFolkWeb.Pages
             {
                 LocalizedString msg = _loc["MissingPublicId"]; // expects localization resource key
                 string text = msg.ResourceNotFound ? "Missing publicId." : msg.Value;
+                return BadRequest(new { ok = false, error = text });
+            }
+
+            if (!IsValidPublicId(publicId))
+            {
+                var msg = _loc["InvalidPublicId"]; // expects localization resource key
+                string text = msg.ResourceNotFound ? "Invalid publicId." : msg.Value;
                 return BadRequest(new { ok = false, error = text });
             }
 
