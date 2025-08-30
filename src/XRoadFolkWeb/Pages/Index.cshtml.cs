@@ -9,14 +9,23 @@ using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Validation;
 using XRoadFolkWeb.Features.People;
+using XRoadFolkWeb.Features.Index;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config, PeopleResponseParser parser) : PageModel
+    public class IndexModel(
+        PeopleSearchCoordinator search,
+        PersonDetailsProvider details,
+        IStringLocalizer<InputValidation> valLoc,
+        IStringLocalizer<IndexModel> loc,
+        IMemoryCache cache,
+        IConfiguration config,
+        PeopleResponseParser parser) : PageModel
     {
-        private readonly PeopleService _service = service;
+        private readonly PeopleSearchCoordinator _search = search;
+        private readonly PersonDetailsProvider _details = details;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
         private readonly IMemoryCache _cache = cache;
@@ -84,16 +93,9 @@ namespace XRoadFolkWeb.Pages
             {
                 try
                 {
-                    string xml = await _service.GetPersonAsync(publicId);
-                    PersonDetails = _parser.FlattenResponse(xml);
-
-                    string? first = PersonDetails
-                        ?.FirstOrDefault(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
-                    string? last = PersonDetails
-                        ?.FirstOrDefault(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
-                    SelectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
-                        ? _loc["SelectedNameSuffixFormat", string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
-                        : string.Empty;
+                    var res = await _details.GetAsync(publicId, _loc);
+                    PersonDetails = res.Details;
+                    SelectedNameSuffix = res.SelectedNameSuffix;
                 }
                 catch (Exception ex)
                 {
@@ -120,15 +122,10 @@ namespace XRoadFolkWeb.Pages
 
                 try
                 {
-                    string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
-                    PeoplePublicInfoResponseXml = xml;
-                    PeoplePublicInfoResponseXmlPretty = _parser.PrettyFormatXml(xml);
-                    Results = _parser.ParsePeopleList(xml);
-
-                    _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
-                    });
+                    var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                    PeoplePublicInfoResponseXml = res.Xml;
+                    PeoplePublicInfoResponseXmlPretty = res.Pretty;
+                    Results = res.Results;
                 }
                 catch (Exception ex)
                 {
@@ -137,7 +134,6 @@ namespace XRoadFolkWeb.Pages
             }
         }
 
-        // Replace the ValidateCriteria call in OnPostAsync with this guarded version
         public async Task<IActionResult> OnPostAsync()
         {
             // Clear person details on every new search
@@ -191,15 +187,10 @@ namespace XRoadFolkWeb.Pages
             // Perform the operation
             try
             {
-                string xml = await _service.GetPeoplePublicInfoAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
-                PeoplePublicInfoResponseXml = xml;
-                PeoplePublicInfoResponseXmlPretty = _parser.PrettyFormatXml(xml);
-                Results = _parser.ParsePeopleList(xml);
-
-                _ = _cache.Set(ResponseKey, Results, new MemoryCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
-                });
+                var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob);
+                PeoplePublicInfoResponseXml = res.Xml;
+                PeoplePublicInfoResponseXmlPretty = res.Pretty;
+                Results = res.Results;
             }
             catch (Exception ex)
             {
@@ -243,70 +234,14 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                string xml = await _service.GetPersonAsync(publicId);
-                List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
-
-                // Filter out any RequestHeader/requestBody content (any level, case-insensitive)
-                List<(string Key, string Value)> filtered = pairs
-                    .Where(p =>
-                    {
-                        if (string.IsNullOrEmpty(p.Key)) return true;
-                        string k = p.Key;
-                        return !(k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
-                              || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
-                              || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
-                              || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase));
-                    })
-                    // Also remove the same noise fields used by Summary: Id, Fixed, AuthorityCode, PersonAddressId
-                    .Where(p =>
-                    {
-                        if (string.IsNullOrEmpty(p.Key)) return true;
-                        string key = p.Key;
-                        int lastDot = key.LastIndexOf('.');
-                        string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
-                        int bpos = sub.IndexOf('[');
-                        if (bpos >= 0) sub = sub[..bpos];
-                        string s = sub.ToLowerInvariant();
-                        return s != "id" && s != "fixed" && s != "authoritycode" && s != "personaddressid";
-                    })
-                    .ToList();
-
-                // Build allow-list from centralized helper
-                HashSet<string> allowed = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
-
-                if (allowed.Count > 0)
-                {
-                    // Relaxed matching: equal or prefix match either way (to handle plural/list variants)
-                    static bool Matches(string seg, string allowedKey)
-                    {
-                        return seg.Equals(allowedKey, StringComparison.OrdinalIgnoreCase)
-                            || seg.StartsWith(allowedKey, StringComparison.OrdinalIgnoreCase)
-                            || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    filtered = filtered.Where(p =>
-                    {
-                        if (string.IsNullOrWhiteSpace(p.Key)) return false;
-                        string key = p.Key;
-                        int dot = key.IndexOf('.');
-                        string seg = dot >= 0 ? key[..dot] : key;
-                        int bpos = seg.IndexOf('[');
-                        if (bpos >= 0) seg = seg[..bpos];
-                        foreach (string a in allowed)
-                        {
-                            if (Matches(seg, a)) return true;
-                        }
-                        return false;
-                    }).ToList();
-                }
-
+                var res = await _details.GetAsync(publicId, _loc);
                 return new JsonResult(new
                 {
                     ok = true,
                     publicId,
-                    raw = xml,
-                    pretty = _parser.PrettyFormatXml(xml),
-                    details = filtered.Select(p => new { key = p.Key, value = p.Value }).ToArray()
+                    raw = string.Empty, // raw xml not returned here
+                    pretty = res.Pretty,
+                    details = res.Details.Select(p => new { key = p.Key, value = p.Value }).ToArray()
                 });
             }
             catch (Exception ex)

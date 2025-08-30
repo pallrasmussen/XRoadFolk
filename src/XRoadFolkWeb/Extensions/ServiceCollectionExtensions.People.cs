@@ -4,6 +4,7 @@ using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using Microsoft.Extensions.Caching.Memory;
 using XRoadFolkWeb.Features.People;
+using XRoadFolkWeb.Features.Index;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -15,6 +16,10 @@ public static partial class ServiceCollectionExtensions
 
         // Parser is stateless; register as singleton
         services.AddSingleton<PeopleResponseParser>();
+
+        // Index page helpers
+        services.AddScoped<PeopleSearchCoordinator>();
+        services.AddScoped<PersonDetailsProvider>();
 
         services.AddScoped(sp =>
         {
