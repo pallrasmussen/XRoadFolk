@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Configuration;
 using XRoadFolkRaw.Lib;
@@ -20,7 +19,6 @@ namespace XRoadFolkWeb.Pages
         PersonDetailsProvider details,
         IStringLocalizer<InputValidation> valLoc,
         IStringLocalizer<IndexModel> loc,
-        IMemoryCache cache,
         IConfiguration config,
         PeopleResponseParser parser,
         ILogger<IndexModel> logger) : PageModel
@@ -29,7 +27,6 @@ namespace XRoadFolkWeb.Pages
         private readonly PersonDetailsProvider _details = details;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
         private readonly IStringLocalizer<IndexModel> _loc = loc;
-        private readonly IMemoryCache _cache = cache; // used by dependent services
         private readonly IConfiguration _config = config;
         private readonly PeopleResponseParser _parser = parser;
         private readonly ILogger<IndexModel> _logger = logger;
