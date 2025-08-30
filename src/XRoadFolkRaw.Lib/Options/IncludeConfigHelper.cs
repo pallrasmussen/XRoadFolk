@@ -1,12 +1,27 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace XRoadFolkRaw.Lib.Options
 {
     public static class IncludeConfigHelper
     {
+        private sealed class CacheState
+        {
+            public CacheState(HashSet<string> baseKeys, IDisposable? registration)
+            {
+                BaseKeys = baseKeys;
+                Registration = registration; // kept to keep callback alive
+            }
+            public HashSet<string> BaseKeys { get; }
+            public IDisposable? Registration { get; }
+        }
+
+        private static readonly ConditionalWeakTable<IConfiguration, CacheState> Cache = new();
+
         // Returns the enabled include keys based on configuration:
         // - Operations:GetPerson:Request:Include boolean switches
         // - Operations:GetPerson:Request Include flags (GetPersonRequestOptions.Include)
@@ -14,6 +29,19 @@ namespace XRoadFolkRaw.Lib.Options
         {
             ArgumentNullException.ThrowIfNull(config);
 
+            CacheState state = Cache.GetValue(config, BuildState);
+
+            // Return a copy so callers cannot mutate cached set
+            HashSet<string> result = new(state.BaseKeys, StringComparer.OrdinalIgnoreCase);
+            if (includeSynonyms)
+            {
+                ApplySynonyms(result);
+            }
+            return result;
+        }
+
+        private static CacheState BuildState(IConfiguration config)
+        {
             HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
 
             IConfigurationSection incSec = config.GetSection("Operations:GetPerson:Request:Include");
@@ -39,13 +67,24 @@ namespace XRoadFolkRaw.Lib.Options
                 }
             }
 
-            if (includeSynonyms)
+            // Invalidate cache when configuration reloads
+            IChangeToken token = config.GetReloadToken();
+            IDisposable? registration = token.RegisterChangeCallback(static state =>
             {
-                // Common synonyms
-                if (set.Contains("Ssn")) set.Add("SSN");
-            }
+                try
+                {
+                    var cfg = (IConfiguration)state!;
+                    Cache.Remove(cfg);
+                }
+                catch { }
+            }, config);
 
-            return set;
+            return new CacheState(set, registration);
+        }
+
+        private static void ApplySynonyms(HashSet<string> set)
+        {
+            if (set.Contains("Ssn")) set.Add("SSN");
         }
     }
 }

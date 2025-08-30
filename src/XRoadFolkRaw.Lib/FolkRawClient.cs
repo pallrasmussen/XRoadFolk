@@ -7,6 +7,7 @@ using Polly;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using System.Reflection;
+using System.Text;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -127,7 +128,19 @@ namespace XRoadFolkRaw.Lib
 
             foreach (string path in paths)
             {
-                _ = LoadTemplate(path);
+                if (string.IsNullOrWhiteSpace(path)) continue;
+                try
+                {
+                    _ = LoadTemplate(path);
+                }
+                catch (FileNotFoundException)
+                {
+                    if (_log != null) LogTemplatePreloadMissing(_log, path);
+                }
+                catch (Exception ex)
+                {
+                    if (_log != null) LogTemplatePreloadFailed(_log, ex, path);
+                }
             }
         }
 
@@ -360,8 +373,7 @@ namespace XRoadFolkRaw.Lib
             string respText = await _retryPolicy.ExecuteAsync(async () =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
-                request.Content = new StringContent(xmlString);
-                request.Content.Headers.ContentType = new MediaTypeHeaderValue("text/xml") { CharSet = "utf-8" };
+                request.Content = new StringContent(xmlString, Encoding.UTF8, "text/xml");
                 using HttpResponseMessage response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 string text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return !response.IsSuccessStatusCode
@@ -400,6 +412,12 @@ namespace XRoadFolkRaw.Lib
         [LoggerMessage(EventId = 3, Level = LogLevel.Information,
                        Message = "[SOAP response] {Xml}")]
         static partial void LogSoapResponse(ILogger logger, string xml);
+
+        [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "SOAP template not found: '{Path}'. Skipping preload.")]
+        static partial void LogTemplatePreloadMissing(ILogger logger, string Path);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Failed to preload SOAP template: '{Path}'")]
+        static partial void LogTemplatePreloadFailed(ILogger logger, Exception ex, string Path);
 
         // Shared builder for GetPerson envelope/header/body
         private static (XDocument Doc, XElement RequestBody) PrepareGetPersonDocument(

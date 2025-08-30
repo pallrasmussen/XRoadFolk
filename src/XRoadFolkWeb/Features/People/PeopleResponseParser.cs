@@ -1,10 +1,11 @@
 using System.Xml.Linq;
 using System.Xml;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Features.People
 {
-    public sealed class PeopleResponseParser
+    public sealed partial class PeopleResponseParser
     {
         private readonly ILogger<PeopleResponseParser> _logger;
         private const int MaxElementDepth = 128; // reasonable anti-recursion cap
@@ -180,7 +181,7 @@ namespace XRoadFolkWeb.Features.People
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "PeopleResponseParser: ParsePeopleList failed (xmlLength={Length})", xml?.Length ?? 0);
+                LogParsePeopleListFailed(_logger, ex, xml?.Length ?? 0);
                 // malformed/unsafe XML -> return empty list
             }
             return rows;
@@ -252,7 +253,7 @@ namespace XRoadFolkWeb.Features.People
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "PeopleResponseParser: FlattenResponse failed (xmlLength={Length})", xml?.Length ?? 0);
+                LogFlattenResponseFailed(_logger, ex, xml?.Length ?? 0);
                 // malformed/unsafe XML -> return empty
             }
             return pairs;
@@ -268,10 +269,19 @@ namespace XRoadFolkWeb.Features.People
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "PeopleResponseParser: PrettyFormatXml failed (xmlLength={Length})", xml?.Length ?? 0);
+                LogPrettyFormatFailed(_logger, ex, xml?.Length ?? 0);
                 return xml;
             }
         }
+
+        [LoggerMessage(EventId = 5001, Level = LogLevel.Error, Message = "PeopleResponseParser: ParsePeopleList failed (xmlLength={Length})")]
+        private static partial void LogParsePeopleListFailed(ILogger logger, Exception ex, int Length);
+
+        [LoggerMessage(EventId = 5002, Level = LogLevel.Error, Message = "PeopleResponseParser: FlattenResponse failed (xmlLength={Length})")]
+        private static partial void LogFlattenResponseFailed(ILogger logger, Exception ex, int Length);
+
+        [LoggerMessage(EventId = 5003, Level = LogLevel.Warning, Message = "PeopleResponseParser: PrettyFormatXml failed (xmlLength={Length})")]
+        private static partial void LogPrettyFormatFailed(ILogger logger, Exception ex, int Length);
     }
 
     public sealed class PersonRow
