@@ -11,7 +11,7 @@ using XRoadFolkWeb.Validation;
 namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
-    public class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config, ILogger<IndexModel> logger) : PageModel
+    public sealed partial class IndexModel(PeopleService service, IStringLocalizer<InputValidation> valLoc, IStringLocalizer<IndexModel> loc, IMemoryCache cache, IConfiguration config, ILogger<IndexModel> logger) : PageModel
     {
         private readonly PeopleService _service = service;
         private readonly IStringLocalizer<InputValidation> _valLoc = valLoc;
@@ -101,7 +101,7 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error loading person details for PublicId={PublicId}", publicId);
+                    LogPersonDetailsError(_logger, publicId ?? string.Empty, ex);
                     Errors.Add(GetFriendlyError());
                 }
             }
@@ -135,7 +135,7 @@ namespace XRoadFolkWeb.Pages
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error executing people search (hasSsn={HasSsn})", !string.IsNullOrWhiteSpace(Ssn));
+                    LogPeopleSearchError(_logger, !string.IsNullOrWhiteSpace(Ssn), ex);
                     Errors.Add(GetFriendlyError());
                 }
             }
@@ -200,7 +200,7 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error executing people search (POST)");
+                LogPeopleSearchPostError(_logger, ex);
                 Errors.Add(GetFriendlyError());
                 return Page();
             }
@@ -362,9 +362,18 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading person details for PublicId={PublicId}", publicId);
+                LogPersonDetailsError(_logger, publicId ?? string.Empty, ex);
                 return new JsonResult(new { ok = false, error = GetFriendlyError() });
             }
         }
+
+        [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Error loading person details for PublicId={PublicId}")]
+        static partial void LogPersonDetailsError(ILogger logger, string PublicId, Exception ex);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Error executing people search (hasSsn={HasSsn})")]
+        static partial void LogPeopleSearchError(ILogger logger, bool HasSsn, Exception ex);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Error executing people search (POST)")]
+        static partial void LogPeopleSearchPostError(ILogger logger, Exception ex);
     }
 }

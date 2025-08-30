@@ -115,13 +115,13 @@ namespace XRoadFolkRaw.Lib
             if (!File.Exists(gpPath))
             {
                 // Do not fail: FolkRawClient has built-in fallback templates
-                log.LogWarning(loc[Messages.OperationsGetPeoplePublicInfoXmlPathNotFound, gpPath]);
+                MissingPeopleInfoTemplate(log, gpPath);
             }
 
             if (!File.Exists(personPath))
             {
                 // Do not fail: FolkRawClient has built-in fallback templates
-                log.LogWarning(loc[Messages.OperationsGetPersonXmlPathNotFound, personPath]);
+                MissingPersonTemplate(log, personPath);
             }
 
             string? pfx = xr.Certificate?.PfxPath;
@@ -194,5 +194,11 @@ namespace XRoadFolkRaw.Lib
 
         [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "X-Road service: SUBSYSTEM:{Service}")]
         static partial void ServiceSubsystem(ILogger logger, string service);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "GetPeoplePublicInfo XML path not found: '{Path}'. Using fallback template.")]
+        static partial void MissingPeopleInfoTemplate(ILogger logger, string path);
+
+        [LoggerMessage(EventId = 6, Level = LogLevel.Warning, Message = "GetPerson XML path not found: '{Path}'. Using fallback template.")]
+        static partial void MissingPersonTemplate(ILogger logger, string path);
     }
 }
