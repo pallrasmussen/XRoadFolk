@@ -40,19 +40,16 @@ namespace XRoadFolkWeb.Features.People
             public override string LocalName => _inner.LocalName;
             public override string Name => _inner.Name;
             public override string NamespaceURI => _inner.NamespaceURI;
-            public override XmlNameTable NameTable => _inner.NameTable!;
+            public override XmlNameTable? NameTable => _inner.NameTable;
             public override XmlNodeType NodeType => _inner.NodeType;
             public override string Prefix => _inner.Prefix;
             public override char QuoteChar => _inner.QuoteChar;
             public override ReadState ReadState => _inner.ReadState;
             public override string Value => _inner.Value;
-            public override string XmlLang => _inner.XmlLang;
+            public override string? XmlLang => _inner.XmlLang;
             public override XmlSpace XmlSpace => _inner.XmlSpace;
 
-            public override void Close()
-            {
-                _inner.Close();
-            }
+            public override void Close() => _inner.Close();
 
             protected override void Dispose(bool disposing)
             {
@@ -60,76 +57,20 @@ namespace XRoadFolkWeb.Features.People
                 base.Dispose(disposing);
             }
 
-            // Change the return type of GetAttribute(int i) from string? to string to match the base XmlReader signature
-            public override string GetAttribute(int i)
-            {
-                return _inner.GetAttribute(i);
-            }
-
-            public override string? GetAttribute(string name)
-            {
-                return _inner.GetAttribute(name);
-            }
-
-            public override string? GetAttribute(string name, string? namespaceURI)
-            {
-                return _inner.GetAttribute(name, namespaceURI);
-            }
-
-            public override string? LookupNamespace(string prefix)
-            {
-                return _inner.LookupNamespace(prefix);
-            }
-
-            public override bool MoveToAttribute(string name)
-            {
-                return _inner.MoveToAttribute(name);
-            }
-
-            public override bool MoveToAttribute(string name, string? ns)
-            {
-                return _inner.MoveToAttribute(name, ns);
-            }
-
-            public override bool MoveToElement()
-            {
-                return _inner.MoveToElement();
-            }
-
-            public override bool MoveToFirstAttribute()
-            {
-                return _inner.MoveToFirstAttribute();
-            }
-
-            public override bool MoveToNextAttribute()
-            {
-                return _inner.MoveToNextAttribute();
-            }
-
-            public override bool ReadAttributeValue()
-            {
-                return _inner.ReadAttributeValue();
-            }
-
-            public override void ResolveEntity()
-            {
-                _inner.ResolveEntity();
-            }
-
-            public override string ReadInnerXml()
-            {
-                return _inner.ReadInnerXml();
-            }
-
-            public override string ReadOuterXml()
-            {
-                return _inner.ReadOuterXml();
-            }
-
-            public override XmlReader ReadSubtree()
-            {
-                return new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
-            }
+            public override string? GetAttribute(int i) => _inner.GetAttribute(i);
+            public override string? GetAttribute(string name) => _inner.GetAttribute(name);
+            public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
+            public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
+            public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
+            public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
+            public override bool MoveToElement() => _inner.MoveToElement();
+            public override bool MoveToFirstAttribute() => _inner.MoveToFirstAttribute();
+            public override bool MoveToNextAttribute() => _inner.MoveToNextAttribute();
+            public override bool ReadAttributeValue() => _inner.ReadAttributeValue();
+            public override void ResolveEntity() => _inner.ResolveEntity();
+            public override string ReadInnerXml() => _inner.ReadInnerXml();
+            public override string ReadOuterXml() => _inner.ReadOuterXml();
+            public override XmlReader ReadSubtree() => new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Ownership of XmlReader is transferred to DepthLimitingXmlReader which disposes it; CloseInput ensures StringReader is disposed when reader is disposed.")]

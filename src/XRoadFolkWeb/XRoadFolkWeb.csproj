@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,17 @@
 
   <ItemGroup>
     <None Remove="..\XRoadFolkRaw.Lib\Resources\hnpv-cloudtar01.pfx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Roslynator.Analyzers" Version="4.12.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Meziantou.Analyzer" Version="2.0.158">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <!-- Remove any explicit EmbeddedResource entries to avoid duplicates.

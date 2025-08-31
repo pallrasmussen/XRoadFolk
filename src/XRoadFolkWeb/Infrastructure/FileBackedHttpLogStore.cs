@@ -49,7 +49,6 @@ namespace XRoadFolkWeb.Infrastructure
         internal ILogger Logger => _log;
 
         public int Capacity { get; }
-        public int Count => Math.Min(Volatile.Read(ref _ringSize), Capacity);
 
         public void Add(LogEntry e)
         {
@@ -132,7 +131,7 @@ namespace XRoadFolkWeb.Infrastructure
         {
             while (_ring.TryDequeue(out _)) { }
             Volatile.Write(ref _ringSize, 0);
-            // Note: file is not truncated here; call FileBackedLogWriter.ClearAsync for persistence if needed
+            // Note: file is not truncated here; persistence clearing is handled by the hosted writer on shutdown.
         }
 
         public IReadOnlyList<LogEntry> GetAll()
@@ -287,40 +286,10 @@ namespace XRoadFolkWeb.Infrastructure
             }
         }
 
-        // Optional helper to clear persisted logs
-        public Task ClearAsync()
-        {
-            try
-            {
-                string path = _store.FilePath;
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-
-                for (int i = 1; i <= _store.MaxRolls; i++)
-                {
-                    string roll = path + "." + i;
-                    if (File.Exists(roll))
-                    {
-                        File.Delete(roll);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogClearError(_store.Logger, ex);
-            }
-            return Task.CompletedTask;
-        }
-
         [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "Error writing HTTP log batch to file")]
         private static partial void LogWriteBatchError(ILogger logger, Exception ex);
 
         [LoggerMessage(EventId = 6003, Level = LogLevel.Error, Message = "Error rolling HTTP log files for path '{Path}'")]
         private static partial void LogRollError(ILogger logger, Exception ex, string Path);
-
-        [LoggerMessage(EventId = 6004, Level = LogLevel.Error, Message = "Error clearing persisted HTTP logs")]
-        private static partial void LogClearError(ILogger logger, Exception ex);
     }
 }
