@@ -13,7 +13,9 @@ namespace XRoadFolkWeb.Extensions
 {
     public static partial class WebApplicationExtensions
     {
-        // LoggerMessage delegates for performance
+        /// <summary>
+        /// LoggerMessage delegates for performance
+        /// </summary>
         private static readonly Action<ILogger, DateTimeOffset, Exception?> _logAppStarted =
             LoggerMessage.Define<DateTimeOffset>(
                 LogLevel.Information,
@@ -44,7 +46,9 @@ namespace XRoadFolkWeb.Extensions
         [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled)]
         private static partial Regex GuidRegex();
 
-        // Central lists to keep static asset detection maintainable
+        /// <summary>
+        /// Central lists to keep static asset detection maintainable
+        /// </summary>
         private static readonly string[] StaticPathPrefixes =
         [
             "/css/",
@@ -56,13 +60,13 @@ namespace XRoadFolkWeb.Extensions
             "/bootstrap",
             "/bootswatch",
             "/bootstrap-icons",
-            "/_framework/"
+            "/_framework/",
         ];
 
         private static readonly string[] StaticFileExtensions =
         [
             ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
-            ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json"
+            ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json",
         ];
 
         private static bool IsStaticAssetPath(string? path)
@@ -162,7 +166,7 @@ namespace XRoadFolkWeb.Extensions
                         const string GoogleFontsCss = "https://fonts.googleapis.com";
                         const string GoogleFontsStatic = "https://fonts.gstatic.com";
 
-                        string csp = "default-src 'self'; " +
+                        headers.ContentSecurityPolicy = "default-src 'self'; " +
                                      "base-uri 'self'; " +
                                      "frame-ancestors 'none'; " +
                                      "object-src 'none'; " +
@@ -176,7 +180,6 @@ namespace XRoadFolkWeb.Extensions
                                      "connect-src 'self'; " +
                                      "form-action 'self'; " +
                                      "upgrade-insecure-requests";
-                        headers.ContentSecurityPolicy = csp;
                     }
                     return Task.CompletedTask;
                 });
@@ -226,7 +229,7 @@ namespace XRoadFolkWeb.Extensions
                             Status = StatusCodes.Status500InternalServerError,
                             Title = "An unexpected error occurred.",
                             Type = "about:blank",
-                            Instance = context.Request?.Path
+                            Instance = context.Request?.Path,
                         };
                         problem.Extensions["traceId"] = traceId;
                         await context.Response.WriteAsJsonAsync(problem);
@@ -283,7 +286,7 @@ namespace XRoadFolkWeb.Extensions
             string defaultCulture = locCfg.DefaultCulture ?? string.Empty;
             IEnumerable<string> supportedList = locCfg.SupportedCultures ?? Enumerable.Empty<string>();
             string supported = string.Join(", ", supportedList);
-            _logLocalizationConfig(locLogger, defaultCulture, supported, null);
+            _logLocalizationConfig(locLogger, defaultCulture, supported, arg4: null);
 
             // Diagnostic endpoint to verify applied culture at runtime (Development only)
             if (app.Services.GetRequiredService<IHostEnvironment>().IsDevelopment())
@@ -298,14 +301,14 @@ namespace XRoadFolkWeb.Extensions
                         FromConfig = new
                         {
                             cfg.Value.DefaultCulture,
-                            cfg.Value.SupportedCultures
+                            cfg.Value.SupportedCultures,
                         },
                         Applied = new
                         {
                             Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
                             Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
                             Current = feature?.RequestCulture.Culture.Name,
-                            CurrentUI = feature?.RequestCulture.UICulture.Name
+                            CurrentUI = feature?.RequestCulture.UICulture.Name,
                         }
                     });
                 });
@@ -328,8 +331,7 @@ namespace XRoadFolkWeb.Extensions
 
                 // Validate requested culture
                 IOptions<RequestLocalizationOptions> locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
-                bool supported = locOpts.Value.SupportedUICultures != null &&
-                    locOpts.Value.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
+                bool supported = locOpts.Value.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
                 if (!supported)
                 {
                     return Results.BadRequest();
@@ -400,7 +402,7 @@ namespace XRoadFolkWeb.Extensions
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                     }
-                    if (!Enum.TryParse(dto.Level ?? "Information", true, out LogLevel lvl))
+                    if (!Enum.TryParse(dto.Level ?? "Information", ignoreCase: true, out LogLevel lvl))
                     {
                         lvl = LogLevel.Information;
                     }
@@ -412,7 +414,7 @@ namespace XRoadFolkWeb.Extensions
                         EventId = dto.EventId ?? 0,
                         Kind = "app",
                         Message = dto.Message ?? string.Empty,
-                        Exception = null
+                        Exception = null,
                     });
                     return Results.Json(new { ok = true });
                 });

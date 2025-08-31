@@ -19,4 +19,4 @@ WebApplication app = builder.Build();
 // Pipeline
 app.ConfigureRequestPipeline();
 
-app.Run();
+await app.RunAsync();

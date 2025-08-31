@@ -20,8 +20,13 @@ namespace XRoadFolkWeb.Extensions
             return services;
         }
 
-        // Registers IHttpLogStore and the custom logger provider.
-        // Chooses file-backed store with background writer when configured, otherwise in-memory.
+        /// <summary>
+        /// Registers IHttpLogStore and the custom logger provider.
+        /// Chooses file-backed store with background writer when configured, otherwise in-memory.
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
         public static IServiceCollection AddHttpLogging(this IServiceCollection services, IConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(configuration);

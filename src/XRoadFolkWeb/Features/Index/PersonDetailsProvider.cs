@@ -21,32 +21,33 @@ namespace XRoadFolkWeb.Features.Index
             string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
             List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
 
-            // Filter out request header/body and noisy IDs
+            // Replace the two consecutive .Where() calls with a single .Where() that combines both predicates
+
             List<(string Key, string Value)> filtered = [.. pairs
                 .Where(p =>
                 {
+                    // First predicate: filter out request header/body and noisy IDs
                     if (string.IsNullOrEmpty(p.Key))
                     {
                         return true;
                     }
 
                     string k = p.Key;
-                    return !(k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
-                          || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
-                          || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
-                          || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase));
-                })
-                .Where(p =>
-                {
-                    if (string.IsNullOrEmpty(p.Key))
+                    bool isHeaderOrBody = k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
+                        || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
+                        || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
+                        || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase);
+
+                    if (isHeaderOrBody)
                     {
-                        return true;
+                        return false;
                     }
 
+                    // Second predicate: filter out certain keys
                     string key = p.Key;
                     int lastDot = key.LastIndexOf('.');
                     string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
-                    int bpos = sub.IndexOf('[');
+                    int bpos = sub.IndexOf('[', StringComparison.Ordinal);
                     if (bpos >= 0)
                     {
                         sub = sub[..bpos];
@@ -54,10 +55,11 @@ namespace XRoadFolkWeb.Features.Index
 
                     string s = sub.ToLowerInvariant();
                     return s is not "id" and not "fixed" and not "authoritycode" and not "personaddressid";
-                })];
+                }),
+            ];
 
             // Include allow-list filter (use provided keys if present, else from configuration)
-            HashSet<string> allowed = (allowedIncludeKeys is not null && allowedIncludeKeys.Count > 0)
+            HashSet<string> allowed = (allowedIncludeKeys?.Count > 0)
                 ? new HashSet<string>(allowedIncludeKeys, StringComparer.OrdinalIgnoreCase)
                 : IncludeConfigHelper.GetEnabledIncludeKeys(_config);
 
@@ -78,9 +80,9 @@ namespace XRoadFolkWeb.Features.Index
                     }
 
                     string key = p.Key;
-                    int dot = key.IndexOf('.');
+                    int dot = key.IndexOf('.', StringComparison.Ordinal);
                     string seg = dot >= 0 ? key[..dot] : key;
-                    int bpos = seg.IndexOf('[');
+                    int bpos = seg.IndexOf('[', StringComparison.Ordinal);
                     if (bpos >= 0)
                     {
                         seg = seg[..bpos];
@@ -94,13 +96,13 @@ namespace XRoadFolkWeb.Features.Index
                         }
                     }
                     return false;
-                })];
+                }),];
             }
 
-            string? first = filtered.FirstOrDefault(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
-            string? last = filtered.FirstOrDefault(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
+            string? first = filtered.Find(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
+            string? last = filtered.Find(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
             string selectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
-                ? loc["SelectedNameSuffixFormat", string.Join(" ", new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
+                ? loc["SelectedNameSuffixFormat", string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                 : string.Empty;
 
             return (filtered, _parser.PrettyFormatXml(xml), selectedNameSuffix);
