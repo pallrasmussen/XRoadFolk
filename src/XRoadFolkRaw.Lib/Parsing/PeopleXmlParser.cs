@@ -1,7 +1,7 @@
 using System.Xml;
 using System.Xml.Linq;
 
-namespace XRoadFolkRaw.Lib
+namespace XRoadFolkRaw.Lib.Parsing
 {
     public static class PeopleXmlParser
     {
