@@ -210,10 +210,11 @@ namespace XRoadFolkWeb.Extensions
                 });
             });
 
-            // HTTPS redirection only outside Development to avoid broken local setups without HTTPS
+            // HTTPS + HSTS only outside Development
             IHostEnvironment envForHttps = app.Services.GetRequiredService<IHostEnvironment>();
             if (!envForHttps.IsDevelopment())
             {
+                _ = app.UseHsts();
                 _ = app.UseHttpsRedirection();
             }
 
