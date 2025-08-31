@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
-using System.Threading;
 using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
@@ -92,7 +91,7 @@ namespace XRoadFolkWeb.Infrastructure
             long now = Environment.TickCount64;
             long start = Volatile.Read(ref _rateWindowStartMs);
             long elapsed = unchecked(now - start);
-            if (elapsed >= 1000 || elapsed < 0)
+            if (elapsed is >= 1000 or < 0)
             {
                 Volatile.Write(ref _rateWindowStartMs, now);
                 Volatile.Write(ref _rateCount, 0);
@@ -208,27 +207,39 @@ namespace XRoadFolkWeb.Infrastructure
 
             private static string? RenderScopes(IExternalScopeProvider? provider)
             {
-                if (provider is null) return null;
+                if (provider is null)
+                {
+                    return null;
+                }
+
                 StringBuilder sb = new();
                 bool first = true;
                 provider.ForEachScope<object?>((scope, _) =>
                 {
-                    if (!first) sb.Append(" => ");
+                    if (!first)
+                    {
+                        _ = sb.Append(" => ");
+                    }
+
                     switch (scope)
                     {
                         case IEnumerable<KeyValuePair<string, object?>> kvs:
                             bool firstKv = true;
-                            sb.Append('{');
-                            foreach (var kv in kvs)
+                            _ = sb.Append('{');
+                            foreach (KeyValuePair<string, object?> kv in kvs)
                             {
-                                if (!firstKv) sb.Append(", ");
-                                sb.Append(kv.Key).Append('=').Append(kv.Value);
+                                if (!firstKv)
+                                {
+                                    _ = sb.Append(", ");
+                                }
+
+                                _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
                                 firstKv = false;
                             }
-                            sb.Append('}');
+                            _ = sb.Append('}');
                             break;
                         default:
-                            sb.Append(scope?.ToString());
+                            _ = sb.Append(scope?.ToString());
                             break;
                     }
                     first = false;

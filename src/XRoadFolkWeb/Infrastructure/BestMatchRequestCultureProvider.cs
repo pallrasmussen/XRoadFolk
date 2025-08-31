@@ -83,7 +83,7 @@ namespace XRoadFolkWeb.Infrastructure
                     idx++;
                 }
 
-                foreach (var it in items.OrderByDescending(i => i.Q).ThenBy(i => i.Index))
+                foreach ((string Tag, double Q, int Index) it in items.OrderByDescending(i => i.Q).ThenBy(i => i.Index))
                 {
                     string? match = ResolveCandidate(it.Tag);
                     if (match is not null)
@@ -98,7 +98,10 @@ namespace XRoadFolkWeb.Infrastructure
 
         private string? ResolveCandidate(string candidate)
         {
-            if (string.IsNullOrWhiteSpace(candidate)) return null;
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                return null;
+            }
 
             // Exact
             if (_supported.Contains(candidate))

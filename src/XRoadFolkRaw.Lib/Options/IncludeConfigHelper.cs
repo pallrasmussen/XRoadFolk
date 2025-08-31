@@ -1,26 +1,18 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace XRoadFolkRaw.Lib.Options
 {
     public static class IncludeConfigHelper
     {
-        private sealed class CacheState
+        private sealed class CacheState(HashSet<string> baseKeys, IDisposable? registration)
         {
-            public CacheState(HashSet<string> baseKeys, IDisposable? registration)
-            {
-                BaseKeys = baseKeys;
-                Registration = registration; // kept to keep callback alive
-            }
-            public HashSet<string> BaseKeys { get; }
-            public IDisposable? Registration { get; }
+            public HashSet<string> BaseKeys { get; } = baseKeys;
+            public IDisposable? Registration { get; } = registration; // kept to keep callback alive
         }
 
-        private static readonly ConditionalWeakTable<IConfiguration, CacheState> Cache = new();
+        private static readonly ConditionalWeakTable<IConfiguration, CacheState> Cache = [];
 
         // Returns the enabled include keys based on configuration:
         // - Operations:GetPerson:Request:Include boolean switches
@@ -49,7 +41,7 @@ namespace XRoadFolkRaw.Lib.Options
             {
                 if (bool.TryParse(c.Value, out bool on) && on)
                 {
-                    set.Add(c.Key);
+                    _ = set.Add(c.Key);
                 }
             }
 
@@ -58,11 +50,18 @@ namespace XRoadFolkRaw.Lib.Options
             {
                 foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
                 {
-                    if (flag == GetPersonInclude.None) continue;
+                    if (flag == GetPersonInclude.None)
+                    {
+                        continue;
+                    }
+
                     if ((req.Include & flag) == flag)
                     {
                         string? name = Enum.GetName(flag);
-                        if (!string.IsNullOrEmpty(name)) set.Add(name);
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            _ = set.Add(name);
+                        }
                     }
                 }
             }
@@ -73,8 +72,8 @@ namespace XRoadFolkRaw.Lib.Options
             {
                 try
                 {
-                    var cfg = (IConfiguration)state!;
-                    Cache.Remove(cfg);
+                    IConfiguration cfg = (IConfiguration)state!;
+                    _ = Cache.Remove(cfg);
                 }
                 catch { }
             }, config);
@@ -84,7 +83,10 @@ namespace XRoadFolkRaw.Lib.Options
 
         private static void ApplySynonyms(HashSet<string> set)
         {
-            if (set.Contains("Ssn")) set.Add("SSN");
+            if (set.Contains("Ssn"))
+            {
+                _ = set.Add("SSN");
+            }
         }
     }
 }

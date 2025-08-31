@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
@@ -128,18 +127,28 @@ namespace XRoadFolkRaw.Lib
 
             foreach (string path in paths)
             {
-                if (string.IsNullOrWhiteSpace(path)) continue;
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    continue;
+                }
+
                 try
                 {
                     _ = LoadTemplate(path);
                 }
                 catch (FileNotFoundException)
                 {
-                    if (_log != null) LogTemplatePreloadMissing(_log, path);
+                    if (_log != null)
+                    {
+                        LogTemplatePreloadMissing(_log, path);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    if (_log != null) LogTemplatePreloadFailed(_log, ex, path);
+                    if (_log != null)
+                    {
+                        LogTemplatePreloadFailed(_log, ex, path);
+                    }
                 }
             }
         }
@@ -479,7 +488,11 @@ namespace XRoadFolkRaw.Lib
 
             // Token in requestHeader
             XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
-            if (requestHeader.Parent == null) requestEl.Add(requestHeader);
+            if (requestHeader.Parent == null)
+            {
+                requestEl.Add(requestHeader);
+            }
+
             SetChildValue(requestHeader, "token", token);
 
             return (doc, requestBodyEl);
@@ -531,7 +544,7 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(xmlPath));
-            var prepared = PrepareGetPersonDocument(
+            (XDocument Doc, XElement RequestBody) = PrepareGetPersonDocument(
                 doc,
                 xId,
                 userId,
@@ -548,7 +561,7 @@ namespace XRoadFolkRaw.Lib
                 serviceVersion,
                 token);
 
-            XElement requestBodyEl = prepared.RequestBody;
+            XElement requestBodyEl = RequestBody;
 
             // Identifiers from parameters
             if (!string.IsNullOrWhiteSpace(publicId))
@@ -615,7 +628,7 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(xmlPath));
-            var prepared = PrepareGetPersonDocument(
+            (XDocument Doc, XElement RequestBody) = PrepareGetPersonDocument(
                 doc,
                 xId,
                 userId,
@@ -632,7 +645,7 @@ namespace XRoadFolkRaw.Lib
                 serviceVersion,
                 token);
 
-            XElement requestBodyEl = prepared.RequestBody;
+            XElement requestBodyEl = RequestBody;
 
             // Identifiers from options
             if (!string.IsNullOrWhiteSpace(options?.Id))

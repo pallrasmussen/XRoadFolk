@@ -64,19 +64,31 @@ namespace XRoadFolkRaw.Lib
             }
 
             // Try as-given (relative to current working dir)
-            if (File.Exists(path)) return Path.GetFullPath(path);
+            if (File.Exists(path))
+            {
+                return Path.GetFullPath(path);
+            }
 
             // Try next to the app binaries (bin folder)
             string binPath = Path.Combine(AppContext.BaseDirectory, path);
-            if (File.Exists(binPath)) return binPath;
+            if (File.Exists(binPath))
+            {
+                return binPath;
+            }
 
             // Try under a Resources folder next to the app binaries
             string binRes = Path.Combine(AppContext.BaseDirectory, "Resources", Path.GetFileName(path));
-            if (File.Exists(binRes)) return binRes;
+            if (File.Exists(binRes))
+            {
+                return binRes;
+            }
 
             // Try relative to the current directory explicitly
             string cwdPath = Path.Combine(Directory.GetCurrentDirectory(), path);
-            if (File.Exists(cwdPath)) return cwdPath;
+            if (File.Exists(cwdPath))
+            {
+                return cwdPath;
+            }
 
             return null;
         }

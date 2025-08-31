@@ -1,31 +1,18 @@
 using System.Xml.Linq;
 using System.Xml;
-using System.IO;
-using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Features.People
 {
-    public sealed partial class PeopleResponseParser
+    public sealed partial class PeopleResponseParser(ILogger<PeopleResponseParser> logger)
     {
-        private readonly ILogger<PeopleResponseParser> _logger;
+        private readonly ILogger<PeopleResponseParser> _logger = logger;
         private const int MaxElementDepth = 128; // reasonable anti-recursion cap
 
-        public PeopleResponseParser(ILogger<PeopleResponseParser> logger)
-        {
-            _logger = logger;
-        }
-
         // Wrapper that enforces a maximum element depth while delegating to the inner reader
-        private sealed class DepthLimitingXmlReader : XmlReader
+        private sealed class DepthLimitingXmlReader(XmlReader inner, int maxDepth) : XmlReader
         {
-            private readonly XmlReader _inner;
-            private readonly int _maxDepth;
-
-            public DepthLimitingXmlReader(XmlReader inner, int maxDepth)
-            {
-                _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-                _maxDepth = Math.Max(1, maxDepth);
-            }
+            private readonly XmlReader _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            private readonly int _maxDepth = Math.Max(1, maxDepth);
 
             private void CheckDepth()
             {
@@ -62,14 +49,15 @@ namespace XRoadFolkWeb.Features.People
             public override char QuoteChar => _inner.QuoteChar;
             public override ReadState ReadState => _inner.ReadState;
             public override string Value => _inner.Value;
-            public override string XmlLang => _inner.XmlLang;
+            public override string? XmlLang => _inner.XmlLang;
             public override XmlSpace XmlSpace => _inner.XmlSpace;
 
             public override void Close() => _inner.Close();
-            public override string GetAttribute(int i) => _inner.GetAttribute(i);
+
+            public override string? GetAttribute(int i) => _inner.GetAttribute(i);
             public override string? GetAttribute(string name) => _inner.GetAttribute(name);
             public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
-            public override string LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
+            public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
             public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
             public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
             public override bool MoveToElement() => _inner.MoveToElement();

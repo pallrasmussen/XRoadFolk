@@ -20,7 +20,11 @@ namespace XRoadFolkRaw.Lib
 
         public static string FormatPretty(string xml)
         {
-            if (string.IsNullOrWhiteSpace(xml)) return xml;
+            if (string.IsNullOrWhiteSpace(xml))
+            {
+                return xml;
+            }
+
             try
             {
                 using XmlReader reader = CreateSafeReader(xml);
@@ -36,7 +40,10 @@ namespace XRoadFolkRaw.Lib
         public static List<PersonRow> ParsePeopleList(string xml)
         {
             List<PersonRow> rows = [];
-            if (string.IsNullOrWhiteSpace(xml)) return rows;
+            if (string.IsNullOrWhiteSpace(xml))
+            {
+                return rows;
+            }
 
             try
             {
@@ -119,14 +126,23 @@ namespace XRoadFolkRaw.Lib
         public static List<(string Key, string Value)> FlattenResponse(string xml)
         {
             List<(string, string)> pairs = [];
-            if (string.IsNullOrWhiteSpace(xml)) return pairs;
+            if (string.IsNullOrWhiteSpace(xml))
+            {
+                return pairs;
+            }
 
             XDocument doc = XDocument.Parse(xml);
             XElement? body = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
-            if (body is null) return pairs;
+            if (body is null)
+            {
+                return pairs;
+            }
 
             XElement? resp = body.Elements().FirstOrDefault(e => e.Name.LocalName.EndsWith("Response", StringComparison.OrdinalIgnoreCase));
-            if (resp is null) return pairs;
+            if (resp is null)
+            {
+                return pairs;
+            }
 
             void Flatten(XElement el, string path)
             {

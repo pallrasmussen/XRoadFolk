@@ -67,7 +67,10 @@ namespace XRoadFolkWeb.Extensions
 
         private static bool IsStaticAssetPath(string? path)
         {
-            if (string.IsNullOrEmpty(path)) return false;
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
 
             // Prefix check for common static folders
             if (path[0] == '/')
@@ -82,7 +85,7 @@ namespace XRoadFolkWeb.Extensions
             }
 
             // Extension check (only compute once)
-            int dot = path.LastIndexOf('.') ;
+            int dot = path.LastIndexOf('.');
             if (dot >= 0)
             {
                 ReadOnlySpan<char> ext = path.AsSpan(dot);
@@ -100,7 +103,11 @@ namespace XRoadFolkWeb.Extensions
 
         private static string RedactPath(string? path)
         {
-            if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return string.Empty;
+            }
+
             string p = path!;
             // Mask long digit sequences (e.g., SSN-like) and GUIDs
             p = LongDigitsRegex().Replace(p, "***");
@@ -120,16 +127,33 @@ namespace XRoadFolkWeb.Extensions
 
                 ctx.Response.OnStarting(() =>
                 {
-                    var headers = ctx.Response.Headers;
+                    IHeaderDictionary headers = ctx.Response.Headers;
 
                     // Standard security headers
-                    if (!headers.ContainsKey("X-Content-Type-Options")) headers["X-Content-Type-Options"] = "nosniff";
-                    if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "no-referrer";
-                    if (!headers.ContainsKey("X-Frame-Options")) headers["X-Frame-Options"] = "DENY";
-                    if (!headers.ContainsKey("Permissions-Policy")) headers["Permissions-Policy"] =
-                        "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
-                    if (!headers.ContainsKey("Cross-Origin-Opener-Policy")) headers["Cross-Origin-Opener-Policy"] = "same-origin";
-                    if (!headers.ContainsKey("Cross-Origin-Resource-Policy")) headers["Cross-Origin-Resource-Policy"] = "same-origin";
+                    if (!headers.ContainsKey("X-Content-Type-Options"))
+                    {
+                        headers.XContentTypeOptions = "nosniff";
+                    }
+                    if (!headers.ContainsKey("Referrer-Policy"))
+                    {
+                        headers["Referrer-Policy"] = "no-referrer";
+                    }
+                    if (!headers.ContainsKey("X-Frame-Options"))
+                    {
+                        headers.XFrameOptions = "DENY";
+                    }
+                    if (!headers.ContainsKey("Permissions-Policy"))
+                    {
+                        headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
+                    }
+                    if (!headers.ContainsKey("Cross-Origin-Opener-Policy"))
+                    {
+                        headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                    }
+                    if (!headers.ContainsKey("Cross-Origin-Resource-Policy"))
+                    {
+                        headers["Cross-Origin-Resource-Policy"] = "same-origin";
+                    }
 
                     // CSP header
                     if (!headers.ContainsKey("Content-Security-Policy"))
@@ -152,7 +176,7 @@ namespace XRoadFolkWeb.Extensions
                                      "connect-src 'self'; " +
                                      "form-action 'self'; " +
                                      "upgrade-insecure-requests";
-                        headers["Content-Security-Policy"] = csp;
+                        headers.ContentSecurityPolicy = csp;
                     }
                     return Task.CompletedTask;
                 });
@@ -303,7 +327,7 @@ namespace XRoadFolkWeb.Extensions
                 await af.ValidateRequestAsync(ctx);
 
                 // Validate requested culture
-                var locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
+                IOptions<RequestLocalizationOptions> locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
                 bool supported = locOpts.Value.SupportedUICultures != null &&
                     locOpts.Value.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
                 if (!supported)

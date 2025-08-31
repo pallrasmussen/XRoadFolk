@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Localization;
-using Microsoft.Extensions.Configuration;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Validation;
@@ -77,8 +75,7 @@ namespace XRoadFolkWeb.Pages
 
         private static bool IsValidPublicId(string s)
         {
-            if (string.IsNullOrWhiteSpace(s)) return false;
-            return PublicIdRegex().IsMatch(s);
+            return !string.IsNullOrWhiteSpace(s) && PublicIdRegex().IsMatch(s);
         }
 
         public async Task OnGetAsync(
@@ -91,31 +88,46 @@ namespace XRoadFolkWeb.Pages
             EnabledPersonIncludeKeys = [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
 
             // Prefill bound properties from query to retain form values after redirects or navigation
-            if (!string.IsNullOrWhiteSpace(ssn)) Ssn = ssn;
-            if (!string.IsNullOrWhiteSpace(firstName)) FirstName = firstName;
-            if (!string.IsNullOrWhiteSpace(lastName)) LastName = lastName;
-            if (!string.IsNullOrWhiteSpace(dateOfBirth)) DateOfBirth = dateOfBirth;
+            if (!string.IsNullOrWhiteSpace(ssn))
+            {
+                Ssn = ssn;
+            }
+
+            if (!string.IsNullOrWhiteSpace(firstName))
+            {
+                FirstName = firstName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(lastName))
+            {
+                LastName = lastName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateOfBirth))
+            {
+                DateOfBirth = dateOfBirth;
+            }
 
             // Optional: load person details by PublicId (AJAX panel)
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 if (!IsValidPublicId(publicId))
                 {
-                    var msg = _loc["InvalidPublicId"]; // optional localization key
+                    LocalizedString msg = _loc["InvalidPublicId"]; // optional localization key
                     Errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
                 }
                 else
                 {
                     try
                     {
-                        var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
+                        (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                         PersonDetails = res.Details;
                         SelectedNameSuffix = res.SelectedNameSuffix;
                     }
                     catch (Exception ex)
                     {
                         LogPersonDetailsError(_logger, ex, publicId);
-                        var msg = _loc["UnexpectedError"];
+                        LocalizedString msg = _loc["UnexpectedError"];
                         Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                     }
                 }
@@ -141,7 +153,7 @@ namespace XRoadFolkWeb.Pages
 
                 try
                 {
-                    var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
+                    (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
                     PeoplePublicInfoResponseXml = res.Xml;
                     PeoplePublicInfoResponseXmlPretty = res.Pretty;
                     Results = res.Results;
@@ -149,7 +161,7 @@ namespace XRoadFolkWeb.Pages
                 catch (Exception ex)
                 {
                     LogSearchError(_logger, ex);
-                    var msg = _loc["UnexpectedError"];
+                    LocalizedString msg = _loc["UnexpectedError"];
                     Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                 }
             }
@@ -211,7 +223,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                var res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
+                (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
                 PeoplePublicInfoResponseXml = res.Xml;
                 PeoplePublicInfoResponseXmlPretty = res.Pretty;
                 Results = res.Results;
@@ -219,7 +231,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogSearchError(_logger, ex);
-                var msg = _loc["UnexpectedError"];
+                LocalizedString msg = _loc["UnexpectedError"];
                 Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
                 return Page();
             }
@@ -256,14 +268,14 @@ namespace XRoadFolkWeb.Pages
 
             if (!IsValidPublicId(publicId))
             {
-                var msg = _loc["InvalidPublicId"]; // expects localization resource key
+                LocalizedString msg = _loc["InvalidPublicId"]; // expects localization resource key
                 string text = msg.ResourceNotFound ? "Invalid publicId." : msg.Value;
                 return BadRequest(new { ok = false, error = text });
             }
 
             try
             {
-                var res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
+                (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                 return new JsonResult(new
                 {
                     ok = true,
@@ -276,7 +288,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId!);
-                var msg = _loc["UnexpectedError"];
+                LocalizedString msg = _loc["UnexpectedError"];
                 string text = msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value;
                 return new JsonResult(new { ok = false, error = text });
             }

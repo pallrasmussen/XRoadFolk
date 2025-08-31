@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text;
-using System.Threading;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 
@@ -84,29 +83,42 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             // Channel back-pressure + best effort policy
-            if (_channel.Writer.TryWrite(e)) return;
+            if (_channel.Writer.TryWrite(e))
+            {
+                return;
+            }
 
             if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
             {
                 for (int i = 0; i < 4; i++)
                 {
                     _ = _channel.Reader.TryRead(out _);
-                    if (_channel.Writer.TryWrite(e)) return;
+                    if (_channel.Writer.TryWrite(e))
+                    {
+                        return;
+                    }
                 }
-                Thread.Yield();
+                _ = Thread.Yield();
                 _ = _channel.Writer.TryWrite(e);
             }
         }
 
         private bool ShouldDrop(LogEntry e)
         {
-            if (_maxWritesPerSecond <= 0) return false;
-            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning) return false;
+            if (_maxWritesPerSecond <= 0)
+            {
+                return false;
+            }
+
+            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
+            {
+                return false;
+            }
 
             long now = Environment.TickCount64;
             long start = Volatile.Read(ref _rateWindowStartMs);
             long elapsed = unchecked(now - start);
-            if (elapsed >= 1000 || elapsed < 0)
+            if (elapsed is >= 1000 or < 0)
             {
                 Volatile.Write(ref _rateWindowStartMs, now);
                 Volatile.Write(ref _rateCount, 0);
@@ -137,7 +149,7 @@ namespace XRoadFolkWeb.Infrastructure
         internal long MaxFileBytes { get; }
         internal int MaxRolls { get; }
 
-        [LoggerMessage(EventId = 6001, Level = LogLevel.Error, Message = "Error publishing log entry to stream")] 
+        [LoggerMessage(EventId = 6001, Level = LogLevel.Error, Message = "Error publishing log entry to stream")]
         private static partial void LogStreamPublishError(ILogger logger, Exception ex);
     }
 
