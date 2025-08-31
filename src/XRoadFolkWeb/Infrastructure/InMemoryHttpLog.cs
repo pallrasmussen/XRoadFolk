@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
+using System.Threading;
 using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
@@ -26,6 +27,8 @@ namespace XRoadFolkWeb.Infrastructure
     public sealed class InMemoryHttpLog(IConfiguration cfg) : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
+        private int _size; // approximate size to avoid O(n) Count
+        private readonly int _capacity = Math.Max(50, cfg.GetValue("HttpLog:Capacity", 1000));
         private readonly long _maxFileBytes = Math.Max(1024 * 1024, cfg.GetValue("HttpLog:MaxFileBytes", 1024 * 1024 * 5));
         private readonly int _maxRolls = Math.Max(1, cfg.GetValue("HttpLog:MaxRolls", 5));
         private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
@@ -36,6 +39,19 @@ namespace XRoadFolkWeb.Infrastructure
             ArgumentNullException.ThrowIfNull(e);
 
             _queue.Enqueue(e);
+            int newSize = Interlocked.Increment(ref _size);
+            int overflow = newSize - _capacity;
+            for (int i = 0; i < overflow; i++)
+            {
+                if (_queue.TryDequeue(out _))
+                {
+                    _ = Interlocked.Decrement(ref _size);
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             if (string.IsNullOrWhiteSpace(_filePath))
             {
@@ -98,6 +114,7 @@ namespace XRoadFolkWeb.Infrastructure
         public void Clear()
         {
             while (_queue.TryDequeue(out _)) { }
+            Volatile.Write(ref _size, 0);
         }
 
         public IReadOnlyList<LogEntry> GetAll()
