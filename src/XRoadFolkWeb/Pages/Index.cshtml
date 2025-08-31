@@ -74,7 +74,7 @@
                     </div>
 
                     <div class="col-12 d-grid d-sm-flex gap-2 mt-2">
-                        <button type="submit" class="btn btn-primary">@L["Search"]</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1" aria-hidden="true"></i>@L["Search"]</button>
                         <button type="submit" asp-page-handler="Clear" class="btn btn-outline-secondary">@L["Clear"]</button>
                     </div>
                 </form>
@@ -123,14 +123,8 @@
               </h5>
 
               <div class="d-flex flex-wrap gap-2">
-                <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>
-                  @L["Expand"]
-                </button>
-                <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>
-                  @L["Collapse"]
-                </button>
+                <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@L["Expand"]</button>
+                <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@L["Collapse"]</button>
                 <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">
                   <i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@L["Fullscreen"]
                 </button>
