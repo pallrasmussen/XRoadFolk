@@ -106,7 +106,7 @@
                     <!-- Culture switcher -->
                     <form class="d-flex align-items-center" method="post" action="/set-culture" asp-antiforgery="true">
                         <input type="hidden" name="returnUrl" value="@(ViewContext.HttpContext.Request.Path + ViewContext.HttpContext.Request.QueryString)" />
-                        <select class="form-select form-select-sm me-2" name="culture" onchange="this.form.submit()">
+                        <select class="form-select form-select-sm me-2" name="culture">
                             @foreach (var c in culturesToShow)
                             {
                                 var loc = SR[$"Culture_{c!.Name}"];
@@ -123,6 +123,14 @@
                             }
                         </select>
                     </form>
+
+                    <script nonce="@nonce">
+                        // Avoid inline event handlers (blocked by CSP). Wire up submit programmatically.
+                        document.addEventListener('DOMContentLoaded', function () {
+                            var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
+                            if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
+                        });
+                    </script>
                 </div>
             </div>
         </div>

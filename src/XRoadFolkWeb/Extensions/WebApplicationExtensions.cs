@@ -343,10 +343,10 @@ namespace XRoadFolkWeb.Extensions
                     {
                         Expires = DateTimeOffset.Now.AddYears(1),
                         IsEssential = true,
-                        Secure = true, // force HTTPS-only
-                        HttpOnly = true, // disallow script access
-                        SameSite = SameSiteMode.Strict,
-                        Path = "/"
+                        Secure = ctx.Request.IsHttps,     // allow HTTP in dev
+                        HttpOnly = true,
+                        SameSite = SameSiteMode.Lax,      // send on top-level redirect
+                        Path = "/",
                     });
 
                 // Let LocalRedirect perform framework validation; if invalid, fallback to '/'
