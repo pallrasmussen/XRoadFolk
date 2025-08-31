@@ -128,6 +128,8 @@ namespace XRoadFolkWeb.Extensions
                     if (!headers.ContainsKey("X-Frame-Options")) headers["X-Frame-Options"] = "DENY";
                     if (!headers.ContainsKey("Permissions-Policy")) headers["Permissions-Policy"] =
                         "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
+                    if (!headers.ContainsKey("Cross-Origin-Opener-Policy")) headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                    if (!headers.ContainsKey("Cross-Origin-Resource-Policy")) headers["Cross-Origin-Resource-Policy"] = "same-origin";
 
                     // CSP header
                     if (!headers.ContainsKey("Content-Security-Policy"))
@@ -219,9 +221,6 @@ namespace XRoadFolkWeb.Extensions
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
             _ = app.UseRequestLocalization(locOpts);
 
-            // Session for per-user cached data
-            _ = app.UseSession();
-
             // Emit a startup log entry (app kind)
             ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("App.Startup");
@@ -290,6 +289,9 @@ namespace XRoadFolkWeb.Extensions
             // Static files + routing + pages
             _ = app.UseStaticFiles();
             _ = app.UseRouting();
+
+            // Move session here to avoid running it for static files
+            _ = app.UseSession();
 
             // Anti-forgery middleware
             _ = app.UseAntiforgery();
