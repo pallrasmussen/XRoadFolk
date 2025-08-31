@@ -146,4 +146,40 @@
     <script src="~/js/validation-name.js" asp-append-version="true"></script>
     <script src="~/js/validation-dob.js" asp-append-version="true"></script>
     <script src="~/js/validation-ssn-or-name-dob.js" asp-append-version="true"></script>
+    <script nonce="@nonce">
+      (function(){
+        function clearViews(){
+          try {
+            // Clear Person Details panel
+            var sec = document.getElementById('person-details-section');
+            if (sec) {
+              sec.classList.add('d-none');
+              var body = document.getElementById('person-details-body'); if (body) body.innerHTML = '';
+              var err = document.getElementById('person-details-error'); if (err) { err.textContent=''; err.classList.add('d-none'); }
+              var loading = document.getElementById('person-details-loading'); if (loading) loading.classList.add('d-none');
+              sec.classList.remove('pd-fullscreen');
+            }
+          } catch {}
+          try {
+            // Clear GetPeoplePublicInfo viewer area
+            var host = document.getElementById('gpiv-xml-summary'); if (host) host.innerHTML = '';
+            var empty = document.getElementById('gpiv-empty'); if (empty) empty.style.display = 'block';
+          } catch {}
+          try {
+            // Reset any cached person details
+            if (window.personCache && typeof window.personCache.clear === 'function') window.personCache.clear();
+          } catch {}
+          try {
+            // Remove auto-load param for details
+            var url = new URL(window.location.href);
+            url.searchParams.delete('gpivPublicId');
+            history.replaceState(null, '', url.toString());
+          } catch {}
+        }
+        var form = document.getElementById('gpip-search-form');
+        if (form) {
+          form.addEventListener('submit', function(){ clearViews(); });
+        }
+      })();
+    </script>
 }
