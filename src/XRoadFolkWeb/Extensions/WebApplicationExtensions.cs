@@ -140,6 +140,8 @@ namespace XRoadFolkWeb.Extensions
                     if (!headers.ContainsKey("X-Content-Type-Options")) headers["X-Content-Type-Options"] = "nosniff";
                     if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
                     if (!headers.ContainsKey("X-Frame-Options")) headers["X-Frame-Options"] = "DENY";
+                    if (!headers.ContainsKey("Permissions-Policy")) headers["Permissions-Policy"] =
+                        "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
 
                     // CSP header
                     if (!headers.ContainsKey("Content-Security-Policy"))
@@ -158,7 +160,6 @@ namespace XRoadFolkWeb.Extensions
                                      $"script-src-elem 'self' 'nonce-{nonce}'; " +
                                      $"style-src 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
                                      $"style-src-elem 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
-                                     // removed style-src-attr 'unsafe-inline'
                                      "connect-src 'self'; " +
                                      "form-action 'self'; " +
                                      "upgrade-insecure-requests";
