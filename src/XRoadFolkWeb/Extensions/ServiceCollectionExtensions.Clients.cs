@@ -8,7 +8,7 @@ public static partial class ServiceCollectionExtensions
     // Registers FolkRawClient factory using the named HttpClient "XRoadFolk"
     public static IServiceCollection AddFolkRawClientFactory(this IServiceCollection services)
     {
-        services.AddSingleton(sp =>
+        _ = services.AddSingleton(sp =>
         {
             HttpClient http = sp.GetRequiredService<IHttpClientFactory>().CreateClient("XRoadFolk");
             ILogger<FolkRawClient> logger = sp.GetRequiredService<ILogger<FolkRawClient>>();
@@ -16,8 +16,7 @@ public static partial class ServiceCollectionExtensions
             return new FolkRawClient(
                 httpClient: http,
                 logger: logger,
-                verbose: cfg.GetValue("Logging:Verbose", false),
-                maskTokens: cfg.GetValue("Logging:MaskTokens", true),
+                verbose: cfg.GetValue("Logging:Verbose", defaultValue: false),
                 retryAttempts: cfg.GetValue("Retry:Http:Attempts", 3),
                 retryBaseDelayMs: cfg.GetValue("Retry:Http:BaseDelayMs", 200),
                 retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));

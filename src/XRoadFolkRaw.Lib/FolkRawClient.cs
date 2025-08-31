@@ -17,14 +17,13 @@ namespace XRoadFolkRaw.Lib
         private readonly bool _disposeHttpClient;
         private readonly ILogger? _log;
         private readonly bool _verbose;
-        private readonly bool _maskTokens;
         private readonly int _retryAttempts;
         private readonly int _retryBaseDelayMs;
         private readonly int _retryJitterMs;
         private readonly Polly.Retry.AsyncRetryPolicy _retryPolicy;
         private static readonly Random JitterRandom = Random.Shared;
         private static readonly HashSet<string> SourceHeaders =
-            new(["service", "client", "id", "protocolVersion", "userId"]);
+            new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
         // Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient)
@@ -32,7 +31,6 @@ namespace XRoadFolkRaw.Lib
             HttpClient httpClient,
             ILogger? logger = null,
             bool verbose = false,
-            bool maskTokens = true,
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250)
@@ -41,7 +39,6 @@ namespace XRoadFolkRaw.Lib
             _disposeHttpClient = false;
             _log = logger;
             _verbose = verbose;
-            _maskTokens = maskTokens;
             _retryAttempts = retryAttempts;
             _retryBaseDelayMs = retryBaseDelayMs;
             _retryJitterMs = retryJitterMs;
@@ -55,7 +52,6 @@ namespace XRoadFolkRaw.Lib
             TimeSpan? timeout = null,
             ILogger? logger = null,
             bool verbose = false,
-            bool maskTokens = true,
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
@@ -97,7 +93,6 @@ namespace XRoadFolkRaw.Lib
             }
             _log = logger;
             _verbose = verbose;
-            _maskTokens = maskTokens;
             _retryAttempts = retryAttempts;
             _retryBaseDelayMs = retryBaseDelayMs;
             _retryJitterMs = retryJitterMs;
@@ -155,29 +150,38 @@ namespace XRoadFolkRaw.Lib
 
         private XDocument LoadTemplate(string path)
         {
-            return _templateCache.GetOrAdd(path, p =>
+            if (_templateCache.TryGetValue(path, out XDocument? cached))
             {
-                // 1) Try file path
-                if (File.Exists(p))
-                {
-                    return XDocument.Load(p);
-                }
+                return cached;
+            }
 
-                // 2) Try embedded resource from Lib
-                string fileName = Path.GetFileName(p);
-                Assembly asm = typeof(FolkRawClient).Assembly;
-                string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
-                if (res is not null)
-                {
-                    using Stream? s = asm.GetManifestResourceStream(res);
-                    if (s is not null)
-                    {
-                        return XDocument.Load(s);
-                    }
-                }
+            XDocument loaded = LoadTemplateCore(path);
+            _templateCache[path] = loaded;
+            return loaded;
+        }
 
-                throw new FileNotFoundException($"{p} not found", p);
-            });
+        private static XDocument LoadTemplateCore(string p)
+        {
+            // 1) Try file path
+            if (File.Exists(p))
+            {
+                return XDocument.Load(p);
+            }
+
+            // 2) Try embedded resource from Lib
+            string fileName = Path.GetFileName(p);
+            Assembly asm = typeof(FolkRawClient).Assembly;
+            string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
+            if (res is not null)
+            {
+                using Stream? s = asm.GetManifestResourceStream(res);
+                if (s is not null)
+                {
+                    return XDocument.Load(s);
+                }
+            }
+
+            throw new FileNotFoundException($"{p} not found", p);
         }
 
         public async Task<string> LoginAsync(
@@ -544,7 +548,7 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(xmlPath));
-            (XDocument Doc, XElement RequestBody) = PrepareGetPersonDocument(
+            (_, XElement RequestBody) = PrepareGetPersonDocument(
                 doc,
                 xId,
                 userId,
@@ -628,7 +632,7 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(xmlPath));
-            (XDocument Doc, XElement RequestBody) = PrepareGetPersonDocument(
+            (_, XElement RequestBody) = PrepareGetPersonDocument(
                 doc,
                 xId,
                 userId,
