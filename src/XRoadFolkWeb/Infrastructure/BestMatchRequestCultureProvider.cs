@@ -14,49 +14,96 @@ namespace XRoadFolkWeb.Infrastructure
         {
             ArgumentNullException.ThrowIfNull(httpContext);
 
-            string? candidate = null;
-
-            // 1) cookie
+            // 1) cookie takes precedence
             if (httpContext.Request.Cookies.TryGetValue(CookieRequestCultureProvider.DefaultCookieName, out string? cookieVal)
                 && !string.IsNullOrWhiteSpace(cookieVal))
             {
                 ProviderCultureResult? parsed = CookieRequestCultureProvider.ParseCookieValue(cookieVal);
                 if (parsed is not null)
                 {
-                    // ProviderCultureResult exposes StringSegment lists; use .Value to get string
                     string? fromUi = (parsed.UICultures is { Count: > 0 }) ? parsed.UICultures[0].Value : null;
                     string? fromCult = (parsed.Cultures is { Count: > 0 }) ? parsed.Cultures[0].Value : null;
-                    candidate = fromUi ?? fromCult;
+                    string? candidateFromCookie = fromUi ?? fromCult;
+                    if (!string.IsNullOrWhiteSpace(candidateFromCookie))
+                    {
+                        string? match = ResolveCandidate(candidateFromCookie!);
+                        if (match is not null)
+                        {
+                            return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match));
+                        }
+                    }
                 }
             }
 
-            // 2) Accept-Language
-            if (string.IsNullOrWhiteSpace(candidate))
+            // 2) Accept-Language header with quality weights (q)
+            string accept = httpContext.Request.Headers.AcceptLanguage.ToString();
+            if (!string.IsNullOrWhiteSpace(accept))
             {
-                string accept = httpContext.Request.Headers.AcceptLanguage.ToString();
-                if (!string.IsNullOrWhiteSpace(accept))
+                List<(string Tag, double Q, int Index)> items = [];
+                int idx = 0;
+                foreach (string part in accept.Split(',', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    candidate = accept.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                      .Select(s => s.Split(';')[0].Trim())
-                                      .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+                    string seg = part.Trim();
+                    if (seg.Length == 0) { idx++; continue; }
+
+                    string tag = seg;
+                    double q = 1.0; // default
+                    int sc = seg.IndexOf(';');
+                    if (sc >= 0)
+                    {
+                        tag = seg[..sc].Trim();
+                        string paramStr = seg[(sc + 1)..];
+                        foreach (string p in paramStr.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            int eq = p.IndexOf('=');
+                            if (eq > 0)
+                            {
+                                string key = p[..eq].Trim();
+                                string val = p[(eq + 1)..].Trim();
+                                if (key.Equals("q", StringComparison.OrdinalIgnoreCase)
+                                    && double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
+                                {
+                                    q = Math.Clamp(qv, 0d, 1d);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(tag) && !string.Equals(tag, "*", StringComparison.Ordinal))
+                    {
+                        items.Add((tag, q, idx));
+                    }
+                    idx++;
+                }
+
+                foreach (var it in items.OrderByDescending(i => i.Q).ThenBy(i => i.Index))
+                {
+                    string? match = ResolveCandidate(it.Tag);
+                    if (match is not null)
+                    {
+                        return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match));
+                    }
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(candidate))
-            {
-                return Task.FromResult<ProviderCultureResult?>(null);
-            }
+            return Task.FromResult<ProviderCultureResult?>(null);
+        }
+
+        private string? ResolveCandidate(string candidate)
+        {
+            if (string.IsNullOrWhiteSpace(candidate)) return null;
 
             // Exact
             if (_supported.Contains(candidate))
             {
-                return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(candidate, candidate));
+                return candidate;
             }
 
             // Mapping (e.g. "en" -> "en-US", "fo" -> "fo-FO")
             if (_map.TryGetValue(candidate, out string? mapped) && _supported.Contains(mapped))
             {
-                return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(mapped, mapped));
+                return mapped;
             }
 
             // Parent chain (e.g. "da-DK" -> "da")
@@ -73,7 +120,7 @@ namespace XRoadFolkWeb.Infrastructure
 
                     if (_supported.Contains(ci.Name))
                     {
-                        return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(ci.Name, ci.Name));
+                        return ci.Name;
                     }
                 }
             }
@@ -81,12 +128,10 @@ namespace XRoadFolkWeb.Infrastructure
 
             // Same language (e.g. "en-GB" -> match any supported like "en-US")
             string lang = candidate.Split('-')[0];
-            string? match = _supported.FirstOrDefault(c =>
+            string? any = _supported.FirstOrDefault(c =>
                 c.StartsWith(lang + "-", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(c, lang, StringComparison.OrdinalIgnoreCase));
-            return !string.IsNullOrEmpty(match)
-                ? Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match))
-                : Task.FromResult<ProviderCultureResult?>(null);
+            return any;
         }
     }
 }

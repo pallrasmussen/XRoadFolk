@@ -108,20 +108,6 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
-        private static bool IsSafeLocalReturnUrl(string? url)
-        {
-            if (string.IsNullOrWhiteSpace(url)) return false;
-            // Must be relative and start with a single '/'; reject '//' or '/\' to avoid protocol-relative
-            if (!url.StartsWith('/')) return false;
-            if (url.StartsWith("//") || url.StartsWith("/\\")) return false;
-            // Disallow newline or control chars
-            foreach (char ch in url)
-            {
-                if (char.IsControl(ch)) return false;
-            }
-            return true;
-        }
-
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
@@ -221,7 +207,7 @@ namespace XRoadFolkWeb.Extensions
                 });
             });
 
-            _ = app.UseResponseCompression();
+            // Ensure redirects happen before compression
             _ = app.UseHttpsRedirection();
 
             // Localization middleware
@@ -236,7 +222,7 @@ namespace XRoadFolkWeb.Extensions
                 .CreateLogger("App.Startup");
             _logAppStarted(startupLogger, DateTimeOffset.Now, null);
 
-            // Request logging middleware (reduced verbosity, dev-only, redact potential PII)
+            // Request logging middleware (reduced verbosity, dev-only, redact potential PII) and conditional compression
             IHostEnvironment envCurrent = app.Services.GetRequiredService<IHostEnvironment>();
             if (envCurrent.IsDevelopment())
             {
@@ -255,6 +241,11 @@ namespace XRoadFolkWeb.Extensions
 
                     await next();
                 });
+            }
+            else
+            {
+                // Enable compression only outside Development to avoid interfering with browser refresh
+                _ = app.UseResponseCompression();
             }
 
             // After app.UseRequestLocalization(locOpts);
@@ -298,14 +289,15 @@ namespace XRoadFolkWeb.Extensions
             // Anti-forgery middleware
             _ = app.UseAntiforgery();
 
-            // Culture switch endpoint with manual antiforgery validation
+            // Culture switch endpoint with framework validation via LocalRedirect
             _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
             {
                 await af.ValidateRequestAsync(ctx);
 
-                // Ensure the requested culture is one of the supported UI cultures
-                bool supported = locOpts.SupportedUICultures != null &&
-                    locOpts.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
+                // Validate requested culture
+                var locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
+                bool supported = locOpts.Value.SupportedUICultures != null &&
+                    locOpts.Value.SupportedUICultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase));
                 if (!supported)
                 {
                     return Results.BadRequest();
@@ -321,12 +313,16 @@ namespace XRoadFolkWeb.Extensions
                         IsEssential = true,
                         Secure = true, // force HTTPS-only
                         HttpOnly = true, // disallow script access
-                        SameSite = SameSiteMode.Lax,
+                        SameSite = SameSiteMode.Strict,
                         Path = "/"
                     });
 
-                string target = IsSafeLocalReturnUrl(returnUrl) ? returnUrl! : "/";
-                return Results.LocalRedirect(target);
+                // Let LocalRedirect perform framework validation; if invalid, fallback to '/'
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    try { return Results.LocalRedirect(returnUrl); } catch { }
+                }
+                return Results.LocalRedirect("/");
             });
 
             _ = app.MapRazorPages();
