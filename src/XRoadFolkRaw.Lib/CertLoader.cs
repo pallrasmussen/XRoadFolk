@@ -47,12 +47,9 @@ namespace XRoadFolkRaw.Lib
 
             // When a relative path is provided, try to resolve it against common base dirs
             string? resolved = ResolvePathCandidates(path);
-            if (resolved is null)
-            {
-                throw new FileNotFoundException($"PFX not found '{path}'", path);
-            }
-
-            return new X509Certificate2(resolved, password ?? string.Empty,
+            return resolved is null
+                ? throw new FileNotFoundException($"PFX not found '{path}'", path)
+                : new X509Certificate2(resolved, password ?? string.Empty,
                 X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
 
@@ -85,12 +82,7 @@ namespace XRoadFolkRaw.Lib
 
             // Try relative to the current directory explicitly
             string cwdPath = Path.Combine(Directory.GetCurrentDirectory(), path);
-            if (File.Exists(cwdPath))
-            {
-                return cwdPath;
-            }
-
-            return null;
+            return File.Exists(cwdPath) ? cwdPath : null;
         }
 
         public static X509Certificate2 LoadFromPem(string certPath, string keyPath)

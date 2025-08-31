@@ -22,7 +22,7 @@ namespace XRoadFolkRaw.Lib
             try
             {
                 // Use lightweight key/value state for better compatibility with logging providers
-                IEnumerable<KeyValuePair<string, object?>> state = new[] { new KeyValuePair<string, object?>("correlationId", id) } as IEnumerable<KeyValuePair<string, object?>>;
+                IEnumerable<KeyValuePair<string, object?>> state = new[] { new KeyValuePair<string, object?>("correlationId", id) };
                 return logger.BeginScope(state) ?? NoopDisposable.Instance;
             }
             catch

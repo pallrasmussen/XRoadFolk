@@ -1,6 +1,6 @@
 namespace XRoadFolkRaw.Lib.Options
 {
-    [System.Flags]
+    [Flags]
     public enum GetPersonInclude
     {
         None = 0,

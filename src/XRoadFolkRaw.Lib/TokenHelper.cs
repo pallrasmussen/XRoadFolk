@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
-using System.IO;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -102,18 +101,11 @@ namespace XRoadFolkRaw.Lib
             if (expEl != null)
             {
                 string txt = expEl.Value.Trim();
-                if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
-                {
-                    _expiresUtc = exp - _skew;
-                }
-                else if (long.TryParse(txt, out long seconds))
-                {
-                    _expiresUtc = DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew;
-                }
-                else
-                {
-                    _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
-                }
+                _expiresUtc = DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp)
+                    ? exp - _skew
+                    : long.TryParse(txt, out long seconds)
+                        ? DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew
+                        : DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
             }
             else
             {

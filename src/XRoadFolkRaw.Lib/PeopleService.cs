@@ -1,11 +1,8 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
-using System.Net.Http;
-using System.Xml;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkRaw.Lib
@@ -14,12 +11,14 @@ namespace XRoadFolkRaw.Lib
     public sealed partial class PeopleService : IDisposable
     {
         private static string ComputeKey(XRoadSettings s)
-            => string.Join("|",
-                s.BaseUrl ?? string.Empty,
-                s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
-                s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
-                s.Service.ServiceCode ?? string.Empty, s.Service.ServiceVersion ?? string.Empty,
-                s.Auth.UserId, s.Auth.Username);
+        {
+            return string.Join("|",
+                        s.BaseUrl ?? string.Empty,
+                        s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
+                        s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
+                        s.Service.ServiceCode ?? string.Empty, s.Service.ServiceVersion ?? string.Empty,
+                        s.Auth.UserId, s.Auth.Username);
+        }
 
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
@@ -96,7 +95,7 @@ namespace XRoadFolkRaw.Lib
         {
             string key = (_cacheOptions.KeyPrefix ?? "folk-token|") + ComputeKey(_settings);
 
-            if (_cache.TryGetValue<string>(key, out string? cached) && !string.IsNullOrWhiteSpace(cached))
+            if (_cache.TryGetValue(key, out string? cached) && !string.IsNullOrWhiteSpace(cached))
             {
                 LogTokenReused(_log);
                 return cached;
@@ -106,7 +105,7 @@ namespace XRoadFolkRaw.Lib
             try
             {
                 // Double-check under lock
-                if (_cache.TryGetValue<string>(key, out cached) && !string.IsNullOrWhiteSpace(cached))
+                if (_cache.TryGetValue(key, out cached) && !string.IsNullOrWhiteSpace(cached))
                 {
                     LogTokenReused(_log);
                     return cached;
@@ -114,27 +113,23 @@ namespace XRoadFolkRaw.Lib
 
                 string token = await _cache.GetOrCreateAsync(key, async entry =>
                 {
-                    (string Token, DateTimeOffset ExpiresUtc) res = await _tokenProvider.GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(res.Token))
+                    (string Token, DateTimeOffset ExpiresUtc) = await _tokenProvider.GetTokenWithExpiryAsync(ct).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(Token))
                     {
                         throw new InvalidOperationException(_localizer["TokenMissing"]);
                     }
 
                     TimeSpan defaultTtl = TimeSpan.FromSeconds(Math.Max(1, _cacheOptions.DefaultTtlSeconds));
-                    TimeSpan ttl = res.ExpiresUtc > DateTimeOffset.UtcNow
-                        ? res.ExpiresUtc - DateTimeOffset.UtcNow
+                    TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
+                        ? ExpiresUtc - DateTimeOffset.UtcNow
                         : defaultTtl;
 
                     entry.AbsoluteExpirationRelativeToNow = ttl;
-                    LogTokenAcquired(_log, res.Token.Length);
-                    return res.Token;
+                    LogTokenAcquired(_log, Token.Length);
+                    return Token;
                 }).ConfigureAwait(false) ?? string.Empty;
 
-                if (string.IsNullOrWhiteSpace(token))
-                {
-                    throw new InvalidOperationException(_localizer["TokenMissing"]);
-                }
-                return token;
+                return string.IsNullOrWhiteSpace(token) ? throw new InvalidOperationException(_localizer["TokenMissing"]) : token;
             }
             finally
             {

@@ -20,8 +20,8 @@ namespace XRoadFolkWeb.Extensions
 
         private static IServiceCollection AddSessionServices(this IServiceCollection services)
         {
-            services.AddDistributedMemoryCache();
-            services.AddSession(options =>
+            _ = services.AddDistributedMemoryCache();
+            _ = services.AddSession(options =>
             {
                 options.Cookie.Name = ".XRoadFolk.Session";
                 options.Cookie.HttpOnly = true;
