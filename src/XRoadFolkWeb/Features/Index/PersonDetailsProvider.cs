@@ -63,6 +63,10 @@ namespace XRoadFolkWeb.Features.Index
                 ? new HashSet<string>(allowedIncludeKeys, StringComparer.OrdinalIgnoreCase)
                 : IncludeConfigHelper.GetEnabledIncludeKeys(_config);
 
+            // Keep core sections allowed, but no placeholders will be added; only actual data will render
+            _ = allowed.Add("Person");
+            _ = allowed.Add("Names");
+
             if (allowed.Count > 0)
             {
                 static bool Matches(string seg, string allowedKey)
@@ -72,6 +76,17 @@ namespace XRoadFolkWeb.Features.Index
                         || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
                 }
 
+                static IEnumerable<string> Segments(string key)
+                {
+                    if (string.IsNullOrWhiteSpace(key)) yield break;
+                    string[] parts = key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (string part in parts)
+                    {
+                        int i = part.IndexOf('[', StringComparison.Ordinal);
+                        yield return i >= 0 ? part[..i] : part;
+                    }
+                }
+
                 filtered = [.. filtered.Where(p =>
                 {
                     if (string.IsNullOrWhiteSpace(p.Key))
@@ -79,20 +94,14 @@ namespace XRoadFolkWeb.Features.Index
                         return false;
                     }
 
-                    string key = p.Key;
-                    int dot = key.IndexOf('.', StringComparison.Ordinal);
-                    string seg = dot >= 0 ? key[..dot] : key;
-                    int bpos = seg.IndexOf('[', StringComparison.Ordinal);
-                    if (bpos >= 0)
+                    foreach (string seg in Segments(p.Key))
                     {
-                        seg = seg[..bpos];
-                    }
-
-                    foreach (string a in allowed)
-                    {
-                        if (Matches(seg, a))
+                        foreach (string a in allowed)
                         {
-                            return true;
+                            if (Matches(seg, a))
+                            {
+                                return true;
+                            }
                         }
                     }
                     return false;
