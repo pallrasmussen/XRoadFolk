@@ -18,6 +18,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="..\XRoadFolkRaw.Lib\Resources\hnpv-cloudtar01.pfx" />
+  </ItemGroup>
+
   <!-- Remove any explicit EmbeddedResource entries to avoid duplicates.
        The SDK already includes Resources\**\*.resx automatically. -->
 </Project>

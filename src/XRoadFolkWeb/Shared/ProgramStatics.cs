@@ -1,4 +1,4 @@
-namespace XRoadFolkWeb
+namespace XRoadFolkWeb.Shared
 {
     public partial class Program
     {

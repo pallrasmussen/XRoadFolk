@@ -1,14 +1,15 @@
-namespace XRoadFolkWeb.Extensions;
-
-public static partial class ServiceCollectionExtensions
+namespace XRoadFolkWeb.Extensions
 {
-    public static IServiceCollection AddResponseCompressionDefaults(this IServiceCollection services)
+    public static partial class ServiceCollectionExtensions
     {
-        _ = services.AddResponseCompression(static opts =>
+        public static IServiceCollection AddResponseCompressionDefaults(this IServiceCollection services)
         {
-            opts.EnableForHttps = true;
-            opts.MimeTypes = Program.ResponseCompressionMimeTypes;
-        });
-        return services;
+            _ = services.AddResponseCompression(static opts =>
+            {
+                opts.EnableForHttps = true;
+                opts.MimeTypes = Shared.Program.ResponseCompressionMimeTypes;
+            });
+            return services;
+        }
     }
 }
