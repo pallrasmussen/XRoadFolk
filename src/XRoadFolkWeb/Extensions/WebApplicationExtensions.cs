@@ -124,7 +124,7 @@ namespace XRoadFolkWeb.Extensions
 
                     // Standard security headers
                     if (!headers.ContainsKey("X-Content-Type-Options")) headers["X-Content-Type-Options"] = "nosniff";
-                    if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                    if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "no-referrer";
                     if (!headers.ContainsKey("X-Frame-Options")) headers["X-Frame-Options"] = "DENY";
                     if (!headers.ContainsKey("Permissions-Policy")) headers["Permissions-Policy"] =
                         "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";

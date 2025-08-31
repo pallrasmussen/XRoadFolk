@@ -10,7 +10,7 @@ public static partial class ServiceCollectionExtensions
         {
             opts.Cookie.Name = "__Host.AntiForgery";
             opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            opts.Cookie.SameSite = SameSiteMode.Lax;
+            opts.Cookie.SameSite = SameSiteMode.Strict; // tighten CSRF surface
             opts.HeaderName = "RequestVerificationToken";
         });
         return services;

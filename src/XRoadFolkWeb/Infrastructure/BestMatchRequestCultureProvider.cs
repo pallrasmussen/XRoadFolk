@@ -35,7 +35,7 @@ namespace XRoadFolkWeb.Infrastructure
                 }
             }
 
-            // 2) Accept-Language header with quality weights (q)
+            // 2) Accept-Language header with quality weights (q). q=0 means "not acceptable" and must be ignored (RFC 9110).
             string accept = httpContext.Request.Headers.AcceptLanguage.ToString();
             if (!string.IsNullOrWhiteSpace(accept))
             {
@@ -72,6 +72,12 @@ namespace XRoadFolkWeb.Infrastructure
 
                     if (!string.IsNullOrWhiteSpace(tag) && !string.Equals(tag, "*", StringComparison.Ordinal))
                     {
+                        if (q <= 0d)
+                        {
+                            // q=0 means "not acceptable" per RFC 9110; skip
+                            idx++;
+                            continue;
+                        }
                         items.Add((tag, q, idx));
                     }
                     idx++;
