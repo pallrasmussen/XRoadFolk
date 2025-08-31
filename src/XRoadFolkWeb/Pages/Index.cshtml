@@ -3,9 +3,32 @@
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     ViewData["Title"] = L["Title"];
+    var nonce = HttpContext?.Items?["CSP_NONCE"] as string;
 }
 
 <h1 class="mb-4">@L["Title"]</h1>
+
+<style nonce="@nonce">
+  /* Person Details fullscreen styles */
+  #person-details-section.pd-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    margin: 0;
+    border-radius: 0;
+    background: var(--bs-body-bg);
+  }
+  #person-details-section.pd-fullscreen .card-body {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  #person-details-section.pd-fullscreen #person-details-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+</style>
 
 <div class="row g-4 align-items-start">
     <!-- People Search (kept as-is) -->
@@ -102,6 +125,9 @@
               <div class="d-flex flex-wrap gap-2">
                 <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary">@L["Expand"]</button>
                 <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary">@L["Collapse"]</button>
+                <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]">
+                  <i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@L["Fullscreen"]
+                </button>
               </div>
             </div>
 
