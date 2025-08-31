@@ -72,7 +72,7 @@ namespace XRoadFolkWeb.Pages
         // Expose enabled include keys to the view
         public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
 
-        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
         private static partial Regex PublicIdRegex();
 
         private static bool IsValidPublicId(string s)

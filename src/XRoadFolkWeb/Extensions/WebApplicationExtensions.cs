@@ -146,6 +146,7 @@ namespace XRoadFolkWeb.Extensions
                                      $"script-src-elem 'self' 'nonce-{nonce}'; " +
                                      $"style-src 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
                                      $"style-src-elem 'self' 'nonce-{nonce}' {JsDelivr} {GoogleFontsCss}; " +
+                                     "style-src-attr 'none'; " +
                                      "connect-src 'self'; " +
                                      "form-action 'self'; " +
                                      "upgrade-insecure-requests";
@@ -207,8 +208,12 @@ namespace XRoadFolkWeb.Extensions
                 });
             });
 
-            // Ensure redirects happen before compression
-            _ = app.UseHttpsRedirection();
+            // HTTPS redirection only outside Development to avoid broken local setups without HTTPS
+            IHostEnvironment envForHttps = app.Services.GetRequiredService<IHostEnvironment>();
+            if (!envForHttps.IsDevelopment())
+            {
+                _ = app.UseHttpsRedirection();
+            }
 
             // Localization middleware
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
@@ -326,6 +331,7 @@ namespace XRoadFolkWeb.Extensions
             });
 
             _ = app.MapRazorPages();
+            _ = app.MapFallbackToPage("/Index");
 
             // Logs endpoints (defensive when store/feed not registered) - restrict to Development environment
             if (envCurrent.IsDevelopment())

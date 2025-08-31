@@ -17,6 +17,9 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly ILogFeed? _stream;
         private readonly int _maxQueue;
         private readonly bool _alwaysAllowWarnError;
+        private readonly int _maxWritesPerSecond;
+        private long _rateWindowStartMs = Environment.TickCount64;
+        private int _rateCount;
 
         private readonly Channel<LogEntry> _channel;
         private readonly ILogger<FileBackedHttpLogStore> _log;
@@ -32,6 +35,7 @@ namespace XRoadFolkWeb.Infrastructure
             MaxFileBytes = Math.Max(50_000, cfg.MaxFileBytes);
             MaxRolls = Math.Max(1, cfg.MaxRolls);
             _alwaysAllowWarnError = cfg.AlwaysAllowWarningsAndErrors;
+            _maxWritesPerSecond = Math.Max(0, cfg.MaxWritesPerSecond);
             _channel = Channel.CreateBounded<LogEntry>(new BoundedChannelOptions(_maxQueue)
             {
                 // Use Wait so writes fail (TryWrite=false) when full; we will explicitly manage eviction below
@@ -52,7 +56,12 @@ namespace XRoadFolkWeb.Infrastructure
         {
             ArgumentNullException.ThrowIfNull(e);
 
-            // Ring buffer (approximate size tracking to avoid O(n) Count)
+            if (ShouldDrop(e))
+            {
+                return;
+            }
+
+            // Ring buffer
             _ring.Enqueue(e);
             int newSize = Interlocked.Increment(ref _ringSize);
             int overflow = newSize - Capacity;
@@ -74,30 +83,37 @@ namespace XRoadFolkWeb.Infrastructure
                 LogStreamPublishError(_log, ex);
             }
 
-            // Back-pressure handling:
-            // - For low-severity, best-effort enqueue; if full, drop silently.
-            // - For Warning+ (if enabled), ensure space by evicting oldest items and write.
-            if (_channel.Writer.TryWrite(e))
-            {
-                return;
-            }
+            // Channel back-pressure + best effort policy
+            if (_channel.Writer.TryWrite(e)) return;
 
             if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
             {
-                // Create room by evicting oldest queued entries (if any) and retry a few times
                 for (int i = 0; i < 4; i++)
                 {
-                    _ = _channel.Reader.TryRead(out _); // discard one if available
-                    if (_channel.Writer.TryWrite(e))
-                    {
-                        return;
-                    }
+                    _ = _channel.Reader.TryRead(out _);
+                    if (_channel.Writer.TryWrite(e)) return;
                 }
-                // Last attempt: block very briefly by yielding to let reader drain
                 Thread.Yield();
-                _ = _channel.Writer.TryWrite(e); // best effort final try
+                _ = _channel.Writer.TryWrite(e);
             }
-            // else: low severity and full -> drop
+        }
+
+        private bool ShouldDrop(LogEntry e)
+        {
+            if (_maxWritesPerSecond <= 0) return false;
+            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning) return false;
+
+            long now = Environment.TickCount64;
+            long start = Volatile.Read(ref _rateWindowStartMs);
+            long elapsed = unchecked(now - start);
+            if (elapsed >= 1000 || elapsed < 0)
+            {
+                Volatile.Write(ref _rateWindowStartMs, now);
+                Volatile.Write(ref _rateCount, 0);
+            }
+
+            int count = Interlocked.Increment(ref _rateCount);
+            return count > _maxWritesPerSecond;
         }
 
         public void Clear()

@@ -34,9 +34,20 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         private readonly object _fileLock = new();
 
+        // Rate limiting (entries/second). 0 disables.
+        private readonly int _maxWritesPerSecond = Math.Max(0, cfg.GetValue("HttpLog:MaxWritesPerSecond", 0));
+        private readonly bool _alwaysAllowWarnError = cfg.GetValue("HttpLog:AlwaysAllowWarningsAndErrors", true);
+        private long _rateWindowStartMs = Environment.TickCount64;
+        private int _rateCount;
+
         public void Add(LogEntry e)
         {
             ArgumentNullException.ThrowIfNull(e);
+
+            if (ShouldDrop(e))
+            {
+                return; // throttled
+            }
 
             _queue.Enqueue(e);
             int newSize = Interlocked.Increment(ref _size);
@@ -65,6 +76,30 @@ namespace XRoadFolkWeb.Infrastructure
                 RollIfNeeded();
                 File.AppendAllText(_filePath!, line, Encoding.UTF8);
             }
+        }
+
+        private bool ShouldDrop(LogEntry e)
+        {
+            if (_maxWritesPerSecond <= 0)
+            {
+                return false;
+            }
+            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
+            {
+                return false;
+            }
+
+            long now = Environment.TickCount64;
+            long start = Volatile.Read(ref _rateWindowStartMs);
+            long elapsed = unchecked(now - start);
+            if (elapsed >= 1000 || elapsed < 0)
+            {
+                Volatile.Write(ref _rateWindowStartMs, now);
+                Volatile.Write(ref _rateCount, 0);
+            }
+
+            int count = Interlocked.Increment(ref _rateCount);
+            return count > _maxWritesPerSecond;
         }
 
         private void RollIfNeeded()

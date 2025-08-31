@@ -2,6 +2,9 @@ using XRoadFolkWeb.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
+// Suppress Kestrel "Server" header
+builder.WebHost.ConfigureKestrel(opts => opts.AddServerHeader = false);
+
 // Load default X-Road settings from library (robust resource lookup + file fallback)
 builder.Configuration.AddXRoadDefaultSettings();
 
