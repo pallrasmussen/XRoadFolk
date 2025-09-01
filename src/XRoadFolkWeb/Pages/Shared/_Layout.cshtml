@@ -33,6 +33,9 @@
     // Optional SRI hashes (configure in appsettings under Cdn:Bootswatch:Sri and Cdn:BootstrapIcons:Sri)
     string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; // e.g., sha384-...
     string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
+
+    // Feature toggle: Logs button visibility
+    bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -91,14 +94,17 @@
             <div id="mainNav" class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
                     <!-- About option removed -->
-                    <li class="nav-item dropdown">
-                        <a class="btn btn-sm btn-outline-light dropdown-toggle @(ViewContext.HttpContext.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">@SR["Nav_Logs"]</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" asp-page="/Logs/Http">HTTP</a></li>
-                            <li><a class="dropdown-item" asp-page="/Logs/Soap">SOAP</a></li>
-                            <li><a class="dropdown-item" asp-page="/Logs/App">App</a></li>
-                        </ul>
-                    </li>
+                    @if (showLogs)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="btn btn-sm btn-outline-light dropdown-toggle @(ViewContext.HttpContext.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">@SR["Nav_Logs"]</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" asp-page="/Logs/Http">HTTP</a></li>
+                                <li><a class="dropdown-item" asp-page="/Logs/Soap">SOAP</a></li>
+                                <li><a class="dropdown-item" asp-page="/Logs/App">App</a></li>
+                            </ul>
+                        </li>
+                    }
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
