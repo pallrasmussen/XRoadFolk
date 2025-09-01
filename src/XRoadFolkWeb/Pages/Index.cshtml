@@ -3,6 +3,7 @@
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     ViewData["Title"] = L["Title"];
+    var nonce = ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string;
 }
 
 <h1 class="mb-4">@L["Title"]</h1>
@@ -115,46 +116,19 @@
           </div>
         </div>
 
-        <style>
+        <style nonce="@nonce">
         /* Scoped GetPerson styling (matches viewer look) */
-        .person-details .pd-toolbar {
-          position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg);
-        }
-        .person-details .accordion-button {
-          padding: .5rem .75rem; font-weight: 600;
-        }
-        .person-details .accordion-item + .accordion-item {
-          border-top: 1px solid var(--bs-border-color);
-        }
+        .person-details .pd-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); }
+        .person-details .accordion-button { padding: .5rem .75rem; font-weight: 600; }
+        .person-details .accordion-item + .accordion-item { border-top: 1px solid var(--bs-border-color); }
         .person-details .accordion-body { padding: 0; }
-
-        /* Make details body scrollable and flexible */
         #person-details-body { max-height: var(--pd-h, 50vh); overflow: auto; }
-
-        /* Table readability tweaks */
         .person-details .table { margin-bottom: 0; }
-        .person-details .table th {
-          width: 35%;
-          background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle));
-          color: var(--bs-secondary-color);
-        }
-        .person-details .table th,
-        .person-details .table td {
-          vertical-align: top;
-          word-break: break-word;
-        }
-
-        /* Subtle row hover */
-        .person-details .table tbody tr:hover th,
-        .person-details .table tbody tr:hover td {
-          background: var(--bs-secondary-bg-subtle);
-        }
-
-        /* Optional: a quick flash when new content loads */
+        .person-details .table th { width: 35%; background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle)); color: var(--bs-secondary-color); }
+        .person-details .table th, .person-details .table td { vertical-align: top; word-break: break-word; }
+        .person-details .table tbody tr:hover th, .person-details .table tbody tr:hover td { background: var(--bs-secondary-bg-subtle); }
         @@keyframes pdFlash { 0% { background: rgba(255,243,205,.9); } 100% { background: transparent; } }
         .person-details .pd-flash { animation: pdFlash 1.2s ease-out 1; }
-
-        /* Fullscreen styles for Person Details */
         .person-details.pd-fullscreen { position: fixed; inset: 0; z-index: 1050; margin: 0; border-radius: 0; background: var(--bs-body-bg); }
         .person-details.pd-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
         .person-details.pd-fullscreen #person-details-body { max-height: calc(100dvh - 7.5rem); flex: 1 1 auto; }
@@ -169,27 +143,59 @@
     <script src="~/js/validation-dob.js"></script>
     <script src="~/js/validation-ssn-or-name-dob.js"></script>
     <script src="~/js/validation-letters-only.js"></script>
-    <script>
-  // Expand/Collapse all panels inside GetPerson and toggle Fullscreen
+
+    <script nonce="@nonce">
+  // Reusable toggle function
+  function togglePDFullscreen(){
+    var sec = document.getElementById('person-details-section');
+    if (!sec) return;
+    // Ensure section is visible before toggling fullscreen
+    if (sec.classList.contains('d-none')) sec.classList.remove('d-none');
+    try {
+      if (!document.fullscreenElement) {
+        if (sec.requestFullscreen) {
+          sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.toggle('pd-fullscreen'); });
+        } else {
+          sec.classList.toggle('pd-fullscreen');
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(function(){ sec.classList.toggle('pd-fullscreen'); });
+        } else {
+          sec.classList.toggle('pd-fullscreen');
+        }
+      }
+    } catch (e) { sec.classList.toggle('pd-fullscreen'); }
+  }
+
+  // Delegated handler (fallback)
   document.addEventListener('click', function (e) {
-    if (e.target && e.target.id === 'pd-expand-all') {
-      var panes = document.querySelectorAll('#person-details-section .accordion-collapse');
-      panes.forEach(function (p) { p.classList.add('show'); });
-      var btns = document.querySelectorAll('#person-details-section .accordion-button');
-      btns.forEach(function (b) { b.classList.remove('collapsed'); });
-    }
-    if (e.target && e.target.id === 'pd-collapse-all') {
-      var panes2 = document.querySelectorAll('#person-details-section .accordion-collapse');
-      panes2.forEach(function (p) { p.classList.remove('show'); });
-      var btns2 = document.querySelectorAll('#person-details-section .accordion-button');
-      btns2.forEach(function (b) { b.classList.add('collapsed'); });
-    }
-    if (e.target && e.target.id === 'pd-fullscreen') {
-      var sec = document.getElementById('person-details-section');
-      if (sec) sec.classList.toggle('pd-fullscreen');
+    var fsBtn = e.target && e.target.closest && e.target.closest('#pd-fullscreen');
+    if (fsBtn) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      togglePDFullscreen();
     }
   });
 
+  // Direct capturing listener to bypass interfering handlers
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('pd-fullscreen');
+    if (btn) {
+      btn.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopImmediatePropagation(); togglePDFullscreen(); }, { capture: true });
+    }
+  });
+
+  // Keep CSS class in sync with DOM fullscreen changes
+  document.addEventListener('fullscreenchange', function(){
+    var sec = document.getElementById('person-details-section');
+    if (!sec) return;
+    var isFs = document.fullscreenElement === sec;
+    sec.classList.toggle('pd-fullscreen', isFs || sec.classList.contains('pd-fullscreen'));
+  });
+    </script>
+
+    <script nonce="@nonce">
   // Optional: flash when new content is injected
   (function(){
     var body = document.getElementById('person-details-body');
@@ -200,168 +206,30 @@
     });
     mo.observe(body, { childList: true });
   })();
-</script>
-<script>
+    </script>
+
+    <script nonce="@nonce">
 // Enhance the existing appended helper (mask removed)
 (function(){
-  // Toolbar getters (mask removed)
-  function getToolbarEls() {
-    return {
-      copyJson: document.getElementById('pd-copy-json'),
-      dlJson: document.getElementById('pd-download-json')
-    };
-  }
-
-  // Convert pairs with dotted paths into a nested object
-  function pairsToObject(pairs) {
-    var root = {};
-    (pairs || []).forEach(function(p){
-      var path = String(p.key || '').split('.');
-      var curr = root;
-      for (var i = 0; i < path.length; i++) {
-        var seg = path[i];
-        var m = seg.match(/^(.+)[(\[](?:(\d+))[)\]]$/);
-        if(!m){ m = seg.match(/^(.+)\[(\d+)\]$/); }
-        if (m) {
-          var base = m[1], idx = parseInt(m[2], 10);
-          curr[base] = curr[base] || [];
-          curr = curr[base];
-          curr[idx] = curr[idx] || {};
-          curr = curr[idx];
-        } else {
-          if (i === path.length - 1) {
-            curr[seg] = p.value;
-          } else {
-            curr[seg] = curr[seg] || {};
-            curr = curr[seg];
-          }
-        }
-      }
-    });
-    return root;
-  }
-
-  // Persist expand/collapse per PublicId (by group name)
+  function getToolbarEls() { return { copyJson: document.getElementById('pd-copy-json'), dlJson: document.getElementById('pd-download-json') }; }
+  function pairsToObject(pairs) { var root = {}; (pairs || []).forEach(function(p){ var path = String(p.key || '').split('.'); var curr = root; for (var i=0;i<path.length;i++){ var seg=path[i]; var m=seg.match(/^(.+)[(\[](?:(\d+))[)\]]$/); if(!m){ m=seg.match(/^(.+)\[(\d+)\]$/); } if(m){ var base=m[1], idx=parseInt(m[2],10); curr[base]=curr[base]||[]; curr=curr[base]; curr[idx]=curr[idx]||{}; curr=curr[idx]; } else { if(i===path.length-1){ curr[seg]=p.value; } else { curr[seg]=curr[seg]||{}; curr=curr[seg]; } } } }); return root; }
   function stateKey(pid){ return 'pd-acc-open:' + pid; }
-  function saveAccState(pid){
-    try{
-      if (!pid) return;
-      var openGroups = [];
-      var items = document.querySelectorAll('#person-details-section .accordion-item');
-      items.forEach(function(it){
-        var name = it.getAttribute('data-group') || '';
-        var col = it.querySelector('.accordion-collapse');
-        if (name && col && col.classList.contains('show')) openGroups.push(name);
-      });
-      localStorage.setItem(stateKey(pid), JSON.stringify(openGroups));
-    }catch{}
-  }
-  function restoreAccState(pid){
-    try{
-      if (!pid) return;
-      var raw = localStorage.getItem(stateKey(pid));
-      if (!raw) return;
-      var openGroups = JSON.parse(raw || '[]');
-      var items = document.querySelectorAll('#person-details-section .accordion-item');
-      items.forEach(function(it){
-        var name = it.getAttribute('data-group') || '';
-        var col = it.querySelector('.accordion-collapse');
-        var btn = it.querySelector('.accordion-button');
-        var shouldOpen = openGroups.indexOf(name) >= 0;
-        if (col && btn) {
-          col.classList.toggle('show', shouldOpen);
-          btn.classList.toggle('collapsed', !shouldOpen);
-        }
-      });
-    }catch{}
-  }
-
-  // Wrap original renderer to restore state (mask removed)
+  function saveAccState(pid){ try{ if(!pid) return; var open=[]; document.querySelectorAll('#person-details-section .accordion-item').forEach(function(it){ var name=it.getAttribute('data-group')||''; var col=it.querySelector('.accordion-collapse'); if(name && col && col.classList.contains('show')) open.push(name); }); localStorage.setItem(stateKey(pid), JSON.stringify(open)); }catch(e){} }
+  function restoreAccState(pid){ try{ if(!pid) return; var raw=localStorage.getItem(stateKey(pid)); if(!raw) return; var open=JSON.parse(raw||'[]'); document.querySelectorAll('#person-details-section .accordion-item').forEach(function(it){ var name=it.getAttribute('data-group')||''; var col=it.querySelector('.accordion-collapse'); var btn=it.querySelector('.accordion-button'); var shouldOpen=open.indexOf(name)>=0; if(col && btn){ col.classList.toggle('show', shouldOpen); btn.classList.toggle('collapsed', !shouldOpen); } }); }catch(e){} }
   var originalRender = window._renderPairsGroupedForPerson || null;
-  function renderPairsWithUX(pairs, pid){
-    var builder = (originalRender || window.renderPairsGrouped || null);
-    if (!builder) {
-      builder = function(ps){
-        return (typeof renderPairsGrouped === 'function') ? renderPairsGrouped(ps) : document.createTextNode('');
-      };
-    }
-    var acc = builder(pairs || []);
-    setTimeout(function(){ restoreAccState(pid); }, 0);
-    return acc;
-  }
-
-  // Re-render current cache on demand
-  var pdBody = document.getElementById('person-details-body');
-  function rerenderCurrent(){
-    try{
-      var pid = window.lastPid || null;
-      if (!pid || !pdBody) return;
-      var cache = (window.personCache && window.personCache.get) ? window.personCache.get(pid) : null;
-      if (!cache || !cache.details) return;
-      pdBody.innerHTML = '';
-      var acc = renderPairsWithUX(cache.details, pid);
-      if (acc) pdBody.appendChild(acc);
-      saveAccState(pid);
-    }catch{}
-  }
-
-  // Wire toolbar actions (mask references removed)
-  var tbe = getToolbarEls();
-
-  tbe.copyJson && tbe.copyJson.addEventListener('click', function(){
-    try{
-      var pid = window.lastPid || null;
-      if (!pid) return;
-      var cache = window.personCache ? window.personCache.get(pid) : null;
-      if (!cache || !cache.details) return;
-      var json = pairsToObject(cache.details);
-      var text = JSON.stringify(json, null, 2);
-      (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){})) || (function(){
-        var ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.left='-10000px';
-        document.body.appendChild(ta); ta.select(); try{ document.execCommand && document.execCommand('copy'); }catch{} ta.remove();
-      })();
-    }catch{}
-  });
-
-  tbe.dlJson && tbe.dlJson.addEventListener('click', function(){
-    try{
-      var pid = window.lastPid || null;
-      if (!pid) return;
-      var cache = window.personCache ? window.personCache.get(pid) : null;
-      if (!cache || !cache.details) return;
-      var blob = new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' });
-      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'person_' + pid + '.json';
-      document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove();
-    }catch{}
-  });
-
-  // Persist state when user toggles groups
-  document.addEventListener('click', function(ev){
-    var pid = window.lastPid || null;
-    if (!pid) return;
-    var btn = ev.target && ev.target.closest && ev.target.closest('#person-details-section .accordion-button');
-    if (btn) setTimeout(function(){ saveAccState(pid); }, 0);
-  });
-
-  // Expose helpers
-  window.__pdUx = {
-    renderPairsWithUX: renderPairsWithUX,
-    restoreAccState: restoreAccState,
-    saveAccState: saveAccState,
-    rerenderCurrent: rerenderCurrent
-  };
-
-  try{
-    var mo = new MutationObserver(function(){
-      var pid = window.lastPid || null;
-      if (!pid) return;
-      saveAccState(pid);
-    });
-    if (pdBody) mo.observe(pdBody, { childList: true });
-  }catch{}
+  function renderPairsWithUX(pairs, pid){ var builder=(originalRender || window.renderPairsGrouped || null); if(!builder){ builder=function(ps){ return (typeof renderPairsGrouped==='function') ? renderPairsGrouped(ps) : document.createTextNode(''); }; } var acc=builder(pairs||[]); setTimeout(function(){ restoreAccState(pid); },0); return acc; }
+  var pdBody=document.getElementById('person-details-body');
+  function rerenderCurrent(){ try{ var pid=window.lastPid||null; if(!pid || !pdBody) return; var cache=(window.personCache && window.personCache.get) ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; pdBody.innerHTML=''; var acc=renderPairsWithUX(cache.details, pid); if(acc) pdBody.appendChild(acc); saveAccState(pid); }catch(e){} }
+  var tbe=getToolbarEls();
+  tbe.copyJson && tbe.copyJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var text=JSON.stringify(pairsToObject(cache.details), null, 2); (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){}) ) || (function(){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-10000px'; document.body.appendChild(ta); ta.select(); try{ if(document.execCommand) document.execCommand('copy'); }catch(e){} ta.remove(); })(); }catch(e){} });
+  tbe.dlJson && tbe.dlJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var blob=new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='person_' + pid + '.json'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){} });
+  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target && ev.target.closest && ev.target.closest('#person-details-section .accordion-button'); if(btn) setTimeout(function(){ saveAccState(pid); }, 0); });
+  window.__pdUx = { renderPairsWithUX: renderPairsWithUX, restoreAccState: restoreAccState, saveAccState: saveAccState, rerenderCurrent: rerenderCurrent };
+  try{ var mo=new MutationObserver(function(){ var pid=window.lastPid||null; if(!pid) return; saveAccState(pid); }); if(pdBody) mo.observe(pdBody, { childList: true }); }catch(e){}
 })();
-</script>
-<script>
+    </script>
+
+    <script nonce="@nonce">
 // Clear/hide Person Details immediately on new search submit
 (function(){
   var form = document.getElementById('gpip-search-form');
@@ -378,13 +246,9 @@
       if (loading) loading.classList.add('d-none');
       window.lastPid = null;
       if (window.personCache && window.personCache.clear) window.personCache.clear();
-      try{
-        var url = new URL(window.location.href);
-        url.searchParams.delete('gpivPublicId');
-        history.replaceState(null,'',url.toString());
-      }catch{}
-    }catch{}
+      try{ var url = new URL(window.location.href); url.searchParams.delete('gpivPublicId'); history.replaceState(null,'',url.toString()); }catch(e){}
+    }catch(e){}
   });
 })();
-</script>
+    </script>
 }
