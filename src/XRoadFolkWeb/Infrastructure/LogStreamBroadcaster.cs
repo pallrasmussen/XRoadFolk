@@ -21,7 +21,7 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 SingleReader = false,
                 SingleWriter = false,
-                AllowSynchronousContinuations = true
+                AllowSynchronousContinuations = true,
             });
             _subscribers[id] = channel;
             return (channel.Reader, id);

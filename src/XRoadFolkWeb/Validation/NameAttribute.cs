@@ -7,7 +7,9 @@ namespace XRoadFolkWeb.Validation
     {
         private string? _messageKey;
 
-        // Set a specific resource key per usage, e.g., "FirstName_Invalid" or "LastName_Invalid"
+        /// <summary>
+        /// Set a specific resource key per usage, e.g., "FirstName_Invalid" or "LastName_Invalid"
+        /// </summary>
         public string? MessageKey
         {
             get => _messageKey;

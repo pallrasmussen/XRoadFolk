@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 
 namespace XRoadFolkWeb.Validation
 {
-    // Normalizes SSN by stripping non-digits before validation
+    /// <summary>
+    /// Normalizes SSN by stripping non-digits before validation
+    /// </summary>
     public sealed class TrimDigitsModelBinder : IModelBinder
     {
         public Task BindModelAsync(ModelBindingContext bindingContext)
@@ -21,7 +23,9 @@ namespace XRoadFolkWeb.Validation
         }
     }
 
-    // Marker attribute to request TrimDigitsModelBinder for a property
+    /// <summary>
+    /// Marker attribute to request TrimDigitsModelBinder for a property
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class TrimDigitsAttribute : Attribute, IBinderTypeProviderMetadata, IBindingSourceMetadata
     {

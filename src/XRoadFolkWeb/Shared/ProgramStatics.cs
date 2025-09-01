@@ -19,7 +19,7 @@ namespace XRoadFolkWeb.Shared
             "application/xml",
             "application/soap+xml",
             // Vector images
-            "image/svg+xml"
+            "image/svg+xml",
         ];
     }
 }

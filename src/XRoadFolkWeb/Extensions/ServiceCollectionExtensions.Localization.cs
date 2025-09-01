@@ -34,8 +34,9 @@ namespace XRoadFolkWeb.Extensions
                 opts.FallBackToParentUICultures = true;
 
                 LocalizationConfig locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
+                System.Collections.ObjectModel.ReadOnlyDictionary<string, string> roMap = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(locCfg.FallbackMap);
                 opts.RequestCultureProviders.Insert(0, new BestMatchRequestCultureProvider(
-                    opts.SupportedUICultures, locCfg.FallbackMap));
+                    opts.SupportedUICultures, roMap));
             });
 
             // Configure and validate app Localization section
