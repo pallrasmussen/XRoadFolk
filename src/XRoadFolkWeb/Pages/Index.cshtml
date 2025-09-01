@@ -10,7 +10,7 @@
 
 <div class="row g-4 align-items-start">
     <!-- People Search (kept as-is) -->
-    <div class="col-12 col-lg-5 col-xxl-4">
+    <div class="col-12 col-lg-5 col-xxl-4" id="people-search-card">
         <div class="card shadow-sm h-100">
             <div class="card-body">
                 <h5 class="card-title">@L["SearchCriteria"]</h5>
@@ -145,44 +145,39 @@
     <script src="~/js/validation-letters-only.js"></script>
 
     <script nonce="@nonce">
-  // Reusable toggle function
-  function togglePDFullscreen(){
-    var sec = document.getElementById('person-details-section');
-    if (!sec) return;
-    // Ensure section is visible before toggling fullscreen
-    if (sec.classList.contains('d-none')) sec.classList.remove('d-none');
-    try {
-      if (!document.fullscreenElement) {
-        if (sec.requestFullscreen) {
-          sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.toggle('pd-fullscreen'); });
-        } else {
-          sec.classList.toggle('pd-fullscreen');
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(function(){ sec.classList.toggle('pd-fullscreen'); });
-        } else {
-          sec.classList.toggle('pd-fullscreen');
-        }
-      }
-    } catch (e) { sec.classList.toggle('pd-fullscreen'); }
-  }
-
-  // Delegated handler (fallback)
+  // Expand/Collapse all panels inside GetPerson and robust Fullscreen toggle (Fullscreen API + CSS fallback)
   document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'pd-expand-all') {
+      var panes = document.querySelectorAll('#person-details-section .accordion-collapse');
+      panes.forEach(function (p) { p.classList.add('show'); });
+      var btns = document.querySelectorAll('#person-details-section .accordion-button');
+      btns.forEach(function (b) { b.classList.remove('collapsed'); });
+    }
+    if (e.target && e.target.id === 'pd-collapse-all') {
+      var panes2 = document.querySelectorAll('#person-details-section .accordion-collapse');
+      panes2.forEach(function (p) { p.classList.remove('show'); });
+      var btns2 = document.querySelectorAll('#person-details-section .accordion-button');
+      btns2.forEach(function (b) { b.classList.add('collapsed'); });
+    }
     var fsBtn = e.target && e.target.closest && e.target.closest('#pd-fullscreen');
     if (fsBtn) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      togglePDFullscreen();
-    }
-  });
-
-  // Direct capturing listener to bypass interfering handlers
-  document.addEventListener('DOMContentLoaded', function(){
-    var btn = document.getElementById('pd-fullscreen');
-    if (btn) {
-      btn.addEventListener('click', function(ev){ ev.preventDefault(); ev.stopImmediatePropagation(); togglePDFullscreen(); }, { capture: true });
+      var sec = document.getElementById('person-details-section');
+      if (!sec) return;
+      try {
+        if (!document.fullscreenElement) {
+          if (sec.requestFullscreen) {
+            sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.toggle('pd-fullscreen'); });
+          } else {
+            sec.classList.toggle('pd-fullscreen');
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(function(){ sec.classList.toggle('pd-fullscreen'); });
+          } else {
+            sec.classList.toggle('pd-fullscreen');
+          }
+        }
+      } catch (e) { sec.classList.toggle('pd-fullscreen'); }
     }
   });
 
@@ -193,9 +188,7 @@
     var isFs = document.fullscreenElement === sec;
     sec.classList.toggle('pd-fullscreen', isFs || sec.classList.contains('pd-fullscreen'));
   });
-    </script>
 
-    <script nonce="@nonce">
   // Optional: flash when new content is injected
   (function(){
     var body = document.getElementById('person-details-body');
@@ -223,7 +216,7 @@
   var tbe=getToolbarEls();
   tbe.copyJson && tbe.copyJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var text=JSON.stringify(pairsToObject(cache.details), null, 2); (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){}) ) || (function(){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-10000px'; document.body.appendChild(ta); ta.select(); try{ if(document.execCommand) document.execCommand('copy'); }catch(e){} ta.remove(); })(); }catch(e){} });
   tbe.dlJson && tbe.dlJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var blob=new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='person_' + pid + '.json'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){} });
-  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target && ev.target.closest && ev.target.closest('#person-details-section .accordion-button'); if(btn) setTimeout(function(){ saveAccState(pid); }, 0); });
+  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target && ev.target.closest && ev.target.closest('#person-details-section .accordion-button'); if (btn) setTimeout(function(){ saveAccState(pid); }, 0); });
   window.__pdUx = { renderPairsWithUX: renderPairsWithUX, restoreAccState: restoreAccState, saveAccState: saveAccState, rerenderCurrent: rerenderCurrent };
   try{ var mo=new MutationObserver(function(){ var pid=window.lastPid||null; if(!pid) return; saveAccState(pid); }); if(pdBody) mo.observe(pdBody, { childList: true }); }catch(e){}
 })();
@@ -246,7 +239,62 @@
       if (loading) loading.classList.add('d-none');
       window.lastPid = null;
       if (window.personCache && window.personCache.clear) window.personCache.clear();
-      try{ var url = new URL(window.location.href); url.searchParams.delete('gpivPublicId'); history.replaceState(null,'',url.toString()); }catch(e){}
+      try{
+        var url = new URL(window.location.href);
+        url.searchParams.delete('gpivPublicId');
+        history.replaceState(null,'',url.toString());
+      }catch{}
+    }catch{}
+  });
+})();
+    </script>
+
+    <script nonce="@nonce">
+// Persist and restore Index search form values across Back navigation
+(function(){
+  var form = document.getElementById('gpip-search-form');
+  if (!form) return;
+  var KEY = 'index:formState';
+  var FLAG = 'restoreIndexOnBack';
+
+  function qs(name){ return form.querySelector('[name="'+name+'"]'); }
+  function getState(){
+    return {
+      Ssn: (qs('Ssn') && qs('Ssn').value) || '',
+      FirstName: (qs('FirstName') && qs('FirstName').value) || '',
+      LastName: (qs('LastName') && qs('LastName').value) || '',
+      DateOfBirth: (qs('DateOfBirth') && qs('DateOfBirth').value) || ''
+    };
+  }
+  function setState(s){ if(!s) return; try{
+    if (qs('Ssn')) qs('Ssn').value = s.Ssn || '';
+    if (qs('FirstName')) qs('FirstName').value = s.FirstName || '';
+    if (qs('LastName')) qs('LastName').value = s.LastName || '';
+    if (qs('DateOfBirth')) qs('DateOfBirth').value = s.DateOfBirth || '';
+  }catch(e){} }
+
+  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){} }
+
+  // Restore only when the Back flag is set by the logs pages
+  try{
+    if (sessionStorage.getItem(FLAG) === '1'){
+      var raw = sessionStorage.getItem(KEY) || '{}';
+      var st = {};
+      try{ st = JSON.parse(raw); }catch(e){}
+      setState(st);
+      sessionStorage.removeItem(FLAG);
+    }
+  }catch(e){}
+
+  form.addEventListener('input', save);
+  form.addEventListener('change', save);
+  form.addEventListener('submit', function(ev){
+    // If Clear handler, remove saved state
+    try{
+      var sub = ev.submitter;
+      var fa = sub && sub.getAttribute && sub.getAttribute('formaction');
+      var isClear = !!(fa && fa.toLowerCase().indexOf('handler=clear')>=0);
+      if (isClear) sessionStorage.removeItem(KEY); else save();
     }catch(e){}
   });
 })();
