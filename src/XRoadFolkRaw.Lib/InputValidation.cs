@@ -123,17 +123,18 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            if (!int.TryParse(d.AsSpan(0, 2), out int DD))
+            // MA0011 fix: Use overload with IFormatProvider for TryParse
+            if (!int.TryParse(d.AsSpan(0, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int DD))
             {
                 return false;
             }
 
-            if (!int.TryParse(d.AsSpan(2, 2), out int MM))
+            if (!int.TryParse(d.AsSpan(2, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int MM))
             {
                 return false;
             }
 
-            if (!int.TryParse(d.AsSpan(4, 2), out int YY))
+            if (!int.TryParse(d.AsSpan(4, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int YY))
             {
                 return false;
             }
@@ -147,22 +148,20 @@ namespace XRoadFolkRaw.Lib
                 DateTimeOffset dt = new(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
                 if (dt.Date > now.Date)
                 {
-                    // Replace the following line:
-                    // if (!int.TryParse(d.AsSpan(6, 3), out _))
-
-                    // With this line, specifying CultureInfo.InvariantCulture as the IFormatProvider:
+                    // Use overload with IFormatProvider for MA0011 compliance
                     if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
                     {
                         return false;
                     }
                 }
-                // validate last 3 digits numeric
-                if (!int.TryParse(d.AsSpan(6, 3), out _))
+                // Use overload with IFormatProvider for MA0011 compliance
+                if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
                 {
                     return false;
                 }
 
-                embedded = dt.Date;
+                // MA0132 fix: Do not convert implicitly to DateTimeOffset
+                embedded = new DateTimeOffset(dt.Year, dt.Month, dt.Day, 0, 0, 0, dt.Offset);
                 return true;
             }
             catch
@@ -211,7 +210,8 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            dval = dt.Date;
+            // MA0132 fix: Do not convert implicitly to DateTimeOffset
+            dval = new DateTimeOffset(dt.Year, dt.Month, dt.Day, 0, 0, 0, dt.Offset);
             return true;
         }
     }

@@ -30,18 +30,22 @@ namespace XRoadFolkRaw.Lib.Options
         Spouse = 1 << 23,
         SpouseHistory = 1 << 24,
         Ssn = 1 << 25,
-        SsnHistory = 1 << 26
+        SsnHistory = 1 << 26,
     }
 
     public sealed class GetPersonRequestOptions
     {
-        // Optional identifiers
+        /// <summary>
+        /// Optional identifiers
+        /// </summary>
         public string? Id { get; set; }
         public string? PublicId { get; set; }
         public string? Ssn { get; set; }
         public string? ExternalId { get; set; }
 
-        // Type-safe include flags for supported sections
+        /// <summary>
+        /// Type-safe include flags for supported sections.
+        /// </summary>
         public GetPersonInclude Include { get; set; } = GetPersonInclude.None;
     }
 }

@@ -44,7 +44,7 @@ namespace XRoadFolkRaw.Lib.Logging
         [
             "username", "user", "password", "pwd", "token", "authToken",
             "ssn", "socialsecuritynumber", "nationalid", "idcode", "pin",
-            "publicid", "personid", "personalcode", "secret", "apikey", "apiKey"
+            "publicid", "personid", "personalcode", "secret", "apikey", "apiKey",
         ];
 
         private static readonly HashSet<string> SensitiveNames =
@@ -102,7 +102,7 @@ namespace XRoadFolkRaw.Lib.Logging
 
         private static void LogSanitized(ILogger? logger, LogLevel level, string? xml, string? title, EventId evt)
         {
-            if (logger == null || !logger.IsEnabled(level))
+            if (logger?.IsEnabled(level) != true)
             {
                 return;
             }
@@ -127,16 +127,13 @@ namespace XRoadFolkRaw.Lib.Logging
                     _logGeneralWithTitle(logger, title!, safe, null);
                 }
             }
+            else if (level == LogLevel.Information)
+            {
+                _logInfo(logger, safe, null);
+            }
             else
             {
-                if (level == LogLevel.Information)
-                {
-                    _logInfo(logger, safe, null);
-                }
-                else
-                {
-                    _logGeneral(logger, safe, null);
-                }
+                _logGeneral(logger, safe, null);
             }
         }
 
@@ -153,7 +150,9 @@ namespace XRoadFolkRaw.Lib.Logging
             return DefaultSanitize(xml);
         }
 
-        // Default sanitizer (prefix-agnostic, robust to invalid XML using regex fallback)
+        /// <summary>
+        /// Default sanitizer (prefix-agnostic, robust to invalid XML using regex fallback)
+        /// </summary>
         private static string DefaultSanitize(string input)
         {
             if (string.IsNullOrEmpty(input))

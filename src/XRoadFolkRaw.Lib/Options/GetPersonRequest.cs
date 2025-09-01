@@ -6,13 +6,17 @@ namespace XRoadFolkRaw.Lib.Options
         public string Token { get; set; } = string.Empty;
         public XRoadHeaderOptions Header { get; set; } = new XRoadHeaderOptions();
 
-        // Identifiers
+        /// <summary>
+        /// Identifiers
+        /// </summary>
         public string? PublicId { get; set; }
         public string? Ssn { get; set; }
         public string? Id { get; set; }
         public string? ExternalId { get; set; }
 
-        // Include flags
+        /// <summary>
+        /// Include flags
+        /// </summary>
         public GetPersonInclude Include { get; set; } = GetPersonInclude.None;
     }
 }

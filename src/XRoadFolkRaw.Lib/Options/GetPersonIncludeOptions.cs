@@ -1,6 +1,8 @@
 namespace XRoadFolkRaw.Lib.Options
 {
-    // Mirrors the JSON structure under Operations:GetPerson:Request:Include
+    /// <summary>
+    /// Mirrors the JSON structure under Operations:GetPerson:Request:Include
+    /// </summary>
     public sealed class GetPersonIncludeOptions
     {
         public bool Addresses { get; set; }

@@ -40,13 +40,13 @@ namespace XRoadFolkWeb.Features.People
             public override string LocalName => _inner.LocalName;
             public override string Name => _inner.Name;
             public override string NamespaceURI => _inner.NamespaceURI;
-            public override XmlNameTable? NameTable => _inner.NameTable;
+            public override XmlNameTable NameTable => _inner.NameTable!;
             public override XmlNodeType NodeType => _inner.NodeType;
             public override string Prefix => _inner.Prefix;
             public override char QuoteChar => _inner.QuoteChar;
             public override ReadState ReadState => _inner.ReadState;
             public override string Value => _inner.Value;
-            public override string? XmlLang => _inner.XmlLang;
+            public override string XmlLang => _inner.XmlLang!;
             public override XmlSpace XmlSpace => _inner.XmlSpace;
 
             public override void Close() => _inner.Close();
@@ -57,7 +57,8 @@ namespace XRoadFolkWeb.Features.People
                 base.Dispose(disposing);
             }
 
-            public override string? GetAttribute(int i) => _inner.GetAttribute(i);
+            // Change the return type of GetAttribute(int i) from string? to string to match the base XmlReader signature
+            public override string GetAttribute(int i) => _inner.GetAttribute(i);
             public override string? GetAttribute(string name) => _inner.GetAttribute(name);
             public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
             public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);

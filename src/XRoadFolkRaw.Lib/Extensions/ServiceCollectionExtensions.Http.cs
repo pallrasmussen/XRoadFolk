@@ -10,7 +10,9 @@ namespace XRoadFolkRaw.Lib.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        // LoggerMessage delegate for performance
+        /// <summary>
+        /// LoggerMessage delegate for performance
+        /// </summary>
         private static readonly Action<ILogger, Exception?> _logCertWarning =
             LoggerMessage.Define(
                 LogLevel.Warning,
@@ -34,7 +36,7 @@ namespace XRoadFolkRaw.Lib.Extensions
                     PooledConnectionLifetime = TimeSpan.FromMinutes(5),
                     PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
                     MaxConnectionsPerServer = 20,
-                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 };
 
                 XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
@@ -52,7 +54,7 @@ namespace XRoadFolkRaw.Lib.Extensions
                 }
 
                 IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
-                bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", true);
+                bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", defaultValue: true);
                 IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
                 if (env.IsDevelopment() && bypass)
                 {
