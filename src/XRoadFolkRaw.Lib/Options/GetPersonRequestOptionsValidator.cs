@@ -32,11 +32,17 @@ namespace XRoadFolkRaw.Lib.Options
                 idCount++;
             }
 
-            return idCount == 0
-                ? ValidateOptionsResult.Fail("One of Id, PublicId, Ssn, or ExternalId must be provided.")
-                : idCount > 1
-                ? ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.")
-                : ValidateOptionsResult.Success;
+            if (idCount == 0)
+            {
+                return ValidateOptionsResult.Fail("One of Id, PublicId, Ssn, or ExternalId must be provided.");
+            }
+
+            if (idCount > 1)
+            {
+                return ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.");
+            }
+
+            return ValidateOptionsResult.Success;
         }
     }
 }

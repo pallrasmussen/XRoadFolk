@@ -252,7 +252,7 @@ namespace XRoadFolkWeb.Extensions
             // Emit a startup log entry (app kind)
             ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("App.Startup");
-            _logAppStarted(startupLogger, DateTimeOffset.Now, null);
+            _logAppStarted(startupLogger, DateTimeOffset.Now, arg3: null);
 
             // Request logging middleware (reduced verbosity, dev-only, redact potential PII) and conditional compression
             IHostEnvironment envCurrent = app.Services.GetRequiredService<IHostEnvironment>();
@@ -268,7 +268,7 @@ namespace XRoadFolkWeb.Extensions
                     if (!IsStaticAssetPath(rawPath))
                     {
                         string safePath = RedactPath(rawPath);
-                        _logHttpRequest(reqLog, method, safePath, null);
+                        _logHttpRequest(reqLog, method, safePath, arg4: null);
                     }
 
                     await next();

@@ -6,7 +6,9 @@ namespace XRoadFolkRaw.Lib.Options
         public string Token { get; set; } = string.Empty;
         public XRoadHeaderOptions Header { get; set; } = new XRoadHeaderOptions();
 
-        // Criteria
+        /// <summary>
+        /// Criteria
+        /// </summary>
         public string? Ssn { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }

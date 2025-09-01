@@ -5,7 +5,10 @@ namespace XRoadFolkWeb.Extensions
 {
     public static class ConfigurationExtensions
     {
-        // Load default X-Road settings from the XRoadFolkRaw.Lib embedded resource or adjacent file
+        /// <summary>
+        /// Load default X-Road settings from the XRoadFolkRaw.Lib embedded resource or adjacent file
+        /// </summary>
+        /// <param name="configuration"></param>
         public static void AddXRoadDefaultSettings(this ConfigurationManager configuration)
         {
             Assembly libAsm = typeof(XRoadFolkRaw.Lib.XRoadSettings).Assembly;

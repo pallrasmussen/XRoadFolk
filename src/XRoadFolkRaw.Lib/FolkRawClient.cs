@@ -413,7 +413,13 @@ namespace XRoadFolkRaw.Lib
                 using HttpResponseMessage response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 string text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return !response.IsSuccessStatusCode
-                    ? throw new HttpRequestException($"{opName} failed. HTTP {(int)response.StatusCode} {response.ReasonPhrase}\n{text}")
+                    ? throw new HttpRequestException(string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "{0} failed. HTTP {1} {2}\n{3}",
+                        opName,
+                        (int)response.StatusCode,
+                        response.ReasonPhrase,
+                        text))
                     : text;
             }).ConfigureAwait(false);
 

@@ -60,7 +60,7 @@ namespace XRoadFolkRaw.Lib.Logging
             SensitiveElementNames.ToDictionary(
                 n => n,
                 n => new Regex(
-                    TagPatternTemplate.Replace("{N}", n),
+                    TagPatternTemplate.Replace("{N}", n, StringComparison.Ordinal),
                     RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled), StringComparer.Ordinal);
 
         /// <summary>
