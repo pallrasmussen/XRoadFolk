@@ -11,6 +11,9 @@ namespace XRoadFolkRaw.Lib.Logging
     public static partial class SafeSoapLogger
     {
         // EventIds to make logs greppable in prod
+        /// <summary>
+        /// EventIds to make logs greppable in prod.
+        /// </summary>
         public static readonly EventId SoapRequestEvent = new(41001, "SoapRequest");
         public static readonly EventId SoapResponseEvent = new(41002, "SoapResponse");
         public static readonly EventId SoapGeneralEvent = new(41000, "Soap");
@@ -58,7 +61,7 @@ namespace XRoadFolkRaw.Lib.Logging
                 n => n,
                 n => new Regex(
                     TagPatternTemplate.Replace("{N}", n),
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
+                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled), StringComparer.Ordinal);
 
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
@@ -66,25 +69,41 @@ namespace XRoadFolkRaw.Lib.Logging
         /// </summary>
         public static Func<string, string>? GlobalSanitizer { get; set; }
 
-        /// <summary>Debug-level safe SOAP log.</summary>
+        /// <summary>
+        /// Debug-level safe SOAP log.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="xml">The SOAP/XML string to log.</param>
+        /// <param name="title">Optional log title.</param>
         public static void SafeSoapDebug(this ILogger? logger, string? xml, string? title = null)
         {
             LogSanitized(logger, LogLevel.Debug, xml, title, SoapGeneralEvent);
         }
 
-        /// <summary>Information-level safe SOAP log.</summary>
+        /// <summary>
+        /// Information-level safe SOAP log.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="xml">The SOAP/XML string to log.</param>
+        /// <param name="title">Optional log title.</param>
         public static void SafeSoapInfo(this ILogger? logger, string? xml, string? title = null)
         {
             LogSanitized(logger, LogLevel.Information, xml, title, SoapGeneralEvent);
         }
 
         /// <summary>Log a request.</summary>
+        /// <param name="logger"></param>
+        /// <param name="xml"></param>
+        /// <param name="title"></param>
         public static void SafeSoapRequest(this ILogger? logger, string? xml, string? title = null)
         {
             LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Request", SoapRequestEvent);
         }
 
         /// <summary>Log a response.</summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="xml">The SOAP/XML string to log.</param>
+        /// <param name="title">Optional log title.</param>
         public static void SafeSoapResponse(this ILogger? logger, string? xml, string? title = null)
         {
             LogSanitized(logger, LogLevel.Debug, xml, title ?? "SOAP Response", SoapResponseEvent);
@@ -93,6 +112,10 @@ namespace XRoadFolkRaw.Lib.Logging
         /// <summary>
         /// Logs an exchange (request, response) as two debug messages, both sanitized.
         /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="requestXml"></param>
+        /// <param name="responseXml"></param>
+        /// <param name="operation"></param>
         public static void SafeSoapExchange(this ILogger? logger, string? requestXml, string? responseXml, string? operation = null)
         {
             string op = string.IsNullOrWhiteSpace(operation) ? "" : $" [{operation}]";
@@ -191,13 +214,11 @@ namespace XRoadFolkRaw.Lib.Logging
 
                 foreach (Regex re in TagRegexCache.Values)
                 {
-                    s = re.Replace(s, m => m.Value.Replace(m.Groups[2].Value, Mask(m.Groups[2].Value)));
+                    s = re.Replace(s, m => m.Value.Replace(m.Groups[2].Value, Mask(m.Groups[2].Value), StringComparison.Ordinal));
                 }
 
                 // redact attribute values that look sensitive
-                s = AttributeRegex().Replace(s, m => m.Groups[1].Value + Mask(m.Groups[2].Value) + m.Groups[3].Value);
-
-                return s;
+                return AttributeRegex().Replace(s, m => m.Groups[1].Value + Mask(m.Groups[2].Value) + m.Groups[3].Value);
             }
         }
 
