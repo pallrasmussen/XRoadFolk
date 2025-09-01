@@ -147,7 +147,7 @@ namespace XRoadFolkWeb.Features.People
                 XmlResolver = null,
                 MaxCharactersFromEntities = 0,
                 MaxCharactersInDocument = 10 * 1024 * 1024, // 10 MB cap to avoid memory DoS
-                CloseInput = true
+                CloseInput = true,
             };
 
             StringReader sr = new(xml);
@@ -202,13 +202,13 @@ namespace XRoadFolkWeb.Features.People
                         .Select(n => new
                         {
                             OrderText = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Order", StringComparison.Ordinal))?.Value,
-                            Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim()
+                            Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim(),
                         })
-                        .OrderBy(n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
+                        .OrderBy(static n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
                         .Select(n => n.Value)
                         .Where(v => !string.IsNullOrWhiteSpace(v)),];
 
-                    string? firstName = firstNames.Count > 0 ? string.Join(" ", firstNames) : null;
+                    string? firstName = firstNames.Count > 0 ? string.Join(' ', firstNames) : null;
 
                     string? lastName = nameItems
                         .Where(n => string.Equals(
@@ -241,7 +241,7 @@ namespace XRoadFolkWeb.Features.People
                         SSN = ssn,
                         FirstName = firstName,
                         LastName = lastName,
-                        DateOfBirth = dateOfBirth
+                        DateOfBirth = dateOfBirth,
                     });
                 }
             }
@@ -291,7 +291,7 @@ namespace XRoadFolkWeb.Features.People
                         return;
                     }
 
-                    foreach (IGrouping<string, XElement> grp in children.GroupBy(c => c.Name.LocalName))
+                    foreach (IGrouping<string, XElement> grp in children.GroupBy(c => c.Name.LocalName, StringComparer.Ordinal))
                     {
                         if (grp.Count() == 1)
                         {
