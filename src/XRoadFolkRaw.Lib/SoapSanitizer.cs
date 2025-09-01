@@ -2,7 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace XRoadFolkRaw.Lib
 {
-
     public static partial class SoapSanitizer
     {
         [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]

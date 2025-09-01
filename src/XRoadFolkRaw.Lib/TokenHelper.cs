@@ -4,7 +4,6 @@ using System.Xml.Linq;
 
 namespace XRoadFolkRaw.Lib
 {
-
     public sealed class FolkTokenProviderRaw(Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
     {
         private readonly TimeSpan _skew = refreshSkew ?? TimeSpan.Zero;
@@ -14,7 +13,9 @@ namespace XRoadFolkRaw.Lib
         private string? _token;
         private DateTimeOffset _expiresUtc = DateTimeOffset.MinValue;
 
-        // Coalesce concurrent refreshs
+        /// <summary>
+        /// Coalesce concurrent refreshs
+        /// </summary>
         private Task<string>? _refreshTask;
 
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
@@ -80,7 +81,7 @@ namespace XRoadFolkRaw.Lib
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
                 MaxCharactersFromEntities = 0,
-                MaxCharactersInDocument = 10 * 1024 * 1024
+                MaxCharactersInDocument = 10 * 1024 * 1024,
             };
             using XmlReader reader = XmlReader.Create(new StringReader(xml), settings);
             XDocument doc = XDocument.Load(reader, LoadOptions.None);
@@ -101,11 +102,18 @@ namespace XRoadFolkRaw.Lib
             if (expEl != null)
             {
                 string txt = expEl.Value.Trim();
-                _expiresUtc = DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp)
-                    ? exp - _skew
-                    : long.TryParse(txt, out long seconds)
-                        ? DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew
-                        : DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
+                if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
+                {
+                    _expiresUtc = exp - _skew;
+                }
+                else if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds))
+                {
+                    _expiresUtc = DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew;
+                }
+                else
+                {
+                    _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
+                }
             }
             else
             {

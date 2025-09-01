@@ -127,7 +127,7 @@
     <value>Efternavn må højst være 100 tegn.</value>
   </data>
   <data name="Dob_Format" xml:space="preserve">
-    <value>Fødselsdato skal være i formatet DD-MM-ÅÅÅÅ og må ikke ligge i fremtiden.</value>
+    <value>Fødselsdato skal være i formatet DD-MM-ÅÅÅÅ og må ikke ligge i fremtiden eller før 1900.</value>
   </data>
   <data name="ProvideSsnOrNameDob" xml:space="preserve">
     <value>Angiv P-tal eller fornavn/efternavn sammen med fødselsdato.</value>

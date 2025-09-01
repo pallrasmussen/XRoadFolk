@@ -127,7 +127,7 @@
     <value>Eftirnavn má í mesta lagi hava 100 tekn.</value>
   </data>
   <data name="Dob_Format" xml:space="preserve">
-    <value>Føðingardagur skal skrivast sum DD-MM-ÁÁÁÁ og ikki ligga í framtíðini.</value>
+    <value>Føðingardagur skal skrivast sum DD-MM-ÁÁÁÁ má ikki ligga í framtíðini ella áðrenn 1900.</value>
   </data>
   <data name="ProvideSsnOrNameDob" xml:space="preserve">
     <value>Skriva p-tal ella bæði fornavn og eftirnavn saman við føðingardegi.</value>

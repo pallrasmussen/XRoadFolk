@@ -7,12 +7,11 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkRaw.Lib
 {
-
     public sealed partial class PeopleService : IDisposable
     {
         private static string ComputeKey(XRoadSettings s)
         {
-            return string.Join("|",
+            return string.Join('|',
                         s.BaseUrl ?? string.Empty,
                         s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
                         s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
@@ -120,11 +119,9 @@ namespace XRoadFolkRaw.Lib
                     }
 
                     TimeSpan defaultTtl = TimeSpan.FromSeconds(Math.Max(1, _cacheOptions.DefaultTtlSeconds));
-                    TimeSpan ttl = ExpiresUtc > DateTimeOffset.UtcNow
+                    entry.AbsoluteExpirationRelativeToNow = ExpiresUtc > DateTimeOffset.UtcNow
                         ? ExpiresUtc - DateTimeOffset.UtcNow
                         : defaultTtl;
-
-                    entry.AbsoluteExpirationRelativeToNow = ttl;
                     LogTokenAcquired(_log, Token.Length);
                     return Token;
                 }).ConfigureAwait(false) ?? string.Empty;
@@ -161,12 +158,12 @@ namespace XRoadFolkRaw.Lib
                         ServiceMemberCode = _settings.Service.MemberCode,
                         ServiceSubsystemCode = _settings.Service.SubsystemCode,
                         ServiceCode = "GetPeoplePublicInfo",
-                        ServiceVersion = "v1"
+                        ServiceVersion = "v1",
                     },
                     Ssn = ssn,
                     FirstName = firstName,
                     LastName = lastName,
-                    DateOfBirth = dateOfBirth
+                    DateOfBirth = dateOfBirth,
                 };
 
                 return await _client.GetPeoplePublicInfoAsync(req, ct).ConfigureAwait(false);
@@ -239,7 +236,7 @@ namespace XRoadFolkRaw.Lib
                         ServiceMemberCode = _settings.Service.MemberCode,
                         ServiceSubsystemCode = _settings.Service.SubsystemCode,
                         ServiceCode = "GetPerson",
-                        ServiceVersion = "v1"
+                        ServiceVersion = "v1",
                     },
                     // identifiers
                     Id = reqOptions.Id,
@@ -247,7 +244,7 @@ namespace XRoadFolkRaw.Lib
                     Ssn = reqOptions.Ssn,
                     ExternalId = reqOptions.ExternalId,
                     // include
-                    Include = reqOptions.Include
+                    Include = reqOptions.Include,
                 };
 
                 return await _client.GetPersonAsync(req, ct).ConfigureAwait(false);

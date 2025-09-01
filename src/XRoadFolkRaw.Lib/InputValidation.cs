@@ -19,7 +19,7 @@ namespace XRoadFolkRaw.Lib
             "MM/dd/yyyy",
             // compact variants
             "yyyyMMdd",
-            "ddMMyyyy"
+            "ddMMyyyy",
         ];
 
         [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
@@ -73,7 +73,14 @@ namespace XRoadFolkRaw.Lib
             // Cross-check DOB vs SSN-embedded date
             if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
             {
-                errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
+                // Replace the following line in ValidateCriteria:
+                // errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
+
+                // With this code, which uses CultureInfo.InvariantCulture as the IFormatProvider:
+                errs.Add(loc[Errors.DobSsnMismatch,
+                    dob.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ssnDob.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)]);
+                //errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
             }
 
             if (haveSsn)
@@ -140,7 +147,14 @@ namespace XRoadFolkRaw.Lib
                 DateTimeOffset dt = new(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
                 if (dt.Date > now.Date)
                 {
-                    return false;
+                    // Replace the following line:
+                    // if (!int.TryParse(d.AsSpan(6, 3), out _))
+
+                    // With this line, specifying CultureInfo.InvariantCulture as the IFormatProvider:
+                    if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                    {
+                        return false;
+                    }
                 }
                 // validate last 3 digits numeric
                 if (!int.TryParse(d.AsSpan(6, 3), out _))

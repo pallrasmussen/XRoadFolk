@@ -10,7 +10,6 @@ using System.Text;
 
 namespace XRoadFolkRaw.Lib
 {
-
     public sealed partial class FolkRawClient : IDisposable
     {
         private readonly HttpClient _http;
@@ -26,7 +25,15 @@ namespace XRoadFolkRaw.Lib
             new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
-        // Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient)
+        /// <summary>
+        /// Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient)
+        /// </summary>
+        /// <param name="httpClient"></param>
+        /// <param name="logger"></param>
+        /// <param name="verbose"></param>
+        /// <param name="retryAttempts"></param>
+        /// <param name="retryBaseDelayMs"></param>
+        /// <param name="retryJitterMs"></param>
         public FolkRawClient(
             HttpClient httpClient,
             ILogger? logger = null,
@@ -45,7 +52,18 @@ namespace XRoadFolkRaw.Lib
             _retryPolicy = BuildRetryPolicy();
         }
 
-        // Backwards-compatible constructor (this instance OWNS the HttpClient)
+        /// <summary>
+        /// Backwards-compatible constructor (this instance OWNS the HttpClient)
+        /// </summary>
+        /// <param name="serviceUrl"></param>
+        /// <param name="clientCertificate"></param>
+        /// <param name="timeout"></param>
+        /// <param name="logger"></param>
+        /// <param name="verbose"></param>
+        /// <param name="retryAttempts"></param>
+        /// <param name="retryBaseDelayMs"></param>
+        /// <param name="retryJitterMs"></param>
+        /// <param name="bypassCertificateValidation"></param>
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -82,7 +100,7 @@ namespace XRoadFolkRaw.Lib
                 _http = new HttpClient(handler)
                 {
                     BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
-                    Timeout = timeout ?? TimeSpan.FromSeconds(60)
+                    Timeout = timeout ?? TimeSpan.FromSeconds(60),
                 };
                 _disposeHttpClient = true; // this instance owns _http
                 handler = null; // ownership transferred to _http
@@ -107,7 +125,7 @@ namespace XRoadFolkRaw.Lib
                          .WaitAndRetryAsync(
                              _retryAttempts,
                              attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
-                             (ex, ts, attempt, ctx) =>
+                             (ex, ts, attempt, _) =>
                              {
                                  if (_log != null)
                                  {
@@ -361,7 +379,12 @@ namespace XRoadFolkRaw.Lib
             }
             if (dateOfBirth.HasValue)
             {
-                SetChildValue(criteria, "DateOfBirth", dateOfBirth.Value.ToString("yyyy-MM-dd"));
+                // Replace this block inside GetPeoplePublicInfoAsync:
+                if (dateOfBirth.HasValue)
+                {
+                    SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                }
+                //SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd"));
             }
 
             XElement? requestHeader = requestEl.Element("requestHeader");
@@ -432,7 +455,26 @@ namespace XRoadFolkRaw.Lib
         [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Failed to preload SOAP template: '{Path}'")]
         static partial void LogTemplatePreloadFailed(ILogger logger, Exception ex, string Path);
 
-        // Shared builder for GetPerson envelope/header/body
+        /// <summary>
+        /// Shared builder for GetPerson envelope/header/body
+        /// </summary>
+        /// <param name="doc"></param>
+        /// <param name="xId"></param>
+        /// <param name="userId"></param>
+        /// <param name="protocolVersion"></param>
+        /// <param name="clientXRoadInstance"></param>
+        /// <param name="clientMemberClass"></param>
+        /// <param name="clientMemberCode"></param>
+        /// <param name="clientSubsystemCode"></param>
+        /// <param name="serviceXRoadInstance"></param>
+        /// <param name="serviceMemberClass"></param>
+        /// <param name="serviceMemberCode"></param>
+        /// <param name="serviceSubsystemCode"></param>
+        /// <param name="serviceCode"></param>
+        /// <param name="serviceVersion"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
         private static (XDocument Doc, XElement RequestBody) PrepareGetPersonDocument(
             XDocument doc,
             string xId,
@@ -502,7 +544,36 @@ namespace XRoadFolkRaw.Lib
             return (doc, requestBodyEl);
         }
 
-        // Long-parameter overload (legacy; still used by service code and request-object overload)
+        /// <summary>
+        /// Long-parameter overload (legacy; still used by service code and request-object overload)
+        /// </summary>
+        /// <param name="xmlPath"></param>
+        /// <param name="xId"></param>
+        /// <param name="userId"></param>
+        /// <param name="token"></param>
+        /// <param name="protocolVersion"></param>
+        /// <param name="clientXRoadInstance"></param>
+        /// <param name="clientMemberClass"></param>
+        /// <param name="clientMemberCode"></param>
+        /// <param name="clientSubsystemCode"></param>
+        /// <param name="serviceXRoadInstance"></param>
+        /// <param name="serviceMemberClass"></param>
+        /// <param name="serviceMemberCode"></param>
+        /// <param name="serviceSubsystemCode"></param>
+        /// <param name="serviceCode"></param>
+        /// <param name="serviceVersion"></param>
+        /// <param name="publicId"></param>
+        /// <param name="ssnForPerson"></param>
+        /// <param name="includeAddress"></param>
+        /// <param name="includeContact"></param>
+        /// <param name="includeBirthDate"></param>
+        /// <param name="includeDeathDate"></param>
+        /// <param name="includeGender"></param>
+        /// <param name="includeMaritalStatus"></param>
+        /// <param name="includeCitizenship"></param>
+        /// <param name="includeSsnHistory"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -595,7 +666,27 @@ namespace XRoadFolkRaw.Lib
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
-        // Options overload (maps flags and identifiers)
+        /// <summary>
+        /// Options overload (maps flags and identifiers)
+        /// </summary>
+        /// <param name="xmlPath"></param>
+        /// <param name="xId"></param>
+        /// <param name="userId"></param>
+        /// <param name="token"></param>
+        /// <param name="protocolVersion"></param>
+        /// <param name="clientXRoadInstance"></param>
+        /// <param name="clientMemberClass"></param>
+        /// <param name="clientMemberCode"></param>
+        /// <param name="clientSubsystemCode"></param>
+        /// <param name="serviceXRoadInstance"></param>
+        /// <param name="serviceMemberClass"></param>
+        /// <param name="serviceMemberCode"></param>
+        /// <param name="serviceSubsystemCode"></param>
+        /// <param name="serviceCode"></param>
+        /// <param name="serviceVersion"></param>
+        /// <param name="options"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -713,7 +804,12 @@ namespace XRoadFolkRaw.Lib
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
-        // Request-object overloads for simplified calling
+        /// <summary>
+        /// Request-object overloads for simplified calling
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
@@ -763,7 +859,7 @@ namespace XRoadFolkRaw.Lib
                 PublicId = req.PublicId,
                 Ssn = req.Ssn,
                 ExternalId = req.ExternalId,
-                Include = req.Include
+                Include = req.Include,
             };
 
             return await GetPersonAsync(

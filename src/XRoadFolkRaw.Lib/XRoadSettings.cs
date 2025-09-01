@@ -192,4 +192,3 @@ namespace XRoadFolkRaw.Lib
         public bool CreateIfMissing { get; set; } = true;
     }
 }
-

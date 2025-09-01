@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkRaw.Lib
 {
-
     public sealed partial class ConfigurationLoader
     {
         public static class Messages

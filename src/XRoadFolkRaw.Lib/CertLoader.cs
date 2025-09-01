@@ -100,7 +100,7 @@ namespace XRoadFolkRaw.Lib
             }
 
             using X509Certificate2 cert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
-            string? password = null; // disambiguate ctor
+            const string? password = null; // disambiguate ctor
             return new X509Certificate2(cert.Export(X509ContentType.Pkcs12), password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
         }
     }

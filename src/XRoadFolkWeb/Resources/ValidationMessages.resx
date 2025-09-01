@@ -127,7 +127,7 @@
     <value>Last name must be 100 characters or fewer.</value>
   </data>
   <data name="Dob_Format" xml:space="preserve">
-    <value>Date of birth must be YYYY-MM-DD and not in the future.</value>
+    <value>Date of birth must be YYYY-MM-DD and not in the future or before 1900.</value>
   </data>
   <data name="ProvideSsnOrNameDob" xml:space="preserve">
     <value>Provide P-tal or First/Last name with Date of birth.</value>
