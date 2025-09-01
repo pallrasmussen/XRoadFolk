@@ -4,10 +4,14 @@ namespace XRoadFolkWeb.Infrastructure
 {
     internal static class AppLocalization
     {
-        // Config section name
+        /// <summary>
+        /// Config section name
+        /// </summary>
         public const string SectionName = "Localization";
 
-        // Safe defaults if config is missing or incomplete
+        /// <summary>
+        /// Safe defaults if config is missing or incomplete
+        /// </summary>
         private static readonly string[] FallbackCultureNames = ["fo-FO", "da-DK", "en-US"];
 
         public static (string DefaultCulture, IReadOnlyList<CultureInfo> Cultures) FromConfiguration(IConfiguration configuration)

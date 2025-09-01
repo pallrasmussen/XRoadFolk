@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Localization;
 
 namespace XRoadFolkWeb.Infrastructure
 {
-    // Tries: exact match -> explicit map -> parent cultures -> same language in supported list.
+    /// <summary>
+    /// Tries: exact match -> explicit map -> parent cultures -> same language in supported list.
+    /// </summary>
     public sealed class BestMatchRequestCultureProvider(IEnumerable<CultureInfo> supportedCultures,
                                            IReadOnlyDictionary<string, string>? map = null) : RequestCultureProvider
     {
@@ -48,14 +50,14 @@ namespace XRoadFolkWeb.Infrastructure
 
                     string tag = seg;
                     double q = 1.0; // default
-                    int sc = seg.IndexOf(';');
+                    int sc = seg.IndexOf(';', StringComparison.Ordinal);
                     if (sc >= 0)
                     {
                         tag = seg[..sc].Trim();
                         string paramStr = seg[(sc + 1)..];
                         foreach (string p in paramStr.Split(';', StringSplitOptions.RemoveEmptyEntries))
                         {
-                            int eq = p.IndexOf('=');
+                            int eq = p.IndexOf('=', StringComparison.Ordinal);
                             if (eq > 0)
                             {
                                 string key = p[..eq].Trim();
@@ -137,10 +139,9 @@ namespace XRoadFolkWeb.Infrastructure
 
             // Same language (e.g. "en-GB" -> match any supported like "en-US")
             string lang = candidate.Split('-')[0];
-            string? any = _supported.FirstOrDefault(c =>
+            return _supported.FirstOrDefault(c =>
                 c.StartsWith(lang + "-", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(c, lang, StringComparison.OrdinalIgnoreCase));
-            return any;
         }
     }
 }

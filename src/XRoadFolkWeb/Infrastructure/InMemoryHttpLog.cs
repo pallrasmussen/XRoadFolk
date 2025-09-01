@@ -33,7 +33,9 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         private readonly object _fileLock = new();
 
-        // Rate limiting (entries/second). 0 disables.
+        /// <summary>
+        /// Rate limiting (entries/second). 0 disables.
+        /// </summary>
         private readonly int _maxWritesPerSecond = Math.Max(0, cfg.GetValue("HttpLog:MaxWritesPerSecond", 0));
         private readonly bool _alwaysAllowWarnError = cfg.GetValue("HttpLog:AlwaysAllowWarningsAndErrors", true);
         private long _rateWindowStartMs = Environment.TickCount64;
@@ -116,8 +118,8 @@ namespace XRoadFolkWeb.Infrastructure
                     // roll: file.log -> file.log.1/.2...
                     for (int i = _maxRolls; i >= 1; i--)
                     {
-                        string from = i == 1 ? _filePath! : _filePath! + "." + (i - 1);
-                        string to = _filePath! + "." + i;
+                        string from = i == 1 ? _filePath! : _filePath! + "." + (i - 1).ToString(CultureInfo.InvariantCulture);
+                        string to = _filePath! + "." + i.ToString(CultureInfo.InvariantCulture);
                         if (File.Exists(to))
                         {
                             File.Delete(to);
@@ -194,15 +196,21 @@ namespace XRoadFolkWeb.Infrastructure
 
             private static string ComputeKind(string category, EventId eventId, string? msg)
             {
-                return eventId.Id == SafeSoapLogger.SoapRequestEvent.Id ||
+                if (eventId.Id == SafeSoapLogger.SoapRequestEvent.Id ||
                     eventId.Id == SafeSoapLogger.SoapResponseEvent.Id ||
-                    eventId.Id == SafeSoapLogger.SoapGeneralEvent.Id
-                    ? "soap"
-                    : category.Contains("HttpClient", StringComparison.OrdinalIgnoreCase) ||
-                    category.Contains("System.Net.Http", StringComparison.OrdinalIgnoreCase) ||
-                    (msg != null && msg.StartsWith("HTTP", StringComparison.OrdinalIgnoreCase))
-                    ? "http"
-                    : "app";
+                    eventId.Id == SafeSoapLogger.SoapGeneralEvent.Id)
+                {
+                    return "soap";
+                }
+
+                if (category.Contains("HttpClient", StringComparison.OrdinalIgnoreCase) ||
+                                    category.Contains("System.Net.Http", StringComparison.OrdinalIgnoreCase) ||
+                                    (msg?.StartsWith("HTTP", StringComparison.OrdinalIgnoreCase) == true))
+                {
+                    return "http";
+                }
+
+                return "app";
             }
 
             private static string? RenderScopes(IExternalScopeProvider? provider)
@@ -243,10 +251,19 @@ namespace XRoadFolkWeb.Infrastructure
                             break;
                     }
                     first = false;
-                }, null);
+                }, state: null);
                 return sb.Length == 0 ? null : sb.ToString();
             }
 
+            /// <summary>
+            /// In SinkLogger.Log<TState>, rename the local variable 'scopes' to 'scopeInfo' to avoid hiding the parameter '_scopes'.
+            /// </summary>
+            /// <typeparam name="TState"></typeparam>
+            /// <param name="logLevel"></param>
+            /// <param name="eventId"></param>
+            /// <param name="state"></param>
+            /// <param name="exception"></param>
+            /// <param name="formatter"></param>
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
                 if (!IsEnabled(logLevel))
@@ -256,10 +273,10 @@ namespace XRoadFolkWeb.Infrastructure
 
                 string msg = formatter(state, exception);
                 string kind = ComputeKind(_category, eventId, msg);
-                string? scopes = RenderScopes(_scopes);
-                if (!string.IsNullOrEmpty(scopes))
+                string? scopeInfo = RenderScopes(_scopes);
+                if (!string.IsNullOrEmpty(scopeInfo))
                 {
-                    msg = string.Concat(msg, " | scopes: ", scopes);
+                    msg = $"{msg} | scopes: {scopeInfo}";
                 }
 
                 _store.Add(new LogEntry
@@ -270,7 +287,7 @@ namespace XRoadFolkWeb.Infrastructure
                     EventId = eventId.Id,
                     Kind = kind,
                     Message = msg,
-                    Exception = exception?.Message
+                    Exception = exception?.Message,
                 });
             }
         }

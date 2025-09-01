@@ -41,7 +41,7 @@ namespace XRoadFolkWeb.Infrastructure
                 FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false,
-                AllowSynchronousContinuations = true
+                AllowSynchronousContinuations = true,
             });
             _log = log;
         }
@@ -152,7 +152,9 @@ namespace XRoadFolkWeb.Infrastructure
         private static partial void LogStreamPublishError(ILogger logger, Exception ex);
     }
 
-    // Background worker that drains the channel and persists to file in batches
+    /// <summary>
+    /// Background worker that drains the channel and persists to file in batches
+    /// </summary>
     public sealed partial class FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts) : BackgroundService
     {
         private readonly FileBackedHttpLogStore _store = store;
