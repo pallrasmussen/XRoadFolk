@@ -135,28 +135,28 @@ namespace XRoadFolkRaw.Lib.Logging
             {
                 if (evt == SoapRequestEvent)
                 {
-                    _logRequestWithTitle(logger, title!, safe, null);
+                    _logRequestWithTitle(logger, title!, safe, arg4: null);
                 }
                 else if (evt == SoapResponseEvent)
                 {
-                    _logResponseWithTitle(logger, title!, safe, null);
+                    _logResponseWithTitle(logger, title!, safe, arg4: null);
                 }
                 else if (level == LogLevel.Information)
                 {
-                    _logInfoWithTitle(logger, title!, safe, null);
+                    _logInfoWithTitle(logger, title!, safe, arg4: null);
                 }
                 else
                 {
-                    _logGeneralWithTitle(logger, title!, safe, null);
+                    _logGeneralWithTitle(logger, title!, safe, arg4: null);
                 }
             }
             else if (level == LogLevel.Information)
             {
-                _logInfo(logger, safe, null);
+                _logInfo(logger, safe, arg3: null);
             }
             else
             {
-                _logGeneral(logger, safe, null);
+                _logGeneral(logger, safe, arg3: null);
             }
         }
 
@@ -164,6 +164,7 @@ namespace XRoadFolkRaw.Lib.Logging
         /// Sanitizes sensitive values in SOAP/XML.
         /// Try to use GlobalSanitizer if provided, otherwise a robust default.
         /// </summary>
+        /// <param name="xml"></param>
         public static string Sanitize(string xml)
         {
             if (GlobalSanitizer != null)
@@ -176,6 +177,7 @@ namespace XRoadFolkRaw.Lib.Logging
         /// <summary>
         /// Default sanitizer (prefix-agnostic, robust to invalid XML using regex fallback)
         /// </summary>
+        /// <param name="input"></param>
         private static string DefaultSanitize(string input)
         {
             if (string.IsNullOrEmpty(input))

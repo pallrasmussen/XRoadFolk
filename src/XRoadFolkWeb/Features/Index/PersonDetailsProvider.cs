@@ -78,9 +78,12 @@ namespace XRoadFolkWeb.Features.Index
 
                 static IEnumerable<string> Segments(string key)
                 {
-                    if (string.IsNullOrWhiteSpace(key)) yield break;
-                    string[] parts = key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    foreach (string part in parts)
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        yield break;
+                    }
+
+                    foreach (string part in key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                     {
                         int i = part.IndexOf('[', StringComparison.Ordinal);
                         yield return i >= 0 ? part[..i] : part;

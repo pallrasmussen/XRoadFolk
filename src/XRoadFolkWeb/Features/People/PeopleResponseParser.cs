@@ -9,7 +9,9 @@ namespace XRoadFolkWeb.Features.People
         private readonly ILogger<PeopleResponseParser> _logger = logger;
         private const int MaxElementDepth = 128; // reasonable anti-recursion cap
 
-        // Wrapper that enforces a maximum element depth while delegating to the inner reader
+        /// <summary>
+        /// Wrapper that enforces a maximum element depth while delegating to the inner reader
+        /// </summary>
         private sealed class DepthLimitingXmlReader(XmlReader inner, int maxDepth) : XmlReader
         {
             private readonly XmlReader _inner = inner ?? throw new ArgumentNullException(nameof(inner));
@@ -49,7 +51,10 @@ namespace XRoadFolkWeb.Features.People
             public override string XmlLang => _inner.XmlLang!;
             public override XmlSpace XmlSpace => _inner.XmlSpace;
 
-            public override void Close() => _inner.Close();
+            public override void Close()
+            {
+                _inner.Close();
+            }
 
             protected override void Dispose(bool disposing)
             {
@@ -57,21 +62,80 @@ namespace XRoadFolkWeb.Features.People
                 base.Dispose(disposing);
             }
 
-            // Change the return type of GetAttribute(int i) from string? to string to match the base XmlReader signature
-            public override string GetAttribute(int i) => _inner.GetAttribute(i);
-            public override string? GetAttribute(string name) => _inner.GetAttribute(name);
-            public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
-            public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
-            public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
-            public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
-            public override bool MoveToElement() => _inner.MoveToElement();
-            public override bool MoveToFirstAttribute() => _inner.MoveToFirstAttribute();
-            public override bool MoveToNextAttribute() => _inner.MoveToNextAttribute();
-            public override bool ReadAttributeValue() => _inner.ReadAttributeValue();
-            public override void ResolveEntity() => _inner.ResolveEntity();
-            public override string ReadInnerXml() => _inner.ReadInnerXml();
-            public override string ReadOuterXml() => _inner.ReadOuterXml();
-            public override XmlReader ReadSubtree() => new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
+            /// <summary>
+            /// Change the return type of GetAttribute(int i) from string? to string to match the base XmlReader signature
+            /// </summary>
+            /// <param name="i"></param>
+            /// <returns></returns>
+            public override string GetAttribute(int i)
+            {
+                return _inner.GetAttribute(i);
+            }
+
+            public override string? GetAttribute(string name)
+            {
+                return _inner.GetAttribute(name);
+            }
+
+            public override string? GetAttribute(string name, string? namespaceURI)
+            {
+                return _inner.GetAttribute(name, namespaceURI);
+            }
+
+            public override string? LookupNamespace(string prefix)
+            {
+                return _inner.LookupNamespace(prefix);
+            }
+
+            public override bool MoveToAttribute(string name)
+            {
+                return _inner.MoveToAttribute(name);
+            }
+
+            public override bool MoveToAttribute(string name, string? ns)
+            {
+                return _inner.MoveToAttribute(name, ns);
+            }
+
+            public override bool MoveToElement()
+            {
+                return _inner.MoveToElement();
+            }
+
+            public override bool MoveToFirstAttribute()
+            {
+                return _inner.MoveToFirstAttribute();
+            }
+
+            public override bool MoveToNextAttribute()
+            {
+                return _inner.MoveToNextAttribute();
+            }
+
+            public override bool ReadAttributeValue()
+            {
+                return _inner.ReadAttributeValue();
+            }
+
+            public override void ResolveEntity()
+            {
+                _inner.ResolveEntity();
+            }
+
+            public override string ReadInnerXml()
+            {
+                return _inner.ReadInnerXml();
+            }
+
+            public override string ReadOuterXml()
+            {
+                return _inner.ReadOuterXml();
+            }
+
+            public override XmlReader ReadSubtree()
+            {
+                return new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
+            }
         }
 
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Ownership of XmlReader is transferred to DepthLimitingXmlReader which disposes it; CloseInput ensures StringReader is disposed when reader is disposed.")]
@@ -114,51 +178,51 @@ namespace XRoadFolkWeb.Features.People
                 using XmlReader reader = CreateSafeReader(xml);
                 XDocument doc = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
 
-                List<XElement> people = [.. doc.Descendants().Where(e => e.Name.LocalName == "PersonPublicInfo")];
+                List<XElement> people = [.. doc.Descendants().Where(e => string.Equals(e.Name.LocalName, "PersonPublicInfo", StringComparison.Ordinal))];
 
                 string? requestSsn = doc
-                    .Descendants().FirstOrDefault(e => e.Name.LocalName == "ListOfPersonPublicInfoCriteria")?
-                    .Descendants().FirstOrDefault(e => e.Name.LocalName == "PersonPublicInfoCriteria")?
-                    .Elements().FirstOrDefault(e => e.Name.LocalName == "SSN")?
+                    .Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "ListOfPersonPublicInfoCriteria", StringComparison.Ordinal))?
+                    .Descendants().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "PersonPublicInfoCriteria", StringComparison.Ordinal))?
+                    .Elements().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "SSN", StringComparison.Ordinal))?
                     .Value?.Trim();
 
                 foreach (XElement? p in people)
                 {
-                    string? publicId = p.Elements().FirstOrDefault(x => x.Name.LocalName == "PublicId")?.Value?.Trim()
-                                    ?? p.Elements().FirstOrDefault(x => x.Name.LocalName == "PersonId")?.Value?.Trim();
+                    string? publicId = p.Elements().FirstOrDefault(static x => string.Equals(x.Name.LocalName, "PublicId", StringComparison.Ordinal))?.Value?.Trim()
+                                    ?? p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "PersonId", StringComparison.Ordinal))?.Value?.Trim();
 
-                    IEnumerable<XElement> nameItems = p.Elements().FirstOrDefault(x => x.Name.LocalName == "Names")?
-                                   .Elements().Where(x => x.Name.LocalName == "Name")
+                    IEnumerable<XElement> nameItems = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "Names", StringComparison.Ordinal))?
+                                   .Elements().Where(x => string.Equals(x.Name.LocalName, "Name", StringComparison.Ordinal))
                                 ?? [];
 
                     List<string?> firstNames = [.. nameItems
                         .Where(n => string.Equals(
-                            n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
+                            n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
                             "FirstName", StringComparison.OrdinalIgnoreCase))
                         .Select(n => new
                         {
-                            OrderText = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Order")?.Value,
-                            Value = n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim()
+                            OrderText = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Order", StringComparison.Ordinal))?.Value,
+                            Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim()
                         })
                         .OrderBy(n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
                         .Select(n => n.Value)
-                        .Where(v => !string.IsNullOrWhiteSpace(v))];
+                        .Where(v => !string.IsNullOrWhiteSpace(v)),];
 
                     string? firstName = firstNames.Count > 0 ? string.Join(" ", firstNames) : null;
 
                     string? lastName = nameItems
                         .Where(n => string.Equals(
-                            n.Elements().FirstOrDefault(e => e.Name.LocalName == "Type")?.Value,
+                            n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
                             "LastName", StringComparison.OrdinalIgnoreCase))
-                        .Select(n => n.Elements().FirstOrDefault(e => e.Name.LocalName == "Value")?.Value?.Trim())
+                        .Select(n => n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim())
                         .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
-                    string? civilStatusDate = p.Elements().FirstOrDefault(x => x.Name.LocalName == "CivilStatusDate")?.Value?.Trim();
+                    string? civilStatusDate = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "CivilStatusDate", StringComparison.Ordinal))?.Value?.Trim();
                     string? dateOfBirth = !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
                         ? civilStatusDate[..10]
                         : civilStatusDate;
 
-                    string? ssn = p.Elements().FirstOrDefault(x => x.Name.LocalName == "SSN")?.Value?.Trim();
+                    string? ssn = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "SSN", StringComparison.Ordinal))?.Value?.Trim();
                     if (string.IsNullOrWhiteSpace(ssn) && people.Count == 1 && !string.IsNullOrWhiteSpace(requestSsn))
                     {
                         ssn = requestSsn;
@@ -201,7 +265,7 @@ namespace XRoadFolkWeb.Features.People
             {
                 using XmlReader reader = CreateSafeReader(xml);
                 XDocument doc = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-                XElement? body = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
+                XElement? body = doc.Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Body", StringComparison.Ordinal));
                 if (body == null)
                 {
                     return pairs;

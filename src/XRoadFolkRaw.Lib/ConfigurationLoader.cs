@@ -36,7 +36,7 @@ namespace XRoadFolkRaw.Lib
             public const string XRoadServiceSubsystemLog = nameof(XRoadServiceSubsystemLog);
         }
 
-        public (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log, IStringLocalizer<ConfigurationLoader> loc)
+        public static (IConfigurationRoot Config, XRoadSettings Settings) Load(ILogger log, IStringLocalizer<ConfigurationLoader> loc)
         {
             ArgumentNullException.ThrowIfNull(log);
             ArgumentNullException.ThrowIfNull(loc);
