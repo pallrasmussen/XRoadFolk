@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Net;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -123,6 +124,11 @@ namespace XRoadFolkWeb.Extensions
         {
             ArgumentNullException.ThrowIfNull(app);
 
+            // Resolve environment + configuration early
+            IHostEnvironment hostEnv = app.Services.GetRequiredService<IHostEnvironment>();
+            IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
+            bool showDetailedErrors = configuration.GetValue<bool?>("Features:DetailedErrors") ?? hostEnv.IsDevelopment();
+
             // CSP + security headers middleware with per-request nonce
             _ = app.Use(async (ctx, next) =>
             {
@@ -204,7 +210,7 @@ namespace XRoadFolkWeb.Extensions
                 await next();
             });
 
-            // Global exception handling (no stack traces leaked)
+            // Global exception handling (with optional detailed output)
             ILogger errorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Error");
             _ = app.UseExceptionHandler(errorApp =>
             {
@@ -216,22 +222,46 @@ namespace XRoadFolkWeb.Extensions
 
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
+                    Exception? ex = feature?.Error;
+                    string title = showDetailedErrors && ex is not null ? ex.Message : "An unexpected error occurred.";
+
                     string accept = context.Request.Headers.Accept.ToString();
                     if (!string.IsNullOrWhiteSpace(accept) && accept.Contains("text/html", StringComparison.OrdinalIgnoreCase))
                     {
                         context.Response.ContentType = "text/html; charset=utf-8";
-                        await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>");
+                        if (showDetailedErrors && ex is not null)
+                        {
+                            string msg = WebUtility.HtmlEncode(ex.Message);
+                            string type = WebUtility.HtmlEncode(ex.GetType().FullName ?? ex.GetType().Name);
+                            string stack = WebUtility.HtmlEncode(ex.StackTrace ?? "");
+                            string html = $"<!doctype html><html><head><title>Error</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>{msg}</h1><p><strong>Type:</strong> {type}</p><p><strong>Trace Id:</strong> {traceId}</p><pre style=\"white-space:pre-wrap;\">{stack}</pre></body></html>";
+                            await context.Response.WriteAsync(html);
+                        }
+                        else
+                        {
+                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>");
+                        }
                     }
                     else
                     {
                         ProblemDetails problem = new()
                         {
                             Status = StatusCodes.Status500InternalServerError,
-                            Title = "An unexpected error occurred.",
+                            Title = title,
                             Type = "about:blank",
                             Instance = context.Request?.Path,
                         };
                         problem.Extensions["traceId"] = traceId;
+                        if (showDetailedErrors && ex is not null)
+                        {
+                            problem.Extensions["exception"] = new
+                            {
+                                type = ex.GetType().FullName ?? ex.GetType().Name,
+                                message = ex.Message,
+                                stackTrace = ex.StackTrace,
+                                inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message }
+                            };
+                        }
                         await context.Response.WriteAsJsonAsync(problem);
                     }
                 });

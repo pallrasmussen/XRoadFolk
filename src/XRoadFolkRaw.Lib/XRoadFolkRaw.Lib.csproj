@@ -44,6 +44,7 @@
   <ItemGroup>
     <None Include="Resources\*.pfx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <TargetPath>%(Filename)%(Extension)</TargetPath>
     </None>
   </ItemGroup>

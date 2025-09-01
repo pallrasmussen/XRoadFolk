@@ -9,6 +9,7 @@ using XRoadFolkWeb.Features.People;
 using XRoadFolkWeb.Features.Index;
 using System.Text.RegularExpressions;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
+using Microsoft.Extensions.Hosting;
 
 namespace XRoadFolkWeb.Pages
 {
@@ -78,6 +79,25 @@ namespace XRoadFolkWeb.Pages
             return !string.IsNullOrWhiteSpace(s) && PublicIdRegex().IsMatch(s);
         }
 
+        private string BuildUserError(Exception ex)
+        {
+            bool detailed = _config.GetValue<bool?>("Features:DetailedErrors")
+                              ?? (HttpContext?.RequestServices.GetService(typeof(IHostEnvironment)) is IHostEnvironment env && env.IsDevelopment());
+            if (detailed)
+            {
+                string msg = ex.Message;
+                if (ex.InnerException != null && !string.IsNullOrWhiteSpace(ex.InnerException.Message))
+                {
+                    msg += " | " + ex.InnerException.Message;
+                }
+                string traceId = HttpContext?.TraceIdentifier ?? string.Empty;
+                return string.IsNullOrWhiteSpace(traceId) ? msg : $"{msg} (TraceId: {traceId})";
+            }
+
+            LocalizedString l = _loc["UnexpectedError"];
+            return l.ResourceNotFound ? "An unexpected error occurred." : l.Value;
+        }
+
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -127,8 +147,7 @@ namespace XRoadFolkWeb.Pages
                     catch (Exception ex)
                     {
                         LogPersonDetailsError(_logger, ex, publicId);
-                        LocalizedString msg = _loc["UnexpectedError"];
-                        Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
+                        Errors.Add(BuildUserError(ex));
                     }
                 }
             }
@@ -161,8 +180,7 @@ namespace XRoadFolkWeb.Pages
                 catch (Exception ex)
                 {
                     LogSearchError(_logger, ex);
-                    LocalizedString msg = _loc["UnexpectedError"];
-                    Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
+                    Errors.Add(BuildUserError(ex));
                 }
             }
         }
@@ -231,8 +249,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogSearchError(_logger, ex);
-                LocalizedString msg = _loc["UnexpectedError"];
-                Errors.Add(msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value);
+                Errors.Add(BuildUserError(ex));
                 return Page();
             }
 
@@ -288,6 +305,19 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId!);
+                bool detailed = _config.GetValue<bool?>("Features:DetailedErrors")
+                                  ?? (HttpContext?.RequestServices.GetService(typeof(IHostEnvironment)) is IHostEnvironment env && env.IsDevelopment());
+                if (detailed)
+                {
+                    return new JsonResult(new
+                    {
+                        ok = false,
+                        error = ex.Message,
+                        type = ex.GetType().FullName ?? ex.GetType().Name,
+                        traceId = HttpContext?.TraceIdentifier,
+                        inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message }
+                    });
+                }
                 LocalizedString msg = _loc["UnexpectedError"];
                 string text = msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value;
                 return new JsonResult(new { ok = false, error = text });
