@@ -463,7 +463,7 @@
         }
     });
 
-    // Delegated handlers: Fullscreen toggle
+    // Delegated handlers: Fullscreen toggle (viewer only)
     document.addEventListener('click', function(e){
         var t = e.target;
         if (t && (t.id === 'gpiv-fullscreen' || (t.closest && t.closest('#gpiv-fullscreen')))) {
@@ -474,19 +474,14 @@
                 else { syncViewerHeight(); }
             }
         }
-        // Person Details fullscreen toggle
-        if (t && (t.id === 'pd-fullscreen' || (t.closest && t.closest('#pd-fullscreen')))) {
-            var sec = document.getElementById('person-details-section');
-            if (!sec) return;
-            sec.classList.toggle('pd-fullscreen');
-        }
+        // NOTE: Person Details fullscreen is handled centrally in Index.cshtml
     });
 
     // Keyboard shortcuts (unchanged)
     document.addEventListener('keydown', function (e) {
         var t = e.target;
         var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-        var inEditable = t && (t.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select');
+        var inEditable = t && (t.isContentEditable || tag === 'input' || t === 'textarea' || tag === 'select');
         if (inEditable) return;
 
         if (e.key.toLowerCase() === 'e') { expandSummaryAll(true); }
@@ -662,8 +657,7 @@
         tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
       });
 
-      table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap); col.appendChild(body);
-      item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
+      table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap); col.appendChild(body); item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
     });
     return acc;
   }
@@ -794,4 +788,4 @@
     if (t === 'pd-collapse-all') pdToggleAll(false);
   });
 })();
-</script></script>
+</script>
