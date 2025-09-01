@@ -153,7 +153,7 @@
       if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
       if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
-      if (t.includes('address') || t.includes('resid') || t.includes('domic') || t.includes('location') || t.includes('geo') || t.includes('place')) return 'bi-geo-alt';
+      if (t.includes('address' ) || t.includes('resid') || t.includes('domic') || t.includes('location') || t.includes('geo') || t.includes('place')) return 'bi-geo-alt';
       if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
       if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation') || t.includes('employer')) return 'bi-briefcase';
       if (t.includes('education') || t.includes('school') || t.includes('study') || t.includes('degree')) return 'bi-mortarboard';
@@ -747,17 +747,22 @@
   }
 
   document.addEventListener('click', function(e){
-    var t = e.target;
-    if(!t || !t.classList || !t.classList.contains('gpiv-pid')) return;
+    var btn = e.target && e.target.closest && e.target.closest('.gpiv-pid');
+    if(!btn) return;
     if(e.ctrlKey || e.metaKey) return;
     e.preventDefault();
-    var pid = t.getAttribute('data-public-id') || '';
+    // If viewer is fullscreen, exit it first so details panel is visible
+    try {
+      var viewer = document.querySelector('.gpiv-card');
+      if (viewer && viewer.classList.contains('gpiv-fullscreen')) viewer.classList.remove('gpiv-fullscreen');
+    } catch {}
+    var pid = btn.getAttribute('data-public-id') || '';
     if(!pid){
-      var txt = t.textContent || '';
+      var txt = btn.textContent || '';
       var parts = txt.split(':');
       pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
     }
-    if(pid) loadPerson(pid, t);
+    if(pid) loadPerson(pid, btn);
   });
 
   try{
