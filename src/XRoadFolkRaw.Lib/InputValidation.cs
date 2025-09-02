@@ -118,18 +118,20 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            // MA0011 fix: Use overload with IFormatProvider for TryParse
+            // Parse all numeric segments using InvariantCulture
             if (!int.TryParse(d.AsSpan(0, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int DD))
             {
                 return false;
             }
-
             if (!int.TryParse(d.AsSpan(2, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int MM))
             {
                 return false;
             }
-
             if (!int.TryParse(d.AsSpan(4, 2), NumberStyles.None, CultureInfo.InvariantCulture, out int YY))
+            {
+                return false;
+            }
+            if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out int _))
             {
                 return false;
             }
@@ -143,19 +145,9 @@ namespace XRoadFolkRaw.Lib
                 DateTimeOffset dt = new(year, MM, DD, 0, 0, 0, TimeSpan.Zero);
                 if (dt.Date > now.Date)
                 {
-                    // Use overload with IFormatProvider for MA0011 compliance
-                    if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
-                    {
-                        return false;
-                    }
-                }
-                // Use overload with IFormatProvider for MA0011 compliance
-                if (!int.TryParse(d.AsSpan(6, 3), NumberStyles.None, CultureInfo.InvariantCulture, out _))
-                {
                     return false;
                 }
 
-                // MA0132 fix: Do not convert implicitly to DateTimeOffset
                 embedded = new DateTimeOffset(dt.Year, dt.Month, dt.Day, 0, 0, 0, dt.Offset);
                 return true;
             }
@@ -205,7 +197,6 @@ namespace XRoadFolkRaw.Lib
                 return false;
             }
 
-            // MA0132 fix: Do not convert implicitly to DateTimeOffset
             dval = new DateTimeOffset(dt.Year, dt.Month, dt.Day, 0, 0, 0, dt.Offset);
             return true;
         }
