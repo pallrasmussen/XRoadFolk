@@ -110,82 +110,100 @@ namespace XRoadFolkWeb.Pages
         {
             EnabledPersonIncludeKeys = [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
 
-            // Prefill bound properties from query to retain form values after redirects or navigation
+            PrefillFromQuery(ssn, firstName, lastName, dateOfBirth);
+
+            await LoadPersonDetailsIfRequestedAsync(publicId, HttpContext?.RequestAborted ?? CancellationToken.None).ConfigureAwait(false);
+
+            if (!HasCriteria())
+            {
+                return;
+            }
+
+            (bool Ok, List<string> Errs, string? SsnNorm, DateTimeOffset? Dob) vc = ValidateQueryCriteria();
+            if (!vc.Ok)
+            {
+                LogValidationFailed(_logger, vc.Errs.Count);
+                Errors = vc.Errs;
+                return;
+            }
+
+            try
+            {
+                await PerformSearchAsync(vc.SsnNorm, vc.Dob, HttpContext?.RequestAborted ?? CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogSearchError(_logger, ex);
+                Errors.Add(BuildUserError(ex));
+            }
+        }
+
+        private void PrefillFromQuery(string? ssn, string? firstName, string? lastName, string? dateOfBirth)
+        {
             if (!string.IsNullOrWhiteSpace(ssn))
             {
                 Ssn = ssn;
             }
-
             if (!string.IsNullOrWhiteSpace(firstName))
             {
                 FirstName = firstName;
             }
-
             if (!string.IsNullOrWhiteSpace(lastName))
             {
                 LastName = lastName;
             }
-
             if (!string.IsNullOrWhiteSpace(dateOfBirth))
             {
                 DateOfBirth = dateOfBirth;
             }
+        }
 
-            // Optional: load person details by PublicId (AJAX panel)
-            if (!string.IsNullOrWhiteSpace(publicId))
+        private async Task LoadPersonDetailsIfRequestedAsync(string? publicId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(publicId))
             {
-                if (!IsValidPublicId(publicId))
-                {
-                    LocalizedString msg = _loc["InvalidPublicId"]; // optional localization key
-                    Errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
-                }
-                else
-                {
-                    try
-                    {
-                        (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
-                        PersonDetails = res.Details;
-                        SelectedNameSuffix = res.SelectedNameSuffix;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogPersonDetailsError(_logger, ex, publicId);
-                        Errors.Add(BuildUserError(ex));
-                    }
-                }
+                return;
             }
 
-            // If any search criteria provided via GET, perform the search (PRG target)
-            bool hasCriteria = !string.IsNullOrWhiteSpace(Ssn)
-                            || !string.IsNullOrWhiteSpace(FirstName)
-                            || !string.IsNullOrWhiteSpace(LastName)
-                            || !string.IsNullOrWhiteSpace(DateOfBirth);
-            if (hasCriteria)
+            if (!IsValidPublicId(publicId))
             {
-                // Only validate the present path (SSN vs Name+DOB)
-                (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
-                    InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
-
-                if (!ok)
-                {
-                    LogValidationFailed(_logger, errs.Count);
-                    Errors = errs;
-                    return;
-                }
-
-                try
-                {
-                    (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
-                    PeoplePublicInfoResponseXml = res.Xml;
-                    PeoplePublicInfoResponseXmlPretty = res.Pretty;
-                    Results = res.Results;
-                }
-                catch (Exception ex)
-                {
-                    LogSearchError(_logger, ex);
-                    Errors.Add(BuildUserError(ex));
-                }
+                LocalizedString msg = _loc["InvalidPublicId"]; // optional localization key
+                Errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
+                return;
             }
+
+            try
+            {
+                (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, ct).ConfigureAwait(false);
+                PersonDetails = res.Details;
+                SelectedNameSuffix = res.SelectedNameSuffix;
+            }
+            catch (Exception ex)
+            {
+                LogPersonDetailsError(_logger, ex, publicId);
+                Errors.Add(BuildUserError(ex));
+            }
+        }
+
+        private bool HasCriteria()
+        {
+            return !string.IsNullOrWhiteSpace(Ssn)
+                || !string.IsNullOrWhiteSpace(FirstName)
+                || !string.IsNullOrWhiteSpace(LastName)
+                || !string.IsNullOrWhiteSpace(DateOfBirth);
+        }
+
+        private (bool Ok, List<string> Errs, string? SsnNorm, DateTimeOffset? Dob) ValidateQueryCriteria()
+        {
+            return InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+        }
+
+        private async Task PerformSearchAsync(string? ssnNorm, DateTimeOffset? dob, CancellationToken ct)
+        {
+            (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, ct).ConfigureAwait(false);
+            PeoplePublicInfoResponseXml = res.Xml;
+            PeoplePublicInfoResponseXmlPretty = res.Pretty;
+            Results = res.Results;
         }
 
         public async Task<IActionResult> OnPostAsync()
