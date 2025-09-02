@@ -17,7 +17,7 @@ public static partial class ServiceCollectionExtensions
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
         // Safe SOAP sanitization hook
-        bool maskTokens = configuration.GetValue("Logging:MaskTokens", true);
+        bool maskTokens = configuration.GetValue("Logging:MaskTokens", defaultValue: true);
         SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
         // GetPerson options & validator

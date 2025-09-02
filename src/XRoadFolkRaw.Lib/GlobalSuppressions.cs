@@ -31,3 +31,4 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "Public API namespace kept for backward compatibility; extension namespace follows existing pattern.",
     Scope = "namespace",
     Target = "~N:XRoadFolkRaw.Lib.Extensions")]
+[assembly: SuppressMessage("Design", "MA0051:Method is too long", Justification = "<Pending>", Scope = "member", Target = "~M:XRoadFolkRaw.Lib.PeopleService.GetPersonAsync(System.String,System.Threading.CancellationToken)~System.Threading.Tasks.Task{System.String}")]

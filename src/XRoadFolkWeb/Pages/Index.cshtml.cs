@@ -63,11 +63,15 @@ namespace XRoadFolkWeb.Pages
         public string SelectedNameSuffix { get; private set; } = string.Empty;
         public List<string> Errors { get; private set; } = [];
 
-        // Holds full GetPeoplePublicInfo response (raw + pretty)
+        /// <summary>
+        /// Holds full GetPeoplePublicInfo response (raw + pretty)
+        /// </summary>
         public string? PeoplePublicInfoResponseXml { get; private set; }
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
-        // Expose enabled include keys to the view
+        /// <summary>
+        /// Expose enabled include keys to the view
+        /// </summary>
         public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
 
         [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
@@ -195,7 +199,7 @@ namespace XRoadFolkWeb.Pages
 
             if (!ModelState.IsValid)
             {
-                int count = ModelState.Values.SelectMany(v => v.Errors).Count();
+                int count = ModelState.Values.Sum(v => v.Errors.Count);
                 LogValidationFailed(_logger, count);
                 Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
                 return Page();
@@ -298,7 +302,7 @@ namespace XRoadFolkWeb.Pages
                     publicId,
                     raw = string.Empty, // raw xml not returned here
                     pretty = res.Pretty,
-                    details = res.Details.Select(p => new { key = p.Key, value = p.Value }).ToArray()
+                    details = res.Details.Select(p => new { key = p.Key, value = p.Value }).ToArray(),
                 });
             }
             catch (Exception ex)
@@ -314,7 +318,7 @@ namespace XRoadFolkWeb.Pages
                         error = ex.Message,
                         type = ex.GetType().FullName ?? ex.GetType().Name,
                         traceId = HttpContext?.TraceIdentifier,
-                        inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message }
+                        inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
                     });
                 }
                 LocalizedString msg = _loc["UnexpectedError"];

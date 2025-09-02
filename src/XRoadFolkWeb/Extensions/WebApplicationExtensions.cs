@@ -259,7 +259,7 @@ namespace XRoadFolkWeb.Extensions
                                 type = ex.GetType().FullName ?? ex.GetType().Name,
                                 message = ex.Message,
                                 stackTrace = ex.StackTrace,
-                                inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message }
+                                inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
                             };
                         }
                         await context.Response.WriteAsJsonAsync(problem);
@@ -339,7 +339,7 @@ namespace XRoadFolkWeb.Extensions
                             Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
                             Current = feature?.RequestCulture.Culture.Name,
                             CurrentUI = feature?.RequestCulture.UICulture.Name,
-                        }
+                        },
                     });
                 });
             }

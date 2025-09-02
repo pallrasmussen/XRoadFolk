@@ -4,7 +4,11 @@ namespace XRoadFolkWeb.Extensions;
 
 public static partial class ServiceCollectionExtensions
 {
-    // Registers FolkRawClient factory using the named HttpClient "XRoadFolk"
+    /// <summary>
+    /// Registers FolkRawClient factory using the named HttpClient "XRoadFolk"
+    /// </summary>
+    /// <param name="services"></param>
+    /// <returns></returns>
     public static IServiceCollection AddFolkRawClientFactory(this IServiceCollection services)
     {
         _ = services.AddSingleton(sp =>

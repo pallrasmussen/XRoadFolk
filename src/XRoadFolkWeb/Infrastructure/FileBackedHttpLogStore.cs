@@ -5,10 +5,12 @@ using System.Threading.Channels;
 
 namespace XRoadFolkWeb.Infrastructure
 {
-    // File-backed store with bounded channel and background writer.
-    // - Maintains an in-memory ring buffer (Capacity)
-    // - Persists entries to rolling log files
-    // - Uses a bounded channel to provide back-pressure; warnings/errors bypass drops
+    /// <summary>
+    /// File-backed store with bounded channel and background writer.
+    /// - Maintains an in-memory ring buffer (Capacity)
+    /// - Persists entries to rolling log files
+    /// - Uses a bounded channel to provide back-pressure; warnings/errors bypass drops
+    /// </summary>
     public sealed partial class FileBackedHttpLogStore : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _ring = new();

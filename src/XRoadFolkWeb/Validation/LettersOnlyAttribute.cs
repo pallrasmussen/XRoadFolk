@@ -7,7 +7,9 @@ namespace XRoadFolkWeb.Validation
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class LettersOnlyAttribute : ValidationAttribute, IClientModelValidator
     {
-        // Allow: Unicode letters and combining marks, spaces, straight ' and curly ’ apostrophes, and hyphen
+        /// <summary>
+        /// Allow: Unicode letters and combining marks, spaces, straight ' and curly ’ apostrophes, and hyphen
+        /// </summary>
         private static readonly Regex LettersRegex = new(
             @"^[\p{L}\p{M}\s\-'\u2019]+$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
