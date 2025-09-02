@@ -178,71 +178,24 @@ namespace XRoadFolkWeb.Features.People
                 using XmlReader reader = CreateSafeReader(xml);
                 XDocument doc = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
 
-                List<XElement> people = [.. doc.Descendants().Where(e => string.Equals(e.Name.LocalName, "PersonPublicInfo", StringComparison.Ordinal))];
+                List<XElement> people = FindPersonElements(doc);
+                string? requestSsn = ExtractRequestSsn(doc);
 
-                string? requestSsn = doc
-                    .Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "ListOfPersonPublicInfoCriteria", StringComparison.Ordinal))?
-                    .Descendants().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "PersonPublicInfoCriteria", StringComparison.Ordinal))?
-                    .Elements().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "SSN", StringComparison.Ordinal))?
-                    .Value?.Trim();
-
-                foreach (XElement? p in people)
+                foreach (XElement p in people)
                 {
-                    string? publicId = p.Elements().FirstOrDefault(static x => string.Equals(x.Name.LocalName, "PublicId", StringComparison.Ordinal))?.Value?.Trim()
-                                    ?? p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "PersonId", StringComparison.Ordinal))?.Value?.Trim();
+                    string? publicId = ExtractPublicId(p);
+                    IEnumerable<XElement> nameItems = GetNameItems(p);
+                    string? firstName = ExtractFirstName(nameItems);
+                    string? lastName = ExtractLastName(nameItems);
+                    string? dateOfBirth = ExtractDateOfBirth(p);
+                    string? ssn = ExtractSsn(p, people.Count, requestSsn);
 
-                    IEnumerable<XElement> nameItems = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "Names", StringComparison.Ordinal))?
-                                   .Elements().Where(x => string.Equals(x.Name.LocalName, "Name", StringComparison.Ordinal))
-                                ?? [];
-
-                    List<string?> firstNames = [.. nameItems
-                        .Where(n => string.Equals(
-                            n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
-                            "FirstName", StringComparison.OrdinalIgnoreCase))
-                        .Select(n => new
-                        {
-                            OrderText = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Order", StringComparison.Ordinal))?.Value,
-                            Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim(),
-                        })
-                        .OrderBy(static n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
-                        .Select(n => n.Value)
-                        .Where(v => !string.IsNullOrWhiteSpace(v)),];
-
-                    string? firstName = firstNames.Count > 0 ? string.Join(' ', firstNames) : null;
-
-                    string? lastName = nameItems
-                        .Where(n => string.Equals(
-                            n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
-                            "LastName", StringComparison.OrdinalIgnoreCase))
-                        .Select(n => n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim())
-                        .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-
-                    string? civilStatusDate = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "CivilStatusDate", StringComparison.Ordinal))?.Value?.Trim();
-                    string? dateOfBirth = !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
-                        ? civilStatusDate[..10]
-                        : civilStatusDate;
-
-                    string? ssn = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "SSN", StringComparison.Ordinal))?.Value?.Trim();
-                    if (string.IsNullOrWhiteSpace(ssn) && people.Count == 1 && !string.IsNullOrWhiteSpace(requestSsn))
-                    {
-                        ssn = requestSsn;
-                    }
-
-                    bool hasIdentifier = !string.IsNullOrWhiteSpace(publicId) || !string.IsNullOrWhiteSpace(ssn);
-                    bool hasAnyName = !string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName);
-                    if (!hasIdentifier && !hasAnyName)
+                    if (!ShouldIncludeRow(publicId, ssn, firstName, lastName))
                     {
                         continue;
                     }
 
-                    rows.Add(new PersonRow
-                    {
-                        PublicId = publicId,
-                        SSN = ssn,
-                        FirstName = firstName,
-                        LastName = lastName,
-                        DateOfBirth = dateOfBirth,
-                    });
+                    rows.Add(BuildRow(publicId, ssn, firstName, lastName, dateOfBirth));
                 }
             }
             catch (Exception ex)
@@ -251,6 +204,98 @@ namespace XRoadFolkWeb.Features.People
                 // malformed/unsafe XML -> return empty list
             }
             return rows;
+        }
+
+        private static List<XElement> FindPersonElements(XDocument doc)
+        {
+            return [.. doc.Descendants().Where(e => string.Equals(e.Name.LocalName, "PersonPublicInfo", StringComparison.Ordinal))];
+        }
+
+        private static string? ExtractRequestSsn(XDocument doc)
+        {
+            return doc
+                .Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "ListOfPersonPublicInfoCriteria", StringComparison.Ordinal))?
+                .Descendants().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "PersonPublicInfoCriteria", StringComparison.Ordinal))?
+                .Elements().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "SSN", StringComparison.Ordinal))?
+                .Value?.Trim();
+        }
+
+        private static string? ExtractPublicId(XElement p)
+        {
+            return p.Elements().FirstOrDefault(static x => string.Equals(x.Name.LocalName, "PublicId", StringComparison.Ordinal))?.Value?.Trim()
+                ?? p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "PersonId", StringComparison.Ordinal))?.Value?.Trim();
+        }
+
+        private static IEnumerable<XElement> GetNameItems(XElement p)
+        {
+            return p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "Names", StringComparison.Ordinal))?
+                       .Elements().Where(x => string.Equals(x.Name.LocalName, "Name", StringComparison.Ordinal))
+                   ?? [];
+        }
+
+        private static string? ExtractFirstName(IEnumerable<XElement> nameItems)
+        {
+            List<string?> firstNames = [.. nameItems
+                .Where(n => string.Equals(
+                    n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
+                    "FirstName", StringComparison.OrdinalIgnoreCase))
+                .Select(n => new
+                {
+                    OrderText = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Order", StringComparison.Ordinal))?.Value,
+                    Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim(),
+                })
+                .OrderBy(static n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
+                .Select(n => n.Value)
+                .Where(v => !string.IsNullOrWhiteSpace(v)),];
+
+            return firstNames.Count > 0 ? string.Join(' ', firstNames) : null;
+        }
+
+        private static string? ExtractLastName(IEnumerable<XElement> nameItems)
+        {
+            return nameItems
+                .Where(n => string.Equals(
+                    n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
+                    "LastName", StringComparison.OrdinalIgnoreCase))
+                .Select(n => n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim())
+                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+        }
+
+        private static string? ExtractDateOfBirth(XElement p)
+        {
+            string? civilStatusDate = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "CivilStatusDate", StringComparison.Ordinal))?.Value?.Trim();
+            return !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
+                ? civilStatusDate[..10]
+                : civilStatusDate;
+        }
+
+        private static string? ExtractSsn(XElement p, int peopleCount, string? requestSsn)
+        {
+            string? ssn = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "SSN", StringComparison.Ordinal))?.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(ssn) && peopleCount == 1 && !string.IsNullOrWhiteSpace(requestSsn))
+            {
+                ssn = requestSsn;
+            }
+            return ssn;
+        }
+
+        private static bool ShouldIncludeRow(string? publicId, string? ssn, string? firstName, string? lastName)
+        {
+            bool hasIdentifier = !string.IsNullOrWhiteSpace(publicId) || !string.IsNullOrWhiteSpace(ssn);
+            bool hasAnyName = !string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName);
+            return hasIdentifier || hasAnyName;
+        }
+
+        private static PersonRow BuildRow(string? publicId, string? ssn, string? firstName, string? lastName, string? dateOfBirth)
+        {
+            return new PersonRow
+            {
+                PublicId = publicId,
+                SSN = ssn,
+                FirstName = firstName,
+                LastName = lastName,
+                DateOfBirth = dateOfBirth,
+            };
         }
 
         public List<(string Key, string Value)> FlattenResponse(string xml)
