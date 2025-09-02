@@ -31,4 +31,10 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "Public API namespace kept for backward compatibility; extension namespace follows existing pattern.",
     Scope = "namespace",
     Target = "~N:XRoadFolkRaw.Lib.Extensions")]
-[assembly: SuppressMessage("Design", "MA0051:Method is too long", Justification = "<Pending>", Scope = "member", Target = "~M:XRoadFolkRaw.Lib.PeopleService.GetPersonAsync(System.String,System.Threading.CancellationToken)~System.Threading.Tasks.Task{System.String}")]
+
+[assembly: SuppressMessage(
+    "Design",
+    "MA0051:Method is too long",
+    Justification = "Known technical debt: method constructs and maps a large SOAP request/response in one place for clarity and to minimize allocations; slated for refactor outside current scope.",
+    Scope = "member",
+    Target = "~M:XRoadFolkRaw.Lib.PeopleService.GetPersonAsync(System.String,System.Threading.CancellationToken)~System.Threading.Tasks.Task{System.String}")]

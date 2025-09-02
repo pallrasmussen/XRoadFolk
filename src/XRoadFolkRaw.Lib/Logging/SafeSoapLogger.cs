@@ -10,7 +10,6 @@ namespace XRoadFolkRaw.Lib.Logging
     /// </summary>
     public static partial class SafeSoapLogger
     {
-        // EventIds to make logs greppable in prod
         /// <summary>
         /// EventIds to make logs greppable in prod.
         /// </summary>

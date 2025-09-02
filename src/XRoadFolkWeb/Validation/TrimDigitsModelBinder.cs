@@ -35,6 +35,8 @@ namespace XRoadFolkWeb.Validation
 
     public sealed class TrimDigitsModelBinderProvider : IModelBinderProvider
     {
+        private static readonly IModelBinder CachedBinder = new TrimDigitsModelBinder();
+
         public IModelBinder? GetBinder(ModelBinderProviderContext context)
         {
             ArgumentNullException.ThrowIfNull(context);
@@ -44,7 +46,7 @@ namespace XRoadFolkWeb.Validation
                 bool has = dmm.Attributes.PropertyAttributes.Any(a => a is TrimDigitsAttribute);
                 if (has)
                 {
-                    return new TrimDigitsModelBinder();
+                    return CachedBinder;
                 }
             }
             return null;
