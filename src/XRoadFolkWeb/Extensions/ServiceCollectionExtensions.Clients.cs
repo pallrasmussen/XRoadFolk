@@ -19,10 +19,10 @@ public static partial class ServiceCollectionExtensions
             return new FolkRawClient(
                 httpClient: http,
                 logger: logger,
-                verbose: cfg.GetValue("Logging:Verbose", defaultValue: false),
-                retryAttempts: cfg.GetValue("Retry:Http:Attempts", 3),
-                retryBaseDelayMs: cfg.GetValue("Retry:Http:BaseDelayMs", 200),
-                retryJitterMs: cfg.GetValue("Retry:Http:JitterMs", 250));
+                verbose: cfg.GetValue<bool>("Logging:Verbose", defaultValue: false),
+                retryAttempts: cfg.GetValue<int>("Retry:Http:Attempts", 3),
+                retryBaseDelayMs: cfg.GetValue<int>("Retry:Http:BaseDelayMs", 200),
+                retryJitterMs: cfg.GetValue<int>("Retry:Http:JitterMs", 250));
         });
         return services;
     }

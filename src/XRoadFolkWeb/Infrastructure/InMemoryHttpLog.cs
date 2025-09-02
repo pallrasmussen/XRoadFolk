@@ -27,17 +27,17 @@ namespace XRoadFolkWeb.Infrastructure
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
         private int _size; // approximate size to avoid O(n) Count
-        private readonly int _capacity = Math.Max(50, cfg.GetValue("HttpLog:Capacity", 1000));
-        private readonly long _maxFileBytes = Math.Max(1024 * 1024, cfg.GetValue("HttpLog:MaxFileBytes", 1024 * 1024 * 5));
-        private readonly int _maxRolls = Math.Max(1, cfg.GetValue("HttpLog:MaxRolls", 5));
+        private readonly int _capacity = Math.Max(50, cfg.GetValue<int>("HttpLog:Capacity", 1000));
+        private readonly long _maxFileBytes = Math.Max(1024L * 1024, cfg.GetValue<long>("HttpLog:MaxFileBytes", 1024L * 1024 * 5));
+        private readonly int _maxRolls = Math.Max(1, cfg.GetValue<int>("HttpLog:MaxRolls", 5));
         private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         private readonly object _fileLock = new();
 
         /// <summary>
         /// Rate limiting (entries/second). 0 disables.
         /// </summary>
-        private readonly int _maxWritesPerSecond = Math.Max(0, cfg.GetValue("HttpLog:MaxWritesPerSecond", 0));
-        private readonly bool _alwaysAllowWarnError = cfg.GetValue("HttpLog:AlwaysAllowWarningsAndErrors", true);
+        private readonly int _maxWritesPerSecond = Math.Max(0, cfg.GetValue<int>("HttpLog:MaxWritesPerSecond", 0));
+        private readonly bool _alwaysAllowWarnError = cfg.GetValue<bool>("HttpLog:AlwaysAllowWarningsAndErrors", true);
         private long _rateWindowStartMs = Environment.TickCount64;
         private int _rateCount;
 
@@ -74,7 +74,7 @@ namespace XRoadFolkWeb.Infrastructure
             lock (_fileLock)
             {
                 _ = Directory.CreateDirectory(Path.GetDirectoryName(_filePath!)!);
-                RollIfNeeded();
+                LogFileRolling.RollIfNeeded(_filePath!, _maxFileBytes, _maxRolls, log: null);
                 File.AppendAllText(_filePath!, line, Encoding.UTF8);
             }
         }
@@ -101,45 +101,6 @@ namespace XRoadFolkWeb.Infrastructure
 
             int count = Interlocked.Increment(ref _rateCount);
             return count > _maxWritesPerSecond;
-        }
-
-        private void RollIfNeeded()
-        {
-            if (string.IsNullOrWhiteSpace(_filePath))
-            {
-                return;
-            }
-
-            try
-            {
-                FileInfo fi = new(_filePath!);
-                if (fi.Exists && fi.Length > _maxFileBytes)
-                {
-                    // roll: file.log -> file.log.1/.2...
-                    for (int i = _maxRolls; i >= 1; i--)
-                    {
-                        string from = i == 1 ? _filePath! : _filePath! + "." + (i - 1).ToString(CultureInfo.InvariantCulture);
-                        string to = _filePath! + "." + i.ToString(CultureInfo.InvariantCulture);
-                        if (File.Exists(to))
-                        {
-                            File.Delete(to);
-                        }
-
-                        if (File.Exists(from))
-                        {
-                            File.Move(from, to);
-                        }
-                    }
-                }
-            }
-            catch (IOException)
-            {
-                // ignore file IO issues when rolling; logging continues in memory
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // ignore permission issues; logging continues in memory
-            }
         }
 
         private static string FormatLine(LogEntry e)
@@ -255,15 +216,6 @@ namespace XRoadFolkWeb.Infrastructure
                 return sb.Length == 0 ? null : sb.ToString();
             }
 
-            /// <summary>
-            /// In SinkLogger.Log<TState>, rename the local variable 'scopes' to 'scopeInfo' to avoid hiding the parameter '_scopes'.
-            /// </summary>
-            /// <typeparam name="TState"></typeparam>
-            /// <param name="logLevel"></param>
-            /// <param name="eventId"></param>
-            /// <param name="state"></param>
-            /// <param name="exception"></param>
-            /// <param name="formatter"></param>
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             {
                 if (!IsEnabled(logLevel))

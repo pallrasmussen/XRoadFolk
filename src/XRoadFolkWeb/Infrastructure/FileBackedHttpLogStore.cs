@@ -248,7 +248,7 @@ namespace XRoadFolkWeb.Infrastructure
                 _ = Directory.CreateDirectory(dir);
             }
 
-            RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
+            LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
             using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read);
             using StreamWriter sw = new(fs, Encoding.UTF8);
@@ -261,39 +261,7 @@ namespace XRoadFolkWeb.Infrastructure
             await fs.FlushAsync(ct).ConfigureAwait(false);
         }
 
-        private static void RollIfNeeded(string path, long maxBytes, int maxRolls, ILogger log)
-        {
-            try
-            {
-                FileInfo fi = new(path);
-                if (fi.Exists && fi.Length > maxBytes)
-                {
-                    for (int i = maxRolls; i >= 1; i--)
-                    {
-                        string from = i == 1 ? path : path + "." + (i - 1);
-                        string to = path + "." + i;
-                        if (File.Exists(to))
-                        {
-                            File.Delete(to);
-                        }
-
-                        if (File.Exists(from))
-                        {
-                            File.Move(from, to);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogRollError(log, ex, path);
-            }
-        }
-
         [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "Error writing HTTP log batch to file")]
         private static partial void LogWriteBatchError(ILogger logger, Exception ex);
-
-        [LoggerMessage(EventId = 6003, Level = LogLevel.Error, Message = "Error rolling HTTP log files for path '{Path}'")]
-        private static partial void LogRollError(ILogger logger, Exception ex, string Path);
     }
 }

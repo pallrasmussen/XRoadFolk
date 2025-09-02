@@ -62,11 +62,6 @@ namespace XRoadFolkWeb.Features.People
                 base.Dispose(disposing);
             }
 
-            /// <summary>
-            /// Change the return type of GetAttribute(int i) from string? to string to match the base XmlReader signature
-            /// </summary>
-            /// <param name="i"></param>
-            /// <returns></returns>
             public override string GetAttribute(int i)
             {
                 return _inner.GetAttribute(i);
