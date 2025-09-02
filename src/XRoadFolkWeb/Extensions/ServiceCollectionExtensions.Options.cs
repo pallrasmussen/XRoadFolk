@@ -1,8 +1,7 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
-using XRoadFolkRaw.Lib.Options;
 using XRoadFolkRaw.Lib.Logging;
+using XRoadFolkRaw.Lib.Options;
 
 namespace XRoadFolkWeb.Extensions;
 

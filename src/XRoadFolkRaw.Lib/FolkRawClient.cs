@@ -7,6 +7,7 @@ using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using System.Reflection;
 using System.Text;
+using System.Net.Security; // for SslPolicyErrors
 
 namespace XRoadFolkRaw.Lib
 {
@@ -53,17 +54,19 @@ namespace XRoadFolkRaw.Lib
         }
 
         /// <summary>
-        /// Backwards-compatible constructor (this instance OWNS the HttpClient)
+        /// Backwards-compatible constructor (this instance OWNS the HttpClient).
+        /// Use this only outside ASP.NET Core DI. In Web, prefer IHttpClientFactory where TLS is centrally configured.
         /// </summary>
-        /// <param name="serviceUrl"></param>
-        /// <param name="clientCertificate"></param>
-        /// <param name="timeout"></param>
-        /// <param name="logger"></param>
-        /// <param name="verbose"></param>
-        /// <param name="retryAttempts"></param>
-        /// <param name="retryBaseDelayMs"></param>
-        /// <param name="retryJitterMs"></param>
-        /// <param name="bypassCertificateValidation"></param>
+        /// <param name="serviceUrl">Base address for the service.</param>
+        /// <param name="clientCertificate">Optional client certificate (PFX) for mTLS.</param>
+        /// <param name="timeout">Request timeout; defaults to 60s.</param>
+        /// <param name="logger">Optional logger.</param>
+        /// <param name="verbose">If true, logs SOAP request/response bodies.</param>
+        /// <param name="retryAttempts">Number of HTTP retry attempts.</param>
+        /// <param name="retryBaseDelayMs">Base delay (ms) for retries.</param>
+        /// <param name="retryJitterMs">Jitter (ms) added to each retry delay.</param>
+        /// <param name="bypassServerCertificateValidation">Dangerous: accept any server certificate (do not use in production).</param>
+        /// <param name="serverCertificateValidator">Optional custom server certificate validator; used only when bypass is false.</param>
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -73,27 +76,36 @@ namespace XRoadFolkRaw.Lib
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
-            bool bypassCertificateValidation = true)
+            bool bypassServerCertificateValidation = false,
+            Func<HttpRequestMessage, X509Certificate2?, X509Chain?, SslPolicyErrors, bool>? serverCertificateValidator = null)
         {
             ArgumentNullException.ThrowIfNull(serviceUrl);
 
             HttpClientHandler? handler = null;
             try
             {
-                handler = new HttpClientHandler
-                {
+                handler = new HttpClientHandler();
 
-                    // If certificate validation is bypassed, we should not use the handler's default certificate validation, Pll 21-08-2025
-                    //ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
-                };
-
-                if (bypassCertificateValidation)
+                if (bypassServerCertificateValidation)
                 {
-                    handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true;
+                    handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+                }
+                else if (serverCertificateValidator is not null)
+                {
+                    handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) =>
+                    {
+                        X509Certificate2? cert2 = cert;
+                        if (cert2 is null && cert is not null)
+                        {
+                            try { cert2 = new X509Certificate2(cert); } catch { cert2 = null; }
+                        }
+                        return serverCertificateValidator(msg!, cert2, chain, errors);
+                    };
                 }
 
                 if (clientCertificate != null)
                 {
+                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
                     _ = handler.ClientCertificates.Add(clientCertificate);
                 }
 

@@ -1,14 +1,14 @@
-using System.Globalization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
+using System.Globalization;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
-using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Diagnostics;
-using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Net;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -392,8 +392,9 @@ namespace XRoadFolkWeb.Extensions
             _ = app.MapRazorPages();
             _ = app.MapFallbackToPage("/Index");
 
-            // Logs endpoints (defensive when store/feed not registered) - restrict to Development environment
-            if (envCurrent.IsDevelopment())
+            // Logs endpoints (defensive when store/feed not registered)
+            bool logsEnabled = configuration.GetValue<bool?>("Features:Logs:Enabled") ?? envCurrent.IsDevelopment();
+            if (logsEnabled)
             {
                 _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>
                 {

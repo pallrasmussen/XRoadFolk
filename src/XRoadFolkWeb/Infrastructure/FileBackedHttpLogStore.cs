@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Threading.Channels;
-using Microsoft.Extensions.Options;
 
 namespace XRoadFolkWeb.Infrastructure
 {

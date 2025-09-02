@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkWeb.Extensions;

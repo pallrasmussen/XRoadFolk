@@ -1,6 +1,6 @@
 //using System;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Localization;
+using System.ComponentModel.DataAnnotations;
 using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkWeb.Validation

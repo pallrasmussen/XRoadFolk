@@ -1,15 +1,14 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Localization;
+using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
-using XRoadFolkWeb.Validation;
-using XRoadFolkWeb.Features.People;
 using XRoadFolkWeb.Features.Index;
-using System.Text.RegularExpressions;
+using XRoadFolkWeb.Features.People;
+using XRoadFolkWeb.Validation;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
-using Microsoft.Extensions.Hosting;
 
 namespace XRoadFolkWeb.Pages
 {

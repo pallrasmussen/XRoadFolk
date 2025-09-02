@@ -47,5 +47,10 @@
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <TargetPath>%(Filename)%(Extension)</TargetPath>
     </None>
+    <None Include="Resources\*.cer">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+    </None>
   </ItemGroup>
 </Project>

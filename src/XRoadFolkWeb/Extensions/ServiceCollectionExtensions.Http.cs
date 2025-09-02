@@ -1,5 +1,3 @@
-using XRoadFolkRaw.Lib.Extensions;
-
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class ServiceCollectionExtensions
