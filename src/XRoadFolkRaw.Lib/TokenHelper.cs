@@ -82,8 +82,11 @@ namespace XRoadFolkRaw.Lib
                 XmlResolver = null,
                 MaxCharactersFromEntities = 0,
                 MaxCharactersInDocument = 10 * 1024 * 1024,
+                CloseInput = true,
             };
-            using XmlReader reader = XmlReader.Create(new StringReader(xml), settings);
+
+            using StringReader sr = new(xml);
+            using XmlReader reader = XmlReader.Create(sr, settings);
             XDocument doc = XDocument.Load(reader, LoadOptions.None);
 
             XElement? tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
@@ -130,7 +133,7 @@ namespace XRoadFolkRaw.Lib
 
         public void Dispose()
         {
-            // nothing to dispose here
+            _gate.Dispose();
         }
     }
 }

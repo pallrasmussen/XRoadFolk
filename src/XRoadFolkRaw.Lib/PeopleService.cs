@@ -9,14 +9,21 @@ namespace XRoadFolkRaw.Lib
 {
     public sealed partial class PeopleService : IDisposable
     {
+        private static string EscapePart(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            // Backslash-escape the separator and backslashes to ensure uniqueness
+            return s.Replace("\\", "\\\\").Replace("|", "\\|");
+        }
+
         private static string ComputeKey(XRoadSettings s)
         {
             return string.Join('|',
-                        s.BaseUrl ?? string.Empty,
-                        s.Client.XRoadInstance, s.Client.MemberClass, s.Client.MemberCode, s.Client.SubsystemCode,
-                        s.Service.XRoadInstance, s.Service.MemberClass, s.Service.MemberCode, s.Service.SubsystemCode,
-                        s.Service.ServiceCode ?? string.Empty, s.Service.ServiceVersion ?? string.Empty,
-                        s.Auth.UserId, s.Auth.Username);
+                        EscapePart(s.BaseUrl),
+                        EscapePart(s.Client.XRoadInstance), EscapePart(s.Client.MemberClass), EscapePart(s.Client.MemberCode), EscapePart(s.Client.SubsystemCode),
+                        EscapePart(s.Service.XRoadInstance), EscapePart(s.Service.MemberClass), EscapePart(s.Service.MemberCode), EscapePart(s.Service.SubsystemCode),
+                        EscapePart(s.Service.ServiceCode), EscapePart(s.Service.ServiceVersion),
+                        EscapePart(s.Auth.UserId), EscapePart(s.Auth.Username));
         }
 
         private readonly FolkRawClient _client;
@@ -314,6 +321,7 @@ namespace XRoadFolkRaw.Lib
         public void Dispose()
         {
             _tokenProvider.Dispose();
+            _tokenGate.Dispose();
         }
     }
 }

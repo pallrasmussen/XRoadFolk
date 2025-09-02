@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 namespace XRoadFolkWeb.Validation
 {
     /// <summary>
-    /// Normalizes SSN by stripping non-digits before validation
+    /// Normalizes SSN by stripping non-ASCII digits before validation
     /// </summary>
     public sealed class TrimDigitsModelBinder : IModelBinder
     {
@@ -17,7 +17,8 @@ namespace XRoadFolkWeb.Validation
             {
                 return Task.CompletedTask;
             }
-            string digits = new([.. value.Where(char.IsDigit)]);
+            // Only allow ASCII digits 0-9; reject other Unicode digit classes
+            string digits = new([.. value.Where(static c => c >= '0' && c <= '9')]);
             bindingContext.Result = ModelBindingResult.Success(string.IsNullOrEmpty(digits) ? value : digits);
             return Task.CompletedTask;
         }
