@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using System.Linq;
+
 namespace XRoadFolkWeb.Extensions;
 
 public static partial class ServiceCollectionExtensions
@@ -8,7 +11,18 @@ public static partial class ServiceCollectionExtensions
     /// <param name="services"></param>
     public static IServiceCollection AddMvcCustomizations(this IServiceCollection services)
     {
-        _ = services.AddControllers(options => options.ModelBinderProviders.Insert(0, new Validation.TrimDigitsModelBinderProvider()));
+        // Keep controllers registration without per-call binder insertion
+        _ = services.AddControllers();
+
+        // Consolidated: register TrimDigitsModelBinderProvider once globally for all MVC endpoints
+        _ = services.Configure<MvcOptions>(options =>
+        {
+            if (!options.ModelBinderProviders.OfType<Validation.TrimDigitsModelBinderProvider>().Any())
+            {
+                options.ModelBinderProviders.Insert(0, new Validation.TrimDigitsModelBinderProvider());
+            }
+        });
+
         return services;
     }
 }

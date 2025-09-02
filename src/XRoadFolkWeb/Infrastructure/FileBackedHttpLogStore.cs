@@ -17,10 +17,7 @@ namespace XRoadFolkWeb.Infrastructure
         private int _ringSize; // approximate size to avoid O(n) ConcurrentQueue.Count
         private readonly ILogFeed? _stream;
         private readonly int _maxQueue;
-        private readonly bool _alwaysAllowWarnError;
-        private readonly int _maxWritesPerSecond;
-        private long _rateWindowStartMs = Environment.TickCount64;
-        private int _rateCount;
+        private readonly HttpLogRateLimiter _rateLimiter;
 
         private readonly Channel<LogEntry> _channel;
         private readonly ILogger<FileBackedHttpLogStore> _log;
@@ -35,8 +32,7 @@ namespace XRoadFolkWeb.Infrastructure
             FilePath = cfg.FilePath ?? "logs/http-logs.log";
             MaxFileBytes = Math.Max(50_000, cfg.MaxFileBytes);
             MaxRolls = Math.Max(1, cfg.MaxRolls);
-            _alwaysAllowWarnError = cfg.AlwaysAllowWarningsAndErrors;
-            _maxWritesPerSecond = Math.Max(0, cfg.MaxWritesPerSecond);
+            _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
             _channel = Channel.CreateBounded<LogEntry>(new BoundedChannelOptions(_maxQueue)
             {
                 // Use Wait so writes fail (TryWrite=false) when full; we will explicitly manage eviction below
@@ -56,7 +52,7 @@ namespace XRoadFolkWeb.Infrastructure
         {
             ArgumentNullException.ThrowIfNull(e);
 
-            if (ShouldDrop(e))
+            if (_rateLimiter.ShouldDrop(e.Level))
             {
                 return;
             }
@@ -89,7 +85,7 @@ namespace XRoadFolkWeb.Infrastructure
                 return;
             }
 
-            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
+            if (_rateLimiter.AlwaysAllowWarnError && e.Level >= LogLevel.Warning)
             {
                 for (int i = 0; i < 4; i++)
                 {
@@ -102,31 +98,6 @@ namespace XRoadFolkWeb.Infrastructure
                 _ = Thread.Yield();
                 _ = _channel.Writer.TryWrite(e);
             }
-        }
-
-        private bool ShouldDrop(LogEntry e)
-        {
-            if (_maxWritesPerSecond <= 0)
-            {
-                return false;
-            }
-
-            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
-            {
-                return false;
-            }
-
-            long now = Environment.TickCount64;
-            long start = Volatile.Read(ref _rateWindowStartMs);
-            long elapsed = unchecked(now - start);
-            if (elapsed is >= 1000 or < 0)
-            {
-                Volatile.Write(ref _rateWindowStartMs, now);
-                Volatile.Write(ref _rateCount, 0);
-            }
-
-            int count = Interlocked.Increment(ref _rateCount);
-            return count > _maxWritesPerSecond;
         }
 
         public void Clear()

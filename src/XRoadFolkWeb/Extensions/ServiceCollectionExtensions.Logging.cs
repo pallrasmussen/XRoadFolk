@@ -31,7 +31,7 @@ namespace XRoadFolkWeb.Extensions
         {
             ArgumentNullException.ThrowIfNull(configuration);
 
-            Microsoft.Extensions.Options.OptionsBuilder<HttpLogOptions> optionsBuilder = services.AddOptions<HttpLogOptions>()
+            _ = services.AddOptions<HttpLogOptions>()
                     .BindConfiguration("HttpLogs")
                     .Validate(o => o.Capacity >= 50, "HttpLogs:Capacity must be >= 50")
                     .ValidateOnStart();
@@ -46,7 +46,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 // File-backed store + background writer
                 _ = services.AddSingleton<FileBackedHttpLogStore>();
-                IServiceCollection serviceCollection = services.AddSingleton<IHttpLogStore>(static sp => sp.GetRequiredService<FileBackedHttpLogStore>());
+                _ = services.AddSingleton<IHttpLogStore>(static sp => sp.GetRequiredService<FileBackedHttpLogStore>());
                 _ = services.AddHostedService<FileBackedLogWriter>();
             }
             else

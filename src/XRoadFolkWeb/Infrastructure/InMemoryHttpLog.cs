@@ -33,19 +33,15 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
         private readonly object _fileLock = new();
 
-        /// <summary>
-        /// Rate limiting (entries/second). 0 disables.
-        /// </summary>
-        private readonly int _maxWritesPerSecond = Math.Max(0, cfg.GetValue<int>("HttpLog:MaxWritesPerSecond", 0));
-        private readonly bool _alwaysAllowWarnError = cfg.GetValue<bool>("HttpLog:AlwaysAllowWarningsAndErrors", true);
-        private long _rateWindowStartMs = Environment.TickCount64;
-        private int _rateCount;
+        private readonly HttpLogRateLimiter _rateLimiter = new(
+            maxWritesPerSecond: Math.Max(0, cfg.GetValue<int>("HttpLog:MaxWritesPerSecond", 0)),
+            alwaysAllowWarnError: cfg.GetValue<bool>("HttpLog:AlwaysAllowWarningsAndErrors", true));
 
         public void Add(LogEntry e)
         {
             ArgumentNullException.ThrowIfNull(e);
 
-            if (ShouldDrop(e))
+            if (_rateLimiter.ShouldDrop(e.Level))
             {
                 return; // throttled
             }
@@ -77,30 +73,6 @@ namespace XRoadFolkWeb.Infrastructure
                 LogFileRolling.RollIfNeeded(_filePath!, _maxFileBytes, _maxRolls, log: null);
                 File.AppendAllText(_filePath!, line, Encoding.UTF8);
             }
-        }
-
-        private bool ShouldDrop(LogEntry e)
-        {
-            if (_maxWritesPerSecond <= 0)
-            {
-                return false;
-            }
-            if (_alwaysAllowWarnError && e.Level >= LogLevel.Warning)
-            {
-                return false;
-            }
-
-            long now = Environment.TickCount64;
-            long start = Volatile.Read(ref _rateWindowStartMs);
-            long elapsed = unchecked(now - start);
-            if (elapsed is >= 1000 or < 0)
-            {
-                Volatile.Write(ref _rateWindowStartMs, now);
-                Volatile.Write(ref _rateCount, 0);
-            }
-
-            int count = Interlocked.Increment(ref _rateCount);
-            return count > _maxWritesPerSecond;
         }
 
         private static string FormatLine(LogEntry e)

@@ -19,8 +19,7 @@ namespace XRoadFolkWeb.Extensions
                 {
                     opts.DataAnnotationLocalizerProvider = (_, factory) =>
                         factory.Create(typeof(SharedResource));
-                })
-                .AddMvcOptions(options => options.ModelBinderProviders.Insert(0, new Validation.TrimDigitsModelBinderProvider()));
+                });
 
             _ = services.AddLocalization(opts => opts.ResourcesPath = "Resources");
 
