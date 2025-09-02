@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Options;
 using Microsoft.Extensions.Caching.Memory;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -16,14 +18,26 @@ namespace XRoadFolkRaw.Lib
             return s.Replace("\\", "\\\\").Replace("|", "\\|");
         }
 
+        private static string HashSegment(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            byte[] data = Encoding.UTF8.GetBytes(s);
+            byte[] hash = SHA256.HashData(data);
+            return Convert.ToHexString(hash); // uppercase hex, safe in keys
+        }
+
         private static string ComputeKey(XRoadSettings s)
         {
+            // Hash PII-sensitive segments (UserId, Username) to avoid leaking identifiers in cache keys
+            string userIdHash = HashSegment(s.Auth.UserId);
+            string usernameHash = HashSegment(s.Auth.Username);
+
             return string.Join('|',
                         EscapePart(s.BaseUrl),
                         EscapePart(s.Client.XRoadInstance), EscapePart(s.Client.MemberClass), EscapePart(s.Client.MemberCode), EscapePart(s.Client.SubsystemCode),
                         EscapePart(s.Service.XRoadInstance), EscapePart(s.Service.MemberClass), EscapePart(s.Service.MemberCode), EscapePart(s.Service.SubsystemCode),
                         EscapePart(s.Service.ServiceCode), EscapePart(s.Service.ServiceVersion),
-                        EscapePart(s.Auth.UserId), EscapePart(s.Auth.Username));
+                        EscapePart(userIdHash), EscapePart(usernameHash));
         }
 
         private readonly FolkRawClient _client;

@@ -24,12 +24,27 @@ namespace XRoadFolkWeb.Infrastructure
             string[]? configured = section.GetSection("SupportedCultures").Get<string[]>();
             string[] names = (configured is null || configured.Length == 0)
                 ? FallbackCultureNames
-                : configured.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+                : configured
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToArray();
 
             if (names.Length == 0)
             {
                 names = FallbackCultureNames;
             }
+
+            // Deduplicate in a case-insensitive, order-preserving manner
+            List<string> deduped = new(names.Length);
+            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string n in names)
+            {
+                if (seen.Add(n))
+                {
+                    deduped.Add(n);
+                }
+            }
+            names = [.. deduped];
 
             string? defaultNameConfigured = section.GetValue<string>("DefaultCulture");
             string defaultName = (!string.IsNullOrWhiteSpace(defaultNameConfigured) &&

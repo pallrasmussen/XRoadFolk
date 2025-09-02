@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
 using System.IO;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -373,7 +374,14 @@ namespace XRoadFolkWeb.Extensions
             // Culture switch endpoint with framework validation via LocalRedirect
             _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
             {
-                await af.ValidateRequestAsync(ctx);
+                try
+                {
+                    await af.ValidateRequestAsync(ctx);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    return Results.BadRequest();
+                }
 
                 // Validate requested culture
                 IOptions<RequestLocalizationOptions> locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();

@@ -42,6 +42,18 @@ namespace XRoadFolkRaw.Lib.Options
                 return ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.");
             }
 
+            // Validate Include contains only known flags
+            GetPersonInclude knownMask = GetPersonInclude.None;
+            foreach (GetPersonInclude f in Enum.GetValues<GetPersonInclude>())
+            {
+                knownMask |= f;
+            }
+            GetPersonInclude unknown = options.Include & ~knownMask;
+            if (unknown != 0)
+            {
+                return ValidateOptionsResult.Fail($"Include contains undefined flag(s): {(int)unknown}.");
+            }
+
             return ValidateOptionsResult.Success;
         }
     }
