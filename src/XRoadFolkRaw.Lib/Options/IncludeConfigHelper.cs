@@ -71,13 +71,17 @@ namespace XRoadFolkRaw.Lib.Options
                 }
             }
 
-            // Invalidate cache when configuration reloads
+            // Invalidate cache when configuration reloads and dispose registration
             IChangeToken token = config.GetReloadToken();
             IDisposable? registration = token.RegisterChangeCallback(static state =>
             {
                 try
                 {
                     IConfiguration cfg = (IConfiguration)state!;
+                    if (Cache.TryGetValue(cfg, out CacheState? cs))
+                    {
+                        cs.Registration?.Dispose();
+                    }
                     _ = Cache.Remove(cfg);
                 }
                 catch { }

@@ -34,6 +34,7 @@ namespace XRoadFolkWeb.Extensions
             _ = services.AddOptions<HttpLogOptions>()
                     .BindConfiguration("HttpLogs")
                     .Validate(o => o.Capacity >= 50, "HttpLogs:Capacity must be >= 50")
+                    .Validate(o => !o.PersistToFile || !string.IsNullOrWhiteSpace(o.FilePath), "HttpLogs:FilePath must be set when PersistToFile is true")
                     .ValidateOnStart();
 
             _ = services.AddSingleton<ILogFeed, LogStreamBroadcaster>();

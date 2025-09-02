@@ -105,6 +105,8 @@ namespace XRoadFolkWeb.Infrastructure
                 return null;
             }
 
+            candidate = candidate.Trim();
+
             // Exact
             if (_supported.Contains(candidate))
             {
@@ -138,7 +140,23 @@ namespace XRoadFolkWeb.Infrastructure
             catch { /* ignore invalid culture names */ }
 
             // Same language (e.g. "en-GB" -> match any supported like "en-US")
-            string lang = candidate.Split('-')[0];
+            string? lang = candidate.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(lang))
+            {
+                return null; // malformed like "-GB" -> no language subtag
+            }
+
+            // Validate language subtag contains only letters
+            bool lettersOnly = true;
+            foreach (char ch in lang)
+            {
+                if (!char.IsLetter(ch)) { lettersOnly = false; break; }
+            }
+            if (!lettersOnly)
+            {
+                return null;
+            }
+
             return _supported.FirstOrDefault(c =>
                 c.StartsWith(lang + "-", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(c, lang, StringComparison.OrdinalIgnoreCase));

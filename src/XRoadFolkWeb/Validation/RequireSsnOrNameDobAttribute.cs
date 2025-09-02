@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Localization;
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
 using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkWeb.Validation
@@ -11,6 +12,22 @@ namespace XRoadFolkWeb.Validation
         private readonly string _first;
         private readonly string _last;
         private readonly string _dob;
+
+        // Per-attribute-instance cache of compiled accessors keyed by model Type
+        private readonly object _cacheLock = new();
+        private readonly Dictionary<Type, AccessorSet> _accessorCache = new();
+
+        private readonly struct AccessorSet
+        {
+            public AccessorSet(Func<object, string?> ssn, Func<object, string?> first, Func<object, string?> last, Func<object, string?> dob)
+            {
+                Ssn = ssn; First = first; Last = last; Dob = dob;
+            }
+            public Func<object, string?> Ssn { get; }
+            public Func<object, string?> First { get; }
+            public Func<object, string?> Last { get; }
+            public Func<object, string?> Dob { get; }
+        }
 
         public RequireSsnOrNameDobAttribute(string ssnProperty, string firstNameProperty, string lastNameProperty, string dobProperty)
         {
@@ -32,10 +49,13 @@ namespace XRoadFolkWeb.Validation
                 return ValidationResult.Success;
             }
 
-            string? ssn = GetString(validationContext.ObjectInstance, _ssn);
-            string? first = GetString(validationContext.ObjectInstance, _first);
-            string? last = GetString(validationContext.ObjectInstance, _last);
-            string? dob = GetString(validationContext.ObjectInstance, _dob);
+            Type modelType = value.GetType();
+            AccessorSet acc = GetAccessors(modelType);
+
+            string? ssn = acc.Ssn(value);
+            string? first = acc.First(value);
+            string? last = acc.Last(value);
+            string? dob = acc.Dob(value);
 
             // 1) If SSN is not empty, use SSN (let field-level validators handle its format)
             if (!string.IsNullOrWhiteSpace(ssn))
@@ -64,15 +84,42 @@ namespace XRoadFolkWeb.Validation
             return ValidationResult.Success;
         }
 
-        private static string? GetString(object instance, string propName)
+        private AccessorSet GetAccessors(Type modelType)
         {
-            System.Reflection.PropertyInfo? pi = instance.GetType().GetProperty(
-                propName,
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.IgnoreCase);
+            lock (_cacheLock)
+            {
+                if (_accessorCache.TryGetValue(modelType, out AccessorSet existing))
+                {
+                    return existing;
+                }
 
-            return pi is null ? null : (string?)pi.GetValue(instance);
+                AccessorSet built = new(
+                    CreateGetter(modelType, _ssn),
+                    CreateGetter(modelType, _first),
+                    CreateGetter(modelType, _last),
+                    CreateGetter(modelType, _dob));
+
+                _accessorCache[modelType] = built;
+                return built;
+            }
+        }
+
+        private static Func<object, string?> CreateGetter(Type targetType, string propName)
+        {
+            // Case-insensitive public instance property lookup to match previous behavior
+            var pi = targetType.GetProperty(propName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.IgnoreCase);
+            if (pi is null || pi.GetMethod is null)
+            {
+                return static _ => null;
+            }
+
+            // (object obj) => (string?)((T)obj).Prop
+            ParameterExpression objParam = Expression.Parameter(typeof(object), "obj");
+            UnaryExpression cast = Expression.Convert(objParam, targetType);
+            MemberExpression prop = Expression.Property(cast, pi);
+            UnaryExpression asString = Expression.TypeAs(prop, typeof(string));
+            var lambda = Expression.Lambda<Func<object, string?>>(asString, objParam);
+            return lambda.Compile();
         }
     }
 }
