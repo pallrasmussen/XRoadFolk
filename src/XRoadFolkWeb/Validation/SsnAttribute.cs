@@ -15,23 +15,15 @@ namespace XRoadFolkWeb.Validation
         {
             ArgumentNullException.ThrowIfNull(validationContext);
 
-            string? s = value as string;
-
-            // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
-            if (string.IsNullOrWhiteSpace(s))
+            // SSN is optional; cross-field rules decide if it is required
+            if (value is not string s || string.IsNullOrWhiteSpace(s))
             {
-                // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
                 return ValidationResult.Success;
             }
 
-            if (XRoadFolkRaw.Lib.InputValidation.LooksLikeValidSsn(s, out _))
-            {
-                // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
-                return ValidationResult.Success;
-            }
-
-            // Allow empty SSN (it's optional). The cross-field rule decides if SSN is required.
-            return new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
+            return XRoadFolkRaw.Lib.InputValidation.LooksLikeValidSsn(s, out _)
+                ? ValidationResult.Success
+                : new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
         }
 
         public void AddValidation(ClientModelValidationContext context)

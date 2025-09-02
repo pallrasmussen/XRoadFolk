@@ -21,8 +21,6 @@ namespace XRoadFolkWeb.Features.Index
             string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
             List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
 
-            // Replace the two consecutive .Where() calls with a single .Where() that combines both predicates
-
             List<(string Key, string Value)> filtered = [.. pairs
                 .Where(p =>
                 {

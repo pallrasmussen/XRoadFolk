@@ -27,14 +27,8 @@ namespace XRoadFolkRaw.Lib
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient)
+        /// Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient).
         /// </summary>
-        /// <param name="httpClient"></param>
-        /// <param name="logger"></param>
-        /// <param name="verbose"></param>
-        /// <param name="retryAttempts"></param>
-        /// <param name="retryBaseDelayMs"></param>
-        /// <param name="retryJitterMs"></param>
         public FolkRawClient(
             HttpClient httpClient,
             ILogger? logger = null,
@@ -53,9 +47,9 @@ namespace XRoadFolkRaw.Lib
             _retryPolicy = BuildRetryPolicy();
         }
 
-        // Remove assignment to ServerCertificateCustomValidationCallback to fix MA0039.
-        // Only use the built-in DangerousAcceptAnyServerCertificateValidator or default validation.
-
+        /// <summary>
+        /// Owning constructor. Prefer the IHttpClientFactory-based ctor in ASP.NET Core.
+        /// </summary>
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -65,8 +59,7 @@ namespace XRoadFolkRaw.Lib
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
-            bool bypassServerCertificateValidation = false,
-            Func<HttpRequestMessage, X509Certificate2?, X509Chain?, SslPolicyErrors, bool>? serverCertificateValidator = null)
+            bool bypassServerCertificateValidation = false)
         {
             ArgumentNullException.ThrowIfNull(serviceUrl);
 
@@ -77,10 +70,8 @@ namespace XRoadFolkRaw.Lib
 
                 if (bypassServerCertificateValidation)
                 {
-                    // Only use the built-in validator, do not assign a custom callback.
                     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
                 }
-                // Remove custom callback for serverCertificateValidator to comply with MA0039.
 
                 if (clientCertificate != null)
                 {
@@ -370,12 +361,7 @@ namespace XRoadFolkRaw.Lib
             }
             if (dateOfBirth.HasValue)
             {
-                // Replace this block inside GetPeoplePublicInfoAsync:
-                if (dateOfBirth.HasValue)
-                {
-                    SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-                }
-                //SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd"));
+                SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
             }
 
             XElement? requestHeader = requestEl.Element("requestHeader");
@@ -452,26 +438,6 @@ namespace XRoadFolkRaw.Lib
         [LoggerMessage(EventId = 5, Level = LogLevel.Warning, Message = "Failed to preload SOAP template: '{Path}'")]
         static partial void LogTemplatePreloadFailed(ILogger logger, Exception ex, string Path);
 
-        /// <summary>
-        /// Shared builder for GetPerson envelope/header/body
-        /// </summary>
-        /// <param name="doc"></param>
-        /// <param name="xId"></param>
-        /// <param name="userId"></param>
-        /// <param name="protocolVersion"></param>
-        /// <param name="clientXRoadInstance"></param>
-        /// <param name="clientMemberClass"></param>
-        /// <param name="clientMemberCode"></param>
-        /// <param name="clientSubsystemCode"></param>
-        /// <param name="serviceXRoadInstance"></param>
-        /// <param name="serviceMemberClass"></param>
-        /// <param name="serviceMemberCode"></param>
-        /// <param name="serviceSubsystemCode"></param>
-        /// <param name="serviceCode"></param>
-        /// <param name="serviceVersion"></param>
-        /// <param name="token"></param>
-        /// <returns></returns>
-        /// <exception cref="InvalidOperationException"></exception>
         private static (XDocument Doc, XElement RequestBody) PrepareGetPersonDocument(
             XDocument doc,
             string xId,
@@ -529,7 +495,6 @@ namespace XRoadFolkRaw.Lib
             XElement requestBodyEl = requestEl.Element("requestBody")
                 ?? throw new InvalidOperationException("Cannot find requestBody under request");
 
-            // Token in requestHeader
             XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
             if (requestHeader.Parent == null)
             {
@@ -541,36 +506,6 @@ namespace XRoadFolkRaw.Lib
             return (doc, requestBodyEl);
         }
 
-        /// <summary>
-        /// Long-parameter overload (legacy; still used by service code and request-object overload)
-        /// </summary>
-        /// <param name="xmlPath"></param>
-        /// <param name="xId"></param>
-        /// <param name="userId"></param>
-        /// <param name="token"></param>
-        /// <param name="protocolVersion"></param>
-        /// <param name="clientXRoadInstance"></param>
-        /// <param name="clientMemberClass"></param>
-        /// <param name="clientMemberCode"></param>
-        /// <param name="clientSubsystemCode"></param>
-        /// <param name="serviceXRoadInstance"></param>
-        /// <param name="serviceMemberClass"></param>
-        /// <param name="serviceMemberCode"></param>
-        /// <param name="serviceSubsystemCode"></param>
-        /// <param name="serviceCode"></param>
-        /// <param name="serviceVersion"></param>
-        /// <param name="publicId"></param>
-        /// <param name="ssnForPerson"></param>
-        /// <param name="includeAddress"></param>
-        /// <param name="includeContact"></param>
-        /// <param name="includeBirthDate"></param>
-        /// <param name="includeDeathDate"></param>
-        /// <param name="includeGender"></param>
-        /// <param name="includeMaritalStatus"></param>
-        /// <param name="includeCitizenship"></param>
-        /// <param name="includeSsnHistory"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -635,7 +570,6 @@ namespace XRoadFolkRaw.Lib
 
             XElement requestBodyEl = RequestBody;
 
-            // Identifiers from parameters
             if (!string.IsNullOrWhiteSpace(publicId))
             {
                 SetChildValue(requestBodyEl, "PublicId", publicId);
@@ -645,7 +579,6 @@ namespace XRoadFolkRaw.Lib
                 SetChildValue(requestBodyEl, "SSN", ssnForPerson);
             }
 
-            // Include booleans from parameters (legacy field names retained)
             void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
             SetBool("IncludeAddress", includeAddress);
             SetBool("IncludeContact", includeContact);
@@ -663,27 +596,6 @@ namespace XRoadFolkRaw.Lib
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Options overload (maps flags and identifiers)
-        /// </summary>
-        /// <param name="xmlPath"></param>
-        /// <param name="xId"></param>
-        /// <param name="userId"></param>
-        /// <param name="token"></param>
-        /// <param name="protocolVersion"></param>
-        /// <param name="clientXRoadInstance"></param>
-        /// <param name="clientMemberClass"></param>
-        /// <param name="clientMemberCode"></param>
-        /// <param name="clientSubsystemCode"></param>
-        /// <param name="serviceXRoadInstance"></param>
-        /// <param name="serviceMemberClass"></param>
-        /// <param name="serviceMemberCode"></param>
-        /// <param name="serviceSubsystemCode"></param>
-        /// <param name="serviceCode"></param>
-        /// <param name="serviceVersion"></param>
-        /// <param name="options"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         public async Task<string> GetPersonAsync(
             string xmlPath,
             string xId,
@@ -739,7 +651,6 @@ namespace XRoadFolkRaw.Lib
 
             XElement requestBodyEl = RequestBody;
 
-            // Identifiers from options
             if (!string.IsNullOrWhiteSpace(options?.Id))
             {
                 SetChildValue(requestBodyEl, "Id", options!.Id!);
@@ -759,7 +670,6 @@ namespace XRoadFolkRaw.Lib
                 SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
             }
 
-            // Include flags: map [Flags] enum to element names
             if (options is not null && options.Include != GetPersonInclude.None)
             {
                 GetPersonInclude inc = options.Include;
@@ -801,12 +711,6 @@ namespace XRoadFolkRaw.Lib
             return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Request-object overloads for simplified calling
-        /// </summary>
-        /// <param name="req"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
@@ -878,116 +782,13 @@ namespace XRoadFolkRaw.Lib
                 options: options,
                 ct: ct).ConfigureAwait(false);
         }
+
         public void Dispose()
         {
             if (_disposeHttpClient)
             {
                 _http.Dispose();
             }
-        }
-        public FolkRawClient(
-            string serviceUrl,
-            X509Certificate2? clientCertificate = null,
-            TimeSpan? timeout = null,
-            ILogger? logger = null,
-            bool verbose = false,
-            int retryAttempts = 3,
-            int retryBaseDelayMs = 200,
-            int retryJitterMs = 250)
-        {
-            ArgumentNullException.ThrowIfNull(serviceUrl);
-
-            HttpClientHandler? handler = null;
-            try
-            {
-                handler = new HttpClientHandler();
-
-                // MA0039: Do not assign ServerCertificateCustomValidationCallback.
-
-                if (clientCertificate != null)
-                {
-                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-                    _ = handler.ClientCertificates.Add(clientCertificate);
-                }
-
-                _http = new HttpClient(handler)
-                {
-                    BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
-                    Timeout = timeout ?? TimeSpan.FromSeconds(60),
-                };
-                _disposeHttpClient = true; // this instance owns _http
-                handler = null; // ownership transferred to _http
-            }
-            finally
-            {
-                handler?.Dispose();
-            }
-            _log = logger;
-            _verbose = verbose;
-            _retryAttempts = retryAttempts;
-            _retryBaseDelayMs = retryBaseDelayMs;
-            _retryJitterMs = retryJitterMs;
-            _retryPolicy = BuildRetryPolicy();
-        }
-        // Remove assignment to ServerCertificateCustomValidationCallback to fix MA0039.
-        // Only use the built-in DangerousAcceptAnyServerCertificateValidator or default validation.
-
-        // In both constructors, remove or comment out the following block:
-        // if (bypassServerCertificateValidation)
-        // {
-        //     // Only use the built-in validator, do not assign a custom callback.
-        //     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        // }
-
-        // Instead, rely on the default validation or set the property only if absolutely necessary and allowed by your security policy.
-        // For MA0039 compliance, you should remove all custom assignments to ServerCertificateCustomValidationCallback.
-
-        public FolkRawClient(
-            string serviceUrl,
-            X509Certificate2? clientCertificate = null,
-            TimeSpan? timeout = null,
-            ILogger? logger = null,
-            bool verbose = false,
-            int retryAttempts = 3,
-            int retryBaseDelayMs = 200,
-            int retryJitterMs = 250,
-            bool bypassServerCertificateValidation = false)
-        {
-            ArgumentNullException.ThrowIfNull(serviceUrl);
-
-            HttpClientHandler? handler = null;
-            try
-            {
-                handler = new HttpClientHandler();
-
-                // MA0039: Do not assign ServerCertificateCustomValidationCallback.
-                // Remove or comment out the following line:
-                // handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-
-                if (clientCertificate != null)
-                {
-                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-                    _ = handler.ClientCertificates.Add(clientCertificate);
-                }
-
-                _http = new HttpClient(handler)
-                {
-                    BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
-                    Timeout = timeout ?? TimeSpan.FromSeconds(60),
-                };
-                _disposeHttpClient = true; // this instance owns _http
-                handler = null; // ownership transferred to _http
-            }
-            finally
-            {
-                handler?.Dispose();
-            }
-            _log = logger;
-            _verbose = verbose;
-            _retryAttempts = retryAttempts;
-            _retryBaseDelayMs = retryBaseDelayMs;
-            _retryJitterMs = retryJitterMs;
-            _retryPolicy = BuildRetryPolicy();
         }
     }
 }

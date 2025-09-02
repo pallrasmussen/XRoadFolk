@@ -73,14 +73,9 @@ namespace XRoadFolkRaw.Lib
             // Cross-check DOB vs SSN-embedded date
             if (haveSsn && haveDob && ssnDob.HasValue && dob.HasValue && ssnDob.Value.Date != dob.Value.Date)
             {
-                // Replace the following line in ValidateCriteria:
-                // errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
-
-                // With this code, which uses CultureInfo.InvariantCulture as the IFormatProvider:
                 errs.Add(loc[Errors.DobSsnMismatch,
                     dob.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     ssnDob.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)]);
-                //errs.Add(loc[Errors.DobSsnMismatch, dob.Value.ToString("yyyy-MM-dd"), ssnDob.Value.ToString("yyyy-MM-dd")]);
             }
 
             if (haveSsn)
