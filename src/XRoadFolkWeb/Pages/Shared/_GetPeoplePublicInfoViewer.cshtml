@@ -99,7 +99,7 @@
     try {
         var i18nEl = document.getElementById('gpiv-i18n-json');
         if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: parse i18n failed', e); }catch{} }
 
     var dropOverlay = document.getElementById('gpiv-drop');
 
@@ -135,7 +135,7 @@
             }
             var h = Math.round(search.getBoundingClientRect().height);
             if (h > 0) card.style.height = h + 'px';
-        } catch {}
+        } catch (e) { try{ console.debug('GPIV: syncViewerHeight failed', e); }catch{} }
     }
 
     // Observe left card and window resizes
@@ -143,7 +143,7 @@
         var ro = new ResizeObserver(function(){ syncViewerHeight(); });
         var sc = document.getElementById('people-search-card');
         if (sc) ro.observe(sc);
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: ResizeObserver failed', e); }catch{} }
     window.addEventListener('resize', syncViewerHeight);
 
     // Icon mapping for group titles (viewer)
@@ -516,13 +516,13 @@
         var rawInit = rawEl ? JSON.parse(rawEl.textContent || '""') : "";
         var prettyInit = prettyEl ? JSON.parse(prettyEl.textContent || '""') : "";
         if (rawInit || prettyInit) window.gpiv.setXml(rawInit, prettyInit);
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: initial setXml failed', e); }catch{} }
 
     try {
         var qs = new URLSearchParams(window.location.search);
         var linkPid = qs.get('gpivPublicId');
         if (linkPid) { setTimeout(function () { window.gpiv.focusPerson(linkPid); }, 50); }
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: focusPerson from query failed', e); }catch{} }
 
     // Initial height sync
     syncViewerHeight();
@@ -536,7 +536,7 @@
         var raw = rawEl ? JSON.parse(rawEl.textContent || '""') : "";
         var pretty = prettyEl ? JSON.parse(prettyEl.textContent || '""') : "";
         if (window.gpiv && (raw || pretty)) window.gpiv.setXml(raw, pretty);
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: secondary setXml failed', e); }catch{} }
 })();
 </script>
 <!-- Remaining scripts preserved below (Person Details loader) -->
@@ -576,8 +576,8 @@
     e.sec.classList.remove('d-none');
     if(e.title){
       e.title.setAttribute('tabindex','-1');
-      try{ e.title.focus({preventScroll:true}); }catch{}
-      try{ e.title.scrollIntoView({block:'start', behavior:'smooth'});}catch{}
+      try{ e.title.focus({preventScroll:true}); }catch(ex){ try{ console.debug('GPIV: focus failed', ex); }catch{} }
+      try{ e.title.scrollIntoView({block:'start', behavior:'smooth'});}catch(ex2){ try{ console.debug('GPIV: scrollIntoView failed', ex2); }catch{} }
     }
   }
   function markSelectedSummaryCard(fromEl){
@@ -587,7 +587,7 @@
       var wrap = fromEl;
       while (wrap && wrap !== host && !(wrap.classList && wrap.classList.contains('border') && wrap.classList.contains('rounded'))) wrap = wrap.parentElement;
       if (wrap && wrap !== host) wrap.classList.add('gpiv-active-card');
-    } catch {}
+    } catch (e) { try{ console.debug('GPIV: markSelectedSummaryCard failed', e); }catch{} }
   }
 
   function defaultRenderPairsGrouped(pairs){
@@ -726,7 +726,7 @@
         var link = new URL(window.location.href);
         link.searchParams.set('gpivPublicId', publicId);
         history.pushState(null,'',link.toString());
-      }catch{}
+      }catch(ex){ try{ console.debug('GPIV: history.pushState failed', ex); }catch{} }
     } catch (err) {
       showLoading(false);
       if (els.err) {
@@ -769,7 +769,7 @@
         loadPerson(pid);
       }
     }
-  }catch{}
+  }catch(e){ try{ console.debug('GPIV: initial gpivPublicId load failed', e); }catch{} }
 
   // Expand/Collapse all panels inside Person Details (accordion)
   function pdToggleAll(open){
@@ -780,7 +780,7 @@
       panes.forEach(function(p){ p.classList.toggle('show', !!open); });
       var btns = host.querySelectorAll('.accordion-button');
       btns.forEach(function(b){ b.classList.toggle('collapsed', !open); });
-    }catch{}
+    }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
   document.addEventListener('click', function(e){
     var t = e.target && e.target.id || '';

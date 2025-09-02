@@ -34,6 +34,11 @@ namespace XRoadFolkWeb.Extensions
             _ = services.AddOptions<HttpLogOptions>()
                     .BindConfiguration("HttpLogs")
                     .Validate(o => o.Capacity >= 50, "HttpLogs:Capacity must be >= 50")
+                    .Validate(o => o.MaxWritesPerSecond >= 0, "HttpLogs:MaxWritesPerSecond must be >= 0")
+                    .Validate(o => o.MaxFileBytes >= 50_000, "HttpLogs:MaxFileBytes must be >= 50000 bytes")
+                    .Validate(o => o.MaxRolls >= 1, "HttpLogs:MaxRolls must be >= 1")
+                    .Validate(o => o.MaxQueue >= 100, "HttpLogs:MaxQueue must be >= 100")
+                    .Validate(o => o.FlushIntervalMs >= 50, "HttpLogs:FlushIntervalMs must be >= 50 ms")
                     .Validate(o => !o.PersistToFile || !string.IsNullOrWhiteSpace(o.FilePath), "HttpLogs:FilePath must be set when PersistToFile is true")
                     .ValidateOnStart();
 

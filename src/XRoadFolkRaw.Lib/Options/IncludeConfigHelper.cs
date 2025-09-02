@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace XRoadFolkRaw.Lib.Options
 {
@@ -84,7 +85,10 @@ namespace XRoadFolkRaw.Lib.Options
                     }
                     _ = Cache.Remove(cfg);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Trace.TraceError("IncludeConfigHelper: Failed to invalidate cache on config reload: {0}", ex);
+                }
             }, config);
 
             return new CacheState(set, registration);

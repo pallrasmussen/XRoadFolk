@@ -87,13 +87,13 @@
   }
 
   function connect(){
-    if (es) try { es.close(); } catch{}
+    if (es) try { es.close(); } catch(e){ try{ console.debug('LogsViewer: es.close failed', e); }catch{} }
     es = new EventSource('/logs/stream?kind=' + encodeURIComponent(kind));
     es.onmessage = function(ev){
       if (paused) return;
-      try { var entry = JSON.parse(ev.data); append(entry); } catch{}
+      try { var entry = JSON.parse(ev.data); append(entry); } catch(e){ try{ console.warn('LogsViewer: JSON parse failed', e); }catch{} }
     };
-    es.onerror = function(){ try { es.close(); } catch{}; setTimeout(connect, 1000); };
+    es.onerror = function(){ try { es.close(); } catch(e){ try{ console.debug('LogsViewer: es.close in onerror failed', e); }catch{} } setTimeout(connect, 1000); };
   }
 
   // initial fill (history)

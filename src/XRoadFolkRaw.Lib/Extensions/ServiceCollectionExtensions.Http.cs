@@ -128,7 +128,7 @@ namespace XRoadFolkRaw.Lib.Extensions
                 else
                 {
                     // No CER configured: keep development bypass toggle for convenience
-                    bool bypass = cfg.GetValue("Http:BypassServerCertificateValidation", defaultValue: true);
+                    bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", true);
                     if (env.IsDevelopment() && bypass)
                     {
                         handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;

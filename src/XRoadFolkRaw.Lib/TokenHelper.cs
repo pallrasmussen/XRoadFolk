@@ -55,7 +55,8 @@ namespace XRoadFolkRaw.Lib
             }
             finally
             {
-                await _gate.WaitAsync(ct).ConfigureAwait(false);
+                // Use non-cancellable cleanup to ensure _refreshTask is cleared even if caller cancels
+                await _gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
                     if (ReferenceEquals(refresh, _refreshTask))

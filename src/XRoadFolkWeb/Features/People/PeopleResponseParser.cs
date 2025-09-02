@@ -319,8 +319,9 @@ namespace XRoadFolkWeb.Features.People
 
                 void Flatten(XElement el, string path)
                 {
-                    List<XElement> children = [.. el.Elements()];
-                    if (children.Count == 0)
+                    // Fast path: no child elements -> emit leaf value if non-empty
+                    XElement? firstChild = el.Elements().FirstOrDefault();
+                    if (firstChild is null)
                     {
                         string? v = el.Value?.Trim();
                         if (!string.IsNullOrEmpty(v))
@@ -331,24 +332,33 @@ namespace XRoadFolkWeb.Features.People
                         return;
                     }
 
-                    foreach (IGrouping<string, XElement> grp in children.GroupBy(c => c.Name.LocalName, StringComparer.Ordinal))
+                    // Count occurrences of each child name (avoid List + GroupBy allocations)
+                    Dictionary<string, int> counts = new(StringComparer.Ordinal);
+                    foreach (XElement c in el.Elements())
                     {
-                        if (grp.Count() == 1)
+                        string name = c.Name.LocalName;
+                        counts[name] = counts.TryGetValue(name, out int cnt) ? cnt + 1 : 1;
+                    }
+
+                    // Emit children with optional index for duplicates
+                    Dictionary<string, int>? indexes = null;
+                    foreach (XElement c in el.Elements())
+                    {
+                        string name = c.Name.LocalName;
+                        int count = counts[name];
+                        string next;
+                        if (count == 1)
                         {
-                            XElement child = grp.First();
-                            string next = string.IsNullOrEmpty(path) ? grp.Key : $"{path}.{grp.Key}";
-                            Flatten(child, next);
+                            next = string.IsNullOrEmpty(path) ? name : path + "." + name;
                         }
                         else
                         {
-                            int idx = 0;
-                            foreach (XElement? child in grp)
-                            {
-                                string next = string.IsNullOrEmpty(path) ? $"{grp.Key}[{idx}]" : $"{path}.{grp.Key}[{idx}]";
-                                Flatten(child, next);
-                                idx++;
-                            }
+                            indexes ??= new Dictionary<string, int>(StringComparer.Ordinal);
+                            int idx = indexes.TryGetValue(name, out int cur) ? cur : 0;
+                            indexes[name] = idx + 1;
+                            next = string.IsNullOrEmpty(path) ? $"{name}[{idx}]" : $"{path}.{name}[{idx}]";
                         }
+                        Flatten(c, next);
                     }
                 }
 

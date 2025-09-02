@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
+using System.IO;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -48,27 +49,18 @@ namespace XRoadFolkWeb.Extensions
         private static partial Regex GuidRegex();
 
         /// <summary>
-        /// Central lists to keep static asset detection maintainable
+        /// Central sets to keep static asset detection efficient and maintainable
         /// </summary>
-        private static readonly string[] StaticPathPrefixes =
-        [
-            "/css/",
-            "/js/",
-            "/lib/",
-            "/images/",
-            "/img/",
-            "/favicon",
-            "/bootstrap",
-            "/bootswatch",
-            "/bootstrap-icons",
-            "/_framework/",
-        ];
+        private static readonly HashSet<string> StaticTopLevelFolders = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "css", "js", "lib", "images", "img", "bootstrap", "bootswatch", "bootstrap-icons", "_framework"
+        };
 
-        private static readonly string[] StaticFileExtensions =
-        [
+        private static readonly HashSet<string> StaticFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
             ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
             ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json",
-        ];
+        };
 
         private static bool IsStaticAssetPath(string? path)
         {
@@ -77,30 +69,27 @@ namespace XRoadFolkWeb.Extensions
                 return false;
             }
 
-            // Prefix check for common static folders
+            // Fast top-level folder check
             if (path[0] == '/')
             {
-                foreach (string prefix in StaticPathPrefixes)
+                int nextSlash = path.IndexOf('/', 1);
+                string firstSegment = nextSlash > 0 ? path.Substring(1, nextSlash - 1) : path[1..];
+                if (StaticTopLevelFolders.Contains(firstSegment))
                 {
-                    if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
+                    return true;
+                }
+                // Special-case favicon.* which typically lives at the root
+                if (firstSegment.StartsWith("favicon", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
                 }
             }
 
-            // Extension check (only compute once)
-            int dot = path.LastIndexOf('.');
-            if (dot >= 0)
+            // Extension check using hash set
+            string ext = Path.GetExtension(path);
+            if (!string.IsNullOrEmpty(ext) && StaticFileExtensions.Contains(ext))
             {
-                ReadOnlySpan<char> ext = path.AsSpan(dot);
-                foreach (string e in StaticFileExtensions)
-                {
-                    if (ext.Equals(e, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
+                return true;
             }
 
             return false;
@@ -491,9 +480,11 @@ namespace XRoadFolkWeb.Extensions
             }
 
             // Culture defaults for threads (optional)
-            CultureInfo culture = locOpts.DefaultRequestCulture.Culture;
-            CultureInfo.DefaultThreadCurrentCulture = culture;
-            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            RequestCulture defaultReqCulture = locOpts.DefaultRequestCulture;
+            CultureInfo threadCulture = defaultReqCulture.Culture;
+            CultureInfo threadUiCulture = defaultReqCulture.UICulture;
+            CultureInfo.DefaultThreadCurrentCulture = threadCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = threadUiCulture;
 
             return app;
         }
