@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
+using XRoadFolkRaw.Lib;
 
 namespace XRoadFolkRaw.Lib.Logging
 {
@@ -29,38 +30,6 @@ namespace XRoadFolkRaw.Lib.Logging
             LoggerMessage.Define<string, string>(LogLevel.Debug, SoapRequestEvent, "{Title}\n{Xml}");
         private static readonly Action<ILogger, string, string, Exception?> _logResponseWithTitle =
             LoggerMessage.Define<string, string>(LogLevel.Debug, SoapResponseEvent, "{Title}\n{Xml}");
-
-        [GeneratedRegex(@"^[A-Za-z0-9+/=]+$", RegexOptions.Compiled)]
-        private static partial Regex Base64Regex();
-
-        [GeneratedRegex(@"^[A-Fa-f0-9]+$", RegexOptions.Compiled)]
-        private static partial Regex HexRegex();
-
-        [GeneratedRegex(@"^\d[\d\- ]+$", RegexOptions.Compiled)]
-        private static partial Regex NumberRegex();
-
-        [GeneratedRegex(@"(\b(?:password|pwd|token|apikey|apiKey)\s*=\s*['""])([^'""]+)(['""])", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
-        private static partial Regex AttributeRegex();
-
-        private static readonly string[] SensitiveElementNames =
-        [
-            "username", "user", "password", "pwd", "token", "authToken",
-            "ssn", "socialsecuritynumber", "nationalid", "idcode", "pin",
-            "publicid", "personid", "personalcode", "secret", "apikey", "apiKey",
-        ];
-
-        private static readonly HashSet<string> SensitiveNames =
-            new(SensitiveElementNames, StringComparer.OrdinalIgnoreCase);
-
-        private const string TagPatternTemplate =
-            "<(?:[\\w\\-]+:)?({N})(?:\\b[^>]*)>(.*?)</(?:[\\w\\-]+:)?\\1\\s*>";
-
-        private static readonly Dictionary<string, Regex> TagRegexCache =
-            SensitiveElementNames.ToDictionary(
-                n => n,
-                n => new Regex(
-                    TagPatternTemplate.Replace("{N}", n, StringComparison.Ordinal),
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled), StringComparer.Ordinal);
 
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
@@ -174,9 +143,8 @@ namespace XRoadFolkRaw.Lib.Logging
         }
 
         /// <summary>
-        /// Default sanitizer (prefix-agnostic, robust to invalid XML using regex fallback)
+        /// Default sanitizer: delegate to SoapSanitizer.Scrub to keep behavior centralized.
         /// </summary>
-        /// <param name="input"></param>
         private static string DefaultSanitize(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -184,80 +152,16 @@ namespace XRoadFolkRaw.Lib.Logging
                 return input;
             }
 
-            // 1) Try XML route first
             try
             {
-                XDocument doc = XDocument.Parse(input, LoadOptions.PreserveWhitespace);
-
-                foreach (XElement? el in doc.Descendants().ToList())
-                {
-                    if (SensitiveNames.Contains(el.Name.LocalName))
-                    {
-                        el.Value = Mask(el.Value);
-                    }
-
-                    // also mask any attributes on any node that look sensitive
-                    foreach (XAttribute? attr in el.Attributes().ToList())
-                    {
-                        if (SensitiveNames.Contains(attr.Name.LocalName) ||
-                            LooksSensitive(attr.Value))
-                        {
-                            attr.Value = Mask(attr.Value);
-                        }
-                    }
-                }
-                return doc.Declaration != null ? doc.Declaration + doc.ToString(SaveOptions.DisableFormatting) : doc.ToString(SaveOptions.DisableFormatting);
+                // Mask tokens by default; can be overridden via GlobalSanitizer
+                return SoapSanitizer.Scrub(input, maskTokens: true);
             }
             catch
             {
-                // 2) Regex fallback (case-insensitive, prefix-agnostic)
-                string s = input;
-
-                foreach (Regex re in TagRegexCache.Values)
-                {
-                    s = re.Replace(s, m => m.Value.Replace(m.Groups[2].Value, Mask(m.Groups[2].Value), StringComparison.Ordinal));
-                }
-
-                // redact attribute values that look sensitive
-                return AttributeRegex().Replace(s, m => m.Groups[1].Value + Mask(m.Groups[2].Value) + m.Groups[3].Value);
+                // Never throw from logging helpers
+                return input;
             }
-        }
-
-        private static bool LooksSensitive(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return false;
-            }
-            // crude heuristic: longish base64 / hex-ish / number-ish strings
-            if (value.Length >= 8 && Base64Regex().IsMatch(value))
-            {
-                return true; // base64-like
-            }
-
-            if (value.Length >= 8 && HexRegex().IsMatch(value))
-            {
-                return true;   // hex-like
-            }
-
-            if (value.Length >= 6 && NumberRegex().IsMatch(value))
-            {
-                return true;     // number-like
-            }
-
-            return false;
-        }
-
-        private static string Mask(string s)
-        {
-            if (string.IsNullOrEmpty(s))
-            {
-                return s;
-            }
-            // Show only last 2 chars to help correlate, mask the rest
-            int visible = Math.Min(2, s.Length);
-            int masked = Math.Max(0, s.Length - visible);
-            return string.Concat(new string('*', masked), s.AsSpan(s.Length - visible, visible));
         }
     }
 }

@@ -109,6 +109,32 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
+        private static bool GetFeatureFlag(IConfiguration cfg, ILogger logger, string key, bool @default)
+        {
+            string? raw = cfg[key];
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return @default;
+            }
+
+            string v = raw.Trim();
+            if (bool.TryParse(v, out bool b))
+            {
+                return b;
+            }
+
+            // Additional common forms
+            if (string.Equals(v, "1", StringComparison.Ordinal)) return true;
+            if (string.Equals(v, "0", StringComparison.Ordinal)) return false;
+            if (string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(v, "no", StringComparison.OrdinalIgnoreCase)) return false;
+            if (string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(v, "off", StringComparison.OrdinalIgnoreCase)) return false;
+
+            logger.LogWarning("Invalid boolean value for '{Key}': '{Value}'. Using default: {Default}.", key, v, @default);
+            return @default;
+        }
+
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
@@ -116,7 +142,8 @@ namespace XRoadFolkWeb.Extensions
             // Resolve environment + configuration early
             IHostEnvironment hostEnv = app.Services.GetRequiredService<IHostEnvironment>();
             IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
-            bool showDetailedErrors = configuration.GetValue<bool?>("Features:DetailedErrors") ?? hostEnv.IsDevelopment();
+            ILogger featureLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Features");
+            bool showDetailedErrors = GetFeatureFlag(configuration, featureLog, "Features:DetailedErrors", hostEnv.IsDevelopment());
 
             // CSP + security headers middleware with per-request nonce
             _ = app.Use(async (ctx, next) =>
@@ -382,7 +409,7 @@ namespace XRoadFolkWeb.Extensions
             _ = app.MapFallbackToPage("/Index");
 
             // Logs endpoints (defensive when store/feed not registered)
-            bool logsEnabled = configuration.GetValue<bool?>("Features:Logs:Enabled") ?? envCurrent.IsDevelopment();
+            bool logsEnabled = GetFeatureFlag(configuration, featureLog, "Features:Logs:Enabled", envCurrent.IsDevelopment());
             if (logsEnabled)
             {
                 _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>

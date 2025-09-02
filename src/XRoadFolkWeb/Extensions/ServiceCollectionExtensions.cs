@@ -31,16 +31,40 @@ namespace XRoadFolkWeb.Extensions
             bool cookieIsEssential = section.GetValue<bool?>("Cookie:IsEssential") ?? true;
             int idleMinutes = section.GetValue<int?>("IdleTimeoutMinutes") ?? 30;
 
+            // Resolve a logger to report configuration issues
+            ILogger log = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>().CreateLogger("SessionConfig");
+
             SameSiteMode sameSite = SameSiteMode.Strict;
-            if (!string.IsNullOrWhiteSpace(sameSiteStr) && Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))
+            if (!string.IsNullOrWhiteSpace(sameSiteStr))
             {
-                sameSite = parsedSameSite;
+                if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))
+                {
+                    log.LogWarning("Session: Invalid Cookie:SameSite='{Value}'. Falling back to {Fallback}.", sameSiteStr, sameSite);
+                }
+                else
+                {
+                    sameSite = parsedSameSite;
+                }
             }
 
             CookieSecurePolicy securePolicy = CookieSecurePolicy.Always;
-            if (!string.IsNullOrWhiteSpace(securePolicyStr) && Enum.TryParse(securePolicyStr, ignoreCase: true, out CookieSecurePolicy parsedSecure))
+            if (!string.IsNullOrWhiteSpace(securePolicyStr))
             {
-                securePolicy = parsedSecure;
+                if (!Enum.TryParse(securePolicyStr, ignoreCase: true, out CookieSecurePolicy parsedSecure))
+                {
+                    log.LogWarning("Session: Invalid Cookie:SecurePolicy='{Value}'. Falling back to {Fallback}.", securePolicyStr, securePolicy);
+                }
+                else
+                {
+                    securePolicy = parsedSecure;
+                }
+            }
+
+            int origIdle = idleMinutes;
+            if (idleMinutes < 1)
+            {
+                idleMinutes = 1;
+                log.LogWarning("Session: IdleTimeoutMinutes {Original} is too small. Clamped to {Clamped} minute.", origIdle, idleMinutes);
             }
 
             _ = services.AddSession(options =>
@@ -50,7 +74,7 @@ namespace XRoadFolkWeb.Extensions
                 options.Cookie.SameSite = sameSite;
                 options.Cookie.SecurePolicy = securePolicy;
                 options.Cookie.IsEssential = cookieIsEssential;
-                options.IdleTimeout = TimeSpan.FromMinutes(Math.Max(1, idleMinutes));
+                options.IdleTimeout = TimeSpan.FromMinutes(idleMinutes);
             });
             return services;
         }
