@@ -31,6 +31,12 @@ namespace XRoadFolkRaw.Lib.Logging
         private static readonly Action<ILogger, string, string, Exception?> _logResponseWithTitle =
             LoggerMessage.Define<string, string>(LogLevel.Debug, SoapResponseEvent, "{Title}\n{Xml}");
 
+        private static readonly Action<ILogger, Exception?> _logSanitizerError =
+            LoggerMessage.Define(
+                LogLevel.Warning,
+                new EventId(41010, "SoapSanitizerError"),
+                "Global sanitizer error; falling back to default sanitizer.");
+
         /// <summary>
         /// Optional global sanitizer override. If null, DefaultSanitize is used.
         /// You can set this once at app start to plug in your existing SoapSanitizer.
@@ -98,7 +104,7 @@ namespace XRoadFolkRaw.Lib.Logging
                 return;
             }
 
-            string safe = Sanitize(xml ?? string.Empty);
+            string safe = Sanitize(xml ?? string.Empty, logger);
             if (!string.IsNullOrEmpty(title))
             {
                 if (evt == SoapRequestEvent)
@@ -135,9 +141,26 @@ namespace XRoadFolkRaw.Lib.Logging
         /// <param name="xml"></param>
         public static string Sanitize(string xml)
         {
+            // Backwards-compatible overload if no logger is available
+            return Sanitize(xml, logger: null);
+        }
+
+        /// <summary>
+        /// Sanitizes sensitive values in SOAP/XML and logs sanitizer failures if a logger is provided.
+        /// </summary>
+        public static string Sanitize(string xml, ILogger? logger)
+        {
             if (GlobalSanitizer != null)
             {
-                try { return GlobalSanitizer(xml); } catch { /* fall through to default */ }
+                try { return GlobalSanitizer(xml); }
+                catch (Exception ex)
+                {
+                    if (logger is not null)
+                    {
+                        _logSanitizerError(logger, ex);
+                    }
+                    // fall through to default
+                }
             }
             return DefaultSanitize(xml);
         }

@@ -7,10 +7,12 @@ namespace XRoadFolkWeb.Infrastructure
     /// Tries: exact match -> explicit map -> parent cultures -> same language in supported list.
     /// </summary>
     public sealed class BestMatchRequestCultureProvider(IEnumerable<CultureInfo> supportedCultures,
-                                           IReadOnlyDictionary<string, string>? map = null) : RequestCultureProvider
+                                           IReadOnlyDictionary<string, string>? map = null,
+                                           ILogger? logger = null) : RequestCultureProvider
     {
         private readonly HashSet<string> _supported = new(supportedCultures.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
         private readonly IReadOnlyDictionary<string, string> _map = map ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly ILogger? _log = logger;
 
         public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
         {
@@ -137,7 +139,10 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-            catch { /* ignore invalid culture names */ }
+            catch (Exception ex)
+            {
+                _log?.LogWarning(ex, "Invalid culture candidate received: {Candidate}", candidate);
+            }
 
             // Same language (e.g. "en-GB" -> match any supported like "en-US")
             string? lang = candidate.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();

@@ -113,7 +113,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new SinkLogger(categoryName, _store, _scopes);
+            return new SinkLogger(categoryName, _store, this);
         }
 
         public void Dispose() { }
@@ -123,17 +123,17 @@ namespace XRoadFolkWeb.Infrastructure
             _scopes = scopeProvider;
         }
 
-        private sealed class SinkLogger(string category, IHttpLogStore store, IExternalScopeProvider? scopes) : ILogger
+        private sealed class SinkLogger(string category, IHttpLogStore store, InMemoryHttpLogLoggerProvider owner) : ILogger
         {
             private readonly string _category = category;
             private readonly IHttpLogStore _store = store;
-            private readonly IExternalScopeProvider? _scopes = scopes;
+            private readonly InMemoryHttpLogLoggerProvider _owner = owner;
 
             private sealed class NoopScope : IDisposable { public static readonly NoopScope Instance = new(); public void Dispose() { } }
 
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
-                return _scopes?.Push(state) ?? NoopScope.Instance;
+                return _owner._scopes?.Push(state) ?? NoopScope.Instance;
             }
 
             public bool IsEnabled(LogLevel logLevel)
@@ -211,7 +211,7 @@ namespace XRoadFolkWeb.Infrastructure
 
                 string msg = formatter(state, exception);
                 string kind = ComputeKind(_category, eventId, msg);
-                string? scopeInfo = RenderScopes(_scopes);
+                string? scopeInfo = RenderScopes(_owner._scopes);
                 if (!string.IsNullOrEmpty(scopeInfo))
                 {
                     msg = $"{msg} | scopes: {scopeInfo}";
@@ -225,7 +225,7 @@ namespace XRoadFolkWeb.Infrastructure
                     EventId = eventId.Id,
                     Kind = kind,
                     Message = msg,
-                    Exception = exception?.Message,
+                    Exception = exception?.ToString(),
                 });
             }
         }

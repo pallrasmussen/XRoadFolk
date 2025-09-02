@@ -55,6 +55,7 @@ namespace XRoadFolkRaw.Lib.Extensions
 
                 IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
                 IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
+                ILogger serverCertLog = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadServerCert");
 
                 // Optional server certificate pinning (.cer). If configured, this is used in all environments.
                 // Supported keys: XRoad:ServerCertificate:Path or Http:ServerCertificate:Path
@@ -75,7 +76,16 @@ namespace XRoadFolkRaw.Lib.Extensions
                     }
                     if (File.Exists(path))
                     {
-                        try { serverCer = new X509Certificate2(path); } catch { serverCer = null; }
+                        try { serverCer = new X509Certificate2(path); }
+                        catch (Exception ex)
+                        {
+                            serverCer = null;
+                            serverCertLog.LogError(ex, "Failed to load server certificate from '{Path}'. Certificate pinning disabled.", path);
+                        }
+                    }
+                    else
+                    {
+                        serverCertLog.LogWarning("Server certificate file not found at '{Path}'. Certificate pinning disabled.", path);
                     }
                 }
 
