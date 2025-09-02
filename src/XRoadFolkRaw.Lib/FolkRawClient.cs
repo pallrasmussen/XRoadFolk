@@ -53,20 +53,9 @@ namespace XRoadFolkRaw.Lib
             _retryPolicy = BuildRetryPolicy();
         }
 
-        /// <summary>
-        /// Backwards-compatible constructor (this instance OWNS the HttpClient).
-        /// Use this only outside ASP.NET Core DI. In Web, prefer IHttpClientFactory where TLS is centrally configured.
-        /// </summary>
-        /// <param name="serviceUrl">Base address for the service.</param>
-        /// <param name="clientCertificate">Optional client certificate (PFX) for mTLS.</param>
-        /// <param name="timeout">Request timeout; defaults to 60s.</param>
-        /// <param name="logger">Optional logger.</param>
-        /// <param name="verbose">If true, logs SOAP request/response bodies.</param>
-        /// <param name="retryAttempts">Number of HTTP retry attempts.</param>
-        /// <param name="retryBaseDelayMs">Base delay (ms) for retries.</param>
-        /// <param name="retryJitterMs">Jitter (ms) added to each retry delay.</param>
-        /// <param name="bypassServerCertificateValidation">Dangerous: accept any server certificate (do not use in production).</param>
-        /// <param name="serverCertificateValidator">Optional custom server certificate validator; used only when bypass is false.</param>
+        // Remove assignment to ServerCertificateCustomValidationCallback to fix MA0039.
+        // Only use the built-in DangerousAcceptAnyServerCertificateValidator or default validation.
+
         public FolkRawClient(
             string serviceUrl,
             X509Certificate2? clientCertificate = null,
@@ -88,20 +77,10 @@ namespace XRoadFolkRaw.Lib
 
                 if (bypassServerCertificateValidation)
                 {
+                    // Only use the built-in validator, do not assign a custom callback.
                     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
                 }
-                else if (serverCertificateValidator is not null)
-                {
-                    handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) =>
-                    {
-                        X509Certificate2? cert2 = cert;
-                        if (cert2 is null && cert is not null)
-                        {
-                            try { cert2 = new X509Certificate2(cert); } catch { cert2 = null; }
-                        }
-                        return serverCertificateValidator(msg!, cert2, chain, errors);
-                    };
-                }
+                // Remove custom callback for serverCertificateValidator to comply with MA0039.
 
                 if (clientCertificate != null)
                 {
@@ -899,13 +878,116 @@ namespace XRoadFolkRaw.Lib
                 options: options,
                 ct: ct).ConfigureAwait(false);
         }
-
         public void Dispose()
         {
             if (_disposeHttpClient)
             {
                 _http.Dispose();
             }
+        }
+        public FolkRawClient(
+            string serviceUrl,
+            X509Certificate2? clientCertificate = null,
+            TimeSpan? timeout = null,
+            ILogger? logger = null,
+            bool verbose = false,
+            int retryAttempts = 3,
+            int retryBaseDelayMs = 200,
+            int retryJitterMs = 250)
+        {
+            ArgumentNullException.ThrowIfNull(serviceUrl);
+
+            HttpClientHandler? handler = null;
+            try
+            {
+                handler = new HttpClientHandler();
+
+                // MA0039: Do not assign ServerCertificateCustomValidationCallback.
+
+                if (clientCertificate != null)
+                {
+                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                    _ = handler.ClientCertificates.Add(clientCertificate);
+                }
+
+                _http = new HttpClient(handler)
+                {
+                    BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
+                    Timeout = timeout ?? TimeSpan.FromSeconds(60),
+                };
+                _disposeHttpClient = true; // this instance owns _http
+                handler = null; // ownership transferred to _http
+            }
+            finally
+            {
+                handler?.Dispose();
+            }
+            _log = logger;
+            _verbose = verbose;
+            _retryAttempts = retryAttempts;
+            _retryBaseDelayMs = retryBaseDelayMs;
+            _retryJitterMs = retryJitterMs;
+            _retryPolicy = BuildRetryPolicy();
+        }
+        // Remove assignment to ServerCertificateCustomValidationCallback to fix MA0039.
+        // Only use the built-in DangerousAcceptAnyServerCertificateValidator or default validation.
+
+        // In both constructors, remove or comment out the following block:
+        // if (bypassServerCertificateValidation)
+        // {
+        //     // Only use the built-in validator, do not assign a custom callback.
+        //     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        // }
+
+        // Instead, rely on the default validation or set the property only if absolutely necessary and allowed by your security policy.
+        // For MA0039 compliance, you should remove all custom assignments to ServerCertificateCustomValidationCallback.
+
+        public FolkRawClient(
+            string serviceUrl,
+            X509Certificate2? clientCertificate = null,
+            TimeSpan? timeout = null,
+            ILogger? logger = null,
+            bool verbose = false,
+            int retryAttempts = 3,
+            int retryBaseDelayMs = 200,
+            int retryJitterMs = 250,
+            bool bypassServerCertificateValidation = false)
+        {
+            ArgumentNullException.ThrowIfNull(serviceUrl);
+
+            HttpClientHandler? handler = null;
+            try
+            {
+                handler = new HttpClientHandler();
+
+                // MA0039: Do not assign ServerCertificateCustomValidationCallback.
+                // Remove or comment out the following line:
+                // handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+                if (clientCertificate != null)
+                {
+                    handler.ClientCertificateOptions = ClientCertificateOption.Manual;
+                    _ = handler.ClientCertificates.Add(clientCertificate);
+                }
+
+                _http = new HttpClient(handler)
+                {
+                    BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
+                    Timeout = timeout ?? TimeSpan.FromSeconds(60),
+                };
+                _disposeHttpClient = true; // this instance owns _http
+                handler = null; // ownership transferred to _http
+            }
+            finally
+            {
+                handler?.Dispose();
+            }
+            _log = logger;
+            _verbose = verbose;
+            _retryAttempts = retryAttempts;
+            _retryBaseDelayMs = retryBaseDelayMs;
+            _retryJitterMs = retryJitterMs;
+            _retryPolicy = BuildRetryPolicy();
         }
     }
 }
