@@ -1,9 +1,16 @@
 @page
 @model XRoadFolkWeb.Pages.IndexModel
+@using System.Reflection
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @{
     ViewData["Title"] = L["Title"];
     var nonce = ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string;
+
+    // Expose version to layout footer (Index page only)
+    var appAsm = typeof(Program).Assembly;
+    var infoVersion = appAsm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                      ?? appAsm.GetName().Version?.ToString();
+    ViewData["AppVersion"] = infoVersion;
 }
 
 <h1 class="mb-4">@L["Title"]</h1>

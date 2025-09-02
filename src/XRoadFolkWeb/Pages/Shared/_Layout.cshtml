@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
+@using System.Reflection
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
@@ -36,6 +37,21 @@
 
     // Feature toggle: Logs button visibility
     bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
+
+    // Version (from page ViewData if provided, else from assembly)
+    string? appVersion = ViewData["AppVersion"] as string;
+    if (string.IsNullOrWhiteSpace(appVersion))
+    {
+        var appAsm = typeof(Program).Assembly;
+        appVersion = appAsm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                      ?? appAsm.GetName().Version?.ToString();
+    }
+    // Display only the numeric version (strip optional +metadata like commit hash)
+    if (!string.IsNullOrWhiteSpace(appVersion))
+    {
+        var plus = appVersion.IndexOf('+');
+        if (plus >= 0) appVersion = appVersion.Substring(0, plus).Trim();
+    }
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -153,7 +169,10 @@
     <footer class="mt-auto border-top py-3">
         <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between small text-muted">
             <span>&copy; @DateTime.UtcNow.Year @Config["Branding:AuthorName"]</span>
-            <span>@SR["BuiltWith"]</span>
+            <span>
+                @SR["BuiltWith"]
+                @if (!string.IsNullOrWhiteSpace(appVersion)) { @($" • v{appVersion}"); }
+            </span>
         </div>
     </footer>
 

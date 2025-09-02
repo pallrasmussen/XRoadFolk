@@ -5,6 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>false</InvariantGlobalization>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Version info -->
+    <Version>1.0.0</Version>
+    <AssemblyInformationalVersion>1.0.0</AssemblyInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +37,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
   <!-- Remove any explicit EmbeddedResource entries to avoid duplicates.
        The SDK already includes Resources\**\*.resx automatically. -->
 </Project>
