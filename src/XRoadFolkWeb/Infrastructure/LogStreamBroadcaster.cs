@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -10,8 +11,9 @@ namespace XRoadFolkWeb.Infrastructure
         void Publish(LogEntry entry);
     }
 
-    public sealed class LogStreamBroadcaster : ILogFeed
+    public sealed class LogStreamBroadcaster(ILogger<LogStreamBroadcaster> logger) : ILogFeed
     {
+        private readonly ILogger<LogStreamBroadcaster> _log = logger;
         private readonly ConcurrentDictionary<Guid, Channel<LogEntry>> _subscribers = new();
         private const int SubscriberQueueCapacity = 1024; // bounded queue per subscriber to avoid unbounded memory
 
@@ -33,7 +35,11 @@ namespace XRoadFolkWeb.Infrastructure
         {
             if (_subscribers.TryRemove(id, out Channel<LogEntry>? ch))
             {
-                try { _ = ch.Writer.TryComplete(); } catch { }
+                try { _ = ch.Writer.TryComplete(); }
+                catch (Exception ex)
+                {
+                    _log.LogDebug(ex, "LogStreamBroadcaster: TryComplete failed for subscription {Id}", id);
+                }
             }
         }
 
@@ -49,15 +55,24 @@ namespace XRoadFolkWeb.Infrastructure
                     {
                         if (_subscribers.TryRemove(kv.Key, out Channel<LogEntry>? dead))
                         {
-                            try { _ = dead.Writer.TryComplete(); } catch { }
+                            try { _ = dead.Writer.TryComplete(); }
+                            catch (Exception ex)
+                            {
+                                _log.LogDebug(ex, "LogStreamBroadcaster: TryComplete failed for removed subscription {Id}", kv.Key);
+                            }
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _log.LogWarning(ex, "LogStreamBroadcaster: Publish failed for subscription {Id}. Removing subscriber.", kv.Key);
                     if (_subscribers.TryRemove(kv.Key, out Channel<LogEntry>? dead))
                     {
-                        try { _ = dead.Writer.TryComplete(); } catch { }
+                        try { _ = dead.Writer.TryComplete(); }
+                        catch (Exception ex2)
+                        {
+                            _log.LogDebug(ex2, "LogStreamBroadcaster: TryComplete after failure failed for {Id}", kv.Key);
+                        }
                     }
                 }
             }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Localization;
 using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using XRoadFolkRaw.Lib;
+using System.Collections.Concurrent;
 
 namespace XRoadFolkWeb.Validation
 {
@@ -14,8 +15,7 @@ namespace XRoadFolkWeb.Validation
         private readonly string _dob;
 
         // Per-attribute-instance cache of compiled accessors keyed by model Type
-        private readonly object _cacheLock = new();
-        private readonly Dictionary<Type, AccessorSet> _accessorCache = new();
+        private readonly ConcurrentDictionary<Type, AccessorSet> _accessorCache = new();
 
         private readonly struct AccessorSet
         {
@@ -86,22 +86,11 @@ namespace XRoadFolkWeb.Validation
 
         private AccessorSet GetAccessors(Type modelType)
         {
-            lock (_cacheLock)
-            {
-                if (_accessorCache.TryGetValue(modelType, out AccessorSet existing))
-                {
-                    return existing;
-                }
-
-                AccessorSet built = new(
-                    CreateGetter(modelType, _ssn),
-                    CreateGetter(modelType, _first),
-                    CreateGetter(modelType, _last),
-                    CreateGetter(modelType, _dob));
-
-                _accessorCache[modelType] = built;
-                return built;
-            }
+            return _accessorCache.GetOrAdd(modelType, t => new AccessorSet(
+                CreateGetter(t, _ssn),
+                CreateGetter(t, _first),
+                CreateGetter(t, _last),
+                CreateGetter(t, _dob)));
         }
 
         private static Func<object, string?> CreateGetter(Type targetType, string propName)

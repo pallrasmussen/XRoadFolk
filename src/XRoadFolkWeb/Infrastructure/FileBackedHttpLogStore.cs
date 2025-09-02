@@ -177,7 +177,10 @@ namespace XRoadFolkWeb.Infrastructure
                             batch.Clear();
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogWriteBatchError(_store.Logger, ex);
+                    }
                     break;
                 }
                 catch (Exception ex)
@@ -208,7 +211,10 @@ namespace XRoadFolkWeb.Infrastructure
                     tail.Clear();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogWriteBatchError(_store.Logger, ex);
+            }
         }
 
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)

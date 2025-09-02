@@ -14,7 +14,7 @@ namespace XRoadFolkWeb.Pages
 {
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public partial class IndexModel(
+    public sealed partial class IndexModel(
         PeopleSearchCoordinator search,
         PersonDetailsProvider details,
         IStringLocalizer<InputValidation> valLoc,

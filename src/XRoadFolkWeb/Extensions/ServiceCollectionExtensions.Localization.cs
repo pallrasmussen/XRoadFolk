@@ -25,7 +25,9 @@ namespace XRoadFolkWeb.Extensions
 
             _ = services.Configure((RequestLocalizationOptions opts) =>
             {
-                (string defaultCulture, IReadOnlyList<CultureInfo> cultures) = AppLocalization.FromConfiguration(configuration);
+                ILoggerFactory lf = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+                ILogger log = lf.CreateLogger("Localization.Config");
+                (string defaultCulture, IReadOnlyList<CultureInfo> cultures) = AppLocalization.FromConfiguration(configuration, log);
                 opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
                 opts.SupportedCultures = [.. cultures];
                 opts.SupportedUICultures = [.. cultures];
