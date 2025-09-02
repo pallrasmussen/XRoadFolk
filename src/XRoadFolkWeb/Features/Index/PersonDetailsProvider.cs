@@ -65,49 +65,46 @@ namespace XRoadFolkWeb.Features.Index
             _ = allowed.Add("Person");
             _ = allowed.Add("Names");
 
-            if (allowed.Count > 0)
+            static bool Matches(string seg, string allowedKey)
             {
-                static bool Matches(string seg, string allowedKey)
+                return seg.Equals(allowedKey, StringComparison.OrdinalIgnoreCase)
+                    || seg.StartsWith(allowedKey, StringComparison.OrdinalIgnoreCase)
+                    || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
+            }
+
+            static IEnumerable<string> Segments(string key)
+            {
+                if (string.IsNullOrWhiteSpace(key))
                 {
-                    return seg.Equals(allowedKey, StringComparison.OrdinalIgnoreCase)
-                        || seg.StartsWith(allowedKey, StringComparison.OrdinalIgnoreCase)
-                        || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
+                    yield break;
                 }
 
-                static IEnumerable<string> Segments(string key)
+                foreach (string part in key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
-                    if (string.IsNullOrWhiteSpace(key))
-                    {
-                        yield break;
-                    }
+                    int i = part.IndexOf('[', StringComparison.Ordinal);
+                    yield return i >= 0 ? part[..i] : part;
+                }
+            }
 
-                    foreach (string part in key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    {
-                        int i = part.IndexOf('[', StringComparison.Ordinal);
-                        yield return i >= 0 ? part[..i] : part;
-                    }
+            filtered = [.. filtered.Where(p =>
+            {
+                if (string.IsNullOrWhiteSpace(p.Key))
+                {
+                    return false;
                 }
 
-                filtered = [.. filtered.Where(p =>
+                foreach (string seg in Segments(p.Key))
                 {
-                    if (string.IsNullOrWhiteSpace(p.Key))
+                    foreach (string a in allowed)
                     {
-                        return false;
-                    }
-
-                    foreach (string seg in Segments(p.Key))
-                    {
-                        foreach (string a in allowed)
+                        if (Matches(seg, a))
                         {
-                            if (Matches(seg, a))
-                            {
-                                return true;
-                            }
+                            return true;
                         }
                     }
-                    return false;
-                }),];
-            }
+                }
+                return false;
+            }),];
 
             string? first = filtered.Find(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
             string? last = filtered.Find(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;

@@ -21,7 +21,8 @@ namespace XRoadFolkWeb.Pages
         IStringLocalizer<IndexModel> loc,
         IConfiguration config,
         PeopleResponseParser parser,
-        ILogger<IndexModel> logger) : PageModel
+        ILogger<IndexModel> logger,
+        IHostEnvironment env) : PageModel
     {
         private readonly PeopleSearchCoordinator _search = search;
         private readonly PersonDetailsProvider _details = details;
@@ -30,6 +31,7 @@ namespace XRoadFolkWeb.Pages
         private readonly IConfiguration _config = config;
         private readonly PeopleResponseParser _parser = parser;
         private readonly ILogger<IndexModel> _logger = logger;
+        private readonly IHostEnvironment _env = env;
 
         [BindProperty, Ssn, TrimDigits]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
@@ -84,8 +86,7 @@ namespace XRoadFolkWeb.Pages
 
         private string BuildUserError(Exception ex)
         {
-            bool detailed = _config.GetValue<bool?>("Features:DetailedErrors")
-                              ?? (HttpContext?.RequestServices.GetService(typeof(IHostEnvironment)) is IHostEnvironment env && env.IsDevelopment());
+            bool detailed = _config.GetValue<bool?>("Features:DetailedErrors") ?? _env.IsDevelopment();
             if (detailed)
             {
                 string msg = ex.Message;
@@ -262,10 +263,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, HttpContext?.RequestAborted ?? CancellationToken.None);
-                PeoplePublicInfoResponseXml = res.Xml;
-                PeoplePublicInfoResponseXmlPretty = res.Pretty;
-                Results = res.Results;
+                await PerformSearchAsync(ssnNorm, dob, HttpContext?.RequestAborted ?? CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -318,7 +316,6 @@ namespace XRoadFolkWeb.Pages
                 {
                     ok = true,
                     publicId,
-                    raw = string.Empty, // raw xml not returned here
                     pretty = res.Pretty,
                     details = res.Details.Select(p => new { key = p.Key, value = p.Value }).ToArray(),
                 });
@@ -326,8 +323,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId!);
-                bool detailed = _config.GetValue<bool?>("Features:DetailedErrors")
-                                  ?? (HttpContext?.RequestServices.GetService(typeof(IHostEnvironment)) is IHostEnvironment env && env.IsDevelopment());
+                bool detailed = _config.GetValue<bool?>("Features:DetailedErrors") ?? _env.IsDevelopment();
                 if (detailed)
                 {
                     return new JsonResult(new
