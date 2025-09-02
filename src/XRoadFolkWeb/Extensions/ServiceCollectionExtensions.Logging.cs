@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Extensions
@@ -6,39 +7,21 @@ namespace XRoadFolkWeb.Extensions
     {
         public static IServiceCollection AddAppLogging(this IServiceCollection services)
         {
+            ArgumentNullException.ThrowIfNull(services);
+
             _ = services.AddLogging(builder =>
             {
-                _ = builder.ClearProviders();
-                _ = builder.AddSimpleConsole(options =>
-                {
-                    options.UseUtcTimestamp = false; // local time
-                    options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fff zzz ";
-                });
-                _ = builder.SetMinimumLevel(LogLevel.Information);
-                _ = builder.AddFilter("Microsoft", LogLevel.Warning);
+                builder.ClearProviders();
+                builder.AddConsole();
+                builder.AddDebug();
+                builder.SetMinimumLevel(LogLevel.Information);
             });
-            return services;
-        }
 
-        /// <summary>
-        /// Registers IHttpLogStore and the custom logger provider.
-        /// Chooses file-backed store with background writer when configured, otherwise in-memory.
-        /// </summary>
-        /// <param name="services"></param>
-        /// <param name="configuration"></param>
-        /// <returns></returns>
-        public static IServiceCollection AddHttpLogging(this IServiceCollection services, IConfiguration configuration)
-        {
-            ArgumentNullException.ThrowIfNull(configuration);
-
+            // HttpLog options + validation
             _ = services.AddOptions<HttpLogOptions>()
                     .BindConfiguration("HttpLogs")
                     .Validate(o => o.Capacity >= 50, "HttpLogs:Capacity must be >= 50")
-                    .Validate(o => o.MaxWritesPerSecond >= 0, "HttpLogs:MaxWritesPerSecond must be >= 0")
-                    .Validate(o => o.MaxFileBytes >= 50_000, "HttpLogs:MaxFileBytes must be >= 50000 bytes")
-                    .Validate(o => o.MaxRolls >= 1, "HttpLogs:MaxRolls must be >= 1")
-                    .Validate(o => o.MaxQueue >= 100, "HttpLogs:MaxQueue must be >= 100")
-                    .Validate(o => o.FlushIntervalMs >= 50, "HttpLogs:FlushIntervalMs must be >= 50 ms")
+                    .Validate(o => o.MaxQueue >= 100, "HttpLogs:MaxQueue must be >= 100 for file-backed store")
                     .Validate(o => !o.PersistToFile || !string.IsNullOrWhiteSpace(o.FilePath), "HttpLogs:FilePath must be set when PersistToFile is true")
                     .ValidateOnStart();
 
@@ -46,7 +29,7 @@ namespace XRoadFolkWeb.Extensions
 
             // Read configuration at registration time to decide which implementation to use
             HttpLogOptions opts = new();
-            configuration.GetSection("HttpLogs").Bind(opts);
+            services.BuildServiceProvider().GetRequiredService<IConfiguration>().GetSection("HttpLogs").Bind(opts);
 
             if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
             {
@@ -58,7 +41,7 @@ namespace XRoadFolkWeb.Extensions
             else
             {
                 // Default: in-memory store
-                _ = services.AddSingleton<IHttpLogStore>(static sp => new InMemoryHttpLog(sp.GetRequiredService<IConfiguration>()));
+                _ = services.AddSingleton<IHttpLogStore>(static sp => new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>()));
             }
 
             // Register the custom logger provider so all logs also flow into IHttpLogStore

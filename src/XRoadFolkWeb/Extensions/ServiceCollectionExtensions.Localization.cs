@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
@@ -23,22 +24,22 @@ namespace XRoadFolkWeb.Extensions
 
             _ = services.AddLocalization(opts => opts.ResourcesPath = "Resources");
 
-            _ = services.Configure((RequestLocalizationOptions opts) =>
-            {
-                ILoggerFactory lf = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-                ILogger log = lf.CreateLogger("Localization.Config");
-                (string defaultCulture, IReadOnlyList<CultureInfo> cultures) = AppLocalization.FromConfiguration(configuration, log);
-                opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
-                opts.SupportedCultures = [.. cultures];
-                opts.SupportedUICultures = [.. cultures];
-                opts.FallBackToParentCultures = true;
-                opts.FallBackToParentUICultures = true;
+            _ = services.AddOptions<RequestLocalizationOptions>()
+                .Configure<ILoggerFactory>((opts, lf) =>
+                {
+                    ILogger log = lf.CreateLogger("Localization.Config");
+                    (string defaultCulture, IReadOnlyList<CultureInfo> cultures) = AppLocalization.FromConfiguration(configuration, log);
+                    opts.DefaultRequestCulture = new RequestCulture(defaultCulture);
+                    opts.SupportedCultures = [.. cultures];
+                    opts.SupportedUICultures = [.. cultures];
+                    opts.FallBackToParentCultures = true;
+                    opts.FallBackToParentUICultures = true;
 
-                LocalizationConfig locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
-                System.Collections.ObjectModel.ReadOnlyDictionary<string, string> roMap = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(locCfg.FallbackMap);
-                opts.RequestCultureProviders.Insert(0, new BestMatchRequestCultureProvider(
-                    opts.SupportedUICultures, roMap));
-            });
+                    LocalizationConfig locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
+                    System.Collections.ObjectModel.ReadOnlyDictionary<string, string> roMap = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(locCfg.FallbackMap);
+                    opts.RequestCultureProviders.Insert(0, new BestMatchRequestCultureProvider(
+                        opts.SupportedUICultures, roMap));
+                });
 
             // Configure and validate app Localization section
             _ = services.AddOptions<LocalizationConfig>()

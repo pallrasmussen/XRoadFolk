@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
@@ -23,19 +25,29 @@ namespace XRoadFolkWeb.Infrastructure
         IReadOnlyList<LogEntry> GetAll();
     }
 
-    public sealed class InMemoryHttpLog(IConfiguration cfg) : IHttpLogStore
+    public sealed class InMemoryHttpLog : IHttpLogStore
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
         private int _size; // approximate size to avoid O(n) Count
-        private readonly int _capacity = Math.Max(50, cfg.GetValue<int>("HttpLog:Capacity", 1000));
-        private readonly long _maxFileBytes = Math.Max(1024L * 1024, cfg.GetValue<long>("HttpLog:MaxFileBytes", 1024L * 1024 * 5));
-        private readonly int _maxRolls = Math.Max(1, cfg.GetValue<int>("HttpLog:MaxRolls", 5));
-        private readonly string? _filePath = cfg.GetValue<string>("HttpLog:FilePath");
-        private readonly object _fileLock = new();
 
-        private readonly HttpLogRateLimiter _rateLimiter = new(
-            maxWritesPerSecond: Math.Max(0, cfg.GetValue<int>("HttpLog:MaxWritesPerSecond", 0)),
-            alwaysAllowWarnError: cfg.GetValue<bool>("HttpLog:AlwaysAllowWarningsAndErrors", true));
+        private readonly int _capacity;
+        private readonly long _maxFileBytes;
+        private readonly int _maxRolls;
+        private readonly string? _filePath;
+        private readonly object _fileLock = new();
+        private readonly HttpLogRateLimiter _rateLimiter;
+
+        public InMemoryHttpLog(IOptions<HttpLogOptions> opts)
+        {
+            ArgumentNullException.ThrowIfNull(opts);
+            HttpLogOptions cfg = opts.Value;
+
+            _capacity = Math.Max(50, cfg.Capacity);
+            _maxFileBytes = Math.Max(1024L * 1024, cfg.MaxFileBytes);
+            _maxRolls = Math.Max(1, cfg.MaxRolls);
+            _filePath = cfg.FilePath;
+            _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
+        }
 
         public void Add(LogEntry e)
         {

@@ -10,6 +10,20 @@ namespace XRoadFolkWeb.Features.Index
         private readonly PeopleResponseParser _parser = parser;
         private readonly IConfiguration _config = config;
 
+        // Cache of allowed include keys for this scoped instance (request)
+        private IReadOnlyList<string>? _allowedIncludeKeysCache;
+        private IReadOnlyList<string> GetAllowedIncludeKeysFromConfig()
+        {
+            if (_allowedIncludeKeysCache is { Count: > 0 }) return _allowedIncludeKeysCache;
+
+            // Base keys (config-backed cache) + ensure core sections
+            HashSet<string> baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            _ = baseKeys.Add("Person");
+            _ = baseKeys.Add("Names");
+            _allowedIncludeKeysCache = [.. baseKeys];
+            return _allowedIncludeKeysCache;
+        }
+
         public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(
             string publicId,
             Microsoft.Extensions.Localization.IStringLocalizer loc,
@@ -56,12 +70,13 @@ namespace XRoadFolkWeb.Features.Index
                 }),
             ];
 
-            // Include allow-list filter (use provided keys if present, else from configuration)
-            HashSet<string> allowed = (allowedIncludeKeys?.Count > 0)
-                ? new HashSet<string>(allowedIncludeKeys, StringComparer.OrdinalIgnoreCase)
-                : IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            // Include allow-list filter (use provided keys if present, else from cached configuration)
+            IReadOnlyCollection<string> allowedBase = (allowedIncludeKeys?.Count > 0)
+                ? allowedIncludeKeys
+                : GetAllowedIncludeKeysFromConfig();
 
-            // Keep core sections allowed, but no placeholders will be added; only actual data will render
+            // Enforce core allow-list on caller-provided keys as well
+            HashSet<string> allowed = new(allowedBase, StringComparer.OrdinalIgnoreCase);
             _ = allowed.Add("Person");
             _ = allowed.Add("Names");
 
