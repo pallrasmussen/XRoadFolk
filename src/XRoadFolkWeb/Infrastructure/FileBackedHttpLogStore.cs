@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text;
 using System.Threading.Channels;
 
@@ -59,9 +60,9 @@ namespace XRoadFolkWeb.Infrastructure
 
             // Ring buffer
             _ring.Enqueue(e);
-            int newSize = Interlocked.Increment(ref _ringSize);
-            int overflow = newSize - Capacity;
-            for (int i = 0; i < overflow; i++)
+            _ = Interlocked.Increment(ref _ringSize);
+            // Under contention, recompute and trim until we're under capacity
+            while (Volatile.Read(ref _ringSize) > Capacity)
             {
                 if (_ring.TryDequeue(out _))
                 {
@@ -225,7 +226,7 @@ namespace XRoadFolkWeb.Infrastructure
             using StreamWriter sw = new(fs, Encoding.UTF8);
             foreach (LogEntry e in batch)
             {
-                string line = $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}";
+                string line = string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}");
                 await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
             }
             await sw.FlushAsync(ct).ConfigureAwait(false);

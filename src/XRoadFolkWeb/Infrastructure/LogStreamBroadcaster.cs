@@ -39,7 +39,25 @@ namespace XRoadFolkWeb.Infrastructure
         {
             foreach (KeyValuePair<Guid, Channel<LogEntry>> kv in _subscribers)
             {
-                try { _ = kv.Value.Writer.TryWrite(entry); } catch { }
+                Channel<LogEntry> ch = kv.Value;
+                try
+                {
+                    // For unbounded channels, TryWrite only returns false if the channel is completed/faulted
+                    if (!ch.Writer.TryWrite(entry) || ch.Reader.Completion.IsCompleted)
+                    {
+                        if (_subscribers.TryRemove(kv.Key, out Channel<LogEntry>? dead))
+                        {
+                            try { _ = dead.Writer.TryComplete(); } catch { }
+                        }
+                    }
+                }
+                catch
+                {
+                    if (_subscribers.TryRemove(kv.Key, out Channel<LogEntry>? dead))
+                    {
+                        try { _ = dead.Writer.TryComplete(); } catch { }
+                    }
+                }
             }
         }
     }

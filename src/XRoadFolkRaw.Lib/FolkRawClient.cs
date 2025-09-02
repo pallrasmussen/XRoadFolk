@@ -150,14 +150,8 @@ namespace XRoadFolkRaw.Lib
 
         private XDocument LoadTemplate(string path)
         {
-            if (_templateCache.TryGetValue(path, out XDocument? cached))
-            {
-                return cached;
-            }
-
-            XDocument loaded = LoadTemplateCore(path);
-            _templateCache[path] = loaded;
-            return loaded;
+            // Use atomic GetOrAdd to avoid multiple threads loading the same template concurrently
+            return _templateCache.GetOrAdd(path, static p => LoadTemplateCore(p));
         }
 
         private static XDocument LoadTemplateCore(string p)

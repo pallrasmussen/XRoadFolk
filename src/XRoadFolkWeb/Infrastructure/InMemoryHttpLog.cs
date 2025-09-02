@@ -47,9 +47,10 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             _queue.Enqueue(e);
-            int newSize = Interlocked.Increment(ref _size);
-            int overflow = newSize - _capacity;
-            for (int i = 0; i < overflow; i++)
+            _ = Interlocked.Increment(ref _size);
+
+            // Trim until capacity is met (robust under contention)
+            while (Volatile.Read(ref _size) > _capacity)
             {
                 if (_queue.TryDequeue(out _))
                 {
@@ -57,6 +58,7 @@ namespace XRoadFolkWeb.Infrastructure
                 }
                 else
                 {
+                    // Queue observed empty; stop trimming to avoid underflow on _size
                     break;
                 }
             }

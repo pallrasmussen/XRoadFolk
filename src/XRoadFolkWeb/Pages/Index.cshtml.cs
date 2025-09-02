@@ -72,9 +72,10 @@ namespace XRoadFolkWeb.Pages
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
         /// <summary>
-        /// Expose enabled include keys to the view
+        /// Expose enabled include keys to the view (lazy-loaded once per request)
         /// </summary>
-        public List<string> EnabledPersonIncludeKeys { get; private set; } = [];
+        private List<string>? _enabledPersonIncludeKeys;
+        public List<string> EnabledPersonIncludeKeys => _enabledPersonIncludeKeys ??= [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
 
         [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
         private static partial Regex PublicIdRegex();
@@ -109,8 +110,6 @@ namespace XRoadFolkWeb.Pages
             string? lastName = null,
             string? dateOfBirth = null)
         {
-            EnabledPersonIncludeKeys = [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
-
             PrefillFromQuery(ssn, firstName, lastName, dateOfBirth);
 
             await LoadPersonDetailsIfRequestedAsync(publicId, HttpContext?.RequestAborted ?? CancellationToken.None).ConfigureAwait(false);
@@ -212,9 +211,6 @@ namespace XRoadFolkWeb.Pages
             // Clear person details on every new search
             PersonDetails = null;
             SelectedNameSuffix = string.Empty;
-
-            // Load enabled include keys once per request
-            EnabledPersonIncludeKeys = [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
 
             if (!ModelState.IsValid)
             {
@@ -323,21 +319,8 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId!);
-                bool detailed = _config.GetValue<bool?>("Features:DetailedErrors") ?? _env.IsDevelopment();
-                if (detailed)
-                {
-                    return new JsonResult(new
-                    {
-                        ok = false,
-                        error = ex.Message,
-                        type = ex.GetType().FullName ?? ex.GetType().Name,
-                        traceId = HttpContext?.TraceIdentifier,
-                        inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
-                    });
-                }
-                LocalizedString msg = _loc["UnexpectedError"];
-                string text = msg.ResourceNotFound ? "An unexpected error occurred." : msg.Value;
-                return new JsonResult(new { ok = false, error = text });
+                // Reuse shared error builder for consistency and to avoid duplication
+                return new JsonResult(new { ok = false, error = BuildUserError(ex) });
             }
         }
 
