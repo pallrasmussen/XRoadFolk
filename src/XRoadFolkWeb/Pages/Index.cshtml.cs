@@ -10,6 +10,7 @@ using XRoadFolkWeb.Features.People;
 using XRoadFolkWeb.Validation;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 using XRoadFolkWeb.Extensions;
+using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Pages
 {
@@ -99,7 +100,7 @@ namespace XRoadFolkWeb.Pages
 
         private string BuildUserError(Exception ex)
         {
-            bool detailed = WebApplicationExtensions.GetFeatureFlag(_config, _featureLog, "Features:DetailedErrors", _env.IsDevelopment());
+            bool detailed = _config.GetBoolOrDefault("Features:DetailedErrors", _env.IsDevelopment(), _featureLog);
             if (detailed)
             {
                 string msg = ex.Message;

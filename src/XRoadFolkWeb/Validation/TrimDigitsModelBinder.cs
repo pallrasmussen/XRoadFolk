@@ -13,13 +13,42 @@ namespace XRoadFolkWeb.Validation
             ArgumentNullException.ThrowIfNull(bindingContext);
 
             string? value = bindingContext.ValueProvider.GetValue(bindingContext.ModelName).FirstValue;
-            if (value is null)
+            if (string.IsNullOrEmpty(value))
             {
                 return Task.CompletedTask;
             }
-            // Only allow ASCII digits 0-9; reject other Unicode digit classes
-            string digits = new([.. value.Where(static c => c >= '0' && c <= '9')]);
-            bindingContext.Result = ModelBindingResult.Success(string.IsNullOrEmpty(digits) ? value : digits);
+
+            // Count ASCII digits first to decide if we need to allocate
+            int digitCount = 0;
+            foreach (char c in value)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    digitCount++;
+                }
+            }
+
+            if (digitCount == 0 || digitCount == value.Length)
+            {
+                // No digits found -> keep original (let validation handle)
+                // All chars are digits -> reuse original string to avoid allocation
+                bindingContext.Result = ModelBindingResult.Success(value);
+                return Task.CompletedTask;
+            }
+
+            string digits = string.Create(digitCount, value, static (dest, src) =>
+            {
+                int i = 0;
+                foreach (char ch in src)
+                {
+                    if (ch >= '0' && ch <= '9')
+                    {
+                        dest[i++] = ch;
+                    }
+                }
+            });
+
+            bindingContext.Result = ModelBindingResult.Success(digits);
             return Task.CompletedTask;
         }
     }

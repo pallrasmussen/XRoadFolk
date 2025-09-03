@@ -4,6 +4,7 @@
 @using XRoadFolkWeb.Shared
 @using System.Reflection
 @using XRoadFolkWeb.Extensions
+@using XRoadFolkWeb.Infrastructure
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
@@ -38,7 +39,7 @@
     string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
 
     // Feature toggle: Logs button visibility
-    bool showLogs = WebApplicationExtensions.GetFeatureFlag(Config, FeatureLog, "Features:ShowLogs", @default: true);
+    bool showLogs = Config.GetBoolOrDefault("Features:ShowLogs", @default: true, FeatureLog);
 
     // Version (from page ViewData if provided, else from assembly)
     string? appVersion = ViewData["AppVersion"] as string;

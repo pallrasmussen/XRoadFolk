@@ -26,7 +26,7 @@ namespace XRoadFolkWeb.Infrastructure
         IReadOnlyList<LogEntry> GetAll();
     }
 
-    public sealed class InMemoryHttpLog : IHttpLogStore
+    public sealed class InMemoryHttpLog : IHttpLogStore, IAsyncDisposable, IDisposable
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
         private int _size; // approximate size to avoid O(n) Count
@@ -41,6 +41,7 @@ namespace XRoadFolkWeb.Infrastructure
         // Async file writer (enabled only if _filePath is provided)
         private readonly Channel<string>? _fileChannel;
         private readonly Task? _fileWriterTask;
+        private volatile bool _disposed;
 
         public InMemoryHttpLog(IOptions<HttpLogOptions> opts, ILogger<InMemoryHttpLog>? logger = null)
         {
@@ -70,6 +71,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Add(LogEntry e)
         {
+            if (_disposed) { return; }
             ArgumentNullException.ThrowIfNull(e);
 
             if (_rateLimiter.ShouldDrop(e.Level))
@@ -186,6 +188,27 @@ namespace XRoadFolkWeb.Infrastructure
         public IReadOnlyList<LogEntry> GetAll()
         {
             return [.. _queue];
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            if (_fileChannel is not null)
+            {
+                try { _fileChannel.Writer.TryComplete(); } catch { }
+            }
+
+            if (_fileWriterTask is not null)
+            {
+                try { await _fileWriterTask.ConfigureAwait(false); } catch { }
+            }
+        }
+
+        public void Dispose()
+        {
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 

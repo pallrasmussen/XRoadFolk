@@ -110,32 +110,6 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
-        internal static bool GetFeatureFlag(IConfiguration cfg, ILogger logger, string key, bool @default)
-        {
-            string? raw = cfg[key];
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return @default;
-            }
-
-            string v = raw.Trim();
-            if (bool.TryParse(v, out bool b))
-            {
-                return b;
-            }
-
-            // Additional common forms
-            if (string.Equals(v, "1", StringComparison.Ordinal)) return true;
-            if (string.Equals(v, "0", StringComparison.Ordinal)) return false;
-            if (string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase)) return true;
-            if (string.Equals(v, "no", StringComparison.OrdinalIgnoreCase)) return false;
-            if (string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)) return true;
-            if (string.Equals(v, "off", StringComparison.OrdinalIgnoreCase)) return false;
-
-            logger.LogWarning("Invalid boolean value for '{Key}': '{Value}'. Using default: {Default}.", key, v, @default);
-            return @default;
-        }
-
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
@@ -145,7 +119,8 @@ namespace XRoadFolkWeb.Extensions
             IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
             ILoggerFactory loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
             ILogger featureLog = loggerFactory.CreateLogger("Features");
-            bool showDetailedErrors = GetFeatureFlag(configuration, featureLog, "Features:DetailedErrors", env.IsDevelopment());
+            ILogger cultureLog = loggerFactory.CreateLogger("App.Culture");
+            bool showDetailedErrors = configuration.GetBoolOrDefault("Features:DetailedErrors", env.IsDevelopment(), featureLog);
 
             // CSP + security headers middleware with per-request nonce
             _ = app.Use(async (ctx, next) =>
@@ -381,9 +356,8 @@ namespace XRoadFolkWeb.Extensions
                     return Results.BadRequest();
                 }
 
-                // Validate requested culture
-                IOptions<RequestLocalizationOptions> locOpts3 = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
-                bool supportedOk = locOpts3.Value.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
+                // Validate requested culture using cached options
+                bool supportedOk = locOpts.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
                 if (!supportedOk)
                 {
                     return Results.BadRequest();
@@ -406,7 +380,11 @@ namespace XRoadFolkWeb.Extensions
                 // Let LocalRedirect perform framework validation; if invalid, fallback to '/'
                 if (!string.IsNullOrEmpty(returnUrl))
                 {
-                    try { return Results.LocalRedirect(returnUrl); } catch { }
+                    try { return Results.LocalRedirect(returnUrl); }
+                    catch (Exception ex)
+                    {
+                        cultureLog.LogWarning(ex, "set-culture: Invalid returnUrl '{ReturnUrl}'. Falling back to '/'.", returnUrl);
+                    }
                 }
                 return Results.LocalRedirect("/");
             });
@@ -415,7 +393,7 @@ namespace XRoadFolkWeb.Extensions
             _ = app.MapFallbackToPage("/Index");
 
             // Logs endpoints (defensive when store/feed not registered)
-            bool logsEnabled = GetFeatureFlag(configuration, featureLog, "Features:Logs:Enabled", env.IsDevelopment());
+            bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
             if (logsEnabled)
             {
                 _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
