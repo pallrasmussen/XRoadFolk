@@ -2,13 +2,9 @@
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
-@using System.Reflection
-@using XRoadFolkWeb.Extensions
-@using XRoadFolkWeb.Infrastructure
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
-@inject Microsoft.Extensions.Logging.ILogger<SharedResource> FeatureLog
 @{
     Layout = null;
     var currentUi = CultureInfo.CurrentUICulture.Name;
@@ -39,22 +35,7 @@
     string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
 
     // Feature toggle: Logs button visibility
-    bool showLogs = Config.GetBoolOrDefault("Features:ShowLogs", @default: true, FeatureLog);
-
-    // Version (from page ViewData if provided, else from assembly)
-    string? appVersion = ViewData["AppVersion"] as string;
-    if (string.IsNullOrWhiteSpace(appVersion))
-    {
-        var appAsm = typeof(Program).Assembly;
-        appVersion = appAsm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                      ?? appAsm.GetName().Version?.ToString();
-    }
-    // Display only the numeric version (strip optional +metadata like commit hash)
-    if (!string.IsNullOrWhiteSpace(appVersion))
-    {
-        var plus = appVersion.IndexOf('+');
-        if (plus >= 0) appVersion = appVersion.Substring(0, plus).Trim();
-    }
+    bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -69,10 +50,12 @@
     <meta name="theme-color" content="#0d6efd" />
 
     <script nonce="@nonce">
-        // Force light theme before paint
+        // Force light theme before paint; log errors (no silent catch)
         (function () {
-            try { localStorage.removeItem('theme'); } catch {}
-            try { document.documentElement.setAttribute('data-bs-theme', 'brand'); } catch {}
+            try { localStorage.removeItem('theme'); }
+            catch (e) { try { console.error('Theme init: localStorage.removeItem failed', e); } catch {} }
+            try { document.documentElement.setAttribute('data-bs-theme', 'brand'); }
+            catch (e2) { try { console.error('Theme init: setAttribute failed', e2); } catch {} }
         })();
     </script>
 
@@ -154,8 +137,10 @@
                     <script nonce="@nonce">
                         // Avoid inline event handlers (blocked by CSP). Wire up submit programmatically.
                         document.addEventListener('DOMContentLoaded', function () {
-                            var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
-                            if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
+                            try {
+                                var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
+                                if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
+                            } catch (e) { try { console.error('Culture switch init failed', e); } catch {} }
                         });
                     </script>
                 </div>
@@ -174,10 +159,7 @@
     <footer class="mt-auto border-top py-3">
         <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between small text-muted">
             <span>&copy; @DateTime.UtcNow.Year @Config["Branding:AuthorName"]</span>
-            <span>
-                @SR["BuiltWith"]
-                @if (!string.IsNullOrWhiteSpace(appVersion)) { @($" • v{appVersion}"); }
-            </span>
+            <span>@SR["BuiltWith"]</span>
         </div>
     </footer>
 
