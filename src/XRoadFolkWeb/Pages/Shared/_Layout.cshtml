@@ -7,7 +7,7 @@
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
-@inject Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory
+@inject Microsoft.Extensions.Logging.ILogger<SharedResource> FeatureLog
 @{
     Layout = null;
     var currentUi = CultureInfo.CurrentUICulture.Name;
@@ -38,8 +38,7 @@
     string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
 
     // Feature toggle: Logs button visibility
-    var flog = LoggerFactory.CreateLogger("Features");
-    bool showLogs = WebApplicationExtensions.GetFeatureFlag(Config, flog, "Features:ShowLogs", @default: true);
+    bool showLogs = WebApplicationExtensions.GetFeatureFlag(Config, FeatureLog, "Features:ShowLogs", @default: true);
 
     // Version (from page ViewData if provided, else from assembly)
     string? appVersion = ViewData["AppVersion"] as string;

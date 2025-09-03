@@ -34,7 +34,7 @@ namespace XRoadFolkRaw.Lib
             public const string DobSsnMismatch = "DobSsnMismatch";
         }
 
-        public static (bool Ok, List<string> Errors, string? SsnNorm, DateTimeOffset? Dob)
+        public static (bool Ok, IReadOnlyList<string> Errors, string? SsnNorm, DateTimeOffset? Dob)
             ValidateCriteria(string? ssn, string? firstName, string? lastName, string? dobInput, IStringLocalizer<InputValidation> loc)
         {
             ArgumentNullException.ThrowIfNull(loc);
@@ -83,7 +83,7 @@ namespace XRoadFolkRaw.Lib
                 ssnNorm = NormalizeDigits(ssn);
             }
 
-            return (errs.Count == 0, errs, ssnNorm, dob);
+            return (errs.Count == 0, errs.AsReadOnly(), ssnNorm, dob);
         }
 
         public static bool IsValidName(string? name)

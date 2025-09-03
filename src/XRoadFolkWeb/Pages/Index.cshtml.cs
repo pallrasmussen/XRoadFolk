@@ -91,7 +91,7 @@ namespace XRoadFolkWeb.Pages
             return list.AsReadOnly();
         }
 
-        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant)]
         private static partial Regex PublicIdRegex();
 
         private static bool IsValidPublicId(string s)
@@ -133,7 +133,7 @@ namespace XRoadFolkWeb.Pages
                 return;
             }
 
-            (bool Ok, List<string> Errs, string? SsnNorm, DateTimeOffset? Dob) vc = ValidateQueryCriteria();
+            (bool Ok, IReadOnlyList<string> Errs, string? SsnNorm, DateTimeOffset? Dob) vc = ValidateQueryCriteria();
             if (!vc.Ok)
             {
                 LogValidationFailed(_logger, vc.Errs.Count);
@@ -208,9 +208,10 @@ namespace XRoadFolkWeb.Pages
                 || !string.IsNullOrWhiteSpace(DateOfBirth);
         }
 
-        private (bool Ok, List<string> Errs, string? SsnNorm, DateTimeOffset? Dob) ValidateQueryCriteria()
+        private (bool Ok, IReadOnlyList<string> Errs, string? SsnNorm, DateTimeOffset? Dob) ValidateQueryCriteria()
         {
-            return InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+            var res = InputValidation.ValidateCriteria(Ssn, FirstName, LastName, DateOfBirth, _valLoc);
+            return (res.Ok, res.Errors, res.SsnNorm, res.Dob);
         }
 
         private async Task PerformSearchAsync(string? ssnNorm, DateTimeOffset? dob, CancellationToken ct)
@@ -254,7 +255,7 @@ namespace XRoadFolkWeb.Pages
             }
 
             // Only validate the chosen path to avoid spurious cross-field errors
-            (bool ok, List<string> errs, string? ssnNorm, DateTimeOffset? dob) =
+            (bool ok, IReadOnlyList<string> errs, string? ssnNorm, DateTimeOffset? dob) =
                 InputValidation.ValidateCriteria(
                     usingSsn ? Ssn : null,
                     usingSsn ? null : first,

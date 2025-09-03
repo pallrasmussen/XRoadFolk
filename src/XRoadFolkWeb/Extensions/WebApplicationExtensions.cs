@@ -43,10 +43,10 @@ namespace XRoadFolkWeb.Extensions
                 new EventId(1003, "UnhandledException"),
                 "Unhandled exception at {Path}. TraceId={TraceId}");
 
-        [GeneratedRegex(@"\b\d{6,}\b", RegexOptions.Compiled)]
+        [GeneratedRegex(@"\b\d{6,}\b")]
         private static partial Regex LongDigitsRegex();
 
-        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled)]
+        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")]
         private static partial Regex GuidRegex();
 
         /// <summary>
@@ -425,17 +425,22 @@ namespace XRoadFolkWeb.Extensions
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                     }
+
                     IEnumerable<LogEntry> query = store.GetAll();
                     if (!string.IsNullOrWhiteSpace(kind))
                     {
                         query = query.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase));
                     }
+
+                    // Materialize once to avoid re-enumeration and mid-flight changes
+                    LogEntry[] all = (query as LogEntry[]) ?? query.ToArray();
+
                     int pg = Math.Max(1, page ?? 1);
                     int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
-                    int total = query.Count();
+                    int total = all.Length;
                     int totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
                     int skip = (pg - 1) * size;
-                    LogEntry[] items = query.Skip(skip).Take(size).ToArray();
+                    LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
 
                     return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
                 });
