@@ -11,6 +11,7 @@ using XRoadFolkWeb.Validation;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 using XRoadFolkWeb.Extensions;
 using XRoadFolkWeb.Infrastructure;
+using XRoadFolkWeb.Shared;
 
 namespace XRoadFolkWeb.Pages
 {
@@ -25,7 +26,7 @@ namespace XRoadFolkWeb.Pages
         PeopleResponseParser parser,
         ILogger<IndexModel> logger,
         IHostEnvironment env,
-        ILoggerFactory loggerFactory) : PageModel
+        ILogger<SharedResource> featureLogger) : PageModel
     {
         private readonly PeopleSearchCoordinator _search = search;
         private readonly PersonDetailsProvider _details = details;
@@ -35,7 +36,7 @@ namespace XRoadFolkWeb.Pages
         private readonly PeopleResponseParser _parser = parser;
         private readonly ILogger<IndexModel> _logger = logger;
         private readonly IHostEnvironment _env = env;
-        private readonly ILogger _featureLog = loggerFactory.CreateLogger("Features");
+        private readonly ILogger _featureLog = featureLogger;
 
         [BindProperty, Ssn, TrimDigits]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]

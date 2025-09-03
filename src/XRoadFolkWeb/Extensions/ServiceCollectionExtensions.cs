@@ -13,7 +13,6 @@ namespace XRoadFolkWeb.Extensions
                 .AddFolkRawClientFactory()
                 .AddPeopleServices()
                 .AddMvcCustomizations()
-                .AddHttpLogging(_ => { })
                 .AddResponseCompressionDefaults()
                 .AddSessionServices(configuration);
         }
@@ -30,11 +29,45 @@ namespace XRoadFolkWeb.Extensions
                     IConfiguration section = cfg.GetSection("Session");
 
                     string cookieName = section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
-                    bool cookieHttpOnly = section.GetValue<bool?>("Cookie:HttpOnly") ?? true;
+
+                    // Validate booleans explicitly so misconfigurations don't silently default
+                    bool cookieHttpOnly = true;
+                    string? httpOnlyStr = section["Cookie:HttpOnly"];
+                    if (!string.IsNullOrWhiteSpace(httpOnlyStr))
+                    {
+                        if (!bool.TryParse(httpOnlyStr, out cookieHttpOnly))
+                        {
+                            log.LogWarning("Session: Invalid Cookie:HttpOnly='{Value}'. Falling back to {Fallback}.", httpOnlyStr, true);
+                            cookieHttpOnly = true;
+                        }
+                    }
+
+                    bool cookieIsEssential = true;
+                    string? isEssentialStr = section["Cookie:IsEssential"];
+                    if (!string.IsNullOrWhiteSpace(isEssentialStr))
+                    {
+                        if (!bool.TryParse(isEssentialStr, out cookieIsEssential))
+                        {
+                            log.LogWarning("Session: Invalid Cookie:IsEssential='{Value}'. Falling back to {Fallback}.", isEssentialStr, true);
+                            cookieIsEssential = true;
+                        }
+                    }
+
+                    // Enums (with validation)
                     string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");
                     string? securePolicyStr = section.GetValue<string>("Cookie:SecurePolicy");
-                    bool cookieIsEssential = section.GetValue<bool?>("Cookie:IsEssential") ?? true;
-                    int idleMinutes = section.GetValue<int?>("IdleTimeoutMinutes") ?? 30;
+
+                    // Idle timeout minutes (validate integer)
+                    int idleMinutes = 30;
+                    string? idleStr = section["IdleTimeoutMinutes"];
+                    if (!string.IsNullOrWhiteSpace(idleStr))
+                    {
+                        if (!int.TryParse(idleStr, out idleMinutes))
+                        {
+                            log.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
+                            idleMinutes = 30;
+                        }
+                    }
 
                     SameSiteMode sameSite = SameSiteMode.Strict;
                     if (!string.IsNullOrWhiteSpace(sameSiteStr))

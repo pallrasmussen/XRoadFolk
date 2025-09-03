@@ -197,12 +197,20 @@ namespace XRoadFolkWeb.Infrastructure
 
             if (_fileChannel is not null)
             {
-                try { _fileChannel.Writer.TryComplete(); } catch { }
+                try { _fileChannel.Writer.TryComplete(); }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "InMemoryHttpLog: Error completing file channel writer during dispose");
+                }
             }
 
             if (_fileWriterTask is not null)
             {
-                try { await _fileWriterTask.ConfigureAwait(false); } catch { }
+                try { await _fileWriterTask.ConfigureAwait(false); }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "InMemoryHttpLog: Error waiting for file writer task during dispose");
+                }
             }
         }
 

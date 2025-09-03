@@ -233,7 +233,20 @@ namespace XRoadFolkWeb.Infrastructure
         private static string Sanitize(string? s)
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
-            return s.Replace('\r', ' ').Replace('\n', ' ');
+            ReadOnlySpan<char> span = s.AsSpan();
+            if (span.IndexOfAny('\r', '\n') < 0)
+            {
+                return s;
+            }
+            return string.Create(span.Length, s, static (dst, state) =>
+            {
+                ReadOnlySpan<char> src = state.AsSpan();
+                for (int i = 0; i < src.Length; i++)
+                {
+                    char c = src[i];
+                    dst[i] = (c is '\r' or '\n') ? ' ' : c;
+                }
+            });
         }
 
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
