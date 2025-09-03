@@ -200,7 +200,7 @@ namespace XRoadFolkRaw.Lib
             catch (HttpRequestException ex)
             {
                 LogPeoplePublicInfoError(_log, ex);
-                throw new HttpRequestException(_localizer["PeoplePublicInfoError"], ex);
+                throw; // preserve original HttpRequestException (StatusCode, message)
             }
             catch (IOException ex)
             {
@@ -281,7 +281,7 @@ namespace XRoadFolkRaw.Lib
             catch (HttpRequestException ex)
             {
                 LogGetPersonError(_log, ex);
-                throw new HttpRequestException(_localizer["GetPersonError"], ex);
+                throw; // preserve original HttpRequestException (StatusCode, message)
             }
             catch (IOException ex)
             {

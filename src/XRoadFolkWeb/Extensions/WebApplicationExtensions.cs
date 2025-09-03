@@ -110,7 +110,7 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
-        private static bool GetFeatureFlag(IConfiguration cfg, ILogger logger, string key, bool @default)
+        internal static bool GetFeatureFlag(IConfiguration cfg, ILogger logger, string key, bool @default)
         {
             string? raw = cfg[key];
             if (string.IsNullOrWhiteSpace(raw))

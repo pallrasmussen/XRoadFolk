@@ -30,7 +30,8 @@ public static partial class ServiceCollectionExtensions
             IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
             IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
             IMemoryCache cache = sp.GetRequiredService<IMemoryCache>();
-            return new PeopleService(client, cfg, xr, logger, loc, validator, cache);
+            IOptions<TokenCacheOptions> tokenCache = sp.GetRequiredService<IOptions<TokenCacheOptions>>();
+            return new PeopleService(client, cfg, xr, logger, loc, validator, cache, tokenCache);
         });
         return services;
     }

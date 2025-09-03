@@ -9,6 +9,7 @@ using XRoadFolkWeb.Features.Index;
 using XRoadFolkWeb.Features.People;
 using XRoadFolkWeb.Validation;
 using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
+using XRoadFolkWeb.Extensions;
 
 namespace XRoadFolkWeb.Pages
 {
@@ -72,10 +73,19 @@ namespace XRoadFolkWeb.Pages
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
         /// <summary>
-        /// Expose enabled include keys to the view (lazy-loaded once per request)
+        /// Expose enabled include keys to the view (lazy-loaded once per request) as read-only
         /// </summary>
-        private List<string>? _enabledPersonIncludeKeys;
-        public List<string> EnabledPersonIncludeKeys => _enabledPersonIncludeKeys ??= [.. IncludeConfigHelper.GetEnabledIncludeKeys(_config)];
+        private IReadOnlyList<string>? _enabledPersonIncludeKeys;
+        public IReadOnlyList<string> EnabledPersonIncludeKeys => _enabledPersonIncludeKeys ??= BuildEnabledIncludeKeys();
+
+        private IReadOnlyList<string> BuildEnabledIncludeKeys()
+        {
+            HashSet<string> baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            _ = baseKeys.Add("Person");
+            _ = baseKeys.Add("Names");
+            List<string> list = [.. baseKeys];
+            return list.AsReadOnly();
+        }
 
         [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
         private static partial Regex PublicIdRegex();
@@ -87,7 +97,8 @@ namespace XRoadFolkWeb.Pages
 
         private string BuildUserError(Exception ex)
         {
-            bool detailed = _config.GetValue<bool?>("Features:DetailedErrors") ?? _env.IsDevelopment();
+            ILogger featureLog = HttpContext?.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Features")!;
+            bool detailed = WebApplicationExtensions.GetFeatureFlag(_config, featureLog, "Features:DetailedErrors", _env.IsDevelopment());
             if (detailed)
             {
                 string msg = ex.Message;

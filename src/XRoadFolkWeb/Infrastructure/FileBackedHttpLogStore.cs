@@ -241,7 +241,7 @@ namespace XRoadFolkWeb.Infrastructure
 
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
-            using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read);
+            using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
             using StreamWriter sw = new(fs, Encoding.UTF8);
             foreach (LogEntry e in batch)
             {
