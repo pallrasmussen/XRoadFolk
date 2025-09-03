@@ -15,6 +15,11 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly IReadOnlyDictionary<string, string> _map = map ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly ILogger? _log = logger;
 
+        // Defensive bounds against pathological headers
+        private const int MaxAcceptLanguageTotalChars = 2048;
+        private const int MaxItems = 20;
+        private const int MaxTagLength = 64; // practical upper bound for BCP47 tags
+
         public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext);
@@ -44,16 +49,17 @@ namespace XRoadFolkWeb.Infrastructure
             StringValues acceptValues = httpContext.Request.Headers.AcceptLanguage;
             if (!StringValues.IsNullOrEmpty(acceptValues))
             {
-                // Lightweight candidate list storing slices into the header strings
                 List<Candidate> items = [];
                 int globalIndex = 0;
+                int processedChars = 0;
 
-                for (int vi = 0; vi < acceptValues.Count; vi++)
+                for (int vi = 0; vi < acceptValues.Count && items.Count < MaxItems && processedChars <= MaxAcceptLanguageTotalChars; vi++)
                 {
                     string src = acceptValues[vi]!;
+                    processedChars += src.Length;
                     ReadOnlySpan<char> span = src.AsSpan();
                     int i = 0;
-                    while (i < span.Length)
+                    while (i < span.Length && items.Count < MaxItems)
                     {
                         int start = i;
                         int comma = span.Slice(i).IndexOf(',');
@@ -66,9 +72,7 @@ namespace XRoadFolkWeb.Infrastructure
                             i += comma + 1; // move past comma
                         }
 
-                        // Current segment: [start, end)
                         ReadOnlySpan<char> seg = span.Slice(start, (comma < 0 ? span.Length : start + comma) - start);
-                        // Trim WS
                         seg = Trim(seg);
                         if (seg.Length == 0) { globalIndex++; continue; }
 
@@ -79,20 +83,12 @@ namespace XRoadFolkWeb.Infrastructure
                         {
                             tag = seg.Slice(0, sc);
                             ReadOnlySpan<char> paramStr = seg.Slice(sc + 1);
-                            // parse params separated by ';'
                             int pj = 0;
                             while (pj < paramStr.Length)
                             {
                                 int pstart = pj;
                                 int psep = paramStr.Slice(pj).IndexOf(';');
-                                if (psep < 0)
-                                {
-                                    pj = paramStr.Length;
-                                }
-                                else
-                                {
-                                    pj += psep + 1;
-                                }
+                                if (psep < 0) pj = paramStr.Length; else pj += psep + 1;
                                 ReadOnlySpan<char> part = Trim(paramStr.Slice(pstart, (psep < 0 ? paramStr.Length : pstart + psep) - pstart));
                                 if (part.Length == 0) continue;
                                 int eq = part.IndexOf('=');
@@ -102,9 +98,9 @@ namespace XRoadFolkWeb.Infrastructure
                                     ReadOnlySpan<char> val = Trim(part.Slice(eq + 1));
                                     if (key.Equals("q".AsSpan(), StringComparison.OrdinalIgnoreCase))
                                     {
-                                        if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
+                                        if (!TryParseQuality(val, out q))
                                         {
-                                            q = Math.Clamp(qv, 0d, 1d);
+                                            q = 1.0; // treat invalid q as default weight
                                         }
                                     }
                                 }
@@ -112,16 +108,24 @@ namespace XRoadFolkWeb.Infrastructure
                         }
 
                         tag = Trim(tag);
-                        if (tag.Length > 0 && !tag.Equals("*".AsSpan(), StringComparison.Ordinal))
+                        if (tag.Length == 0 || tag.Length > MaxTagLength || tag.Equals("*".AsSpan(), StringComparison.Ordinal))
                         {
-                            if (q > 0d)
-                            {
-                                // Compute absolute start index of tag within the source string
-                                int segOffset = start; // start index of seg in src
-                                int tagOffsetInSeg = seg.IndexOf(tag);
-                                int tagStartInSrc = segOffset + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
-                                items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
-                            }
+                            globalIndex++;
+                            continue;
+                        }
+
+                        if (!IsValidTag(tag))
+                        {
+                            globalIndex++;
+                            continue;
+                        }
+
+                        if (q > 0d)
+                        {
+                            int segOffset = start;
+                            int tagOffsetInSeg = seg.IndexOf(tag);
+                            int tagStartInSrc = segOffset + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
+                            items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
                         }
                         globalIndex++;
                     }
@@ -152,6 +156,72 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             return Task.FromResult<ProviderCultureResult?>(null);
+        }
+
+        private static bool TryParseQuality(ReadOnlySpan<char> val, out double q)
+        {
+            // Strict qvalue parser per RFC: 0 or 1 or 0.xxx or 1.0 (up to 3 decimals)
+            q = 1.0;
+            if (val.Length == 0) return false;
+
+            // Normalize by trimming quotes if any (robustness)
+            if (val.Length >= 2 && ((val[0] == '"' && val[^1] == '"') || (val[0] == '\'' && val[^1] == '\'')))
+            {
+                val = val.Slice(1, val.Length - 2);
+            }
+
+            // Quick paths
+            if (val.Length == 1 && (val[0] == '0' || val[0] == '1'))
+            {
+                q = val[0] - '0';
+                return true;
+            }
+
+            int dot = val.IndexOf('.');
+            if (dot < 0) return false; // integers other than 0 or 1 are invalid
+            ReadOnlySpan<char> intPart = val.Slice(0, dot);
+            ReadOnlySpan<char> frac = val.Slice(dot + 1);
+            if (frac.Length == 0 || frac.Length > 3) return false;
+            if (!(intPart.Length == 1 && (intPart[0] == '0' || intPart[0] == '1'))) return false;
+            for (int i = 0; i < frac.Length; i++) if (frac[i] < '0' || frac[i] > '9') return false;
+            // 1.x must be exactly 1.0, 1.00, or 1.000
+            if (intPart[0] == '1')
+            {
+                for (int i = 0; i < frac.Length; i++) if (frac[i] != '0') return false;
+            }
+            if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
+            {
+                q = Math.Clamp(qv, 0d, 1d);
+                return true;
+            }
+            return false;
+        }
+
+        private static bool IsValidTag(ReadOnlySpan<char> tag)
+        {
+            // Basic BCP47 sanity: letters/digits/hyphen only; no leading/trailing hyphen; no consecutive hyphens
+            if (tag.Length == 0) return false;
+            if (tag[0] == '-' || tag[^1] == '-') return false;
+            bool prevHyphen = false;
+            for (int i = 0; i < tag.Length; i++)
+            {
+                char c = tag[i];
+                bool isAlnum = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+                if (c == '-')
+                {
+                    if (prevHyphen) return false;
+                    prevHyphen = true;
+                }
+                else if (!isAlnum)
+                {
+                    return false;
+                }
+                else
+                {
+                    prevHyphen = false;
+                }
+            }
+            return true;
         }
 
         private static ReadOnlySpan<char> Trim(ReadOnlySpan<char> s)
@@ -222,8 +292,6 @@ namespace XRoadFolkWeb.Infrastructure
                 return null; // malformed like "-GB" -> no language subtag
             }
 
-            // Validate language subtag contains only letters (already ensured by scan)
-            // Find a supported culture with the same language
             foreach (string c in _supported)
             {
                 if (c.Length == langLen)
