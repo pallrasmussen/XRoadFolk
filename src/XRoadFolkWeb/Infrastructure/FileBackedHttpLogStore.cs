@@ -149,13 +149,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Ensure directory exists once at startup
-            string path = _store.FilePath;
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir))
-            {
-                _ = Directory.CreateDirectory(dir);
-            }
+            EnsureDirectoryExists(_store.FilePath);
 
             ChannelReader<LogEntry> reader = _store.GetReader();
             int flushInterval = Math.Max(50, _opts.Value.FlushIntervalMs);
@@ -165,19 +159,7 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 try
                 {
-                    // Wait for data or time
-                    if (await reader.WaitToReadAsync(stoppingToken).ConfigureAwait(false))
-                    {
-                        while (reader.TryRead(out LogEntry? item))
-                        {
-                            batch.Add(item);
-                            if (batch.Count >= 1024)
-                            {
-                                break;
-                            }
-                        }
-                    }
-
+                    await ReadBatchAsync(reader, batch, stoppingToken).ConfigureAwait(false);
                     if (batch.Count == 0)
                     {
                         await Task.Delay(flushInterval, stoppingToken).ConfigureAwait(false);
@@ -189,34 +171,48 @@ namespace XRoadFolkWeb.Infrastructure
                 }
                 catch (OperationCanceledException)
                 {
-                    // Flush any buffered entries before exiting
-                    try
-                    {
-                        if (batch.Count > 0)
-                        {
-                            await AppendBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
-                            batch.Clear();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LogWriteBatchError(_store.Logger, ex);
-                    }
+                    await SafeFlushTailAsync(reader, batch).ConfigureAwait(false);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    // Log and retry later
                     LogWriteBatchError(_store.Logger, ex);
                     batch.Clear();
                     await Task.Delay(flushInterval, stoppingToken).ConfigureAwait(false);
                 }
             }
 
-            // Final drain on shutdown: write any remaining items still in the channel
+            await SafeFlushTailAsync(reader, new List<LogEntry>(capacity: 512)).ConfigureAwait(false);
+        }
+
+        private static void EnsureDirectoryExists(string path)
+        {
+            string? dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                _ = Directory.CreateDirectory(dir);
+            }
+        }
+
+        private static async Task ReadBatchAsync(ChannelReader<LogEntry> reader, List<LogEntry> batch, CancellationToken ct)
+        {
+            if (await reader.WaitToReadAsync(ct).ConfigureAwait(false))
+            {
+                while (reader.TryRead(out LogEntry? item))
+                {
+                    batch.Add(item);
+                    if (batch.Count >= 1024)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        private async Task SafeFlushTailAsync(ChannelReader<LogEntry> reader, List<LogEntry> tail)
+        {
             try
             {
-                List<LogEntry> tail = new(capacity: 512);
                 while (reader.TryRead(out LogEntry? item))
                 {
                     tail.Add(item);
@@ -245,7 +241,6 @@ namespace XRoadFolkWeb.Infrastructure
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
             using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-            // Use UTF-8 without BOM to avoid emitting a preamble in new files
             using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             foreach (LogEntry e in batch)
             {

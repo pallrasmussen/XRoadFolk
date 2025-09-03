@@ -38,55 +38,71 @@ namespace XRoadFolkWeb.Features.Index
             string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
             List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
 
-            List<(string Key, string Value)> filtered = [.. pairs
-                .Where(p =>
-                {
-                    if (string.IsNullOrEmpty(p.Key))
-                    {
-                        return true;
-                    }
-
-                    string k = p.Key;
-                    bool isHeaderOrBody = k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
-                        || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
-                        || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
-                        || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase);
-
-                    if (isHeaderOrBody)
-                    {
-                        return false;
-                    }
-
-                    string key = p.Key;
-                    int lastDot = key.LastIndexOf('.');
-                    string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
-                    int bpos = sub.IndexOf('[', StringComparison.Ordinal);
-                    if (bpos >= 0)
-                    {
-                        sub = sub[..bpos];
-                    }
-
-                    // Case-insensitive checks without allocating lowercase copies
-                    if (sub.Equals("id", StringComparison.OrdinalIgnoreCase)
-                        || sub.Equals("fixed", StringComparison.OrdinalIgnoreCase)
-                        || sub.Equals("authoritycode", StringComparison.OrdinalIgnoreCase)
-                        || sub.Equals("personaddressid", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return false;
-                    }
-                    return true;
-                }),
-            ];
+            List<(string Key, string Value)> filtered = [.. ApplyPrimaryFilter(pairs)];
 
             // Include allow-list filter (use provided keys if present, else from cached configuration)
             IReadOnlyCollection<string> allowedBase = (allowedIncludeKeys?.Count > 0)
                 ? allowedIncludeKeys
                 : GetAllowedIncludeKeysFromConfig();
 
+            filtered = [.. ApplyAllowedFilter(filtered, allowedBase)];
+
+            string selectedNameSuffix = ComputeSelectedNameSuffix(filtered, loc);
+
+            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), selectedNameSuffix);
+        }
+
+        private static IEnumerable<(string Key, string Value)> ApplyPrimaryFilter(IEnumerable<(string Key, string Value)> pairs)
+        {
+            foreach (var p in pairs)
+            {
+                if (string.IsNullOrEmpty(p.Key))
+                {
+                    yield return p;
+                    continue;
+                }
+
+                string k = p.Key;
+                bool isHeaderOrBody = k.StartsWith("requestheader", StringComparison.OrdinalIgnoreCase)
+                    || k.StartsWith("requestbody", StringComparison.OrdinalIgnoreCase)
+                    || k.Contains(".requestheader", StringComparison.OrdinalIgnoreCase)
+                    || k.Contains(".requestbody", StringComparison.OrdinalIgnoreCase);
+
+                if (isHeaderOrBody)
+                {
+                    continue;
+                }
+
+                string key = p.Key;
+                int lastDot = key.LastIndexOf('.');
+                string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;
+                int bpos = sub.IndexOf('[', StringComparison.Ordinal);
+                if (bpos >= 0)
+                {
+                    sub = sub[..bpos];
+                }
+
+                // Case-insensitive checks without allocating lowercase copies
+                if (sub.Equals("id", StringComparison.OrdinalIgnoreCase)
+                    || sub.Equals("fixed", StringComparison.OrdinalIgnoreCase)
+                    || sub.Equals("authoritycode", StringComparison.OrdinalIgnoreCase)
+                    || sub.Equals("personaddressid", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                yield return p;
+            }
+        }
+
+        private static IEnumerable<(string Key, string Value)> ApplyAllowedFilter(IEnumerable<(string Key, string Value)> items, IReadOnlyCollection<string> allowedBase)
+        {
             // Enforce core allow-list on caller-provided keys as well
-            HashSet<string> allowed = new(allowedBase, StringComparer.OrdinalIgnoreCase);
-            _ = allowed.Add("Person");
-            _ = allowed.Add("Names");
+            HashSet<string> allowed = new(allowedBase, StringComparer.OrdinalIgnoreCase)
+            {
+                "Person",
+                "Names",
+            };
 
             static bool Matches(string seg, string allowedKey)
             {
@@ -95,50 +111,11 @@ namespace XRoadFolkWeb.Features.Index
                     || allowedKey.StartsWith(seg, StringComparison.OrdinalIgnoreCase);
             }
 
-            static IEnumerable<string> Segments(string key)
-            {
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    yield break;
-                }
-
-                int start = 0;
-                int n = key.Length;
-                while (start < n)
-                {
-                    int dot = key.IndexOf('.', start);
-                    int endExclusive = dot >= 0 ? dot : n;
-
-                    // Trim whitespace on both sides of the segment
-                    int i = start;
-                    int j = endExclusive - 1;
-                    while (i <= j && char.IsWhiteSpace(key[i])) i++;
-                    while (j >= i && char.IsWhiteSpace(key[j])) j--;
-
-                    if (i <= j)
-                    {
-                        // Remove bracket suffix if present
-                        int bracket = key.IndexOf('[', i, j - i + 1);
-                        int segEnd = (bracket >= 0 && bracket <= j) ? bracket : (j + 1);
-                        if (segEnd > i)
-                        {
-                            yield return key.Substring(i, segEnd - i);
-                        }
-                    }
-
-                    if (dot < 0)
-                    {
-                        break;
-                    }
-                    start = dot + 1;
-                }
-            }
-
-            filtered = [.. filtered.Where(p =>
+            foreach (var p in items)
             {
                 if (string.IsNullOrWhiteSpace(p.Key))
                 {
-                    return false;
+                    continue;
                 }
 
                 foreach (string seg in Segments(p.Key))
@@ -147,13 +124,18 @@ namespace XRoadFolkWeb.Features.Index
                     {
                         if (Matches(seg, a))
                         {
-                            return true;
+                            yield return p;
+                            goto NextItem;
                         }
                     }
                 }
-                return false;
-            }),];
 
+            NextItem:;
+            }
+        }
+
+        private static string ComputeSelectedNameSuffix(IReadOnlyList<(string Key, string Value)> filtered, Microsoft.Extensions.Localization.IStringLocalizer loc)
+        {
             // Extract first and last names in a single pass to avoid duplicate scans
             string? first = null;
             string? last = null;
@@ -171,11 +153,48 @@ namespace XRoadFolkWeb.Features.Index
                 }
             }
 
-            string selectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
+            return (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
                 ? loc["SelectedNameSuffixFormat", string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                 : string.Empty;
+        }
 
-            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), selectedNameSuffix);
+        // Existing span-free iterator version (safe for yield)
+        private static IEnumerable<string> Segments(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                yield break;
+            }
+
+            int start = 0;
+            int n = key.Length;
+            while (start < n)
+            {
+                int dot = key.IndexOf('.', start);
+                int endExclusive = dot >= 0 ? dot : n;
+
+                // Trim whitespace on both sides of the segment
+                int i = start;
+                int j = endExclusive - 1;
+                while (i <= j && char.IsWhiteSpace(key[i])) i++;
+                while (j >= i && char.IsWhiteSpace(key[j])) j--;
+
+                if (i <= j)
+                {
+                    int bracket = key.IndexOf('[', i, j - i + 1);
+                    int segEnd = (bracket >= 0 && bracket <= j) ? bracket : (j + 1);
+                    if (segEnd > i)
+                    {
+                        yield return key.Substring(i, segEnd - i);
+                    }
+                }
+
+                if (dot < 0)
+                {
+                    break;
+                }
+                start = dot + 1;
+            }
         }
     }
 }
