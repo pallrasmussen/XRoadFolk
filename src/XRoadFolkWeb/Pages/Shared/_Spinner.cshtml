@@ -14,15 +14,16 @@ Accepted ViewData keys:
 @using Microsoft.AspNetCore.Mvc.ViewFeatures
 @{
     var text = (string?)ViewData["Text"];
-    var kind = ((string?)ViewData["Kind"])?.Trim().ToLowerInvariant();
-    if (kind != "grow") kind = "border"; // default
-    var size = ((string?)ViewData["Size"])?.Trim().ToLowerInvariant(); // "sm" or null
+    var kindRaw = (string?)ViewData["Kind"];
+    bool isGrow = string.Equals(kindRaw?.Trim(), "grow", StringComparison.OrdinalIgnoreCase);
+    var sizeRaw = (string?)ViewData["Size"];
+    bool isSmall = string.Equals(sizeRaw?.Trim(), "sm", StringComparison.OrdinalIgnoreCase);
     var color = ((string?)ViewData["Color"]) ?? "text-secondary";
     var inline = (ViewData["Inline"] is bool b && b);
     var addl = (string?)ViewData["Class"] ?? string.Empty;
 
-    var spinnerClass = kind == "grow" ? "spinner-grow" : "spinner-border";
-    if (size == "sm") spinnerClass += kind == "grow" ? " spinner-grow-sm" : " spinner-border-sm";
+    var spinnerClass = isGrow ? "spinner-grow" : "spinner-border";
+    if (isSmall) spinnerClass += isGrow ? " spinner-grow-sm" : " spinner-border-sm";
     var wrapClass = (inline ? "d-inline-flex" : "d-flex") + " align-items-center gap-2 " + addl;
 }
 <div class="@wrapClass">

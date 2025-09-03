@@ -19,10 +19,11 @@ namespace XRoadFolkWeb.Features.Index
             if (_allowedIncludeKeysCache is { Count: > 0 }) return _allowedIncludeKeysCache;
 
             // Base keys (config-backed cache) + ensure core sections
-            HashSet<string> baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
-            _ = baseKeys.Add("Person");
-            _ = baseKeys.Add("Names");
-            _allowedIncludeKeysCache = [.. baseKeys];
+            var baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            HashSet<string> tmp = new(baseKeys, StringComparer.OrdinalIgnoreCase);
+            _ = tmp.Add("Person");
+            _ = tmp.Add("Names");
+            _allowedIncludeKeysCache = [.. tmp];
             return _allowedIncludeKeysCache;
         }
 
@@ -130,8 +131,23 @@ namespace XRoadFolkWeb.Features.Index
                 return false;
             }),];
 
-            string? first = filtered.Find(p => p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase)).Value;
-            string? last = filtered.Find(p => p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase)).Value;
+            // Extract first and last names in a single pass to avoid duplicate scans
+            string? first = null;
+            string? last = null;
+            foreach (var p in filtered)
+            {
+                if (first is null && p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase))
+                {
+                    first = p.Value;
+                    if (last is not null) break;
+                }
+                else if (last is null && p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase))
+                {
+                    last = p.Value;
+                    if (first is not null) break;
+                }
+            }
+
             string selectedNameSuffix = (!string.IsNullOrWhiteSpace(first) || !string.IsNullOrWhiteSpace(last))
                 ? loc["SelectedNameSuffixFormat", string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                 : string.Empty;

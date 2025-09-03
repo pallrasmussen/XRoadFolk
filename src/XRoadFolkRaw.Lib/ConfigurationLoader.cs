@@ -103,8 +103,9 @@ namespace XRoadFolkRaw.Lib
             AuthSettings auth = xr.Auth;
             Req(auth != null && !string.IsNullOrWhiteSpace(auth.UserId), Messages.XRoadAuthUserIdMissing);
 
-            string tokenMode = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim().ToLowerInvariant();
-            if (tokenMode is not "request" and not "header")
+            string tokenModeRaw = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim();
+            if (!string.Equals(tokenModeRaw, "request", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(tokenModeRaw, "header", StringComparison.OrdinalIgnoreCase))
             {
                 errs.Add(loc[Messages.XRoadTokenInsertModeInvalid]);
             }
@@ -165,7 +166,12 @@ namespace XRoadFolkRaw.Lib
                 {
                     ConfigSanityCheckError(log, e);
                 }
-                throw new InvalidOperationException(loc[Messages.ConfigSanityCheckFailedException]);
+
+                // Aggregate errors into the exception message so callers don't have to inspect logs
+                string header = loc[Messages.ConfigSanityCheckFailedException];
+                string details = string.Join(Environment.NewLine + " - ", errs);
+                string message = header + Environment.NewLine + " - " + details;
+                throw new InvalidOperationException(message);
             }
 
             // After validation, ensure required sections are present and use non-null locals

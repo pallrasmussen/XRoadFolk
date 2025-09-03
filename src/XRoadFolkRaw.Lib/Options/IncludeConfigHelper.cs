@@ -19,11 +19,9 @@ namespace XRoadFolkRaw.Lib.Options
         /// Returns the enabled include keys based on configuration:
         /// - Operations:GetPerson:Request:Include boolean switches
         /// - Operations:GetPerson:Request Include flags (GetPersonRequestOptions.Include)
+        /// Returns a read-only view to avoid accidental mutation by callers.
         /// </summary>
-        /// <param name="config"></param>
-        /// <param name="includeSynonyms"></param>
-        /// <returns></returns>
-        public static HashSet<string> GetEnabledIncludeKeys(IConfiguration config, bool includeSynonyms = true)
+        public static IReadOnlySet<string> GetEnabledIncludeKeys(IConfiguration config, bool includeSynonyms = true)
         {
             ArgumentNullException.ThrowIfNull(config);
 

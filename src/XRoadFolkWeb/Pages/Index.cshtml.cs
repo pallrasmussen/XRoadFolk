@@ -84,11 +84,9 @@ namespace XRoadFolkWeb.Pages
 
         private IReadOnlyList<string> BuildEnabledIncludeKeys()
         {
-            HashSet<string> baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
-            _ = baseKeys.Add("Person");
-            _ = baseKeys.Add("Names");
-            List<string> list = [.. baseKeys];
-            return list.AsReadOnly();
+            var baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
+            HashSet<string> list = new(baseKeys, StringComparer.OrdinalIgnoreCase) { "Person", "Names" };
+            return [.. list];
         }
 
         [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant)]
