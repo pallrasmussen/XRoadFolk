@@ -26,7 +26,7 @@ namespace XRoadFolkWeb.Features.Index
             return _allowedIncludeKeysCache;
         }
 
-        public async Task<(List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(
+        public async Task<(IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(
             string publicId,
             Microsoft.Extensions.Localization.IStringLocalizer loc,
             IReadOnlyCollection<string>? allowedIncludeKeys = null,
@@ -129,7 +129,7 @@ namespace XRoadFolkWeb.Features.Index
                 ? loc["SelectedNameSuffixFormat", string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)))]
                 : string.Empty;
 
-            return (filtered, _parser.PrettyFormatXml(xml), selectedNameSuffix);
+            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), selectedNameSuffix);
         }
     }
 }

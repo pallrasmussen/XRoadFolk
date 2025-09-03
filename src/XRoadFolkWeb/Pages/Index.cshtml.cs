@@ -185,7 +185,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, ct).ConfigureAwait(false);
+                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, ct).ConfigureAwait(false);
                 PersonDetails = res.Details;
                 SelectedNameSuffix = res.SelectedNameSuffix;
             }
@@ -211,7 +211,7 @@ namespace XRoadFolkWeb.Pages
 
         private async Task PerformSearchAsync(string? ssnNorm, DateTimeOffset? dob, CancellationToken ct)
         {
-            (string Xml, string Pretty, List<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, ct).ConfigureAwait(false);
+            (string Xml, string Pretty, IReadOnlyList<PersonRow> Results) res = await _search.SearchAsync(ssnNorm ?? string.Empty, FirstName, LastName, dob, ct).ConfigureAwait(false);
             PeoplePublicInfoResponseXml = res.Xml;
             PeoplePublicInfoResponseXmlPretty = res.Pretty;
             Results = res.Results;
@@ -318,7 +318,7 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                (List<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
+                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                 return new JsonResult(new
                 {
                     ok = true,

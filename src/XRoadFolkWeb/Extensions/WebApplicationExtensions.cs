@@ -420,19 +420,28 @@ namespace XRoadFolkWeb.Extensions
             bool logsEnabled = GetFeatureFlag(configuration, featureLog, "Features:Logs:Enabled", envCurrent.IsDevelopment());
             if (logsEnabled)
             {
-                _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind) =>
+                _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
                 {
                     IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                     if (store is null)
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                     }
-                    IReadOnlyList<LogEntry> items = store.GetAll();
+
+                    IEnumerable<LogEntry> query = store.GetAll();
                     if (!string.IsNullOrWhiteSpace(kind))
                     {
-                        items = [.. items.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase))];
+                        query = query.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase));
                     }
-                    return Results.Json(new { ok = true, items });
+
+                    int pg = Math.Max(1, page ?? 1);
+                    int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
+                    int total = query.Count();
+                    int totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
+                    int skip = (pg - 1) * size;
+                    LogEntry[] items = query.Skip(skip).Take(size).ToArray();
+
+                    return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
                 });
 
                 _ = app.MapPost("/logs/clear", (HttpContext ctx) =>

@@ -90,22 +90,44 @@ namespace XRoadFolkRaw.Lib
             using XmlReader reader = XmlReader.Create(sr, settings);
             XDocument doc = XDocument.Load(reader, LoadOptions.None);
 
-            XElement? tokenEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase));
-            XElement? expEl = doc.Descendants().FirstOrDefault(e =>
-                e.Name.LocalName.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
-                e.Name.LocalName.Equals("expiry", StringComparison.OrdinalIgnoreCase) ||
-                e.Name.LocalName.Equals("expiration", StringComparison.OrdinalIgnoreCase));
+            string? tokenText = null;
+            string? expiryText = null;
 
-            if (tokenEl == null)
+            foreach (XElement el in doc.Descendants())
+            {
+                string name = el.Name.LocalName;
+                if (tokenText is null && name.Equals("token", StringComparison.OrdinalIgnoreCase))
+                {
+                    tokenText = el.Value?.Trim();
+                    if (!string.IsNullOrEmpty(tokenText) && expiryText is not null)
+                    {
+                        break; // found both
+                    }
+                    continue;
+                }
+
+                if (expiryText is null && (name.Equals("expires", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("expiry", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("expiration", StringComparison.OrdinalIgnoreCase)))
+                {
+                    expiryText = el.Value?.Trim();
+                    if (!string.IsNullOrEmpty(expiryText) && tokenText is not null)
+                    {
+                        break; // found both
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(tokenText))
             {
                 throw new InvalidOperationException("Login response did not contain <token>");
             }
 
-            _token = tokenEl.Value.Trim();
+            _token = tokenText!;
 
-            if (expEl != null)
+            if (!string.IsNullOrWhiteSpace(expiryText))
             {
-                string txt = expEl.Value.Trim();
+                string txt = expiryText!;
                 if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
                 {
                     _expiresUtc = exp - _skew;
