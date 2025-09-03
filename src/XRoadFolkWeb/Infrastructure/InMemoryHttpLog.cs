@@ -41,6 +41,7 @@ namespace XRoadFolkWeb.Infrastructure
         // Async file writer (enabled only if _filePath is provided)
         private readonly Channel<string>? _fileChannel;
         private readonly Task? _fileWriterTask;
+        private readonly CancellationTokenSource? _writerCts;
         private volatile bool _disposed;
 
         public InMemoryHttpLog(IOptions<HttpLogOptions> opts, ILogger<InMemoryHttpLog>? logger = null)
@@ -72,7 +73,8 @@ namespace XRoadFolkWeb.Infrastructure
                     SingleReader = true,
                     SingleWriter = false,
                 });
-                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls, _logger));
+                _writerCts = new CancellationTokenSource();
+                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls, _logger, _writerCts.Token));
             }
         }
 
@@ -112,7 +114,7 @@ namespace XRoadFolkWeb.Infrastructure
             _ = _fileChannel.Writer.TryWrite(line);
         }
 
-        private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger)
+        private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger, CancellationToken ct)
         {
             List<string> batch = new(capacity: 512);
             const int flushIntervalMs = 200;
@@ -122,7 +124,7 @@ namespace XRoadFolkWeb.Infrastructure
                 try
                 {
                     // Wait for data
-                    if (!await reader.WaitToReadAsync().ConfigureAwait(false))
+                    if (!await reader.WaitToReadAsync(ct).ConfigureAwait(false))
                     {
                         // Channel completed; exit
                         break;
@@ -141,7 +143,7 @@ namespace XRoadFolkWeb.Infrastructure
 
                     if (batch.Count == 0)
                     {
-                        await Task.Delay(flushIntervalMs).ConfigureAwait(false);
+                        await Task.Delay(flushIntervalMs, ct).ConfigureAwait(false);
                         continue;
                     }
 
@@ -151,16 +153,20 @@ namespace XRoadFolkWeb.Infrastructure
                     using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
                     foreach (string l in batch)
                     {
-                        await sw.WriteAsync(l.AsMemory()).ConfigureAwait(false);
+                        await sw.WriteAsync(l.AsMemory(), ct).ConfigureAwait(false);
                     }
-                    await sw.FlushAsync().ConfigureAwait(false);
-                    await fs.FlushAsync().ConfigureAwait(false);
+                    await sw.FlushAsync(ct).ConfigureAwait(false);
+                    await fs.FlushAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
                     // Report errors using provided logger then continue
                     logger?.LogError(ex, "InMemoryHttpLog file writer error");
-                    await Task.Delay(flushIntervalMs).ConfigureAwait(false);
+                    await Task.Delay(flushIntervalMs, ct).ConfigureAwait(false);
                 }
             }
         }
@@ -181,6 +187,8 @@ namespace XRoadFolkWeb.Infrastructure
             if (_disposed) return;
             _disposed = true;
 
+            try { _writerCts?.Cancel(); } catch { }
+
             if (_fileChannel is not null)
             {
                 try { _fileChannel.Writer.TryComplete(); }
@@ -198,6 +206,8 @@ namespace XRoadFolkWeb.Infrastructure
                     _logger?.LogError(ex, "InMemoryHttpLog: Error waiting for file writer task during dispose");
                 }
             }
+
+            _writerCts?.Dispose();
         }
 
         public void Dispose()
@@ -268,10 +278,22 @@ namespace XRoadFolkWeb.Infrastructure
                     return null;
                 }
 
-                StringBuilder sb = new();
+                const int MaxChars = 2048;      // ~2KB cap
+                const int MaxScopes = 16;       // depth bound
+                const int MaxKvpPerScope = 16;  // per-scope kv limit
+
+                StringBuilder sb = new(capacity: 256);
                 bool first = true;
+                int scopeCount = 0;
+                bool truncated = false;
+
                 provider.ForEachScope<object?>((scope, _) =>
                 {
+                    if (scopeCount >= MaxScopes || truncated)
+                    {
+                        return;
+                    }
+
                     if (!first)
                     {
                         _ = sb.Append(" => ");
@@ -281,16 +303,25 @@ namespace XRoadFolkWeb.Infrastructure
                     {
                         case IEnumerable<KeyValuePair<string, object?>> kvs:
                             bool firstKv = true;
+                            int kvCount = 0;
                             _ = sb.Append('{');
                             foreach (KeyValuePair<string, object?> kv in kvs)
                             {
+                                if (kvCount >= MaxKvpPerScope) { _ = sb.Append(", ..."); break; }
                                 if (!firstKv)
                                 {
                                     _ = sb.Append(", ");
                                 }
-
                                 _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
                                 firstKv = false;
+                                kvCount++;
+                                if (sb.Length > MaxChars)
+                                {
+                                    sb.Length = Math.Max(0, MaxChars - 3);
+                                    _ = sb.Append("...");
+                                    truncated = true;
+                                    break;
+                                }
                             }
                             _ = sb.Append('}');
                             break;
@@ -298,9 +329,24 @@ namespace XRoadFolkWeb.Infrastructure
                             _ = sb.Append(scope?.ToString());
                             break;
                     }
+
+                    if (sb.Length > MaxChars)
+                    {
+                        sb.Length = Math.Max(0, MaxChars - 3);
+                        _ = sb.Append("...");
+                        truncated = true;
+                    }
+
                     first = false;
+                    scopeCount++;
                 }, state: null);
-                return sb.Length == 0 ? null : sb.ToString();
+
+                if (sb.Length == 0)
+                {
+                    return null;
+                }
+
+                return sb.ToString();
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)

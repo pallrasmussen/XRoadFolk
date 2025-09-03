@@ -1,6 +1,6 @@
 namespace XRoadFolkWeb.Shared
 {
-    public static class Program
+    public static class ProgramStatics
     {
         internal static readonly string[] ResponseCompressionMimeTypes =
         [

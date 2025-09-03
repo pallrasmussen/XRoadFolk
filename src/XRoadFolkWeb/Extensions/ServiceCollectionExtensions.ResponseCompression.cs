@@ -7,7 +7,7 @@ namespace XRoadFolkWeb.Extensions
             _ = services.AddResponseCompression(static opts =>
             {
                 opts.EnableForHttps = true;
-                opts.MimeTypes = Shared.Program.ResponseCompressionMimeTypes;
+                opts.MimeTypes = Shared.ProgramStatics.ResponseCompressionMimeTypes;
             });
             return services;
         }

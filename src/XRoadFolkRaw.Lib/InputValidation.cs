@@ -22,7 +22,7 @@ namespace XRoadFolkRaw.Lib
             "ddMMyyyy",
         ];
 
-        [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$")]
+        [GeneratedRegex("^[\\p{L}][\\p{L}\\p{M}\\s\\-']{1,49}$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NameRegex();
 
         public static class Errors

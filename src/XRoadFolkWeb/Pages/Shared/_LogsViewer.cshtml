@@ -55,11 +55,19 @@
   var es = null;
 
   var tbody = document.querySelector('#logs-table tbody');
+  var tableContainer = document.querySelector('.logs-table-container');
   var filter = document.getElementById('logs-filter');
   var level = document.getElementById('logs-level');
   var clearBtn = document.getElementById('logs-clear');
   var pauseBtn = document.getElementById('logs-pause');
   var backBtn = document.getElementById('logs-back');
+
+  // Limits and batching
+  var MAX_ROWS = 2000;        // hard cap
+  var TRIM_TO_ROWS = 1500;    // trim down to after exceeding cap
+  var BATCH_FLUSH_MS = 50;    // flush interval for batching
+  var pending = [];
+  var flushTimer = 0;
 
   function rowFor(entry){
     var tr = document.createElement('tr');
@@ -80,10 +88,53 @@
     }
     return true;
   }
+
+  function scheduleFlush(){
+    if (flushTimer) return;
+    flushTimer = setTimeout(flush, BATCH_FLUSH_MS);
+  }
+
+  function flush(){
+    flushTimer = 0;
+    if (!pending.length) return;
+
+    var autoscroll = false;
+    try {
+      if (tableContainer){
+        var nearBottom = (tableContainer.scrollTop + tableContainer.clientHeight) >= (tableContainer.scrollHeight - 8);
+        autoscroll = nearBottom;
+      }
+    } catch {}
+
+    var frag = document.createDocumentFragment();
+    for (var i=0;i<pending.length;i++) frag.appendChild(pending[i]);
+    pending = [];
+    tbody.appendChild(frag);
+
+    trimIfNeeded();
+
+    if (autoscroll && tableContainer){
+      try { tableContainer.scrollTop = tableContainer.scrollHeight; } catch {}
+    }
+  }
+
+  function trimIfNeeded(){
+    try{
+      var extra = tbody.children.length - MAX_ROWS;
+      if (extra > 0){
+        var toRemove = Math.max(extra, tbody.children.length - TRIM_TO_ROWS);
+        for (var i=0;i<toRemove;i++){
+          if (!tbody.firstChild) break;
+          tbody.removeChild(tbody.firstChild);
+        }
+      }
+    } catch(e){ console.debug('LogsViewer: trim failed', e); }
+  }
+
   function append(entry){
     if (!match(entry)) return;
-    var tr = rowFor(entry);
-    tbody.appendChild(tr);
+    pending.push(rowFor(entry));
+    scheduleFlush();
   }
 
   function connect(){
@@ -99,7 +150,12 @@
   // initial fill (history)
   fetch('/logs?kind=' + encodeURIComponent(kind)).then(r=>r.json()).then(function(d){
     if (!d || d.ok !== true) return;
-    (d.items||[]).forEach(append);
+    var items = d.items||[];
+    // Keep only the most recent up to MAX_ROWS
+    if (items.length > MAX_ROWS) items = items.slice(items.length - MAX_ROWS);
+    for (var i=0;i<items.length;i++) append(items[i]);
+    // Force immediate flush after initial load
+    flush();
   });
 
   filter && filter.addEventListener('input', function(){ filterTxt = (filter.value||'').trim().toLowerCase(); });
@@ -118,6 +174,11 @@
       // Otherwise allow default anchor nav to Index
     } catch { /* let default navigate */ }
   });
+
+  // Keep autoscroll behavior intuitive when user scrolls up
+  if (tableContainer){
+    tableContainer.addEventListener('scroll', function(){ /* no-op, autoscroll computed per flush */ });
+  }
 
   connect();
 })();

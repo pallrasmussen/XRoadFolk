@@ -4,13 +4,13 @@ namespace XRoadFolkRaw.Lib
 {
     public static partial class SoapSanitizer
     {
-        [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
         private static partial Regex UserRegex();
 
-        [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
         private static partial Regex PassRegex();
 
-        [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
         private static partial Regex TokenRegex();
 
         public static string Scrub(string xml, bool maskTokens = true)

@@ -24,6 +24,7 @@ namespace XRoadFolkRaw.Lib
         private static readonly HashSet<string> SourceHeaders =
             new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, byte> _missingTemplates = new(StringComparer.OrdinalIgnoreCase);
 
         private FolkRawClient(
             HttpClient httpClient,
@@ -143,17 +144,11 @@ namespace XRoadFolkRaw.Lib
 
                 try
                 {
-                    _ = LoadTemplate(path);
-                }
-                catch (FileNotFoundException)
-                {
-                    if (_log != null)
-                    {
-                        LogTemplatePreloadMissing(_log, path);
-                    }
+                    _ = TryLoadTemplate(path, out _);
                 }
                 catch (Exception ex)
                 {
+                    // Only unexpected failures reach here; missing files are handled in TryLoadTemplate with one-time log
                     if (_log != null)
                     {
                         LogTemplatePreloadFailed(_log, ex, path);
@@ -164,17 +159,49 @@ namespace XRoadFolkRaw.Lib
 
         private XDocument LoadTemplate(string path)
         {
-            return _templateCache.GetOrAdd(path, static p => LoadTemplateCore(p));
+            if (TryLoadTemplate(path, out XDocument? doc) && doc is not null)
+            {
+                return doc;
+            }
+            throw new FileNotFoundException($"{path} not found", path);
         }
 
-        private static XDocument LoadTemplateCore(string p)
+        private bool TryLoadTemplate(string path, out XDocument? doc)
         {
-            if (File.Exists(p))
+            if (_templateCache.TryGetValue(path, out doc))
             {
-                return XDocument.Load(p);
+                return true;
+            }
+            if (_missingTemplates.ContainsKey(path))
+            {
+                doc = null;
+                return false;
             }
 
-            string fileName = Path.GetFileName(p);
+            // Try filesystem
+            if (File.Exists(path))
+            {
+                try
+                {
+                    XDocument loaded = XDocument.Load(path);
+                    doc = _templateCache.GetOrAdd(path, loaded);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    // Cache negative to avoid repeated IO on corrupted files too
+                    _missingTemplates.TryAdd(path, 0);
+                    if (_log != null)
+                    {
+                        LogTemplatePreloadFailed(_log, ex, path);
+                    }
+                    doc = null;
+                    return false;
+                }
+            }
+
+            // Try embedded resource
+            string fileName = Path.GetFileName(path);
             Assembly asm = typeof(FolkRawClient).Assembly;
             string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
             if (res is not null)
@@ -182,11 +209,19 @@ namespace XRoadFolkRaw.Lib
                 using Stream? s = asm.GetManifestResourceStream(res);
                 if (s is not null)
                 {
-                    return XDocument.Load(s);
+                    XDocument loaded = XDocument.Load(s);
+                    doc = _templateCache.GetOrAdd(path, loaded);
+                    return true;
                 }
             }
 
-            throw new FileNotFoundException($"{p} not found", p);
+            // Record missing once and log; subsequent calls hit the cache and skip IO
+            if (_missingTemplates.TryAdd(path, 0) && _log != null)
+            {
+                LogTemplatePreloadMissing(_log, path);
+            }
+            doc = null;
+            return false;
         }
 
         public async Task<string> LoginAsync(
@@ -255,8 +290,6 @@ namespace XRoadFolkRaw.Lib
             SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
             SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
             SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-            SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-            SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
 
             XElement loginReq = body?.Element(prod + "Login")?.Element("request")
                 ?? throw new InvalidOperationException("Cannot find prod:Login/request in Login.xml");
