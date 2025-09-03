@@ -54,6 +54,21 @@ namespace XRoadFolkRaw.Lib
         /// HTTP request timeout in seconds. Default is 60.
         /// </summary>
         public int TimeoutSeconds { get; set; } = 60;
+
+        /// <summary>
+        /// Lifetime for pooled connections in seconds. 0 means infinite. Default 300 (5 minutes).
+        /// </summary>
+        public int PooledConnectionLifetimeSeconds { get; set; } = 300;
+
+        /// <summary>
+        /// Idle timeout for pooled connections in seconds. 0 means infinite. Default 120 (2 minutes).
+        /// </summary>
+        public int PooledConnectionIdleTimeoutSeconds { get; set; } = 120;
+
+        /// <summary>
+        /// Max concurrent connections per server. <= 0 uses default 20.
+        /// </summary>
+        public int MaxConnectionsPerServer { get; set; } = 20;
     }
 
     public sealed class CertificateSettings

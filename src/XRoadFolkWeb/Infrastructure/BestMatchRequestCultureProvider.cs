@@ -144,27 +144,40 @@ namespace XRoadFolkWeb.Infrastructure
                 _log?.LogWarning(ex, "Invalid culture candidate received: {Candidate}", candidate);
             }
 
-            // Same language (e.g. "en-GB" -> match any supported like "en-US")
-            string? lang = candidate.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(lang))
+            // Same language (e.g. "en-GB" -> match any supported like "en-US"). Avoid string.Split allocations.
+            ReadOnlySpan<char> span = candidate.AsSpan();
+            int langLen = 0;
+            foreach (char ch in span)
+            {
+                if (char.IsLetter(ch)) { langLen++; }
+                else { break; }
+            }
+            if (langLen == 0)
             {
                 return null; // malformed like "-GB" -> no language subtag
             }
 
-            // Validate language subtag contains only letters
-            bool lettersOnly = true;
-            foreach (char ch in lang)
+            // Validate language subtag contains only letters (already ensured by scan)
+            // Find a supported culture with the same language
+            foreach (string c in _supported)
             {
-                if (!char.IsLetter(ch)) { lettersOnly = false; break; }
-            }
-            if (!lettersOnly)
-            {
-                return null;
+                if (c.Length == langLen)
+                {
+                    if (string.Compare(c, 0, candidate, 0, langLen, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        return c;
+                    }
+                }
+                else if (c.Length > langLen && c[langLen] == '-')
+                {
+                    if (string.Compare(c, 0, candidate, 0, langLen, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        return c;
+                    }
+                }
             }
 
-            return _supported.FirstOrDefault(c =>
-                c.StartsWith(lang + "-", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(c, lang, StringComparison.OrdinalIgnoreCase));
+            return null;
         }
     }
 }

@@ -12,6 +12,7 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly bool _alwaysAllowWarnError;
         private long _rateWindowStartMs = Environment.TickCount64;
         private int _rateCount;
+        private readonly object _gate = new();
 
         public HttpLogRateLimiter(int maxWritesPerSecond, bool alwaysAllowWarnError)
         {
@@ -40,8 +41,17 @@ namespace XRoadFolkWeb.Infrastructure
             long elapsed = unchecked(now - start);
             if (elapsed is >= 1000 or < 0)
             {
-                Volatile.Write(ref _rateWindowStartMs, now);
-                Volatile.Write(ref _rateCount, 0);
+                lock (_gate)
+                {
+                    // Re-read under lock to avoid redundant resets
+                    start = _rateWindowStartMs;
+                    elapsed = unchecked(now - start);
+                    if (elapsed is >= 1000 or < 0)
+                    {
+                        _rateWindowStartMs = now; // protected by lock
+                        _rateCount = 0;           // protected by lock
+                    }
+                }
             }
 
             int count = Interlocked.Increment(ref _rateCount);

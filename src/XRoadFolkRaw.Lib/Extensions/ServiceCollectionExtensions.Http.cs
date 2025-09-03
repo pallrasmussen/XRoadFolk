@@ -31,15 +31,24 @@ namespace XRoadFolkRaw.Lib.Extensions
             })
             .ConfigurePrimaryHttpMessageHandler(static sp =>
             {
+                XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+
+                // Pull limits from configuration with sane bounds
+                TimeSpan lifetime = xr.Http.PooledConnectionLifetimeSeconds <= 0
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromSeconds(xr.Http.PooledConnectionLifetimeSeconds);
+                TimeSpan idle = xr.Http.PooledConnectionIdleTimeoutSeconds <= 0
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromSeconds(xr.Http.PooledConnectionIdleTimeoutSeconds);
+                int maxPerServer = xr.Http.MaxConnectionsPerServer <= 0 ? 20 : xr.Http.MaxConnectionsPerServer;
+
                 SocketsHttpHandler handler = new()
                 {
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-                    MaxConnectionsPerServer = 20,
+                    PooledConnectionLifetime = lifetime,
+                    PooledConnectionIdleTimeout = idle,
+                    MaxConnectionsPerServer = maxPerServer,
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 };
-
-                XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
 
                 try
                 {
@@ -137,8 +146,9 @@ namespace XRoadFolkRaw.Lib.Extensions
                 }
                 else
                 {
-                    // No CER configured: keep development bypass toggle for convenience
-                    bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", true);
+                    // No CER configured: keep optional development bypass toggle for convenience.
+                    // Default is strict (no bypass) unless explicitly enabled.
+                    bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", false);
                     if (env.IsDevelopment() && bypass)
                     {
                         handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;
