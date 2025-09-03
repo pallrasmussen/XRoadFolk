@@ -299,7 +299,7 @@ namespace XRoadFolkWeb.Extensions
             // Emit a startup log entry (app kind)
             ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("App.Startup");
-            _logAppStarted(startupLogger, DateTimeOffset.Now, arg3: null);
+            _logAppStarted(startupLogger, DateTimeOffset.UtcNow, arg3: null);
 
             // Request logging middleware (reduced verbosity, dev-only, redact potential PII) and conditional compression
             IHostEnvironment envCurrent = app.Services.GetRequiredService<IHostEnvironment>();
@@ -397,7 +397,7 @@ namespace XRoadFolkWeb.Extensions
                     cookieValue,
                     new CookieOptions
                     {
-                        Expires = DateTimeOffset.Now.AddYears(1),
+                        Expires = DateTimeOffset.UtcNow.AddYears(1),
                         IsEssential = true,
                         Secure = ctx.Request.IsHttps,     // allow HTTP in dev
                         HttpOnly = true,
@@ -472,7 +472,7 @@ namespace XRoadFolkWeb.Extensions
                     }
                     store.Add(new LogEntry
                     {
-                        Timestamp = DateTimeOffset.Now,
+                        Timestamp = DateTimeOffset.UtcNow,
                         Level = lvl,
                         Category = dto.Category ?? "Manual",
                         EventId = dto.EventId ?? 0,

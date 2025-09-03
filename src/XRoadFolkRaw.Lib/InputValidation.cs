@@ -100,7 +100,8 @@ namespace XRoadFolkRaw.Lib
 
         public static string NormalizeDigits(string? s)
         {
-            return new([.. (s ?? "").Where(char.IsDigit)]);
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return new([.. s.Where(static c => c >= '0' && c <= '9')]);
         }
 
         public static bool LooksLikeValidSsn(string? s, out DateTimeOffset? embedded)

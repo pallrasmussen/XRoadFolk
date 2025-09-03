@@ -38,7 +38,11 @@ namespace XRoadFolkWeb.Extensions
                     LocalizationConfig locCfg = configuration.GetSection("Localization").Get<LocalizationConfig>() ?? new LocalizationConfig();
                     System.Collections.ObjectModel.ReadOnlyDictionary<string, string> roMap = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(locCfg.FallbackMap);
                     ILogger providerLog = lf.CreateLogger("Localization.Provider");
-                    opts.RequestCultureProviders.Insert(0, new BestMatchRequestCultureProvider(
+
+                    // Remove default providers (Cookie, QueryString, Accept-Language) to avoid duplicate parsing
+                    opts.RequestCultureProviders.Clear();
+                    // Use a single best-match provider that handles cookie and Accept-Language
+                    opts.RequestCultureProviders.Add(new BestMatchRequestCultureProvider(
                         opts.SupportedUICultures, roMap, providerLog));
                 });
 

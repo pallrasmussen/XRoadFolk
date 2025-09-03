@@ -20,13 +20,19 @@ namespace XRoadFolkWeb.Extensions
                 if (s is not null)
                 {
                     _ = configuration.AddJsonStream(s);
+                    return;
                 }
             }
-            else
+
+            // Fallback to file on disk. In single-file publish Assembly.Location may be empty; use AppContext.BaseDirectory.
+            string? libDir = string.IsNullOrWhiteSpace(libAsm.Location)
+                ? AppContext.BaseDirectory
+                : Path.GetDirectoryName(libAsm.Location);
+
+            if (!string.IsNullOrWhiteSpace(libDir))
             {
-                string? libDir = Path.GetDirectoryName(libAsm.Location);
-                string? jsonPath = libDir is null ? null : Path.Combine(libDir, "Resources", "appsettings.xroad.json");
-                if (jsonPath is not null && File.Exists(jsonPath))
+                string jsonPath = Path.Combine(libDir, "Resources", "appsettings.xroad.json");
+                if (File.Exists(jsonPath))
                 {
                     _ = configuration.AddJsonFile(jsonPath, optional: true, reloadOnChange: false);
                 }
