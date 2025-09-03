@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace XRoadFolkWeb.Infrastructure
 {
-    internal static class AppLocalization
+    internal static partial class AppLocalization
     {
         /// <summary>
         /// Config section name
@@ -57,7 +57,7 @@ namespace XRoadFolkWeb.Infrastructure
                 try { cultures.Add(CultureInfo.GetCultureInfo(n)); }
                 catch (Exception ex)
                 {
-                    if (logger is not null) { logger.LogWarning(ex, "Invalid culture configured: {Culture}", n); }
+                    if (logger is not null) { LogInvalidCulture(logger, ex, n); }
                     else { Trace.TraceWarning("Invalid culture configured: {0}. Error: {1}", n, ex.Message); }
                 }
             }
@@ -65,7 +65,7 @@ namespace XRoadFolkWeb.Infrastructure
             if (cultures.Count == 0)
             {
                 // As a last resort, use fallbacks
-                if (logger is not null) { logger.LogWarning("No valid cultures configured. Falling back to defaults: {Fallback}", string.Join(", ", FallbackCultureNames)); }
+                if (logger is not null) { LogFallback(logger, string.Join(", ", FallbackCultureNames)); }
                 else { Trace.TraceWarning("No valid cultures configured. Falling back to defaults: {0}", string.Join(", ", FallbackCultureNames)); }
                 cultures = [.. FallbackCultureNames.Select(CultureInfo.GetCultureInfo)];
                 defaultName = FallbackCultureNames[0];
@@ -73,5 +73,11 @@ namespace XRoadFolkWeb.Infrastructure
 
             return (defaultName, cultures);
         }
+
+        [LoggerMessage(EventId = 6201, Level = LogLevel.Warning, Message = "Invalid culture configured: {Culture}")]
+        private static partial void LogInvalidCulture(ILogger logger, Exception ex, string Culture);
+
+        [LoggerMessage(EventId = 6202, Level = LogLevel.Warning, Message = "No valid cultures configured. Falling back to defaults: {Fallback}")]
+        private static partial void LogFallback(ILogger logger, string Fallback);
     }
 }

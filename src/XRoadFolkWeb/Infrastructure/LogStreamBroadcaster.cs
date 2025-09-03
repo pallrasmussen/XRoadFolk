@@ -11,7 +11,7 @@ namespace XRoadFolkWeb.Infrastructure
         void Publish(LogEntry entry);
     }
 
-    public sealed class LogStreamBroadcaster(ILogger<LogStreamBroadcaster> logger) : ILogFeed
+    public sealed partial class LogStreamBroadcaster(ILogger<LogStreamBroadcaster> logger) : ILogFeed
     {
         private readonly ILogger<LogStreamBroadcaster> _log = logger;
         private readonly ConcurrentDictionary<Guid, Channel<LogEntry>> _subscribers = new();
@@ -38,7 +38,7 @@ namespace XRoadFolkWeb.Infrastructure
                 try { _ = ch.Writer.TryComplete(); }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "LogStreamBroadcaster: TryComplete failed for subscription {Id}", id);
+                    LogTryCompleteFailed(_log, ex, id);
                 }
             }
         }
@@ -58,24 +58,33 @@ namespace XRoadFolkWeb.Infrastructure
                             try { _ = dead.Writer.TryComplete(); }
                             catch (Exception ex)
                             {
-                                _log.LogDebug(ex, "LogStreamBroadcaster: TryComplete failed for removed subscription {Id}", kv.Key);
+                                LogTryCompleteFailed(_log, ex, kv.Key);
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogWarning(ex, "LogStreamBroadcaster: Publish failed for subscription {Id}. Removing subscriber.", kv.Key);
+                    LogPublishFailed(_log, ex, kv.Key);
                     if (_subscribers.TryRemove(kv.Key, out Channel<LogEntry>? dead))
                     {
                         try { _ = dead.Writer.TryComplete(); }
                         catch (Exception ex2)
                         {
-                            _log.LogDebug(ex2, "LogStreamBroadcaster: TryComplete after failure failed for {Id}", kv.Key);
+                            LogTryCompleteAfterFailure(_log, ex2, kv.Key);
                         }
                     }
                 }
             }
         }
+
+        [LoggerMessage(EventId = 6101, Level = LogLevel.Debug, Message = "LogStreamBroadcaster: TryComplete failed for subscription {Id}")]
+        private static partial void LogTryCompleteFailed(ILogger logger, Exception ex, Guid Id);
+
+        [LoggerMessage(EventId = 6102, Level = LogLevel.Warning, Message = "LogStreamBroadcaster: Publish failed for subscription {Id}. Removing subscriber.")]
+        private static partial void LogPublishFailed(ILogger logger, Exception ex, Guid Id);
+
+        [LoggerMessage(EventId = 6103, Level = LogLevel.Debug, Message = "LogStreamBroadcaster: TryComplete after failure failed for {Id}")]
+        private static partial void LogTryCompleteAfterFailure(ILogger logger, Exception ex, Guid Id);
     }
 }
