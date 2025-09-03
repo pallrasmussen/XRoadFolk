@@ -1,3 +1,5 @@
+using XRoadFolkWeb.Infrastructure;
+
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class ServiceCollectionExtensions
@@ -30,28 +32,9 @@ namespace XRoadFolkWeb.Extensions
 
                     string cookieName = section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
 
-                    // Validate booleans explicitly so misconfigurations don't silently default
-                    bool cookieHttpOnly = true;
-                    string? httpOnlyStr = section["Cookie:HttpOnly"];
-                    if (!string.IsNullOrWhiteSpace(httpOnlyStr))
-                    {
-                        if (!bool.TryParse(httpOnlyStr, out cookieHttpOnly))
-                        {
-                            log.LogWarning("Session: Invalid Cookie:HttpOnly='{Value}'. Falling back to {Fallback}.", httpOnlyStr, true);
-                            cookieHttpOnly = true;
-                        }
-                    }
-
-                    bool cookieIsEssential = true;
-                    string? isEssentialStr = section["Cookie:IsEssential"];
-                    if (!string.IsNullOrWhiteSpace(isEssentialStr))
-                    {
-                        if (!bool.TryParse(isEssentialStr, out cookieIsEssential))
-                        {
-                            log.LogWarning("Session: Invalid Cookie:IsEssential='{Value}'. Falling back to {Fallback}.", isEssentialStr, true);
-                            cookieIsEssential = true;
-                        }
-                    }
+                    // Use shared configuration helpers for booleans
+                    bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", true, log);
+                    bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", true, log);
 
                     // Enums (with validation)
                     string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");

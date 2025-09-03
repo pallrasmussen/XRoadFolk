@@ -230,25 +230,6 @@ namespace XRoadFolkWeb.Infrastructure
             }
         }
 
-        private static string Sanitize(string? s)
-        {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
-            ReadOnlySpan<char> span = s.AsSpan();
-            if (span.IndexOfAny('\r', '\n') < 0)
-            {
-                return s;
-            }
-            return string.Create(span.Length, s, static (dst, state) =>
-            {
-                ReadOnlySpan<char> src = state.AsSpan();
-                for (int i = 0; i < src.Length; i++)
-                {
-                    char c = src[i];
-                    dst[i] = (c is '\r' or '\n') ? ' ' : c;
-                }
-            });
-        }
-
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
         {
             string path = _store.FilePath;
@@ -265,9 +246,7 @@ namespace XRoadFolkWeb.Infrastructure
             using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             foreach (LogEntry e in batch)
             {
-                string msg = Sanitize(e.Message);
-                string ex = Sanitize(e.Exception);
-                string line = string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}");
+                string line = LogLineFormatter.FormatLine(e);
                 await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
             }
             await sw.FlushAsync(ct).ConfigureAwait(false);

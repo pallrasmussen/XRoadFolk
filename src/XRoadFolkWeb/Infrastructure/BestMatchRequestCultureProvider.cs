@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Localization;
 using System.Globalization;
+using Microsoft.Extensions.Primitives;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -40,56 +41,109 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             // 2) Accept-Language header with quality weights (q). q=0 means "not acceptable" and must be ignored (RFC 9110).
-            string accept = httpContext.Request.Headers.AcceptLanguage.ToString();
-            if (!string.IsNullOrWhiteSpace(accept))
+            StringValues acceptValues = httpContext.Request.Headers.AcceptLanguage;
+            if (!StringValues.IsNullOrEmpty(acceptValues))
             {
-                List<(string Tag, double Q, int Index)> items = [];
-                int idx = 0;
-                foreach (string part in accept.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    string seg = part.Trim();
-                    if (seg.Length == 0) { idx++; continue; }
+                // Lightweight candidate list storing slices into the header strings
+                List<Candidate> items = [];
+                int globalIndex = 0;
 
-                    string tag = seg;
-                    double q = 1.0; // default
-                    int sc = seg.IndexOf(';', StringComparison.Ordinal);
-                    if (sc >= 0)
+                for (int vi = 0; vi < acceptValues.Count; vi++)
+                {
+                    string src = acceptValues[vi]!;
+                    ReadOnlySpan<char> span = src.AsSpan();
+                    int i = 0;
+                    while (i < span.Length)
                     {
-                        tag = seg[..sc].Trim();
-                        string paramStr = seg[(sc + 1)..];
-                        foreach (string p in paramStr.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                        int start = i;
+                        int comma = span.Slice(i).IndexOf(',');
+                        if (comma < 0)
                         {
-                            int eq = p.IndexOf('=', StringComparison.Ordinal);
-                            if (eq > 0)
+                            i = span.Length; // last segment
+                        }
+                        else
+                        {
+                            i += comma + 1; // move past comma
+                        }
+
+                        // Current segment: [start, end)
+                        ReadOnlySpan<char> seg = span.Slice(start, (comma < 0 ? span.Length : start + comma) - start);
+                        // Trim WS
+                        seg = Trim(seg);
+                        if (seg.Length == 0) { globalIndex++; continue; }
+
+                        double q = 1.0; // default
+                        ReadOnlySpan<char> tag = seg;
+                        int sc = seg.IndexOf(';');
+                        if (sc >= 0)
+                        {
+                            tag = seg.Slice(0, sc);
+                            ReadOnlySpan<char> paramStr = seg.Slice(sc + 1);
+                            // parse params separated by ';'
+                            int pj = 0;
+                            while (pj < paramStr.Length)
                             {
-                                string key = p[..eq].Trim();
-                                string val = p[(eq + 1)..].Trim();
-                                if (key.Equals("q", StringComparison.OrdinalIgnoreCase)
-                                    && double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
+                                int pstart = pj;
+                                int psep = paramStr.Slice(pj).IndexOf(';');
+                                if (psep < 0)
                                 {
-                                    q = Math.Clamp(qv, 0d, 1d);
-                                    break;
+                                    pj = paramStr.Length;
+                                }
+                                else
+                                {
+                                    pj += psep + 1;
+                                }
+                                ReadOnlySpan<char> part = Trim(paramStr.Slice(pstart, (psep < 0 ? paramStr.Length : pstart + psep) - pstart));
+                                if (part.Length == 0) continue;
+                                int eq = part.IndexOf('=');
+                                if (eq > 0)
+                                {
+                                    ReadOnlySpan<char> key = Trim(part.Slice(0, eq));
+                                    ReadOnlySpan<char> val = Trim(part.Slice(eq + 1));
+                                    if (key.Equals("q".AsSpan(), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
+                                        {
+                                            q = Math.Clamp(qv, 0d, 1d);
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (!string.IsNullOrWhiteSpace(tag) && !string.Equals(tag, "*", StringComparison.Ordinal))
-                    {
-                        if (q <= 0d)
+                        tag = Trim(tag);
+                        if (tag.Length > 0 && !tag.Equals("*".AsSpan(), StringComparison.Ordinal))
                         {
-                            // q=0 means "not acceptable" per RFC 9110; skip
-                            idx++;
-                            continue;
+                            if (q > 0d)
+                            {
+                                // Compute absolute start index of tag within the source string
+                                int segOffset = start; // start index of seg in src
+                                int tagOffsetInSeg = seg.IndexOf(tag);
+                                int tagStartInSrc = segOffset + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
+                                items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
+                            }
                         }
-                        items.Add((tag, q, idx));
+                        globalIndex++;
                     }
-                    idx++;
                 }
 
-                foreach ((string Tag, double Q, int Index) it in items.OrderByDescending(i => i.Q).ThenBy(i => i.Index))
+                // Process candidates in priority order: q desc, index asc (stable by manual selection)
+                while (items.Count > 0)
                 {
-                    string? match = ResolveCandidate(it.Tag);
+                    int best = 0;
+                    for (int k = 1; k < items.Count; k++)
+                    {
+                        if (items[k].Q > items[best].Q || (items[k].Q == items[best].Q && items[k].Index < items[best].Index))
+                        {
+                            best = k;
+                        }
+                    }
+
+                    Candidate cand = items[best];
+                    items.RemoveAt(best);
+
+                    string tag = cand.Source.Substring(cand.Start, cand.Length);
+                    string? match = ResolveCandidate(tag);
                     if (match is not null)
                     {
                         return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match));
@@ -99,6 +153,17 @@ namespace XRoadFolkWeb.Infrastructure
 
             return Task.FromResult<ProviderCultureResult?>(null);
         }
+
+        private static ReadOnlySpan<char> Trim(ReadOnlySpan<char> s)
+        {
+            int i = 0;
+            int j = s.Length - 1;
+            while (i <= j && char.IsWhiteSpace(s[i])) i++;
+            while (j >= i && char.IsWhiteSpace(s[j])) j--;
+            return s.Slice(i, j - i + 1);
+        }
+
+        private readonly record struct Candidate(string Source, int Start, int Length, double Q, int Index);
 
         private string? ResolveCandidate(string candidate)
         {
@@ -139,7 +204,7 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-            catch (Exception ex)
+            catch (CultureNotFoundException ex)
             {
                 _log?.LogWarning(ex, "Invalid culture candidate received: {Candidate}", candidate);
             }

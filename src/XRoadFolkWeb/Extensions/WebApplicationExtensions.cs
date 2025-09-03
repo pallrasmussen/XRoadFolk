@@ -396,9 +396,8 @@ namespace XRoadFolkWeb.Extensions
             bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
             if (logsEnabled)
             {
-                _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
+                _ = app.MapGet("/logs", ([FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize, IHttpLogStore? store) =>
                 {
-                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                     if (store is null)
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
@@ -423,9 +422,8 @@ namespace XRoadFolkWeb.Extensions
                     return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
                 });
 
-                _ = app.MapPost("/logs/clear", (HttpContext ctx) =>
+                _ = app.MapPost("/logs/clear", (IHttpLogStore? store) =>
                 {
-                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                     if (store is null)
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
@@ -434,13 +432,12 @@ namespace XRoadFolkWeb.Extensions
                     return Results.Json(new { ok = true });
                 });
 
-                _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, HttpContext ctx) =>
+                _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, IHttpLogStore? store) =>
                 {
                     if (dto is null)
                     {
                         return Results.BadRequest();
                     }
-                    IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                     if (store is null)
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
@@ -463,9 +460,8 @@ namespace XRoadFolkWeb.Extensions
                 });
 
                 // Server-Sent Events: real-time log stream (accepts kind filter)
-                _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
+                _ = app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, ILogFeed? stream, CancellationToken ct) =>
                 {
-                    ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
                     if (stream is null)
                     {
                         return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);

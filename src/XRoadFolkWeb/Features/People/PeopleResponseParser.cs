@@ -9,6 +9,10 @@ namespace XRoadFolkWeb.Features.People
         private readonly ILogger<PeopleResponseParser> _logger = logger;
         private const int MaxElementDepth = 128; // reasonable anti-recursion cap
 
+        // Helpers for namespace-agnostic matches
+        private static bool IsName(XElement e, string local) => string.Equals(e.Name.LocalName, local, StringComparison.Ordinal);
+        private static IEnumerable<XElement> ElementsBy(XElement e, string local) => e.Elements().Where(x => IsName(x, local));
+
         /// <summary>
         /// Wrapper that enforces a maximum element depth while delegating to the inner reader
         /// </summary>
@@ -191,41 +195,40 @@ namespace XRoadFolkWeb.Features.People
 
         private static List<XElement> FindPersonElements(XDocument doc)
         {
-            return [.. doc.Descendants().Where(e => string.Equals(e.Name.LocalName, "PersonPublicInfo", StringComparison.Ordinal))];
+            return [.. doc.Descendants().Where(e => IsName(e, "PersonPublicInfo"))];
         }
 
         private static string? ExtractRequestSsn(XDocument doc)
         {
             return doc
-                .Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "ListOfPersonPublicInfoCriteria", StringComparison.Ordinal))?
-                .Descendants().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "PersonPublicInfoCriteria", StringComparison.Ordinal))?
-                .Elements().FirstOrDefault(static e => string.Equals(e.Name.LocalName, "SSN", StringComparison.Ordinal))?
+                .Descendants().FirstOrDefault(e => IsName(e, "ListOfPersonPublicInfoCriteria"))?
+                .Descendants().FirstOrDefault(e => IsName(e, "PersonPublicInfoCriteria"))?
+                .Elements().FirstOrDefault(e => IsName(e, "SSN"))?
                 .Value?.Trim();
         }
 
         private static string? ExtractPublicId(XElement p)
         {
-            return p.Elements().FirstOrDefault(static x => string.Equals(x.Name.LocalName, "PublicId", StringComparison.Ordinal))?.Value?.Trim()
-                ?? p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "PersonId", StringComparison.Ordinal))?.Value?.Trim();
+            return ElementsBy(p, "PublicId").FirstOrDefault()?.Value?.Trim()
+                ?? ElementsBy(p, "PersonId").FirstOrDefault()?.Value?.Trim();
         }
 
         private static IEnumerable<XElement> GetNameItems(XElement p)
         {
-            return p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "Names", StringComparison.Ordinal))?
-                       .Elements().Where(x => string.Equals(x.Name.LocalName, "Name", StringComparison.Ordinal))
-                   ?? [];
+            return ElementsBy(p, "Names").FirstOrDefault()?.Elements().Where(e => IsName(e, "Name"))
+                   ?? Enumerable.Empty<XElement>();
         }
 
         private static string? ExtractFirstName(IEnumerable<XElement> nameItems)
         {
             List<string?> firstNames = [.. nameItems
                 .Where(n => string.Equals(
-                    n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
+                    ElementsBy(n, "Type").FirstOrDefault()?.Value,
                     "FirstName", StringComparison.OrdinalIgnoreCase))
                 .Select(n => new
                 {
-                    OrderText = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Order", StringComparison.Ordinal))?.Value,
-                    Value = n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim(),
+                    OrderText = ElementsBy(n, "Order").FirstOrDefault()?.Value,
+                    Value = ElementsBy(n, "Value").FirstOrDefault()?.Value?.Trim(),
                 })
                 .OrderBy(static n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
                 .Select(n => n.Value)
@@ -238,15 +241,15 @@ namespace XRoadFolkWeb.Features.People
         {
             return nameItems
                 .Where(n => string.Equals(
-                    n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Type", StringComparison.Ordinal))?.Value,
+                    ElementsBy(n, "Type").FirstOrDefault()?.Value,
                     "LastName", StringComparison.OrdinalIgnoreCase))
-                .Select(n => n.Elements().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Value", StringComparison.Ordinal))?.Value?.Trim())
+                .Select(n => ElementsBy(n, "Value").FirstOrDefault()?.Value?.Trim())
                 .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
         }
 
         private static string? ExtractDateOfBirth(XElement p)
         {
-            string? civilStatusDate = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "CivilStatusDate", StringComparison.Ordinal))?.Value?.Trim();
+            string? civilStatusDate = ElementsBy(p, "CivilStatusDate").FirstOrDefault()?.Value?.Trim();
             return !string.IsNullOrWhiteSpace(civilStatusDate) && civilStatusDate.Length >= 10
                 ? civilStatusDate[..10]
                 : civilStatusDate;
@@ -254,7 +257,7 @@ namespace XRoadFolkWeb.Features.People
 
         private static string? ExtractSsn(XElement p, int peopleCount, string? requestSsn)
         {
-            string? ssn = p.Elements().FirstOrDefault(x => string.Equals(x.Name.LocalName, "SSN", StringComparison.Ordinal))?.Value?.Trim();
+            string? ssn = ElementsBy(p, "SSN").FirstOrDefault()?.Value?.Trim();
             if (string.IsNullOrWhiteSpace(ssn) && peopleCount == 1 && !string.IsNullOrWhiteSpace(requestSsn))
             {
                 ssn = requestSsn;
@@ -293,7 +296,7 @@ namespace XRoadFolkWeb.Features.People
             {
                 using XmlReader reader = CreateSafeReader(xml);
                 XDocument doc = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-                XElement? body = doc.Descendants().FirstOrDefault(e => string.Equals(e.Name.LocalName, "Body", StringComparison.Ordinal));
+                XElement? body = doc.Descendants().FirstOrDefault(e => IsName(e, "Body"));
                 if (body == null)
                 {
                     return pairs;

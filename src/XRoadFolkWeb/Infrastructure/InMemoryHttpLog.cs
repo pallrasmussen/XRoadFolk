@@ -57,6 +57,13 @@ namespace XRoadFolkWeb.Infrastructure
 
             if (!string.IsNullOrWhiteSpace(_filePath))
             {
+                // Ensure directory exists once during initialization
+                string? dir = Path.GetDirectoryName(_filePath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
                 // Bounded channel to provide back-pressure; drop on overflow via TryWrite in Add
                 _fileChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: Math.Max(1000, cfg.MaxQueue))
                 {
@@ -101,22 +108,8 @@ namespace XRoadFolkWeb.Infrastructure
                 return; // no persistence requested
             }
 
-            string line = FormatLine(e);
+            string line = LogLineFormatter.FormatLine(e) + Environment.NewLine;
             _ = _fileChannel.Writer.TryWrite(line);
-        }
-
-        private static string Sanitize(string? s)
-        {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
-            // Replace CR/LF with spaces to enforce single-line entries
-            return s.Replace('\r', ' ').Replace('\n', ' ');
-        }
-
-        private static string FormatLine(LogEntry e)
-        {
-            string msg = Sanitize(e.Message);
-            string ex = Sanitize(e.Exception);
-            return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}{Environment.NewLine}");
         }
 
         private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger)
@@ -150,13 +143,6 @@ namespace XRoadFolkWeb.Infrastructure
                     {
                         await Task.Delay(flushIntervalMs).ConfigureAwait(false);
                         continue;
-                    }
-
-                    // Ensure directory exists only when path contains a directory
-                    string? dir = Path.GetDirectoryName(path);
-                    if (!string.IsNullOrEmpty(dir))
-                    {
-                        Directory.CreateDirectory(dir);
                     }
 
                     // Roll if needed and append batch asynchronously (UTF-8 without BOM)

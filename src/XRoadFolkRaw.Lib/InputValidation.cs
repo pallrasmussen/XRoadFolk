@@ -101,7 +101,44 @@ namespace XRoadFolkRaw.Lib
         public static string NormalizeDigits(string? s)
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
-            return new([.. s.Where(static c => c >= '0' && c <= '9')]);
+            ReadOnlySpan<char> src = s.AsSpan();
+
+            // Count digits first
+            int count = 0;
+            for (int i = 0; i < src.Length; i++)
+            {
+                char c = src[i];
+                if ((uint)(c - '0') <= 9)
+                {
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return string.Empty;
+            }
+
+            // Fast path: already all digits
+            if (count == src.Length)
+            {
+                return s;
+            }
+
+            // Allocate result and populate with digits only
+            return string.Create(count, s, static (dest, state) =>
+            {
+                ReadOnlySpan<char> span = state.AsSpan();
+                int j = 0;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    char c = span[i];
+                    if ((uint)(c - '0') <= 9)
+                    {
+                        dest[j++] = c;
+                    }
+                }
+            });
         }
 
         public static bool LooksLikeValidSsn(string? s, out DateTimeOffset? embedded)
