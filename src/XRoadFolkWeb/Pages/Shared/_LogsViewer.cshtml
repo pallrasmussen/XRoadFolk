@@ -16,7 +16,7 @@
 
     <div class="input-group input-group-sm mb-2 logs-filter-group">
       <span class="input-group-text">Filter</span>
-      <input type="text" class="form-control" id="logs-filter" placeholder="text…">
+      <input type="text" class="form-control" id="logs-filter" placeholder="text?">
       <select class="form-select" id="logs-level">
         <option value="">Any level</option>
         <option>Trace</option>
@@ -87,13 +87,13 @@
   }
 
   function connect(){
-    if (es) try { es.close(); } catch(e){ try{ console.debug('LogsViewer: es.close failed', e); }catch{} }
+    if (es) try { es.close(); } catch(e){ console.debug('LogsViewer: es.close failed', e); }
     es = new EventSource('/logs/stream?kind=' + encodeURIComponent(kind));
     es.onmessage = function(ev){
       if (paused) return;
-      try { var entry = JSON.parse(ev.data); append(entry); } catch(e){ try{ console.warn('LogsViewer: JSON parse failed', e); }catch{} }
+      try { var entry = JSON.parse(ev.data); append(entry); } catch(e){ console.warn('LogsViewer: JSON parse failed', e); }
     };
-    es.onerror = function(){ try { es.close(); } catch(e){ try{ console.debug('LogsViewer: es.close in onerror failed', e); }catch{} } setTimeout(connect, 1000); };
+    es.onerror = function(){ try { es.close(); } catch(e){ console.debug('LogsViewer: es.close in onerror failed', e); } setTimeout(connect, 1000); };
   }
 
   // initial fill (history)

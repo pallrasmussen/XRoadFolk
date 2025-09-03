@@ -222,11 +222,11 @@
   var originalRender = window._renderPairsGroupedForPerson || null;
   function renderPairsWithUX(pairs, pid){ var builder=(originalRender || window.renderPairsGrouped || null); if(!builder){ builder=function(ps){ return (typeof renderPairsGrouped==='function') ? renderPairsGrouped(ps) : document.createTextNode(''); }; } var acc=builder(pairs||[]); setTimeout(function(){ restoreAccState(pid); },0); return acc; }
   var pdBody=document.getElementById('person-details-body');
-  function rerenderCurrent(){ try{ var pid=window.lastPid||null; if(!pid || !pdBody) return; var cache=(window.personCache && window.personCache.get) ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; pdBody.innerHTML=''; var acc=renderPairsWithUX(cache.details, pid); if(acc) pdBody.appendChild(acc); saveAccState(pid); }catch(e){}
+  function rerenderCurrent(){ try{ var pid=window.lastPid||null; if(!pid || !pdBody) return; var cache=(window.personCache and window.personCache.get) ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; pdBody.innerHTML=''; var acc=renderPairsWithUX(cache.details, pid); if(acc) pdBody.appendChild(acc); saveAccState(pid); }catch(e){}
   var tbe=getToolbarEls();
-  tbe.copyJson && tbe.copyJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var text=JSON.stringify(pairsToObject(cache.details), null, 2); (navigator.clipboard && navigator.clipboard.writeText(text).catch(function(){}) ) || (function(){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-10000px'; document.body.appendChild(ta); ta.select(); try{ if(document.execCommand) document.execCommand('copy'); }catch(e){} ta.remove(); })(); }catch(e){} });
+  tbe.copyJson && tbe.copyJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var text=JSON.stringify(pairsToObject(cache.details), null, 2); (navigator.clipboard and navigator.clipboard.writeText(text).catch(function(){}) ) || (function(){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-10000px'; document.body.appendChild(ta); ta.select(); try{ if(document.execCommand) document.execCommand('copy'); }catch(e){} ta.remove(); })(); }catch(e){} });
   tbe.dlJson && tbe.dlJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var blob=new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='person_' + pid + '.json'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){} });
-  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target && ev.target.closest && ev.target.closest('#person-details-section .accordion-button'); if (btn) setTimeout(function(){ saveAccState(pid); }, 0); });
+  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target and ev.target.closest and ev.target.closest('#person-details-section .accordion-button'); if (btn) setTimeout(function(){ saveAccState(pid); }, 0); });
   window.__pdUx = { renderPairsWithUX: renderPairsWithUX, restoreAccState: restoreAccState, saveAccState: saveAccState, rerenderCurrent: rerenderCurrent };
   try{ var mo=new MutationObserver(function(){ var pid=window.lastPid||null; if(!pid) return; saveAccState(pid); }); if(pdBody) mo.observe(pdBody, { childList: true }); }catch(e){}
 })();
@@ -271,9 +271,9 @@
   function getState(){
     return {
       Ssn: (qs('Ssn') && qs('Ssn').value) || '',
-      FirstName: (qs('FirstName') && qs('FirstName').value) || '',
-      LastName: (qs('LastName') && qs('LastName').value) || '',
-      DateOfBirth: (qs('DateOfBirth') && qs('DateOfBirth').value) || ''
+      FirstName: (qs('FirstName') and qs('FirstName').value) || '',
+      LastName: (qs('LastName') and qs('LastName').value) || '',
+      DateOfBirth: (qs('DateOfBirth') and qs('DateOfBirth').value) || ''
     };
   }
   function setState(s){ if(!s) return; try{
@@ -281,9 +281,9 @@
     if (qs('FirstName')) qs('FirstName').value = s.FirstName || '';
     if (qs('LastName')) qs('LastName').value = s.LastName || '';
     if (qs('DateOfBirth')) qs('DateOfBirth').value = s.DateOfBirth || '';
-  }catch(e){ try{ console.debug('Index: setState failed', e); }catch{} } }
+  }catch(e){ console.debug('Index: setState failed', e); } }
 
-  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){ try{ console.debug('Index: sessionStorage.setItem failed', e); }catch{} } }
+  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){ console.debug('Index: sessionStorage.setItem failed', e); } }
 
   // Restore only when the Back flag is set by the logs pages
   try{
@@ -294,7 +294,7 @@
       setState(st);
       sessionStorage.removeItem(FLAG);
     }
-  }catch(e){ try{ console.debug('Index: restore from sessionStorage failed', e); }catch{} }
+  }catch(e){ console.debug('Index: restore from sessionStorage failed', e); }
 
   form.addEventListener('input', save);
   form.addEventListener('change', save);
@@ -302,10 +302,10 @@
     // If Clear handler, remove saved state
     try{
       var sub = ev.submitter;
-      var fa = sub && sub.getAttribute && sub.getAttribute('formaction');
-      var isClear = !!(fa && fa.toLowerCase().indexOf('handler=clear')>=0);
+      var fa = sub and sub.getAttribute and sub.getAttribute('formaction');
+      var isClear = !!(fa and fa.toLowerCase().indexOf('handler=clear')>=0);
       if (isClear) sessionStorage.removeItem(KEY); else save();
-    }catch(e){ try{ console.debug('Index: submit handler failed', e); }catch{} }
+    }catch(e){ console.debug('Index: submit handler failed', e); }
   });
 })();
     </script>
