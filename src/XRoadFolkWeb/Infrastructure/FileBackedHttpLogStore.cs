@@ -230,6 +230,12 @@ namespace XRoadFolkWeb.Infrastructure
             }
         }
 
+        private static string Sanitize(string? s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return s.Replace('\r', ' ').Replace('\n', ' ');
+        }
+
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
         {
             string path = _store.FilePath;
@@ -246,7 +252,9 @@ namespace XRoadFolkWeb.Infrastructure
             using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             foreach (LogEntry e in batch)
             {
-                string line = string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}");
+                string msg = Sanitize(e.Message);
+                string ex = Sanitize(e.Exception);
+                string line = string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}");
                 await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
             }
             await sw.FlushAsync(ct).ConfigureAwait(false);

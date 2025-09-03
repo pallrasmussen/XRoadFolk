@@ -67,8 +67,15 @@ namespace XRoadFolkWeb.Features.Index
                         sub = sub[..bpos];
                     }
 
-                    string s = sub.ToLowerInvariant();
-                    return s is not "id" and not "fixed" and not "authoritycode" and not "personaddressid";
+                    // Case-insensitive checks without allocating lowercase copies
+                    if (sub.Equals("id", StringComparison.OrdinalIgnoreCase)
+                        || sub.Equals("fixed", StringComparison.OrdinalIgnoreCase)
+                        || sub.Equals("authoritycode", StringComparison.OrdinalIgnoreCase)
+                        || sub.Equals("personaddressid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                    return true;
                 }),
             ];
 

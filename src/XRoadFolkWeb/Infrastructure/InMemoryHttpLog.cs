@@ -36,12 +36,13 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly int _maxRolls;
         private readonly string? _filePath;
         private readonly HttpLogRateLimiter _rateLimiter;
+        private readonly ILogger<InMemoryHttpLog>? _logger;
 
         // Async file writer (enabled only if _filePath is provided)
         private readonly Channel<string>? _fileChannel;
         private readonly Task? _fileWriterTask;
 
-        public InMemoryHttpLog(IOptions<HttpLogOptions> opts)
+        public InMemoryHttpLog(IOptions<HttpLogOptions> opts, ILogger<InMemoryHttpLog>? logger = null)
         {
             ArgumentNullException.ThrowIfNull(opts);
             HttpLogOptions cfg = opts.Value;
@@ -51,6 +52,7 @@ namespace XRoadFolkWeb.Infrastructure
             _maxRolls = Math.Max(1, cfg.MaxRolls);
             _filePath = cfg.FilePath;
             _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
+            _logger = logger;
 
             if (!string.IsNullOrWhiteSpace(_filePath))
             {
@@ -62,7 +64,7 @@ namespace XRoadFolkWeb.Infrastructure
                     SingleReader = true,
                     SingleWriter = false,
                 });
-                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls));
+                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls, _logger));
             }
         }
 
@@ -101,12 +103,21 @@ namespace XRoadFolkWeb.Infrastructure
             _ = _fileChannel.Writer.TryWrite(line);
         }
 
-        private static string FormatLine(LogEntry e)
+        private static string Sanitize(string? s)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}{Environment.NewLine}");
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            // Replace CR/LF with spaces to enforce single-line entries
+            return s.Replace('\r', ' ').Replace('\n', ' ');
         }
 
-        private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls)
+        private static string FormatLine(LogEntry e)
+        {
+            string msg = Sanitize(e.Message);
+            string ex = Sanitize(e.Exception);
+            return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}{Environment.NewLine}");
+        }
+
+        private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger)
         {
             List<string> batch = new(capacity: 512);
             const int flushIntervalMs = 200;
@@ -139,8 +150,15 @@ namespace XRoadFolkWeb.Infrastructure
                         continue;
                     }
 
+                    // Ensure directory exists only when path contains a directory
+                    string? dir = Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+
                     // Roll if needed and append batch asynchronously (UTF-8 without BOM)
-                    LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, log: null);
+                    LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, logger);
                     using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
                     using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
                     foreach (string l in batch)
@@ -150,9 +168,10 @@ namespace XRoadFolkWeb.Infrastructure
                     await sw.FlushAsync().ConfigureAwait(false);
                     await fs.FlushAsync().ConfigureAwait(false);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Swallow and continue to avoid crashing background loop
+                    // Report errors using provided logger then continue
+                    logger?.LogError(ex, "InMemoryHttpLog file writer error");
                     await Task.Delay(flushIntervalMs).ConfigureAwait(false);
                 }
             }
