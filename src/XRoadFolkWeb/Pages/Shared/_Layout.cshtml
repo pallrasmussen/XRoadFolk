@@ -10,23 +10,41 @@
     var currentUi = CultureInfo.CurrentUICulture.Name;
     var supported = LocOpts.Value.SupportedUICultures ?? new List<CultureInfo> { CultureInfo.GetCultureInfo("en-US") };
 
-    // Optional: order cultures according to configuration to ensure predictable display order
+    // Optional: order cultures according to configuration to ensure predictable display order (deduplicated by Name)
     List<CultureInfo> culturesToShow;
     string[]? order = Config.GetSection("Localization:SupportedCultures").Get<string[]>();
     if (order?.Length > 0)
     {
-        culturesToShow = order
-            .Select(code => supported.FirstOrDefault(s => string.Equals(s.Name, code, StringComparison.OrdinalIgnoreCase)))
-            .Where(ci => ci is not null)
-            .Select(ci => ci!)
-            .ToList();
+        var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var list = new List<CultureInfo>();
 
-        // Append any cultures not explicitly ordered
-        culturesToShow.AddRange(supported.Where(s => !culturesToShow.Contains(s)));
+        foreach (var code in order)
+        {
+            var ci = supported.FirstOrDefault(s => string.Equals(s.Name, code, StringComparison.OrdinalIgnoreCase));
+            if (ci is not null && added.Add(ci.Name))
+            {
+                list.Add(ci);
+            }
+        }
+
+        // Append any cultures not explicitly ordered (still unique)
+        foreach (var s in supported)
+        {
+            if (added.Add(s.Name))
+            {
+                list.Add(s);
+            }
+        }
+
+        culturesToShow = list;
     }
     else
     {
-        culturesToShow = supported.ToList();
+        // No explicit order; dedupe supported cultures by Name
+        culturesToShow = supported
+            .GroupBy(ci => ci.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
     }
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
@@ -50,12 +68,14 @@
     <meta name="theme-color" content="#0d6efd" />
 
     <script nonce="@nonce">
-        // Force light theme before paint; log errors (no silent catch)
+        // Force light theme before paint; single catch for robustness
         (function () {
-            try { localStorage.removeItem('theme'); }
-            catch (e) { try { console.error('Theme init: localStorage.removeItem failed', e); } catch {} }
-            try { document.documentElement.setAttribute('data-bs-theme', 'brand'); }
-            catch (e2) { try { console.error('Theme init: setAttribute failed', e2); } catch {} }
+            try {
+                localStorage.removeItem('theme');
+                document.documentElement.setAttribute('data-bs-theme', 'brand');
+            } catch (e) {
+                console.error('Theme init failed', e);
+            }
         })();
     </script>
 
@@ -140,7 +160,7 @@
                             try {
                                 var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
                                 if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
-                            } catch (e) { try { console.error('Culture switch init failed', e); } catch {} }
+                            } catch (e) { console.error('Culture switch init failed', e); }
                         });
                     </script>
                 </div>

@@ -5,21 +5,15 @@
 
 // Minimal bootstrap: force light theme
 (() => {
-  const log = (...args) => {
-    if (typeof console !== 'undefined' && typeof console.debug === 'function') {
-      console.debug(...args);
-    }
-  };
-
   try {
     localStorage.removeItem('theme');
   } catch (e) {
-    log('site.js: localStorage.removeItem failed', e);
+    console.error('site.js: localStorage.removeItem failed', e);
   }
 
   try {
     document.documentElement.setAttribute('data-bs-theme', 'brand');
   } catch (e) {
-    log('site.js: setAttribute failed', e);
+    console.error('site.js: setAttribute failed', e);
   }
 })();

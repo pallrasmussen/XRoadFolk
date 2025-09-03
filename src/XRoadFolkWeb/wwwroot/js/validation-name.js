@@ -1,4 +1,5 @@
 (function ($) {
+    'use strict';
     if (!$.validator) return;
 
     // Must start with a letter; letters+marks/spaces/hyphen/apostrophe; 2-50 chars

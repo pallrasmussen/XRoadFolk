@@ -1,24 +1,25 @@
 (function ($) {
+    'use strict';
     if (!$.validator) return;
 
-    function parseIsoDate(value) {
+    const parseIsoDate = (value) => {
         // returns Date in UTC or null
-        var dt = new Date(value + 'T00:00:00Z');
+        const dt = new Date(value + 'T00:00:00Z');
         return isNaN(dt.getTime()) ? null : dt;
-    }
+    };
 
-    function tryParseDob(value) {
+    const tryParseDob = (value) => {
         if (!value) return null;
-        var s = value.trim();
+        const s = value.trim();
 
         // YYYY-MM-DD
-        var m = /^\d{4}-\d{2}-\d{2}$/.exec(s);
+        let m = /^\d{4}-\d{2}-\d{2}$/.exec(s);
         if (m) return parseIsoDate(s);
 
         // DD-MM-YYYY
         m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
         if (m) {
-            var y = m[3], mo = m[2], d = m[1];
+            const y = m[3], mo = m[2], d = m[1];
             return parseIsoDate(y + '-' + mo + '-' + d);
         }
 
@@ -47,15 +48,15 @@
         }
 
         return null;
-    }
+    };
 
     $.validator.addMethod('dob', function (value, element) {
         if (!value) return true; // not [Required]
-        var dt = tryParseDob(value);
+        const dt = tryParseDob(value);
         if (!dt) return false;
         // Range checks
-        var min = new Date('1900-01-01T00:00:00Z');
-        var today = new Date(); today.setUTCHours(0,0,0,0);
+        const min = new Date('1900-01-01T00:00:00Z');
+        const today = new Date(); today.setUTCHours(0,0,0,0);
         return dt >= min && dt <= today;
     });
 
