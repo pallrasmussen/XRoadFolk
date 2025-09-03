@@ -3,6 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Validation
 {
+    /// <summary>
+    /// Validates SSN format only; the field is optional and cross-field validators enforce presence.
+    /// Client-side adapter emits data-val-ssn with localized message from Resources.ValidationMessages.
+    /// </summary>
     public sealed class SsnAttribute : ValidationAttribute, IClientModelValidator
     {
         public SsnAttribute()
@@ -15,7 +19,6 @@ namespace XRoadFolkWeb.Validation
         {
             ArgumentNullException.ThrowIfNull(validationContext);
 
-            // SSN is optional; cross-field rules decide if it is required
             if (value is not string s || string.IsNullOrWhiteSpace(s))
             {
                 return ValidationResult.Success;
@@ -31,7 +34,7 @@ namespace XRoadFolkWeb.Validation
             ArgumentNullException.ThrowIfNull(context);
 
             context.Attributes["data-val"] = "true";
-            context.Attributes["data-val-ssn"] = ErrorMessageString; // localized via resx
+            context.Attributes["data-val-ssn"] = ErrorMessageString;
         }
     }
 }

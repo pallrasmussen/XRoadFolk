@@ -41,7 +41,6 @@ namespace XRoadFolkWeb.Features.Index
             List<(string Key, string Value)> filtered = [.. pairs
                 .Where(p =>
                 {
-                    // First predicate: filter out request header/body and noisy IDs
                     if (string.IsNullOrEmpty(p.Key))
                     {
                         return true;
@@ -58,7 +57,6 @@ namespace XRoadFolkWeb.Features.Index
                         return false;
                     }
 
-                    // Second predicate: filter out certain keys
                     string key = p.Key;
                     int lastDot = key.LastIndexOf('.');
                     string sub = lastDot >= 0 ? key[(lastDot + 1)..] : key;

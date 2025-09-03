@@ -7,7 +7,6 @@ using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using System.Reflection;
 using System.Text;
-using System.Net.Security; // for SslPolicyErrors
 
 namespace XRoadFolkRaw.Lib
 {
@@ -26,6 +25,25 @@ namespace XRoadFolkRaw.Lib
             new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
+        private FolkRawClient(
+            HttpClient httpClient,
+            bool disposeHttpClient,
+            ILogger? logger,
+            bool verbose,
+            int retryAttempts,
+            int retryBaseDelayMs,
+            int retryJitterMs)
+        {
+            _http = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _disposeHttpClient = disposeHttpClient;
+            _log = logger;
+            _verbose = verbose;
+            _retryAttempts = retryAttempts;
+            _retryBaseDelayMs = retryBaseDelayMs;
+            _retryJitterMs = retryJitterMs;
+            _retryPolicy = BuildRetryPolicy();
+        }
+
         /// <summary>
         /// Preferred when using IHttpClientFactory (this instance does NOT own the HttpClient).
         /// </summary>
@@ -36,16 +54,8 @@ namespace XRoadFolkRaw.Lib
             int retryAttempts = 3,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250)
-        {
-            _http = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _disposeHttpClient = false;
-            _log = logger;
-            _verbose = verbose;
-            _retryAttempts = retryAttempts;
-            _retryBaseDelayMs = retryBaseDelayMs;
-            _retryJitterMs = retryJitterMs;
-            _retryPolicy = BuildRetryPolicy();
-        }
+            : this(httpClient, disposeHttpClient: false, logger, verbose, retryAttempts, retryBaseDelayMs, retryJitterMs)
+        { }
 
         /// <summary>
         /// Owning constructor. Prefer the IHttpClientFactory-based ctor in ASP.NET Core.
@@ -60,6 +70,16 @@ namespace XRoadFolkRaw.Lib
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
             bool bypassServerCertificateValidation = false)
+            : this(CreateOwnedHttpClient(serviceUrl, clientCertificate, timeout, bypassServerCertificateValidation),
+                   disposeHttpClient: true,
+                   logger,
+                   verbose,
+                   retryAttempts,
+                   retryBaseDelayMs,
+                   retryJitterMs)
+        { }
+
+        private static HttpClient CreateOwnedHttpClient(string serviceUrl, X509Certificate2? clientCertificate, TimeSpan? timeout, bool bypassServerCertificateValidation)
         {
             ArgumentNullException.ThrowIfNull(serviceUrl);
 
@@ -73,35 +93,29 @@ namespace XRoadFolkRaw.Lib
                     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
                 }
 
-                if (clientCertificate != null)
+                if (clientCertificate is not null)
                 {
                     handler.ClientCertificateOptions = ClientCertificateOption.Manual;
                     _ = handler.ClientCertificates.Add(clientCertificate);
                 }
 
-                _http = new HttpClient(handler)
+                HttpClient http = new(handler)
                 {
                     BaseAddress = new Uri(serviceUrl, UriKind.Absolute),
                     Timeout = timeout ?? TimeSpan.FromSeconds(60),
                 };
-                _disposeHttpClient = true; // this instance owns _http
-                handler = null; // ownership transferred to _http
+
+                handler = null; // ownership transferred to HttpClient
+                return http;
             }
             finally
             {
                 handler?.Dispose();
             }
-            _log = logger;
-            _verbose = verbose;
-            _retryAttempts = retryAttempts;
-            _retryBaseDelayMs = retryBaseDelayMs;
-            _retryJitterMs = retryJitterMs;
-            _retryPolicy = BuildRetryPolicy();
         }
 
         private Polly.Retry.AsyncRetryPolicy BuildRetryPolicy()
         {
-            // Build once per client instance. Uses current retry settings and logs warnings on retry.
             return Policy.Handle<HttpRequestException>()
                          .Or<TaskCanceledException>()
                          .WaitAndRetryAsync(
@@ -109,7 +123,7 @@ namespace XRoadFolkRaw.Lib
                              attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
                              (ex, ts, attempt, _) =>
                              {
-                                 if (_log != null)
+                                 if (_log is not null)
                                  {
                                      LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
                                  }
@@ -150,19 +164,16 @@ namespace XRoadFolkRaw.Lib
 
         private XDocument LoadTemplate(string path)
         {
-            // Use atomic GetOrAdd to avoid multiple threads loading the same template concurrently
             return _templateCache.GetOrAdd(path, static p => LoadTemplateCore(p));
         }
 
         private static XDocument LoadTemplateCore(string p)
         {
-            // 1) Try file path
             if (File.Exists(p))
             {
                 return XDocument.Load(p);
             }
 
-            // 2) Try embedded resource from Lib
             string fileName = Path.GetFileName(p);
             Assembly asm = typeof(FolkRawClient).Assembly;
             string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
