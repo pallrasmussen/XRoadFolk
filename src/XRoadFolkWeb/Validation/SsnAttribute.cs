@@ -7,6 +7,7 @@ namespace XRoadFolkWeb.Validation
     /// Validates SSN format only; the field is optional and cross-field validators enforce presence.
     /// Client-side adapter emits data-val-ssn with localized message from Resources.ValidationMessages.
     /// </summary>
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class SsnAttribute : ValidationAttribute, IClientModelValidator
     {
         public SsnAttribute()

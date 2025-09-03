@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Validation
 {
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class DobAttribute : ValidationAttribute, IClientModelValidator
     {
         public DobAttribute()
