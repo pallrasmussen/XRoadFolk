@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -24,10 +23,9 @@ namespace XRoadFolkWeb.Infrastructure
             string[]? configured = section.GetSection("SupportedCultures").Get<string[]>();
             string[] names = (configured is null || configured.Length == 0)
                 ? FallbackCultureNames
-                : configured
+                : [.. configured
                     .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Select(s => s.Trim())
-                    .ToArray();
+                    .Select(s => s.Trim()),];
 
             if (names.Length == 0)
             {
@@ -53,7 +51,7 @@ namespace XRoadFolkWeb.Infrastructure
                                  : names[0];
 
             // Build CultureInfo list defensively; report invalid entries
-            List<CultureInfo> cultures = new();
+            List<CultureInfo> cultures = [];
             foreach (string n in names)
             {
                 try { cultures.Add(CultureInfo.GetCultureInfo(n)); }

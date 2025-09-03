@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
 using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Extensions
@@ -27,26 +28,40 @@ namespace XRoadFolkWeb.Extensions
 
             _ = services.AddSingleton<ILogFeed, LogStreamBroadcaster>();
 
-            // Read configuration at registration time to decide which implementation to use
-            HttpLogOptions opts = new();
-            services.BuildServiceProvider().GetRequiredService<IConfiguration>().GetSection("HttpLogs").Bind(opts);
+            // Register file-backed store; it will only be used if enabled via options
+            _ = services.AddSingleton<FileBackedHttpLogStore>();
 
-            if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
+            // Decide store implementation at resolve time, avoiding premature ServiceProvider construction
+            _ = services.AddSingleton<IHttpLogStore>(sp =>
             {
-                // File-backed store + background writer
-                _ = services.AddSingleton<FileBackedHttpLogStore>();
-                _ = services.AddSingleton<IHttpLogStore>(static sp => sp.GetRequiredService<FileBackedHttpLogStore>());
-                _ = services.AddHostedService<FileBackedLogWriter>();
-            }
-            else
+                HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
+                if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
+                {
+                    return sp.GetRequiredService<FileBackedHttpLogStore>();
+                }
+                return new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
+            });
+
+            // Conditionally create the background writer when file persistence is enabled
+            _ = services.AddSingleton<IHostedService>(sp =>
             {
-                // Default: in-memory store
-                _ = services.AddSingleton<IHttpLogStore>(static sp => new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>()));
-            }
+                HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
+                if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
+                {
+                    return new FileBackedLogWriter(sp.GetRequiredService<FileBackedHttpLogStore>(), sp.GetRequiredService<IOptions<HttpLogOptions>>());
+                }
+                return new NoopHostedService();
+            });
 
             // Register the custom logger provider so all logs also flow into IHttpLogStore
-            _ = services.AddSingleton<ILoggerProvider>(static sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
+            _ = services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
             return services;
+        }
+
+        private sealed class NoopHostedService : IHostedService
+        {
+            public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+            public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         }
     }
 }

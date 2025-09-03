@@ -26,8 +26,12 @@ public static partial class ServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
 
-        // Token cache options
-        services.Configure<TokenCacheOptions>(configuration.GetSection("TokenCache"));
+        // Token cache options with validation
+        services.AddOptions<TokenCacheOptions>()
+            .Bind(configuration.GetSection("TokenCache"))
+            .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
+            .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.")
+            .ValidateOnStart();
 
         return services;
     }

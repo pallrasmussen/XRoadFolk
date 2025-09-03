@@ -4,6 +4,19 @@ namespace XRoadFolkRaw.Lib.Options
 {
     public sealed class GetPersonRequestOptionsValidator : IValidateOptions<GetPersonRequestOptions>
     {
+        // Compute once per type initialization to avoid per-call allocations
+        private static readonly GetPersonInclude KnownMask = BuildKnownMask();
+
+        private static GetPersonInclude BuildKnownMask()
+        {
+            GetPersonInclude mask = GetPersonInclude.None;
+            foreach (GetPersonInclude f in Enum.GetValues<GetPersonInclude>())
+            {
+                mask |= f;
+            }
+            return mask;
+        }
+
         public ValidateOptionsResult Validate(string? name, GetPersonRequestOptions options)
         {
             if (options is null)
@@ -42,19 +55,11 @@ namespace XRoadFolkRaw.Lib.Options
                 return ValidateOptionsResult.Fail("Only one of Id, PublicId, Ssn, or ExternalId can be provided.");
             }
 
-            // Validate Include contains only known flags
-            GetPersonInclude knownMask = GetPersonInclude.None;
-            foreach (GetPersonInclude f in Enum.GetValues<GetPersonInclude>())
-            {
-                knownMask |= f;
-            }
-            GetPersonInclude unknown = options.Include & ~knownMask;
-            if (unknown != 0)
-            {
-                return ValidateOptionsResult.Fail($"Include contains undefined flag(s): {(int)unknown}.");
-            }
-
-            return ValidateOptionsResult.Success;
+            // Validate Include contains only known flags using cached mask
+            GetPersonInclude unknown = options.Include & ~KnownMask;
+            return unknown != 0
+                ? ValidateOptionsResult.Fail($"Include contains undefined flag(s): {(int)unknown}.")
+                : ValidateOptionsResult.Success;
         }
     }
 }

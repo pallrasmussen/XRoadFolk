@@ -1,4 +1,9 @@
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
+using XRoadFolkRaw.Lib.Extensions;
+using XRoadFolkRaw.Lib.Options;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -41,6 +46,21 @@ public static partial class ServiceCollectionExtensions
                 retryBaseDelayMs: baseDelayMs,
                 retryJitterMs: jitterMs);
         });
+        return services;
+    }
+
+    public static IServiceCollection AddAppClients(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddXRoadHttpClient();
+
+        // Ensure options are materialized when needed
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<TokenCacheOptions>>().Value);
+
+        services.AddSingleton<FolkRawClient>();
+        services.AddScoped<PeopleService>();
         return services;
     }
 }

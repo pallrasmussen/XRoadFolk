@@ -10,7 +10,9 @@ namespace XRoadFolkWeb.Features.Index
         private readonly PeopleResponseParser _parser = parser;
         private readonly IConfiguration _config = config;
 
-        // Cache of allowed include keys for this scoped instance (request)
+        /// <summary>
+        /// Cache of allowed include keys for this scoped instance (request)
+        /// </summary>
         private IReadOnlyList<string>? _allowedIncludeKeysCache;
         private IReadOnlyList<string> GetAllowedIncludeKeysFromConfig()
         {

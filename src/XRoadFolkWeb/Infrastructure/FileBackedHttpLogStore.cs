@@ -86,6 +86,7 @@ namespace XRoadFolkWeb.Infrastructure
                 return;
             }
 
+            bool written = false;
             if (_rateLimiter.AlwaysAllowWarnError && e.Level >= LogLevel.Warning)
             {
                 for (int i = 0; i < 4; i++)
@@ -93,11 +94,20 @@ namespace XRoadFolkWeb.Infrastructure
                     _ = _channel.Reader.TryRead(out _);
                     if (_channel.Writer.TryWrite(e))
                     {
-                        return;
+                        written = true;
+                        break;
                     }
                 }
-                _ = Thread.Yield();
-                _ = _channel.Writer.TryWrite(e);
+                if (!written)
+                {
+                    _ = Thread.Yield();
+                    written = _channel.Writer.TryWrite(e);
+                }
+            }
+
+            if (!written)
+            {
+                LogEnqueueDrop(_log, e.Level, e.Category, e.EventId);
             }
         }
 
@@ -124,6 +134,9 @@ namespace XRoadFolkWeb.Infrastructure
 
         [LoggerMessage(EventId = 6001, Level = LogLevel.Error, Message = "Error publishing log entry to stream")]
         private static partial void LogStreamPublishError(ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 6003, Level = LogLevel.Warning, Message = "HTTP log enqueue failed; dropping entry (level={Level}, category={Category}, eventId={EventId})")]
+        private static partial void LogEnqueueDrop(ILogger logger, LogLevel level, string category, int eventId);
     }
 
     /// <summary>

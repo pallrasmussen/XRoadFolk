@@ -81,8 +81,12 @@ namespace XRoadFolkRaw.Lib
             _cacheOptions = cacheOptions?.Value ?? new TokenCacheOptions();
 
             _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
-            _peopleInfoXmlPath = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
-            _personXmlPath = _config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
+
+            string? peopleInfoPathCfg = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath");
+            _peopleInfoXmlPath = string.IsNullOrWhiteSpace(peopleInfoPathCfg) ? "GetPeoplePublicInfo.xml" : peopleInfoPathCfg;
+
+            string? personPathCfg = _config.GetValue<string>("Operations:GetPerson:XmlPath");
+            _personXmlPath = string.IsNullOrWhiteSpace(personPathCfg) ? "GetPerson.xml" : personPathCfg;
 
             // Preload all XML templates
             _client.PreloadTemplates([_loginXmlPath, _peopleInfoXmlPath, _personXmlPath]);
