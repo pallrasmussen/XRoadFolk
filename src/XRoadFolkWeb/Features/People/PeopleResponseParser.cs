@@ -133,7 +133,6 @@ namespace XRoadFolkWeb.Features.People
             }
         }
 
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Ownership of XmlReader is transferred to DepthLimitingXmlReader which disposes it; CloseInput ensures StringReader is disposed when reader is disposed.")]
         private static DepthLimitingXmlReader CreateSafeReader(string xml)
         {
             XmlReaderSettings settings = new()
@@ -142,22 +141,11 @@ namespace XRoadFolkWeb.Features.People
                 XmlResolver = null,
                 MaxCharactersFromEntities = 0,
                 MaxCharactersInDocument = 10 * 1024 * 1024, // 10 MB cap to avoid memory DoS
-                CloseInput = true,
+                CloseInput = true, // dispose underlying StringReader when reader is disposed
             };
 
-            StringReader sr = new(xml);
-            XmlReader? inner = null;
-            try
-            {
-                inner = XmlReader.Create(sr, settings);
-                return new DepthLimitingXmlReader(inner, MaxElementDepth);
-            }
-            catch
-            {
-                inner?.Dispose();
-                sr.Dispose();
-                throw;
-            }
+            XmlReader inner = XmlReader.Create(new StringReader(xml), settings);
+            return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
         public List<PersonRow> ParsePeopleList(string xml)

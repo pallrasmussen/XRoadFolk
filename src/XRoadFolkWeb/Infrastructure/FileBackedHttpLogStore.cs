@@ -242,7 +242,8 @@ namespace XRoadFolkWeb.Infrastructure
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
             using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-            using StreamWriter sw = new(fs, Encoding.UTF8);
+            // Use UTF-8 without BOM to avoid emitting a preamble in new files
+            using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             foreach (LogEntry e in batch)
             {
                 string line = string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}");

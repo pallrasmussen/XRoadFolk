@@ -80,7 +80,12 @@ namespace XRoadFolkRaw.Lib
             _cache = cache;
             _cacheOptions = cacheOptions?.Value ?? new TokenCacheOptions();
 
-            _loginXmlPath = settings.Raw.LoginXmlPath ?? throw new ArgumentNullException(nameof(settings));
+            string? loginPath = settings.Raw.LoginXmlPath;
+            if (string.IsNullOrWhiteSpace(loginPath))
+            {
+                throw new ArgumentException("XRoadSettings.Raw.LoginXmlPath must be configured (key: 'XRoad:Raw:LoginXmlPath').", nameof(settings));
+            }
+            _loginXmlPath = loginPath;
 
             string? peopleInfoPathCfg = _config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath");
             _peopleInfoXmlPath = string.IsNullOrWhiteSpace(peopleInfoPathCfg) ? "GetPeoplePublicInfo.xml" : peopleInfoPathCfg;

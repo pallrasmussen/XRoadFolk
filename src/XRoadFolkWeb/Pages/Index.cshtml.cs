@@ -61,8 +61,8 @@ namespace XRoadFolkWeb.Pages
         [Dob]
         public string? DateOfBirth { get; set; }
 
-        public List<PersonRow> Results { get; private set; } = [];
-        public List<(string Key, string Value)>? PersonDetails { get; private set; }
+        public IReadOnlyList<PersonRow> Results { get; private set; } = [];
+        public IReadOnlyList<(string Key, string Value)>? PersonDetails { get; private set; }
         public string SelectedNameSuffix { get; private set; } = string.Empty;
         public List<string> Errors { get; private set; } = [];
 

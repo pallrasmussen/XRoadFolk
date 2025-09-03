@@ -1,21 +1,26 @@
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Configuration;
 using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddAppLogging(this IServiceCollection services)
+        public static IServiceCollection AddAppLogging(this IServiceCollection services, IConfiguration configuration)
         {
             ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configuration);
 
             _ = services.AddLogging(builder =>
             {
                 builder.ClearProviders();
+                builder.AddConfiguration(configuration.GetSection("Logging"));
                 builder.AddConsole();
                 builder.AddDebug();
-                builder.SetMinimumLevel(LogLevel.Information);
+                // Do not hardcode minimum level; defer to configuration
             });
 
             // HttpLog options + validation

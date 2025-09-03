@@ -5,7 +5,7 @@ namespace XRoadFolkWeb.Extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
             return services
-                .AddAppLogging()
+                .AddAppLogging(configuration)
                 .AddAppLocalization(configuration)
                 .AddAppAntiforgery()
                 .AddAppOptions(configuration)
@@ -71,9 +71,9 @@ namespace XRoadFolkWeb.Extensions
 
                     options.Cookie.Name = cookieName;
                     options.Cookie.HttpOnly = cookieHttpOnly;
-                    options.Cookie.SameSite = sameSite;
-                    options.Cookie.SecurePolicy = securePolicy;
                     options.Cookie.IsEssential = cookieIsEssential;
+                    options.Cookie.SecurePolicy = securePolicy;
+                    options.Cookie.SameSite = sameSite;
                     options.IdleTimeout = TimeSpan.FromMinutes(idleMinutes);
                 });
 
