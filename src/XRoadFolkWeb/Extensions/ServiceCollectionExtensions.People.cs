@@ -21,18 +21,8 @@ public static partial class ServiceCollectionExtensions
         services.AddScoped<PeopleSearchCoordinator>();
         services.AddScoped<PersonDetailsProvider>();
 
-        services.AddScoped(sp =>
-        {
-            FolkRawClient client = sp.GetRequiredService<FolkRawClient>();
-            IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
-            XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
-            ILogger<PeopleService> logger = sp.GetRequiredService<ILogger<PeopleService>>();
-            IStringLocalizer<PeopleService> loc = sp.GetRequiredService<IStringLocalizer<PeopleService>>();
-            IValidateOptions<GetPersonRequestOptions> validator = sp.GetRequiredService<IValidateOptions<GetPersonRequestOptions>>();
-            IMemoryCache cache = sp.GetRequiredService<IMemoryCache>();
-            IOptions<TokenCacheOptions> tokenCache = sp.GetRequiredService<IOptions<TokenCacheOptions>>();
-            return new PeopleService(client, cfg, xr, logger, loc, validator, cache, tokenCache);
-        });
+        // Let DI construct PeopleService and resolve its dependencies
+        services.AddScoped<PeopleService>();
         return services;
     }
 }

@@ -1,4 +1,3 @@
-
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class ServiceCollectionExtensions
@@ -7,9 +6,12 @@ namespace XRoadFolkWeb.Extensions
         {
             _ = services.AddAntiforgery(opts =>
             {
-                opts.Cookie.Name = "__Host.AntiForgery";
+                // __Host- cookies must be: name starting with __Host-, Secure, Path=/, and no Domain attribute
+                opts.Cookie.Name = "__Host-AntiForgery";
+                opts.Cookie.Path = "/";
                 opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 opts.Cookie.SameSite = SameSiteMode.Strict; // tighten CSRF surface
+                // Keep HttpOnly default (true) to prevent JS access
                 opts.HeaderName = "RequestVerificationToken";
             });
             return services;

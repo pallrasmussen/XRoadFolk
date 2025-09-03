@@ -43,7 +43,7 @@ namespace XRoadFolkRaw.Lib
         private readonly FolkRawClient _client;
         private readonly IConfiguration _config;
         private readonly XRoadSettings _settings;
-        private readonly ILogger _log;
+        private readonly ILogger<PeopleService> _log;
         private readonly IStringLocalizer<PeopleService> _localizer;
         private readonly FolkTokenProviderRaw _tokenProvider;
         private readonly string _loginXmlPath;
@@ -58,7 +58,7 @@ namespace XRoadFolkRaw.Lib
             FolkRawClient client,
             IConfiguration config,
             XRoadSettings settings,
-            ILogger log,
+            ILogger<PeopleService> log,
             IStringLocalizer<PeopleService> localizer,
             IValidateOptions<GetPersonRequestOptions> requestValidator,
             IMemoryCache cache,
