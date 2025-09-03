@@ -19,6 +19,11 @@ namespace XRoadFolkWeb.Extensions
                 .AddSessionServices(configuration);
         }
 
+        /// <summary>
+        /// Configure session with safe defaults. Cookie.IsEssential defaults to false to respect consent requirements.
+        /// Override using configuration keys under "Session:Cookie" (Name, HttpOnly, IsEssential, SameSite, SecurePolicy) and "Session:IdleTimeoutMinutes".
+        /// If you set Cookie:IsEssential=true, ensure you have a documented legal basis and/or consent in place.
+        /// </summary>
         private static IServiceCollection AddSessionServices(this IServiceCollection services, IConfiguration configuration)
         {
             _ = services.AddDistributedMemoryCache();
@@ -34,7 +39,7 @@ namespace XRoadFolkWeb.Extensions
 
                     // Use shared configuration helpers for booleans
                     bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", true, log);
-                    bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", true, log);
+                    bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", false, log); // default false for consent-friendly behavior
 
                     // Enums (with validation)
                     string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");
@@ -83,6 +88,11 @@ namespace XRoadFolkWeb.Extensions
                     {
                         idleMinutes = 1;
                         log.LogWarning("Session: IdleTimeoutMinutes {Original} is too small. Clamped to {Clamped} minute.", origIdle, idleMinutes);
+                    }
+
+                    if (cookieIsEssential)
+                    {
+                        log.LogInformation("Session: Cookie:IsEssential is true. Ensure consent/compliance requirements are met in your jurisdiction.");
                     }
 
                     options.Cookie.Name = cookieName;
