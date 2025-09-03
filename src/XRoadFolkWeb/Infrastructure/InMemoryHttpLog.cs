@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Logging;
+using System.Threading.Channels;
 
 namespace XRoadFolkWeb.Infrastructure
 {
@@ -34,8 +35,11 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly long _maxFileBytes;
         private readonly int _maxRolls;
         private readonly string? _filePath;
-        private readonly object _fileLock = new();
         private readonly HttpLogRateLimiter _rateLimiter;
+
+        // Async file writer (enabled only if _filePath is provided)
+        private readonly Channel<string>? _fileChannel;
+        private readonly Task? _fileWriterTask;
 
         public InMemoryHttpLog(IOptions<HttpLogOptions> opts)
         {
@@ -47,6 +51,19 @@ namespace XRoadFolkWeb.Infrastructure
             _maxRolls = Math.Max(1, cfg.MaxRolls);
             _filePath = cfg.FilePath;
             _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
+
+            if (!string.IsNullOrWhiteSpace(_filePath))
+            {
+                // Bounded channel to provide back-pressure; drop on overflow via TryWrite in Add
+                _fileChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: Math.Max(1000, cfg.MaxQueue))
+                {
+                    AllowSynchronousContinuations = true,
+                    FullMode = BoundedChannelFullMode.DropOldest,
+                    SingleReader = true,
+                    SingleWriter = false,
+                });
+                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls));
+            }
         }
 
         public void Add(LogEntry e)
@@ -75,23 +92,70 @@ namespace XRoadFolkWeb.Infrastructure
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(_filePath))
+            if (_fileChannel is null)
             {
-                return;
+                return; // no persistence requested
             }
 
             string line = FormatLine(e);
-            lock (_fileLock)
-            {
-                _ = Directory.CreateDirectory(Path.GetDirectoryName(_filePath!)!);
-                LogFileRolling.RollIfNeeded(_filePath!, _maxFileBytes, _maxRolls, log: null);
-                File.AppendAllText(_filePath!, line, Encoding.UTF8);
-            }
+            _ = _fileChannel.Writer.TryWrite(line);
         }
 
         private static string FormatLine(LogEntry e)
         {
             return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{e.Message}\t{e.Exception}{Environment.NewLine}");
+        }
+
+        private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls)
+        {
+            List<string> batch = new(capacity: 512);
+            const int flushIntervalMs = 200;
+
+            while (true)
+            {
+                try
+                {
+                    // Wait for data
+                    if (!await reader.WaitToReadAsync().ConfigureAwait(false))
+                    {
+                        // Channel completed; exit
+                        break;
+                    }
+
+                    // Read up to a batch
+                    batch.Clear();
+                    while (reader.TryRead(out string? line))
+                    {
+                        batch.Add(line);
+                        if (batch.Count >= 1024)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (batch.Count == 0)
+                    {
+                        await Task.Delay(flushIntervalMs).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    // Roll if needed and append batch asynchronously (UTF-8 without BOM)
+                    LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, log: null);
+                    using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+                    using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                    foreach (string l in batch)
+                    {
+                        await sw.WriteAsync(l.AsMemory()).ConfigureAwait(false);
+                    }
+                    await sw.FlushAsync().ConfigureAwait(false);
+                    await fs.FlushAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Swallow and continue to avoid crashing background loop
+                    await Task.Delay(flushIntervalMs).ConfigureAwait(false);
+                }
+            }
         }
 
         public void Clear()

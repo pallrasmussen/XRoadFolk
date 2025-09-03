@@ -3,6 +3,7 @@
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
 @using System.Reflection
+@using XRoadFolkWeb.Extensions
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
@@ -36,34 +37,9 @@
     string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; // e.g., sha384-...
     string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
 
-    // Feature toggle: Logs button visibility with validation + warning on invalid values
-    bool showLogsDefault = true;
-    bool showLogs;
-    string? rawShowLogs = Config["Features:ShowLogs"];
-    if (string.IsNullOrWhiteSpace(rawShowLogs))
-    {
-        showLogs = showLogsDefault;
-    }
-    else
-    {
-        string v = rawShowLogs.Trim();
-        if (bool.TryParse(v, out bool b))
-        {
-            showLogs = b;
-        }
-        else if (string.Equals(v, "1", StringComparison.Ordinal)) { showLogs = true; }
-        else if (string.Equals(v, "0", StringComparison.Ordinal)) { showLogs = false; }
-        else if (string.Equals(v, "yes", StringComparison.OrdinalIgnoreCase)) { showLogs = true; }
-        else if (string.Equals(v, "no", StringComparison.OrdinalIgnoreCase)) { showLogs = false; }
-        else if (string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)) { showLogs = true; }
-        else if (string.Equals(v, "off", StringComparison.OrdinalIgnoreCase)) { showLogs = false; }
-        else
-        {
-            var flog = LoggerFactory.CreateLogger("Features");
-            flog.LogWarning("Invalid boolean value for 'Features:ShowLogs': '{Value}'. Using default: {Default}.", v, showLogsDefault);
-            showLogs = showLogsDefault;
-        }
-    }
+    // Feature toggle: Logs button visibility
+    var flog = LoggerFactory.CreateLogger("Features");
+    bool showLogs = WebApplicationExtensions.GetFeatureFlag(Config, flog, "Features:ShowLogs", @default: true);
 
     // Version (from page ViewData if provided, else from assembly)
     string? appVersion = ViewData["AppVersion"] as string;

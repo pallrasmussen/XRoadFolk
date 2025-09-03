@@ -23,7 +23,8 @@ namespace XRoadFolkWeb.Pages
         IConfiguration config,
         PeopleResponseParser parser,
         ILogger<IndexModel> logger,
-        IHostEnvironment env) : PageModel
+        IHostEnvironment env,
+        ILoggerFactory loggerFactory) : PageModel
     {
         private readonly PeopleSearchCoordinator _search = search;
         private readonly PersonDetailsProvider _details = details;
@@ -33,6 +34,7 @@ namespace XRoadFolkWeb.Pages
         private readonly PeopleResponseParser _parser = parser;
         private readonly ILogger<IndexModel> _logger = logger;
         private readonly IHostEnvironment _env = env;
+        private readonly ILogger _featureLog = loggerFactory.CreateLogger("Features");
 
         [BindProperty, Ssn, TrimDigits]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
@@ -64,7 +66,9 @@ namespace XRoadFolkWeb.Pages
         public IReadOnlyList<PersonRow> Results { get; private set; } = [];
         public IReadOnlyList<(string Key, string Value)>? PersonDetails { get; private set; }
         public string SelectedNameSuffix { get; private set; } = string.Empty;
-        public List<string> Errors { get; private set; } = [];
+
+        private List<string> _errors = [];
+        public IReadOnlyList<string> Errors => _errors;
 
         /// <summary>
         /// Holds full GetPeoplePublicInfo response (raw + pretty)
@@ -97,8 +101,7 @@ namespace XRoadFolkWeb.Pages
 
         private string BuildUserError(Exception ex)
         {
-            ILogger featureLog = HttpContext?.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Features")!;
-            bool detailed = WebApplicationExtensions.GetFeatureFlag(_config, featureLog, "Features:DetailedErrors", _env.IsDevelopment());
+            bool detailed = WebApplicationExtensions.GetFeatureFlag(_config, _featureLog, "Features:DetailedErrors", _env.IsDevelopment());
             if (detailed)
             {
                 string msg = ex.Message;
@@ -134,7 +137,8 @@ namespace XRoadFolkWeb.Pages
             if (!vc.Ok)
             {
                 LogValidationFailed(_logger, vc.Errs.Count);
-                Errors = vc.Errs;
+                _errors.Clear();
+                _errors.AddRange(vc.Errs);
                 return;
             }
 
@@ -145,7 +149,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogSearchError(_logger, ex);
-                Errors.Add(BuildUserError(ex));
+                _errors.Add(BuildUserError(ex));
             }
         }
 
@@ -179,7 +183,7 @@ namespace XRoadFolkWeb.Pages
             if (!IsValidPublicId(publicId))
             {
                 LocalizedString msg = _loc["InvalidPublicId"]; // optional localization key
-                Errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
+                _errors.Add(msg.ResourceNotFound ? "Invalid publicId." : msg.Value);
                 return;
             }
 
@@ -192,7 +196,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogPersonDetailsError(_logger, ex, publicId);
-                Errors.Add(BuildUserError(ex));
+                _errors.Add(BuildUserError(ex));
             }
         }
 
@@ -227,7 +231,8 @@ namespace XRoadFolkWeb.Pages
             {
                 int count = ModelState.Values.Sum(v => v.Errors.Count);
                 LogValidationFailed(_logger, count);
-                Errors = [.. ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)];
+                _errors.Clear();
+                _errors.AddRange(ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
                 return Page();
             }
 
@@ -243,7 +248,8 @@ namespace XRoadFolkWeb.Pages
                 LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
                 LogValidationFailed(_logger, 1);
                 ModelState.AddModelError(string.Empty, msg);
-                Errors = [msg];
+                _errors.Clear();
+                _errors.Add(msg);
                 return Page();
             }
 
@@ -264,7 +270,8 @@ namespace XRoadFolkWeb.Pages
                     ModelState.AddModelError(string.Empty, err);
                 }
 
-                Errors = errs;
+                _errors.Clear();
+                _errors.AddRange(errs);
                 return Page();
             }
 
@@ -275,7 +282,7 @@ namespace XRoadFolkWeb.Pages
             catch (Exception ex)
             {
                 LogSearchError(_logger, ex);
-                Errors.Add(BuildUserError(ex));
+                _errors.Add(BuildUserError(ex));
                 return Page();
             }
 
@@ -288,7 +295,7 @@ namespace XRoadFolkWeb.Pages
             Ssn = FirstName = LastName = DateOfBirth = null;
             Results = [];
             PersonDetails = null;
-            Errors = [];
+            _errors.Clear();
             SelectedNameSuffix = string.Empty;
             PeoplePublicInfoResponseXml = null;
             PeoplePublicInfoResponseXmlPretty = null;

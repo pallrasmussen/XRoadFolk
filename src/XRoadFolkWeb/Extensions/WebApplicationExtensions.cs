@@ -140,11 +140,12 @@ namespace XRoadFolkWeb.Extensions
         {
             ArgumentNullException.ThrowIfNull(app);
 
-            // Resolve environment + configuration early
-            IHostEnvironment hostEnv = app.Services.GetRequiredService<IHostEnvironment>();
+            // Resolve dependencies once
+            IHostEnvironment env = app.Services.GetRequiredService<IHostEnvironment>();
             IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
-            ILogger featureLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Features");
-            bool showDetailedErrors = GetFeatureFlag(configuration, featureLog, "Features:DetailedErrors", hostEnv.IsDevelopment());
+            ILoggerFactory loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+            ILogger featureLog = loggerFactory.CreateLogger("Features");
+            bool showDetailedErrors = GetFeatureFlag(configuration, featureLog, "Features:DetailedErrors", env.IsDevelopment());
 
             // CSP + security headers middleware with per-request nonce
             _ = app.Use(async (ctx, next) =>
@@ -228,7 +229,7 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // Global exception handling (with optional detailed output)
-            ILogger errorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Error");
+            ILogger errorLogger = loggerFactory.CreateLogger("App.Error");
             _ = app.UseExceptionHandler(errorApp =>
             {
                 errorApp.Run(async context =>
@@ -285,8 +286,7 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // HTTPS + HSTS only outside Development
-            IHostEnvironment envForHttps = app.Services.GetRequiredService<IHostEnvironment>();
-            if (!envForHttps.IsDevelopment())
+            if (!env.IsDevelopment())
             {
                 _ = app.UseHsts();
                 _ = app.UseHttpsRedirection();
@@ -297,15 +297,13 @@ namespace XRoadFolkWeb.Extensions
             _ = app.UseRequestLocalization(locOpts);
 
             // Emit a startup log entry (app kind)
-            ILogger startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("App.Startup");
+            ILogger startupLogger = loggerFactory.CreateLogger("App.Startup");
             _logAppStarted(startupLogger, DateTimeOffset.UtcNow, arg3: null);
 
             // Request logging middleware (reduced verbosity, dev-only, redact potential PII) and conditional compression
-            IHostEnvironment envCurrent = app.Services.GetRequiredService<IHostEnvironment>();
-            if (envCurrent.IsDevelopment())
+            if (env.IsDevelopment())
             {
-                ILogger reqLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App.Http");
+                ILogger reqLog = loggerFactory.CreateLogger("App.Http");
                 _ = app.Use(async (ctx, next) =>
                 {
                     string method = ctx.Request?.Method ?? string.Empty;
@@ -328,7 +326,7 @@ namespace XRoadFolkWeb.Extensions
             }
 
             // After app.UseRequestLocalization(locOpts);
-            ILogger locLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Localization");
+            ILogger locLogger = loggerFactory.CreateLogger("Localization");
             LocalizationConfig locCfg = app.Services.GetRequiredService<IOptions<LocalizationConfig>>().Value;
             string defaultCulture = locCfg.DefaultCulture ?? string.Empty;
             IEnumerable<string> supportedList = locCfg.SupportedCultures ?? Enumerable.Empty<string>();
@@ -336,10 +334,10 @@ namespace XRoadFolkWeb.Extensions
             _logLocalizationConfig(locLogger, defaultCulture, supported, arg4: null);
 
             // Diagnostic endpoint to verify applied culture at runtime (Development only)
-            if (app.Services.GetRequiredService<IHostEnvironment>().IsDevelopment())
+            if (env.IsDevelopment())
             {
                 _ = app.MapGet("/__culture", (HttpContext ctx,
-                                          IOptions<RequestLocalizationOptions> locOpts,
+                                          IOptions<RequestLocalizationOptions> locOpts2,
                                           IOptions<LocalizationConfig> cfg) =>
                 {
                     IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
@@ -352,8 +350,8 @@ namespace XRoadFolkWeb.Extensions
                         },
                         Applied = new
                         {
-                            Default = locOpts.Value.DefaultRequestCulture.Culture.Name,
-                            Supported = (locOpts.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
+                            Default = locOpts2.Value.DefaultRequestCulture.Culture.Name,
+                            Supported = (locOpts2.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
                             Current = feature?.RequestCulture.Culture.Name,
                             CurrentUI = feature?.RequestCulture.UICulture.Name,
                         },
@@ -384,9 +382,9 @@ namespace XRoadFolkWeb.Extensions
                 }
 
                 // Validate requested culture
-                IOptions<RequestLocalizationOptions> locOpts = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
-                bool supported = locOpts.Value.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
-                if (!supported)
+                IOptions<RequestLocalizationOptions> locOpts3 = ctx.RequestServices.GetRequiredService<IOptions<RequestLocalizationOptions>>();
+                bool supportedOk = locOpts3.Value.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
+                if (!supportedOk)
                 {
                     return Results.BadRequest();
                 }
@@ -417,7 +415,7 @@ namespace XRoadFolkWeb.Extensions
             _ = app.MapFallbackToPage("/Index");
 
             // Logs endpoints (defensive when store/feed not registered)
-            bool logsEnabled = GetFeatureFlag(configuration, featureLog, "Features:Logs:Enabled", envCurrent.IsDevelopment());
+            bool logsEnabled = GetFeatureFlag(configuration, featureLog, "Features:Logs:Enabled", env.IsDevelopment());
             if (logsEnabled)
             {
                 _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
@@ -427,13 +425,11 @@ namespace XRoadFolkWeb.Extensions
                     {
                         return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                     }
-
                     IEnumerable<LogEntry> query = store.GetAll();
                     if (!string.IsNullOrWhiteSpace(kind))
                     {
                         query = query.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase));
                     }
-
                     int pg = Math.Max(1, page ?? 1);
                     int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
                     int total = query.Count();
