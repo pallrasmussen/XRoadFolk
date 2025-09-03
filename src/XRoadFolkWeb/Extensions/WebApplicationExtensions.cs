@@ -338,6 +338,9 @@ namespace XRoadFolkWeb.Extensions
             _ = app.UseStaticFiles();
             _ = app.UseRouting();
 
+            // Health checks endpoints
+            _ = app.MapHealthChecks("/health");
+
             // Move session here to avoid running it for static files
             _ = app.UseSession();
 
@@ -413,50 +416,13 @@ namespace XRoadFolkWeb.Extensions
                     LogEntry[] all = (query as LogEntry[]) ?? query.ToArray();
 
                     int pg = Math.Max(1, page ?? 1);
-                    int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
+                    int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 500) : 100; // cap page size to 500
                     int total = all.Length;
                     int totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
                     int skip = (pg - 1) * size;
                     LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
 
                     return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
-                });
-
-                _ = app.MapPost("/logs/clear", (IHttpLogStore? store) =>
-                {
-                    if (store is null)
-                    {
-                        return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                    }
-                    store.Clear();
-                    return Results.Json(new { ok = true });
-                });
-
-                _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, IHttpLogStore? store) =>
-                {
-                    if (dto is null)
-                    {
-                        return Results.BadRequest();
-                    }
-                    if (store is null)
-                    {
-                        return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                    }
-                    if (!Enum.TryParse(dto.Level ?? "Information", ignoreCase: true, out LogLevel lvl))
-                    {
-                        lvl = LogLevel.Information;
-                    }
-                    store.Add(new LogEntry
-                    {
-                        Timestamp = DateTimeOffset.UtcNow,
-                        Level = lvl,
-                        Category = dto.Category ?? "Manual",
-                        EventId = dto.EventId ?? 0,
-                        Kind = "app",
-                        Message = dto.Message ?? string.Empty,
-                        Exception = null,
-                    });
-                    return Results.Json(new { ok = true });
                 });
 
                 // Server-Sent Events: real-time log stream (accepts kind filter)
@@ -475,15 +441,30 @@ namespace XRoadFolkWeb.Extensions
                     (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
                     try
                     {
+                        var batch = new List<LogEntry>(capacity: 32);
+                        var lastFlush = System.Diagnostics.Stopwatch.StartNew();
+                        const int flushMs = 100; // flush at most 10 times per second
+
                         await foreach (LogEntry entry in reader.ReadAllAsync(ct))
                         {
                             if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
                             {
                                 continue;
                             }
-                            string json = System.Text.Json.JsonSerializer.Serialize(entry);
-                            await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-                            await ctx.Response.Body.FlushAsync(ct);
+
+                            batch.Add(entry);
+
+                            if (batch.Count >= 50 || lastFlush.ElapsedMilliseconds >= flushMs)
+                            {
+                                foreach (var e in batch)
+                                {
+                                    string json = System.Text.Json.JsonSerializer.Serialize(e);
+                                    await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+                                }
+                                batch.Clear();
+                                await ctx.Response.Body.FlushAsync(ct);
+                                lastFlush.Restart();
+                            }
                         }
                     }
                     catch (OperationCanceledException)

@@ -23,6 +23,9 @@ namespace XRoadFolkWeb.Extensions
                 // Do not hardcode minimum level; defer to configuration
             });
 
+            // Health checks (basic liveness + custom checks can be added later)
+            _ = services.AddHealthChecks();
+
             // HttpLog options + validation
             _ = services.AddOptions<HttpLogOptions>()
                     .BindConfiguration("HttpLogs")

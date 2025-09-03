@@ -365,6 +365,14 @@ namespace XRoadFolkWeb.Infrastructure
                     msg = $"{msg} | scopes: {scopeInfo}";
                 }
 
+                // Guardrail: cap message length to avoid excessive allocations/IO
+                const int MaxMessageChars = 8 * 1024; // 8KB
+                if (msg.Length > MaxMessageChars)
+                {
+                    int trimmed = msg.Length - MaxMessageChars;
+                    msg = msg[..MaxMessageChars] + $"... (+{trimmed} chars)";
+                }
+
                 _store.Add(new LogEntry
                 {
                     Timestamp = DateTimeOffset.Now,
