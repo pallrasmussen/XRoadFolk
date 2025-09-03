@@ -220,7 +220,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void SetScopeProvider(IExternalScopeProvider scopeProvider)
         {
-            _scopes = scopeProvider;
+            Volatile.Write(ref _scopes, scopeProvider);
         }
 
         private sealed class SinkLogger(string category, IHttpLogStore store, InMemoryHttpLogLoggerProvider owner) : ILogger
@@ -233,7 +233,8 @@ namespace XRoadFolkWeb.Infrastructure
 
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
-                return _owner._scopes?.Push(state) ?? NoopScope.Instance;
+                IExternalScopeProvider? provider = Volatile.Read(ref _owner._scopes);
+                return provider?.Push(state) ?? NoopScope.Instance;
             }
 
             public bool IsEnabled(LogLevel logLevel)
@@ -311,7 +312,8 @@ namespace XRoadFolkWeb.Infrastructure
 
                 string msg = formatter(state, exception);
                 string kind = ComputeKind(_category, eventId, msg);
-                string? scopeInfo = RenderScopes(_owner._scopes);
+                IExternalScopeProvider? provider = Volatile.Read(ref _owner._scopes);
+                string? scopeInfo = RenderScopes(provider);
                 if (!string.IsNullOrEmpty(scopeInfo))
                 {
                     msg = $"{msg} | scopes: {scopeInfo}";

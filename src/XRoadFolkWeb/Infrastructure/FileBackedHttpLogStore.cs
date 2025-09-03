@@ -149,6 +149,14 @@ namespace XRoadFolkWeb.Infrastructure
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // Ensure directory exists once at startup
+            string path = _store.FilePath;
+            string? dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                _ = Directory.CreateDirectory(dir);
+            }
+
             ChannelReader<LogEntry> reader = _store.GetReader();
             int flushInterval = Math.Max(50, _opts.Value.FlushIntervalMs);
             List<LogEntry> batch = new(capacity: 512);
@@ -233,11 +241,6 @@ namespace XRoadFolkWeb.Infrastructure
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
         {
             string path = _store.FilePath;
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(dir))
-            {
-                _ = Directory.CreateDirectory(dir);
-            }
 
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 

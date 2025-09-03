@@ -14,8 +14,34 @@ namespace XRoadFolkRaw.Lib
         private static string EscapePart(string? s)
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
-            // Backslash-escape the separator and backslashes to ensure uniqueness
-            return s.Replace("\\", "\\\\").Replace("|", "\\|");
+
+            ReadOnlySpan<char> src = s.AsSpan();
+            int extra = 0;
+            for (int i = 0; i < src.Length; i++)
+            {
+                char c = src[i];
+                if (c == '\\' || c == '|') extra++;
+            }
+
+            if (extra == 0)
+            {
+                return s;
+            }
+
+            return string.Create(src.Length + extra, s, static (dest, state) =>
+            {
+                ReadOnlySpan<char> span = state.AsSpan();
+                int j = 0;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    char c = span[i];
+                    if (c == '\\' || c == '|')
+                    {
+                        dest[j++] = '\\';
+                    }
+                    dest[j++] = c;
+                }
+            });
         }
 
         private static string HashSegment(string? s)

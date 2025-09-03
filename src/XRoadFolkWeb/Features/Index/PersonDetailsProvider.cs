@@ -102,10 +102,35 @@ namespace XRoadFolkWeb.Features.Index
                     yield break;
                 }
 
-                foreach (string part in key.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                int start = 0;
+                int n = key.Length;
+                while (start < n)
                 {
-                    int i = part.IndexOf('[', StringComparison.Ordinal);
-                    yield return i >= 0 ? part[..i] : part;
+                    int dot = key.IndexOf('.', start);
+                    int endExclusive = dot >= 0 ? dot : n;
+
+                    // Trim whitespace on both sides of the segment
+                    int i = start;
+                    int j = endExclusive - 1;
+                    while (i <= j && char.IsWhiteSpace(key[i])) i++;
+                    while (j >= i && char.IsWhiteSpace(key[j])) j--;
+
+                    if (i <= j)
+                    {
+                        // Remove bracket suffix if present
+                        int bracket = key.IndexOf('[', i, j - i + 1);
+                        int segEnd = (bracket >= 0 && bracket <= j) ? bracket : (j + 1);
+                        if (segEnd > i)
+                        {
+                            yield return key.Substring(i, segEnd - i);
+                        }
+                    }
+
+                    if (dot < 0)
+                    {
+                        break;
+                    }
+                    start = dot + 1;
                 }
             }
 
