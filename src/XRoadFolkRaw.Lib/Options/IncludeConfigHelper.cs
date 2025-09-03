@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 using System.Runtime.CompilerServices;
-using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkRaw.Lib.Options
 {
@@ -13,6 +13,12 @@ namespace XRoadFolkRaw.Lib.Options
             public IDisposable? Registration { get; } = registration; // kept to keep callback alive
         }
 
+        private sealed class CallbackState(IConfiguration config, ILogger? logger)
+        {
+            public IConfiguration Config { get; } = config;
+            public ILogger? Logger { get; } = logger;
+        }
+
         private static readonly ConditionalWeakTable<IConfiguration, CacheState> Cache = [];
 
         /// <summary>
@@ -21,11 +27,16 @@ namespace XRoadFolkRaw.Lib.Options
         /// - Operations:GetPerson:Request Include flags (GetPersonRequestOptions.Include)
         /// Returns a read-only view to avoid accidental mutation by callers.
         /// </summary>
-        public static IReadOnlySet<string> GetEnabledIncludeKeys(IConfiguration config, bool includeSynonyms = true)
+        public static IReadOnlySet<string> GetEnabledIncludeKeys(IConfiguration config, bool includeSynonyms = true, ILogger? logger = null)
         {
             ArgumentNullException.ThrowIfNull(config);
 
-            CacheState state = Cache.GetValue(config, BuildState);
+            CacheState state;
+            if (!Cache.TryGetValue(config, out state!))
+            {
+                state = BuildState(config, logger);
+                Cache.Add(config, state);
+            }
 
             // Return a copy so callers cannot mutate cached set
             HashSet<string> result = new(state.BaseKeys, StringComparer.OrdinalIgnoreCase);
@@ -36,7 +47,7 @@ namespace XRoadFolkRaw.Lib.Options
             return result;
         }
 
-        private static CacheState BuildState(IConfiguration config)
+        private static CacheState BuildState(IConfiguration config, ILogger? logger)
         {
             HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
 
@@ -72,22 +83,30 @@ namespace XRoadFolkRaw.Lib.Options
 
             // Invalidate cache when configuration reloads and dispose registration
             IChangeToken token = config.GetReloadToken();
-            IDisposable? registration = token.RegisterChangeCallback(static state =>
+            IDisposable? registration = token.RegisterChangeCallback(static stateObj =>
             {
                 try
                 {
-                    IConfiguration cfg = (IConfiguration)state!;
-                    if (Cache.TryGetValue(cfg, out CacheState? cs))
+                    CallbackState st = (CallbackState)stateObj!;
+                    if (Cache.TryGetValue(st.Config, out CacheState? cs))
                     {
                         cs.Registration?.Dispose();
                     }
-                    _ = Cache.Remove(cfg);
+                    _ = Cache.Remove(st.Config);
                 }
                 catch (Exception ex)
                 {
-                    Trace.TraceError("IncludeConfigHelper: Failed to invalidate cache on config reload: {0}", ex);
+                    try
+                    {
+                        CallbackState st = (CallbackState)stateObj!;
+                        st.Logger?.LogError(ex, "IncludeConfigHelper: Failed to invalidate cache on config reload");
+                    }
+                    catch
+                    {
+                        // Swallow secondary failures
+                    }
                 }
-            }, config);
+            }, new CallbackState(config, logger));
 
             return new CacheState(set, registration);
         }

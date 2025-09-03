@@ -48,19 +48,4 @@ public static partial class ServiceCollectionExtensions
         });
         return services;
     }
-
-    public static IServiceCollection AddAppClients(this IServiceCollection services, IConfiguration configuration)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        services.AddXRoadHttpClient();
-
-        // Ensure options are materialized when needed
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<TokenCacheOptions>>().Value);
-
-        services.AddSingleton<FolkRawClient>();
-        services.AddScoped<PeopleService>();
-        return services;
-    }
 }
