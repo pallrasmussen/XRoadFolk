@@ -135,6 +135,16 @@ namespace XRoadFolkWeb.Extensions
             LogLocalization(app, loggerFactory);
             MapDiagnostics(app, env);
 
+            // Health checks endpoints (Kubernetes compatible)
+            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = r => r.Tags.Contains("live"),
+            });
+            app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = r => r.Tags.Contains("ready"),
+            });
+
             // static files, routing, session, antiforgery
             app.UseStaticFiles();
             app.UseRouting();

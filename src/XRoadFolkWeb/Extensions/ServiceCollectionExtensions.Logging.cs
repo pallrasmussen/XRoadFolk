@@ -24,7 +24,9 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // Health checks (basic liveness + custom checks can be added later)
-            _ = services.AddHealthChecks();
+            _ = services.AddHealthChecks()
+                        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "live" })
+                        .AddCheck<HttpLogsWritableHealthCheck>("http-logs-writable", tags: new[] { "ready" });
 
             // HttpLog options + validation
             _ = services.AddOptions<HttpLogOptions>()
@@ -60,6 +62,9 @@ namespace XRoadFolkWeb.Extensions
                 }
                 return new NoopHostedService();
             });
+
+            // Register a startup validator to ensure log directory exists and is writable
+            _ = services.AddSingleton<IHostedService, HttpLogStartupValidator>();
 
             // Register the custom logger provider so all logs also flow into IHttpLogStore
             _ = services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
