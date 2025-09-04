@@ -1,0 +1,63 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "**" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test (with coverage)
+        run: dotnet test --configuration Release --no-build --collect "XPlat Code Coverage" --logger "trx;LogFileName=tests.trx"
+
+      - name: Publish Web App
+        run: dotnet publish src/XRoadFolkWeb/XRoadFolkWeb.csproj --configuration Release --no-build --output publish/XRoadFolkWeb
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          if-no-files-found: ignore
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/*/coverage.cobertura.xml
+            **/TestResults/*/coverage.info
+
+      - name: Upload published app
+        uses: actions/upload-artifact@v4
+        with:
+          name: XRoadFolkWeb-publish
+          if-no-files-found: error
+          path: publish/XRoadFolkWeb
