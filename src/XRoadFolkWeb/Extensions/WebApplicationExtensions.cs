@@ -138,6 +138,7 @@ namespace XRoadFolkWeb.Extensions
             // static files, routing, session, antiforgery
             app.UseStaticFiles();
             app.UseRouting();
+            app.UseCookiePolicy();
             app.UseSession();
             app.UseAntiforgery();
 

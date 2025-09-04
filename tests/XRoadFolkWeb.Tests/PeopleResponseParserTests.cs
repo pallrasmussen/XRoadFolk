@@ -63,4 +63,30 @@ public class PeopleResponseParserTests
         Assert.Contains(pairs, p => p.Key.EndsWith("X.A") && p.Value == "1");
         Assert.Contains(pairs, p => p.Key.EndsWith("X.B") && p.Value == "2");
     }
+
+    [Fact]
+    public void FlattenResponse_Indexes_Repeated_Children()
+    {
+        string xml = """
+            <s:Envelope xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'>
+              <s:Body>
+                <GetPersonResponse>
+                  <Person>
+                    <Names>
+                      <Name><Type>FirstName</Type><Order>1</Order><Value>Jane</Value></Name>
+                      <Name><Type>FirstName</Type><Order>2</Order><Value>Alice</Value></Name>
+                      <Name><Type>LastName</Type><Value>Doe</Value></Name>
+                    </Names>
+                  </Person>
+                </GetPersonResponse>
+              </s:Body>
+            </s:Envelope>
+        """;
+        var parser = new PeopleResponseParser(NullLogger<PeopleResponseParser>.Instance);
+        var pairs = parser.FlattenResponse(xml);
+        // Expect indexes on repeated Name elements
+        Assert.Contains(pairs, p => p.Key.Contains("Names.Name[0].Value") && p.Value == "Jane");
+        Assert.Contains(pairs, p => p.Key.Contains("Names.Name[1].Value") && p.Value == "Alice");
+        Assert.Contains(pairs, p => p.Key.Contains("Names.Name[2].Value") && p.Value == "Doe");
+    }
 }

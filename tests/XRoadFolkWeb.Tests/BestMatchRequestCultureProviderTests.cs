@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,7 +24,8 @@ public class BestMatchRequestCultureProviderTests
         var provider = CreateProvider("en-US","da-DK");
         var ctx = new DefaultHttpContext();
         var opt = new RequestCulture("da-DK","da-DK");
-        ctx.Request.Cookies = new RequestCookieCollection(new Dictionary<string, string>{{CookieRequestCultureProvider.DefaultCookieName, CookieRequestCultureProvider.MakeCookieValue(opt)}});
+        // Set cookie via header (RequestCookieCollection is internal for construction)
+        ctx.Request.Headers.Cookie = CookieRequestCultureProvider.DefaultCookieName + "=" + CookieRequestCultureProvider.MakeCookieValue(opt);
         var res = await provider.DetermineProviderCultureResult(ctx);
         Assert.Equal("da-DK", res!.Cultures[0].Value);
     }
