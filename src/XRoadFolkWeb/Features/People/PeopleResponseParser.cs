@@ -390,13 +390,4 @@ namespace XRoadFolkWeb.Features.People
         [LoggerMessage(EventId = 5003, Level = LogLevel.Warning, Message = "PeopleResponseParser: PrettyFormatXml failed (xmlLength={Length})")]
         private static partial void LogPrettyFormatFailed(ILogger logger, Exception ex, int Length);
     }
-
-    public sealed class PersonRow
-    {
-        public string? PublicId { get; set; }
-        public string? SSN { get; set; }
-        public string? FirstName { get; set; }
-        public string? LastName { get; set; }
-        public string? DateOfBirth { get; set; }
-    }
 }

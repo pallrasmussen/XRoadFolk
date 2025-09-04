@@ -187,7 +187,7 @@ namespace XRoadFolkWeb.Infrastructure
             if (_disposed) return;
             _disposed = true;
 
-            try { _writerCts?.Cancel(); } catch { }
+            try { if (_writerCts is not null) await _writerCts.CancelAsync().ConfigureAwait(false); } catch { }
 
             if (_fileChannel is not null)
             {
