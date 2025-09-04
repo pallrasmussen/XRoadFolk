@@ -124,13 +124,14 @@ namespace XRoadFolkRaw.Lib
                          .WaitAndRetryAsync(
                              _retryAttempts,
                              attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
-                             (ex, ts, attempt, _) =>
+                             (ex, ts, attempt, ctx) =>
                              {
                                  if (_log is not null)
                                  {
                                      LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
                                  }
-                                 XRoadRawMetrics.HttpRetries.Add(1);
+                                 string op = ctx.ContainsKey("op") ? (ctx["op"]?.ToString() ?? "unknown") : "unknown";
+                                 XRoadRawMetrics.HttpRetries.Add(1, new KeyValuePair<string, object?>("op", op));
                              });
         }
 
@@ -425,7 +426,9 @@ namespace XRoadFolkRaw.Lib
             }
 
             var sw = ValueStopwatch.StartNew();
-            string respText = await _retryPolicy.ExecuteAsync(async () =>
+            var pollyContext = new Context();
+            pollyContext["op"] = opName;
+            string respText = await _retryPolicy.ExecuteAsync(async (ctx) =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
                 // Inject operation header for policy selection (ignored by server)
@@ -442,9 +445,9 @@ namespace XRoadFolkRaw.Lib
                         response.ReasonPhrase,
                         text))
                     : text;
-            }).ConfigureAwait(false);
+            }, pollyContext).ConfigureAwait(false);
             var elapsedMs = sw.GetElapsedTime().TotalMilliseconds;
-            XRoadRawMetrics.HttpDurationMs.Record(elapsedMs);
+            XRoadRawMetrics.HttpDurationMs.Record(elapsedMs, new KeyValuePair<string, object?>("op", opName));
 
             if (_verbose && _log is not null)
             {

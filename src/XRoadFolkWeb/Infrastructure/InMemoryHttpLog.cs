@@ -13,7 +13,9 @@ namespace XRoadFolkWeb.Infrastructure
     {
         public static readonly Meter Meter = new("XRoadFolkWeb");
         public static readonly Counter<long> LogDrops = Meter.CreateCounter<long>("logs.dropped", unit: "count", description: "Number of log entries dropped due to backpressure");
-        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => new[] { new Measurement<int>(Volatile.Read(ref _sizeRef)) }, unit: "items", description: "Approximate in-memory log queue size");
+        public static readonly Counter<long> LogDropsByReason = Meter.CreateCounter<long>("logs.dropped.reason", unit: "count", description: "Log drops by reason (tags: reason, store)");
+        public static readonly Counter<long> LogDropsByLevel = Meter.CreateCounter<long>("logs.dropped.level", unit: "count", description: "Log drops by level (tags: level, store)");
+        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => new[] { new Measurement<int>(Volatile.Read(ref _sizeRef), new KeyValuePair<string, object?>("store", "memory")) }, unit: "items", description: "Approximate in-memory log queue size");
         internal static int _sizeRef;
     }
 
@@ -95,6 +97,8 @@ namespace XRoadFolkWeb.Infrastructure
             if (_rateLimiter.ShouldDrop(e.Level))
             {
                 InMemoryLogMetrics.LogDrops.Add(1);
+                InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "rate"), new KeyValuePair<string, object?>("store", "memory"));
+                InMemoryLogMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "memory"));
                 return; // throttled
             }
 
@@ -122,7 +126,11 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             string line = LogLineFormatter.FormatLine(e) + Environment.NewLine;
-            _ = _fileChannel.Writer.TryWrite(line);
+            if (!_fileChannel.Writer.TryWrite(line))
+            {
+                InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "backpressure"), new KeyValuePair<string, object?>("store", "memory"));
+                InMemoryLogMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "memory"));
+            }
         }
 
         private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger, CancellationToken ct)

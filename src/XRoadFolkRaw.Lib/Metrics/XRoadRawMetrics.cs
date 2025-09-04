@@ -9,10 +9,10 @@ internal static class XRoadRawMetrics
     public static readonly Counter<long> HttpRetries = Meter.CreateCounter<long>(
         name: "xroad.http.retries",
         unit: "count",
-        description: "Number of HTTP retries performed by FolkRawClient");
+        description: "Number of HTTP retries performed by FolkRawClient (tag: op)");
 
     public static readonly Histogram<double> HttpDurationMs = Meter.CreateHistogram<double>(
         name: "xroad.http.duration",
         unit: "ms",
-        description: "HTTP call duration in milliseconds for SOAP operations");
+        description: "HTTP call duration in milliseconds for SOAP operations (tag: op)");
 }
