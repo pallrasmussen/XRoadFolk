@@ -20,3 +20,5 @@ WebApplication app = builder.Build();
 app.ConfigureRequestPipeline();
 
 await app.RunAsync().ConfigureAwait(false);
+
+public partial class Program { }

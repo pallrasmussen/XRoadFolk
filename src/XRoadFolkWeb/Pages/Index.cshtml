@@ -23,7 +23,7 @@
                 <h5 class="card-title">@L["SearchCriteria"]</h5>
                 <p class="text-muted mb-3">@L["ProvideCriteria"]</p>
 
-                <form method="post" class="row gy-3" id="gpip-search-form" autocomplete="off">
+                <form method="post" asp-antiforgery="true" class="row gy-3" id="gpip-search-form" autocomplete="off">
                     <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
 
                     <div class="col-12">

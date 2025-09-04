@@ -1,4 +1,5 @@
 using XRoadFolkWeb.Infrastructure;
+using System.Globalization;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -50,7 +51,7 @@ namespace XRoadFolkWeb.Extensions
                     string? idleStr = section["IdleTimeoutMinutes"];
                     if (!string.IsNullOrWhiteSpace(idleStr))
                     {
-                        if (!int.TryParse(idleStr, out idleMinutes))
+                        if (!int.TryParse(idleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out idleMinutes))
                         {
                             log.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
                             idleMinutes = 30;

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -230,7 +231,7 @@ namespace XRoadFolkWeb.Features.People
                     OrderText = ElementsBy(n, "Order").FirstOrDefault()?.Value,
                     Value = ElementsBy(n, "Value").FirstOrDefault()?.Value?.Trim(),
                 })
-                .OrderBy(static n => int.TryParse(n.OrderText, out int o) ? o : int.MaxValue)
+                .OrderBy(static n => int.TryParse(n.OrderText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int o) ? o : int.MaxValue)
                 .Select(n => n.Value)
                 .Where(v => !string.IsNullOrWhiteSpace(v)),];
 
