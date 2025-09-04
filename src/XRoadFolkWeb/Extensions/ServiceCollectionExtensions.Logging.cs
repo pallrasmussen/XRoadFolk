@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Configuration;
 using XRoadFolkWeb.Infrastructure;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -24,7 +25,7 @@ namespace XRoadFolkWeb.Extensions
                 builder.AddDebug();
             });
 
-            // OpenTelemetry metrics (MeterProvider)
+            // OpenTelemetry metrics and tracing
             _ = services.AddOpenTelemetry()
                 .ConfigureResource(rb =>
                 {
@@ -54,6 +55,37 @@ namespace XRoadFolkWeb.Extensions
                     {
                         string? endpoint = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Endpoint");
                         metrics.AddOtlpExporter(o =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(endpoint))
+                            {
+                                o.Endpoint = new Uri(endpoint);
+                            }
+                            string? protocol = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Protocol");
+                            if (string.Equals(protocol, "grpc", StringComparison.OrdinalIgnoreCase))
+                            {
+                                o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                            }
+                            else if (string.Equals(protocol, "http/protobuf", StringComparison.OrdinalIgnoreCase) || string.Equals(protocol, "http", StringComparison.OrdinalIgnoreCase))
+                            {
+                                o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                            }
+                        });
+                    }
+                })
+                .WithTracing(tracing =>
+                {
+                    // Basic ASP.NET Core tracing
+                    tracing.AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.RecordException = true;
+                        options.Filter = httpContext => true;
+                    });
+
+                    // OTLP exporter (optional)
+                    if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Otlp:Enabled", false))
+                    {
+                        string? endpoint = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Endpoint");
+                        tracing.AddOtlpExporter(o =>
                         {
                             if (!string.IsNullOrWhiteSpace(endpoint))
                             {

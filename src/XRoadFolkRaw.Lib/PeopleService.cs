@@ -190,38 +190,89 @@ namespace XRoadFolkRaw.Lib
             }
         }
 
+        // Helpers extracted to reduce method length and improve readability
+        private XRoadHeaderOptions BuildHeader(string serviceCode, string serviceVersion = "v1") => new()
+        {
+            XId = Guid.NewGuid().ToString("N"),
+            UserId = _settings.Auth.UserId,
+            ProtocolVersion = _settings.Headers.ProtocolVersion,
+            ClientXRoadInstance = _settings.Client.XRoadInstance,
+            ClientMemberClass = _settings.Client.MemberClass,
+            ClientMemberCode = _settings.Client.MemberCode,
+            ClientSubsystemCode = _settings.Client.SubsystemCode,
+            ServiceXRoadInstance = _settings.Service.XRoadInstance,
+            ServiceMemberClass = _settings.Service.MemberClass,
+            ServiceMemberCode = _settings.Service.MemberCode,
+            ServiceSubsystemCode = _settings.Service.SubsystemCode,
+            ServiceCode = serviceCode,
+            ServiceVersion = serviceVersion,
+        };
+
+        private GetPersonRequestOptions LoadGetPersonOptions(string? publicId)
+        {
+            GetPersonRequestOptions reqOptions =
+                _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>()
+                ?? new GetPersonRequestOptions();
+
+            // Map Include booleans from configuration to flags (if provided)
+            GetPersonIncludeOptions? inc = _config.GetSection("Operations:GetPerson:Request:Include").Get<GetPersonIncludeOptions>();
+            if (inc is not null)
+            {
+                reqOptions.Include = ToFlags(inc);
+            }
+
+            // runtime override from caller
+            if (!string.IsNullOrWhiteSpace(publicId))
+            {
+                reqOptions.PublicId = publicId;
+                reqOptions.Ssn = null;
+                reqOptions.Id = null;
+                reqOptions.ExternalId = null;
+            }
+
+            return reqOptions;
+        }
+
+        private void ValidateRequestOptions(GetPersonRequestOptions options)
+        {
+            ValidateOptionsResult result = _requestValidator.Validate(Microsoft.Extensions.Options.Options.DefaultName, options);
+            if (result.Failed)
+            {
+                throw new OptionsValidationException(Microsoft.Extensions.Options.Options.DefaultName, typeof(GetPersonRequestOptions), result.Failures);
+            }
+        }
+
+        private GetPersonRequest BuildGetPersonRequest(string token, GetPersonRequestOptions reqOptions) => new()
+        {
+            XmlPath = _personXmlPath,
+            Token = token,
+            Header = BuildHeader("GetPerson", "v1"),
+            // identifiers
+            Id = reqOptions.Id,
+            PublicId = reqOptions.PublicId,
+            Ssn = reqOptions.Ssn,
+            ExternalId = reqOptions.ExternalId,
+            // include
+            Include = reqOptions.Include,
+        };
+
+        private GetPeoplePublicInfoRequest BuildPeoplePublicInfoRequest(string token, string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth) => new()
+        {
+            XmlPath = _peopleInfoXmlPath,
+            Token = token,
+            Header = BuildHeader("GetPeoplePublicInfo", "v1"),
+            Ssn = ssn,
+            FirstName = firstName,
+            LastName = lastName,
+            DateOfBirth = dateOfBirth,
+        };
+
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
             try
             {
-                // Build request object for the new overload
-                GetPeoplePublicInfoRequest req = new()
-                {
-                    XmlPath = _peopleInfoXmlPath,
-                    Token = token,
-                    Header = new XRoadHeaderOptions
-                    {
-                        XId = Guid.NewGuid().ToString("N"),
-                        UserId = _settings.Auth.UserId,
-                        ProtocolVersion = _settings.Headers.ProtocolVersion,
-                        ClientXRoadInstance = _settings.Client.XRoadInstance,
-                        ClientMemberClass = _settings.Client.MemberClass,
-                        ClientMemberCode = _settings.Client.MemberCode,
-                        ClientSubsystemCode = _settings.Client.SubsystemCode,
-                        ServiceXRoadInstance = _settings.Service.XRoadInstance,
-                        ServiceMemberClass = _settings.Service.MemberClass,
-                        ServiceMemberCode = _settings.Service.MemberCode,
-                        ServiceSubsystemCode = _settings.Service.SubsystemCode,
-                        ServiceCode = "GetPeoplePublicInfo",
-                        ServiceVersion = "v1",
-                    },
-                    Ssn = ssn,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    DateOfBirth = dateOfBirth,
-                };
-
+                GetPeoplePublicInfoRequest req = BuildPeoplePublicInfoRequest(token, ssn, firstName, lastName, dateOfBirth);
                 return await _client.GetPeoplePublicInfoAsync(req, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -244,65 +295,12 @@ namespace XRoadFolkRaw.Lib
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
 
-            GetPersonRequestOptions reqOptions =
-                _config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>()
-                ?? new GetPersonRequestOptions();
-
-            // Map Include booleans from configuration to flags (if provided)
-            GetPersonIncludeOptions? inc = _config.GetSection("Operations:GetPerson:Request:Include").Get<GetPersonIncludeOptions>();
-            if (inc is not null)
-            {
-                reqOptions.Include = ToFlags(inc);
-            }
-
-            // runtime override from caller
-            if (!string.IsNullOrWhiteSpace(publicId))
-            {
-                reqOptions.PublicId = publicId;
-                reqOptions.Ssn = null;
-                reqOptions.Id = null;
-                reqOptions.ExternalId = null;
-            }
-
-            // Validate after overrides (qualify Options.DefaultName to avoid namespace collision)
-            ValidateOptionsResult result = _requestValidator.Validate(Microsoft.Extensions.Options.Options.DefaultName, reqOptions);
-            if (result.Failed)
-            {
-                throw new OptionsValidationException(Microsoft.Extensions.Options.Options.DefaultName, typeof(GetPersonRequestOptions), result.Failures);
-            }
+            GetPersonRequestOptions reqOptions = LoadGetPersonOptions(publicId);
+            ValidateRequestOptions(reqOptions);
 
             try
             {
-                // Build request object for the new overload
-                GetPersonRequest req = new()
-                {
-                    XmlPath = _personXmlPath,
-                    Token = token,
-                    Header = new XRoadHeaderOptions
-                    {
-                        XId = Guid.NewGuid().ToString("N"),
-                        UserId = _settings.Auth.UserId,
-                        ProtocolVersion = _settings.Headers.ProtocolVersion,
-                        ClientXRoadInstance = _settings.Client.XRoadInstance,
-                        ClientMemberClass = _settings.Client.MemberClass,
-                        ClientMemberCode = _settings.Client.MemberCode,
-                        ClientSubsystemCode = _settings.Client.SubsystemCode,
-                        ServiceXRoadInstance = _settings.Service.XRoadInstance,
-                        ServiceMemberClass = _settings.Service.MemberClass,
-                        ServiceMemberCode = _settings.Service.MemberCode,
-                        ServiceSubsystemCode = _settings.Service.SubsystemCode,
-                        ServiceCode = "GetPerson",
-                        ServiceVersion = "v1",
-                    },
-                    // identifiers
-                    Id = reqOptions.Id,
-                    PublicId = reqOptions.PublicId,
-                    Ssn = reqOptions.Ssn,
-                    ExternalId = reqOptions.ExternalId,
-                    // include
-                    Include = reqOptions.Include,
-                };
-
+                GetPersonRequest req = BuildGetPersonRequest(token, reqOptions);
                 return await _client.GetPersonAsync(req, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
