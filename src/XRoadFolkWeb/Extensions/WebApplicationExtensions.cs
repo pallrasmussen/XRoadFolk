@@ -182,6 +182,12 @@ namespace XRoadFolkWeb.Extensions
             CultureInfo.DefaultThreadCurrentCulture = defaultReqCulture.Culture;
             CultureInfo.DefaultThreadCurrentUICulture = defaultReqCulture.UICulture;
 
+            // OpenTelemetry Prometheus scrape endpoint (optional)
+            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
+            {
+                app.MapPrometheusScrapingEndpoint();
+            }
+
             return app;
         }
 

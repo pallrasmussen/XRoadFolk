@@ -88,7 +88,7 @@ Razor Pages app with X-Road SOAP client integration.
 
 This document summarizes key operational configuration and expectations.
 
-## Session and Cookie Consent
+## Session, Cookies, and Consent
 
 Session is enabled with consent-friendly defaults. By default, `Session:Cookie:IsEssential` is `false` and must be explicitly set to `true` when you have a legal basis or obtained consent.
 
@@ -110,11 +110,16 @@ Session is enabled with consent-friendly defaults. By default, `Session:Cookie:I
   - InMemory: simple, not shared across instances. Recommended only for single-node or dev.
   - Redis: set `Session:Redis:Configuration` and optional `Session:Redis:InstanceName`.
   - SqlServer: set `Session:SqlServer:ConnectionString` and optional `SchemaName`/`TableName`.
-- If you set `IsEssential=true`, ensure consent/compliance requirements are met in your jurisdiction.
+- Cookie policy defaults:
+  - HttpOnly enforced on all cookies
+  - SameSite=Lax by default
+  - Secure=Always outside Development; SameAsRequest in Development (supports HTTP TestServer)
+- Culture cookie: set for 1 year, Path=/, SameSite=Lax, HttpOnly; Secure only when HTTPS.
+- Anti-forgery: Razor Pages validation is globally ignored for regular page posts; the `/set-culture` endpoint is explicitly validated and returns 400 without a token.
 
-## Localization mappings and Accept-Language
+## Localization fallback maps and best-match
 
-Localization is driven by `Localization` section and a best-match culture provider.
+Localization is driven by the `Localization` section and a best-match culture provider.
 
 - Required keys:
   ```json
@@ -125,44 +130,64 @@ Localization is driven by `Localization` section and a best-match culture provid
   }
   ```
 - Best-match rules in order:
-  1. Cookie (`.AspNetCore.Culture`) if valid.
-  2. Accept-Language header (hardened): strict `q` parsing, invalid tags skipped, caps on total header size and item count.
-  3. Exact supported name.
-  4. Configured `FallbackMap` (e.g., neutral `en` -> `en-US`).
-  5. Parent cultures.
-  6. Same language match (e.g., `en-GB` -> `en-US`).
+  1. Culture cookie (`.AspNetCore.Culture`) if valid
+  2. Accept-Language header (strict parsing, q-values honored, size/entry caps, invalid tags skipped)
+  3. Exact supported match
+  4. Explicit `FallbackMap` (e.g., neutral `en` → `en-US`)
+  5. Parent cultures
+  6. Same-language match (e.g., `en-GB` → `en-US`)
 
-## Logging verbosity expectations and safety
+## Logging expectations and safety
 
-- Verbosity is controlled under `Logging` section. Keep `Default` at `Information` in production unless you need verbose diagnostics.
-  ```json
-  "Logging": {
-    "LogLevel": { "Default": "Information", "Microsoft.AspNetCore": "Warning" },
-    "Verbose": false,
-    "MaskTokens": true
-  }
-  ```
-- SOAP/XML is always sanitized before logging via `SafeSoapLogger`. Usernames, passwords, and tokens are masked.
-- HTTP and app logs feed an in-memory/file-backed store:
-  - Scopes are truncated (~2KB) and depth-limited.
-  - Individual messages are capped (~8KB) to avoid large allocations.
-  - Live Logs UI caps rows and batches updates to keep the page responsive.
+- Verbosity is controlled under `Logging`. Keep `Default` at `Information` in production.
+- SOAP/XML is always sanitized before logging via `SafeSoapLogger`.
+  - Masks: username, password, token, userId, common token aliases (sessionId/sessionToken/authToken/accessToken), and WS-Security `BinarySecurityToken`.
+- HTTP and app logs feed an in-memory or file-backed store:
+  - Messages capped (~8KB) and scope info truncated (~2KB) with depth/kv limits
+  - Back-pressure with drop counters and reasons
+  - Live Logs UI caps rows; batches updates; auto-scrolls when at bottom
 
 ## Health and Metrics
 
-- Health check endpoint: `GET /health`.
-- Metrics (System.Diagnostics.Metrics):
-  - `XRoadFolkRaw` meter:
-    - `xroad.http.retries` (counter)
-    - `xroad.http.duration` (histogram, ms)
-  - `XRoadFolkWeb` meter:
+- Health check endpoints: `GET /health/live`, `GET /health/ready`.
+- Metrics (System.Diagnostics.Metrics) – scrape with OpenTelemetry by subscribing to meters below.
+  - Meter `XRoadFolkRaw`:
+    - `xroad.http.retries` (counter) tags: `op`
+    - `xroad.http.duration` (histogram, ms) tags: `op`
+  - Meter `XRoadFolkWeb`:
+    - `logs.queue.length` (observable gauge) tags: `store` (memory|file)
     - `logs.dropped` (counter)
-    - `logs.queue.length` (observable gauge)
-- Integrate with OpenTelemetry by adding the OTel SDK and exporters to scrape these meters.
+    - `logs.dropped.reason` (counter) tags: `reason` (rate|backpressure), `store` (memory|file)
+    - `logs.dropped.level` (counter) tags: `level`, `store`
+
+### OpenTelemetry wiring (Prometheus/OTLP)
+
+The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and an optional OTLP exporter. Enable them via configuration:
+
+```json
+"OpenTelemetry": {
+  "Metrics": {
+    "AspNetCore": true,
+    "Runtime": false
+  },
+  "Exporters": {
+    "Prometheus": { "Enabled": true },
+    "Otlp": {
+      "Enabled": true,
+      "Endpoint": "http://otel-collector:4318",
+      "Protocol": "http/protobuf" // or "grpc"
+    }
+  }
+}
+```
+
+- Prometheus scrape endpoint: GET /metrics (enabled when Exporters:Prometheus:Enabled=true)
+- OTLP: set Endpoint to your collector. Supported Protocol values: grpc, http/protobuf.
+- Meters included: XRoadFolkRaw, XRoadFolkWeb. You can add ASP.NET Core or runtime metrics via flags above.
 
 ## CI/CD
 
-- GitHub Actions workflow builds with analyzers (warnings as errors), runs tests with coverage, and publishes the web artifact on `main`/`master`.
+- GitHub Actions workflow builds with analyzers, runs tests with coverage, and publishes the web artifact on `main`/`master`.
 
 ## Security headers and CSP
 

@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Configuration;
 using XRoadFolkWeb.Infrastructure;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -22,6 +24,54 @@ namespace XRoadFolkWeb.Extensions
                 builder.AddDebug();
             });
 
+            // OpenTelemetry metrics (MeterProvider)
+            _ = services.AddOpenTelemetry()
+                .ConfigureResource(rb =>
+                {
+                    rb.AddService(serviceName: "XRoadFolkWeb",
+                                  serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0");
+                })
+                .WithMetrics(metrics =>
+                {
+                    // Collect our meters
+                    metrics.AddMeter("XRoadFolkRaw");
+                    metrics.AddMeter("XRoadFolkWeb");
+
+                    // ASP.NET Core and runtime metrics are optional; enable based on configuration if needed
+                    bool includeAspNet = configuration.GetValue<bool>("OpenTelemetry:Metrics:AspNetCore", true);
+                    bool includeRuntime = configuration.GetValue<bool>("OpenTelemetry:Metrics:Runtime", false);
+                    if (includeAspNet) metrics.AddAspNetCoreInstrumentation();
+                    if (includeRuntime) metrics.AddRuntimeInstrumentation();
+
+                    // Prometheus scrape endpoint (optional; disabled by default)
+                    if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
+                    {
+                        metrics.AddPrometheusExporter();
+                    }
+
+                    // OTLP exporter (optional)
+                    if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Otlp:Enabled", false))
+                    {
+                        string? endpoint = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Endpoint");
+                        metrics.AddOtlpExporter(o =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(endpoint))
+                            {
+                                o.Endpoint = new Uri(endpoint);
+                            }
+                            string? protocol = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Protocol");
+                            if (string.Equals(protocol, "grpc", StringComparison.OrdinalIgnoreCase))
+                            {
+                                o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                            }
+                            else if (string.Equals(protocol, "http/protobuf", StringComparison.OrdinalIgnoreCase) || string.Equals(protocol, "http", StringComparison.OrdinalIgnoreCase))
+                            {
+                                o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                            }
+                        });
+                    }
+                });
+
             // Fail-fast guard: prevent excessive verbosity in non-development unless explicitly allowed
             _ = services.AddOptions<LoggerFilterOptions>().PostConfigure<IHostEnvironment>((opts, env) =>
             {
@@ -31,7 +81,6 @@ namespace XRoadFolkWeb.Extensions
                     bool allowVerbose = configuration.GetValue<bool>("Logging:AllowVerboseInProduction", false);
                     if (verbose && !allowVerbose)
                     {
-                        // Override to false without attempting to log here (avoid building a provider during registration)
                         configuration["Logging:Verbose"] = "false";
                     }
                 }
