@@ -13,3 +13,14 @@
 .person-details.pd-fullscreen { position: fixed; inset: 0; z-index: 1060; margin: 0; border-radius: 0; background: var(--bs-body-bg); }
 .person-details.pd-fullscreen .card-body { height: 100dvh; display: flex; flex-direction: column; }
 .person-details.pd-fullscreen #person-details-body { max-height: calc(100dvh - 7.5rem); flex: 1 1 auto; }
+/* Typography to match People Public viewer (small text) */
+.person-details #person-details-body { font-size: .875rem; }
+.person-details .accordion-button { font-size: .875rem; }
+.person-details .table { font-size: .875rem; }
+/* Dark mode improvements */
+html[data-bs-theme='dark'] .person-details .table th { background-color: #0b1220; color: #cbd5e1; }
+html[data-bs-theme='dark'] .person-details .table td { color: #e5e7eb; }
+html[data-bs-theme='dark'] .person-details .table tbody tr:hover th,
+html[data-bs-theme='dark'] .person-details .table tbody tr:hover td { background-color: #0f1a2a; }
+html[data-bs-theme='dark'] .person-details .accordion-button { color: #e5e7eb; background-color: #0f172a; border-bottom: 1px solid rgba(255,255,255,.08); }
+html[data-bs-theme='dark'] .person-details .accordion-button:not(.collapsed) { background-color: #1f2937; box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); }
