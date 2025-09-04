@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build with analyzers (treat warnings as errors)
+        run: dotnet build --configuration Release -warnaserror
+
+      - name: Test with coverage
+        run: dotnet test --configuration Release --collect:"XPlat Code Coverage" --results-directory ./TestResults --logger "trx" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Upload coverage to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: TestResults
+
+  publish:
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish Web project
+        run: dotnet publish src/XRoadFolkWeb/XRoadFolkWeb.csproj -c Release -o ./publish /p:UseAppHost=false
+
+      - name: Upload publish artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xroadfolkweb-publish
+          path: publish

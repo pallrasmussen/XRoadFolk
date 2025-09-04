@@ -5,9 +5,18 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib.Logging;
 using System.Threading.Channels;
+using System.Diagnostics.Metrics;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    internal static class InMemoryLogMetrics
+    {
+        public static readonly Meter Meter = new("XRoadFolkWeb");
+        public static readonly Counter<long> LogDrops = Meter.CreateCounter<long>("logs.dropped", unit: "count", description: "Number of log entries dropped due to backpressure");
+        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => new[] { new Measurement<int>(Volatile.Read(ref _sizeRef)) }, unit: "items", description: "Approximate in-memory log queue size");
+        internal static int _sizeRef;
+    }
+
     public sealed record LogEntry
     {
         public DateTimeOffset Timestamp { get; init; }
@@ -85,11 +94,13 @@ namespace XRoadFolkWeb.Infrastructure
 
             if (_rateLimiter.ShouldDrop(e.Level))
             {
+                InMemoryLogMetrics.LogDrops.Add(1);
                 return; // throttled
             }
 
             _queue.Enqueue(e);
             _ = Interlocked.Increment(ref _size);
+            InMemoryLogMetrics._sizeRef = _size;
 
             // Trim until capacity is met (robust under contention)
             while (Volatile.Read(ref _size) > _capacity)

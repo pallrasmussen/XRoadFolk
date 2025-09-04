@@ -7,6 +7,8 @@ using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using System.Reflection;
 using System.Text;
+using System.Diagnostics;
+using XRoadFolkRaw.Lib.Metrics;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -128,6 +130,7 @@ namespace XRoadFolkRaw.Lib
                                  {
                                      LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
                                  }
+                                 XRoadRawMetrics.HttpRetries.Add(1);
                              });
         }
 
@@ -421,6 +424,7 @@ namespace XRoadFolkRaw.Lib
                 _log.SafeSoapInfo(xmlString, $"SOAP Request [{opName}]");
             }
 
+            var sw = ValueStopwatch.StartNew();
             string respText = await _retryPolicy.ExecuteAsync(async () =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
@@ -439,6 +443,8 @@ namespace XRoadFolkRaw.Lib
                         text))
                     : text;
             }).ConfigureAwait(false);
+            var elapsedMs = sw.GetElapsedTime().TotalMilliseconds;
+            XRoadRawMetrics.HttpDurationMs.Record(elapsedMs);
 
             if (_verbose && _log is not null)
             {
@@ -446,6 +452,20 @@ namespace XRoadFolkRaw.Lib
             }
 
             return respText;
+        }
+
+        private readonly struct ValueStopwatch
+        {
+            private readonly long _start;
+            private ValueStopwatch(long start) => _start = start;
+            public static ValueStopwatch StartNew() => new ValueStopwatch(Stopwatch.GetTimestamp());
+            public TimeSpan GetElapsedTime()
+            {
+                long end = Stopwatch.GetTimestamp();
+                long freq = Stopwatch.Frequency;
+                long ticks = (long)((end - _start) * (TimeSpan.TicksPerSecond / (double)freq));
+                return new TimeSpan(ticks);
+            }
         }
 
         private static void SetChildValue(XElement? parent, XName name, string value)

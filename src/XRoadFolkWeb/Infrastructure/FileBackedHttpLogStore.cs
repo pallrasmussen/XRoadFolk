@@ -3,9 +3,20 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using System.Threading.Channels;
+using System.Diagnostics.Metrics;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    internal static class LogStoreMetrics
+    {
+        public static readonly Meter Meter = new("XRoadFolkWeb");
+        public static readonly Counter<long> LogDrops = Meter.CreateCounter<long>("logs.dropped", unit: "count", description: "Number of log entries dropped due to backpressure");
+        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => _ringSizeSnapshot(), unit: "items", description: "Approximate in-memory ring size");
+        // snapshot provider updated by store
+        private static Func<int> _ringSizeSnapshot = () => 0;
+        public static void SetRingSizeProvider(Func<int> provider) => _ringSizeSnapshot = provider;
+    }
+
     /// <summary>
     /// File-backed store with bounded channel and background writer.
     /// - Maintains an in-memory ring buffer (Capacity)
@@ -43,6 +54,7 @@ namespace XRoadFolkWeb.Infrastructure
                 AllowSynchronousContinuations = true,
             });
             _log = log;
+            LogStoreMetrics.SetRingSizeProvider(() => Volatile.Read(ref _ringSize));
         }
 
         internal ILogger Logger => _log;
@@ -108,6 +120,7 @@ namespace XRoadFolkWeb.Infrastructure
             if (!written)
             {
                 LogEnqueueDrop(_log, e.Level, e.Category, e.EventId);
+                LogStoreMetrics.LogDrops.Add(1);
             }
         }
 
