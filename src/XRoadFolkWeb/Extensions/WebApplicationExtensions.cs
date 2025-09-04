@@ -146,7 +146,25 @@ namespace XRoadFolkWeb.Extensions
             });
 
             // static files, routing, session, antiforgery
-            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = ctx =>
+                {
+                    var headers = ctx.Context.Response.Headers;
+                    var req = ctx.Context.Request;
+                    bool hasVersion = req.Query.ContainsKey("v");
+                    if (hasVersion)
+                    {
+                        headers.CacheControl = "public,max-age=31536000,immutable"; // 1 year
+                        headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
+                    }
+                    else
+                    {
+                        // Short cache for non-versioned assets
+                        headers.CacheControl = "public,max-age=3600"; // 1 hour
+                    }
+                }
+            });
             app.UseRouting();
             app.UseCookiePolicy();
             app.UseSession();

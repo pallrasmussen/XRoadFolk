@@ -20,6 +20,10 @@ namespace XRoadFolkWeb.Shared
             "application/soap+xml",
             // Vector images
             "image/svg+xml",
+            // WebAssembly text formats (do not include application/wasm as it's already compressed)
+            // Fonts (woff2 is already compressed; avoid double compression)
+            "font/ttf",
+            "font/otf"
         ];
     }
 }
