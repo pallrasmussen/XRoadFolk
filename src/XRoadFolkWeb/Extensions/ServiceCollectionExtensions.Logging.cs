@@ -80,6 +80,7 @@ namespace XRoadFolkWeb.Extensions
                         options.RecordException = true;
                         options.Filter = httpContext => true;
                     });
+                    tracing.AddHttpClientInstrumentation();
 
                     // OTLP exporter (optional)
                     if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Otlp:Enabled", false))

@@ -508,8 +508,17 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapLogsClear(WebApplication app)
         {
-            _ = app.MapPost("/logs/clear", (HttpContext ctx) =>
+            _ = app.MapPost("/logs/clear", async (HttpContext ctx, IAntiforgery af) =>
             {
+                try
+                {
+                    await af.ValidateRequestAsync(ctx);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    return Results.BadRequest();
+                }
+
                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                 if (store is null)
                 {
@@ -522,8 +531,17 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapLogsWrite(WebApplication app)
         {
-            _ = app.MapPost("/logs/write", ([FromBody] LogWriteDto dto, HttpContext ctx) =>
+            _ = app.MapPost("/logs/write", async ([FromBody] LogWriteDto dto, HttpContext ctx, IAntiforgery af) =>
             {
+                try
+                {
+                    await af.ValidateRequestAsync(ctx);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    return Results.BadRequest();
+                }
+
                 if (dto is null)
                 {
                     return Results.BadRequest();
