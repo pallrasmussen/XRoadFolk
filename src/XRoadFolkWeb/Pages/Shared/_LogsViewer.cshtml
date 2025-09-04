@@ -46,140 +46,148 @@
 
 <script nonce="@nonce">
 (function(){
-  var root = document.getElementById('logs-view');
-  var kind = (root && root.getAttribute('data-default-kind')) || 'http';
+  function init(){
+    var root = document.getElementById('logs-view');
+    var kind = (root && root.getAttribute('data-default-kind')) || 'http';
 
-  var paused = false;
-  var filterTxt = '';
-  var filterLevel = '';
-  var es = null;
+    var paused = false;
+    var filterTxt = '';
+    var filterLevel = '';
+    var es = null;
 
-  var tbody = document.querySelector('#logs-table tbody');
-  var tableContainer = document.querySelector('.logs-table-container');
-  var filter = document.getElementById('logs-filter');
-  var level = document.getElementById('logs-level');
-  var clearBtn = document.getElementById('logs-clear');
-  var pauseBtn = document.getElementById('logs-pause');
-  var backBtn = document.getElementById('logs-back');
+    var tbody = document.querySelector('#logs-table tbody');
+    var tableContainer = document.querySelector('.logs-table-container');
+    var filter = document.getElementById('logs-filter');
+    var level = document.getElementById('logs-level');
+    var clearBtn = document.getElementById('logs-clear');
+    var pauseBtn = document.getElementById('logs-pause');
+    var backBtn = document.getElementById('logs-back');
 
-  // Limits and batching
-  var MAX_ROWS = 2000;        // hard cap
-  var TRIM_TO_ROWS = 1500;    // trim down to after exceeding cap
-  var BATCH_FLUSH_MS = 50;    // flush interval for batching
-  var pending = [];
-  var flushTimer = 0;
+    // Limits and batching
+    var MAX_ROWS = 2000;        // hard cap
+    var TRIM_TO_ROWS = 1500;    // trim down to after exceeding cap
+    var BATCH_FLUSH_MS = 50;    // flush interval for batching
+    var pending = [];
+    var flushTimer = 0;
 
-  function rowFor(entry){
-    var tr = document.createElement('tr');
-    tr.innerHTML = '<td>'+entry.timestamp+'</td>'+
-                   '<td>'+entry.level+'</td>'+
-                   '<td>'+entry.category+'</td>'+
-                   '<td>'+escapeHtml(entry.message||'')+'</td>';
-    return tr;
-  }
-  function escapeHtml(s){
-    return String(s||'').replace(/[&<>]/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]); });
-  }
-  function match(entry){
-    if (filterLevel && String(entry.level).toLowerCase() !== filterLevel) return false;
-    if (filterTxt){
-      var t = (entry.message||'')+' '+(entry.category||'');
-      if (t.toLowerCase().indexOf(filterTxt) < 0) return false;
+    function rowFor(entry){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+entry.timestamp+'</td>'+
+                     '<td>'+entry.level+'</td>'+
+                     '<td>'+entry.category+'</td>'+
+                     '<td>'+escapeHtml(entry.message||'')+'</td>';
+      return tr;
     }
-    return true;
-  }
-
-  function scheduleFlush(){
-    if (flushTimer) return;
-    flushTimer = setTimeout(flush, BATCH_FLUSH_MS);
-  }
-
-  function flush(){
-    flushTimer = 0;
-    if (!pending.length) return;
-
-    var autoscroll = false;
-    try {
-      if (tableContainer){
-        var nearBottom = (tableContainer.scrollTop + tableContainer.clientHeight) >= (tableContainer.scrollHeight - 8);
-        autoscroll = nearBottom;
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>]/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]); });
+    }
+    function match(entry){
+      if (filterLevel && String(entry.level).toLowerCase() !== filterLevel) return false;
+      if (filterTxt){
+        var t = (entry.message||'')+' '+(entry.category||'');
+        if (t.toLowerCase().indexOf(filterTxt) < 0) return false;
       }
-    } catch {}
-
-    var frag = document.createDocumentFragment();
-    for (var i=0;i<pending.length;i++) frag.appendChild(pending[i]);
-    pending = [];
-    tbody.appendChild(frag);
-
-    trimIfNeeded();
-
-    if (autoscroll && tableContainer){
-      try { tableContainer.scrollTop = tableContainer.scrollHeight; } catch {}
+      return true;
     }
-  }
 
-  function trimIfNeeded(){
-    try{
-      var extra = tbody.children.length - MAX_ROWS;
-      if (extra > 0){
-        var toRemove = Math.max(extra, tbody.children.length - TRIM_TO_ROWS);
-        for (var i=0;i<toRemove;i++){
-          if (!tbody.firstChild) break;
-          tbody.removeChild(tbody.firstChild);
+    function scheduleFlush(){
+      if (flushTimer) return;
+      flushTimer = setTimeout(flush, BATCH_FLUSH_MS);
+    }
+
+    function flush(){
+      flushTimer = 0;
+      if (!pending.length) return;
+
+      var autoscroll = false;
+      try {
+        if (tableContainer){
+          var nearBottom = (tableContainer.scrollTop + tableContainer.clientHeight) >= (tableContainer.scrollHeight - 8);
+          autoscroll = nearBottom;
         }
+      } catch {}
+
+      var frag = document.createDocumentFragment();
+      for (var i=0;i<pending.length;i++) frag.appendChild(pending[i]);
+      pending = [];
+      tbody.appendChild(frag);
+
+      trimIfNeeded();
+
+      if (autoscroll && tableContainer){
+        try { tableContainer.scrollTop = tableContainer.scrollHeight; } catch {}
       }
-    } catch(e){ console.debug('LogsViewer: trim failed', e); }
+    }
+
+    function trimIfNeeded(){
+      try{
+        var extra = tbody.children.length - MAX_ROWS;
+        if (extra > 0){
+          var toRemove = Math.max(extra, tbody.children.length - TRIM_TO_ROWS);
+          for (var i=0;i<toRemove;i++){
+            if (!tbody.firstChild) break;
+            tbody.removeChild(tbody.firstChild);
+          }
+        }
+      } catch(e){ console.debug('LogsViewer: trim failed', e); }
+    }
+
+    function append(entry){
+      if (!match(entry)) return;
+      pending.push(rowFor(entry));
+      scheduleFlush();
+    }
+
+    function connect(){
+      if (es) try { es.close(); } catch(e){ console.debug('LogsViewer: es.close failed', e); }
+      es = new EventSource('/logs/stream?kind=' + encodeURIComponent(kind));
+      es.onmessage = function(ev){
+        if (paused) return;
+        try { var entry = JSON.parse(ev.data); append(entry); } catch(e){ console.warn('LogsViewer: JSON parse failed', e); }
+      };
+      es.onerror = function(){ try { es.close(); } catch(e){ console.debug('LogsViewer: es.close in onerror failed', e); } setTimeout(connect, 1000); };
+    }
+
+    // initial fill (history)
+    fetch('/logs?kind=' + encodeURIComponent(kind)).then(r=>r.json()).then(function(d){
+      if (!d || d.ok !== true) return;
+      var items = d.items||[];
+      // Keep only the most recent up to MAX_ROWS
+      if (items.length > MAX_ROWS) items = items.slice(items.length - MAX_ROWS);
+      for (var i=0;i<items.length;i++) append(items[i]);
+      // Force immediate flush after initial load
+      flush();
+    });
+
+    filter && filter.addEventListener('input', function(){ filterTxt = (filter.value||'').trim().toLowerCase(); });
+    level && level.addEventListener('change', function(){ filterLevel = (level.value||'').trim().toLowerCase(); });
+    clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; });
+    pauseBtn && pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
+
+    backBtn && backBtn.addEventListener('click', function(e){
+      try {
+        // Prefer true back to preserve form state on Index; fallback to GET /Index
+        var ref = document.referrer ? new URL(document.referrer) : null;
+        if (ref && ref.origin === location.origin) {
+          var p = (ref.pathname || '').toLowerCase();
+          if (p === '/' || p.endsWith('/index')) { e.preventDefault(); history.back(); return; }
+        }
+        // Otherwise allow default anchor nav to Index
+      } catch { /* let default navigate */ }
+    });
+
+    // Keep autoscroll behavior intuitive when user scrolls up
+    if (tableContainer){
+      tableContainer.addEventListener('scroll', function(){ /* no-op, autoscroll computed per flush */ });
+    }
+
+    connect();
   }
 
-  function append(entry){
-    if (!match(entry)) return;
-    pending.push(rowFor(entry));
-    scheduleFlush();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
-
-  function connect(){
-    if (es) try { es.close(); } catch(e){ console.debug('LogsViewer: es.close failed', e); }
-    es = new EventSource('/logs/stream?kind=' + encodeURIComponent(kind));
-    es.onmessage = function(ev){
-      if (paused) return;
-      try { var entry = JSON.parse(ev.data); append(entry); } catch(e){ console.warn('LogsViewer: JSON parse failed', e); }
-    };
-    es.onerror = function(){ try { es.close(); } catch(e){ console.debug('LogsViewer: es.close in onerror failed', e); } setTimeout(connect, 1000); };
-  }
-
-  // initial fill (history)
-  fetch('/logs?kind=' + encodeURIComponent(kind)).then(r=>r.json()).then(function(d){
-    if (!d || d.ok !== true) return;
-    var items = d.items||[];
-    // Keep only the most recent up to MAX_ROWS
-    if (items.length > MAX_ROWS) items = items.slice(items.length - MAX_ROWS);
-    for (var i=0;i<items.length;i++) append(items[i]);
-    // Force immediate flush after initial load
-    flush();
-  });
-
-  filter && filter.addEventListener('input', function(){ filterTxt = (filter.value||'').trim().toLowerCase(); });
-  level && level.addEventListener('change', function(){ filterLevel = (level.value||'').trim().toLowerCase(); });
-  clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; });
-  pauseBtn && pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
-
-  backBtn && backBtn.addEventListener('click', function(e){
-    try {
-      // Prefer true back to preserve form state on Index; fallback to GET /Index
-      var ref = document.referrer ? new URL(document.referrer) : null;
-      if (ref && ref.origin === location.origin) {
-        var p = (ref.pathname || '').toLowerCase();
-        if (p === '/' || p.endsWith('/index')) { e.preventDefault(); history.back(); return; }
-      }
-      // Otherwise allow default anchor nav to Index
-    } catch { /* let default navigate */ }
-  });
-
-  // Keep autoscroll behavior intuitive when user scrolls up
-  if (tableContainer){
-    tableContainer.addEventListener('scroll', function(){ /* no-op, autoscroll computed per flush */ });
-  }
-
-  connect();
 })();
 </script>

@@ -125,6 +125,10 @@ namespace XRoadFolkWeb.Extensions
             AddCspAndSecurityHeaders(app);
             AddNoCacheHeaders(app);
             ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
+
+            // Friendly status code pages (e.g., 404/403) -> re-execute /Error/{statusCode}
+            app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
             ConfigureTransport(app, env);
             ConfigureLocalization(app);
 
@@ -169,6 +173,10 @@ namespace XRoadFolkWeb.Extensions
             app.UseRouting();
             app.UseCookiePolicy();
             app.UseSession();
+
+            // Correlation scope: TraceId, SpanId, User, SessionId
+            AddCorrelationScope(app, loggerFactory);
+
             // app.UseAntiforgery();
 
             MapCultureSwitch(app, cultureLog);
@@ -607,6 +615,31 @@ namespace XRoadFolkWeb.Extensions
                 }
 
                 return Results.Empty;
+            });
+        }
+
+        private static void AddCorrelationScope(WebApplication app, ILoggerFactory loggerFactory)
+        {
+            ILogger scopeLogger = loggerFactory.CreateLogger("App.Correlation");
+            app.Use(async (ctx, next) =>
+            {
+                Activity? activity = Activity.Current;
+                string traceId = activity?.TraceId.ToString() ?? string.Empty;
+                string spanId = activity?.SpanId.ToString() ?? string.Empty;
+                string? user = (ctx.User?.Identity?.IsAuthenticated == true) ? ctx.User!.Identity!.Name : null;
+                string? sessionId = null;
+                try { sessionId = ctx.Session?.Id; } catch { }
+
+                var scope = new Dictionary<string, object?>();
+                if (!string.IsNullOrEmpty(traceId)) scope["TraceId"] = traceId;
+                if (!string.IsNullOrEmpty(spanId)) scope["SpanId"] = spanId;
+                if (!string.IsNullOrEmpty(user)) scope["User"] = user;
+                if (!string.IsNullOrEmpty(sessionId)) scope["SessionId"] = sessionId;
+
+                using (scopeLogger.BeginScope(scope))
+                {
+                    await next();
+                }
             });
         }
     }

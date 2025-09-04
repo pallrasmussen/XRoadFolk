@@ -77,6 +77,14 @@
     <link rel="apple-touch-icon" href="~/favicon.png" />
     <meta name="theme-color" content="#0d6efd" />
 
+    <!-- Resource Hints for external CDNs -->
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <script nonce="@nonce">
         // Force light theme before paint; single catch for robustness
         (function () {
@@ -194,12 +202,12 @@
     </footer>
 
     <!-- Local Bootstrap JS (CSP-friendly) -->
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
-    <script src="~/js/antiforgery.js" asp-append-version="true"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true" defer></script>
+    <script src="~/js/antiforgery.js" asp-append-version="true" defer></script>
+    <script src="~/js/site.js" asp-append-version="true" defer></script>
 
     <environment include="Development">
-        <script src="/_framework/aspnetcore-browser-refresh.js"></script>
+        <script src="/_framework/aspnetcore-browser-refresh.js" defer></script>
     </environment>
 
     @RenderSection("Scripts", required: false)
