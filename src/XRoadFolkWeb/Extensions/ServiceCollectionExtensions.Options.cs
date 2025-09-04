@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
+using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -12,8 +13,11 @@ public static partial class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // XRoad settings
-        services.Configure<XRoadSettings>(configuration.GetSection("XRoad"));
+        // XRoad settings with fail-fast validation
+        services.AddOptions<XRoadSettings>()
+            .Bind(configuration.GetSection("XRoad"))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<XRoadSettings>, XRoadSettingsValidator>();
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
         // Safe SOAP sanitization hook

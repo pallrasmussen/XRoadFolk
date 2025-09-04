@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace XRoadFolkRaw.Lib.Extensions
 {
@@ -29,6 +30,9 @@ namespace XRoadFolkRaw.Lib.Extensions
                 c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
                 c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
             })
+            .AddHttpMessageHandler(sp => new XRoadPollyHandler(
+                sp.GetRequiredService<IConfiguration>(),
+                sp.GetRequiredService<ILoggerFactory>()))
             .ConfigurePrimaryHttpMessageHandler(static sp =>
             {
                 XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();

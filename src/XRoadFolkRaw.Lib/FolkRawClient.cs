@@ -424,6 +424,8 @@ namespace XRoadFolkRaw.Lib
             string respText = await _retryPolicy.ExecuteAsync(async () =>
             {
                 using HttpRequestMessage request = new(HttpMethod.Post, _http.BaseAddress);
+                // Inject operation header for policy selection (ignored by server)
+                request.Headers.TryAddWithoutValidation("X-XRoad-Operation", opName);
                 request.Content = new StringContent(xmlString, Encoding.UTF8, "text/xml");
                 using HttpResponseMessage response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 string text = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
