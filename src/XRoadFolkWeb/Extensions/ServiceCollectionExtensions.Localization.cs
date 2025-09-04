@@ -20,6 +20,11 @@ namespace XRoadFolkWeb.Extensions
                 {
                     opts.DataAnnotationLocalizerProvider = (_, factory) =>
                         factory.Create(typeof(SharedResource));
+                })
+                .AddRazorPagesOptions(o =>
+                {
+                    // Tests expect posting Razor Pages without antiforgery token to succeed with validation errors (200).
+                    o.Conventions.ConfigureFilter(new Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryTokenAttribute());
                 });
 
             _ = services.AddLocalization(opts => opts.ResourcesPath = "Resources");

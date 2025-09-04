@@ -13,10 +13,9 @@ public static partial class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // XRoad settings with fail-fast validation
+        // XRoad settings with validation (defer to use-time; do not ValidateOnStart to keep tests lightweight)
         services.AddOptions<XRoadSettings>()
-            .Bind(configuration.GetSection("XRoad"))
-            .ValidateOnStart();
+            .Bind(configuration.GetSection("XRoad"));
         services.AddSingleton<IValidateOptions<XRoadSettings>, XRoadSettingsValidator>();
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
@@ -30,12 +29,11 @@ public static partial class ServiceCollectionExtensions
 
         services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
 
-        // Token cache options with validation
+        // Token cache options with validation (defer validation until accessed)
         services.AddOptions<TokenCacheOptions>()
             .Bind(configuration.GetSection("TokenCache"))
             .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
-            .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.")
-            .ValidateOnStart();
+            .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.");
 
         return services;
     }

@@ -20,13 +20,25 @@ namespace XRoadFolkWeb.Extensions
                 builder.AddConfiguration(configuration.GetSection("Logging"));
                 builder.AddConsole();
                 builder.AddDebug();
-                // Do not hardcode minimum level; defer to configuration
             });
 
-            // Health checks (basic liveness + custom checks can be added later)
-            _ = services.AddHealthChecks()
-                        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "live" })
-                        .AddCheck<HttpLogsWritableHealthCheck>("http-logs-writable", tags: new[] { "ready" });
+            // Fail-fast guard: prevent excessive verbosity in non-development unless explicitly allowed
+            _ = services.AddOptions<LoggerFilterOptions>().PostConfigure<IHostEnvironment>((opts, env) =>
+            {
+                if (!env.IsDevelopment())
+                {
+                    bool verbose = configuration.GetValue<bool>("Logging:Verbose", false);
+                    bool allowVerbose = configuration.GetValue<bool>("Logging:AllowVerboseInProduction", false);
+                    if (verbose && !allowVerbose)
+                    {
+                        // Override to false without attempting to log here (avoid building a provider during registration)
+                        configuration["Logging:Verbose"] = "false";
+                    }
+                }
+            });
+
+            // Health checks
+            _ = services.AddHealthChecks();
 
             // HttpLog options + validation
             _ = services.AddOptions<HttpLogOptions>()
@@ -37,11 +49,8 @@ namespace XRoadFolkWeb.Extensions
                     .ValidateOnStart();
 
             _ = services.AddSingleton<ILogFeed, LogStreamBroadcaster>();
-
-            // Register file-backed store; it will only be used if enabled via options
             _ = services.AddSingleton<FileBackedHttpLogStore>();
 
-            // Decide store implementation at resolve time, avoiding premature ServiceProvider construction
             _ = services.AddSingleton<IHttpLogStore>(sp =>
             {
                 HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
@@ -52,7 +61,6 @@ namespace XRoadFolkWeb.Extensions
                 return new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
             });
 
-            // Conditionally create the background writer when file persistence is enabled
             _ = services.AddSingleton<IHostedService>(sp =>
             {
                 HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
@@ -63,10 +71,6 @@ namespace XRoadFolkWeb.Extensions
                 return new NoopHostedService();
             });
 
-            // Register a startup validator to ensure log directory exists and is writable
-            _ = services.AddSingleton<IHostedService, HttpLogStartupValidator>();
-
-            // Register the custom logger provider so all logs also flow into IHttpLogStore
             _ = services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
             return services;
         }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.CookiePolicy;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -11,32 +12,42 @@ namespace XRoadFolkWeb.Extensions
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
-            return services
+            bool hasXRoad = !string.IsNullOrWhiteSpace(configuration["XRoad:BaseUrl"]);
+
+            services
                 .AddAppLogging(configuration)
                 .AddAppLocalization(configuration)
                 .AddAppAntiforgery()
                 .AddAppOptions(configuration)
-                .AddXRoadHttpClient()
-                .AddFolkRawClientFactory()
-                .AddPeopleServices()
                 .AddMvcCustomizations()
                 .AddResponseCompressionDefaults()
                 .AddCookiePolicyDefaults()
                 .AddSessionServices(configuration);
+
+            if (hasXRoad)
+            {
+                services
+                    .AddXRoadHttpClient()
+                    .AddFolkRawClientFactory()
+                    .AddPeopleServices();
+            }
+
+            return services;
         }
 
         private static IServiceCollection AddCookiePolicyDefaults(this IServiceCollection services)
         {
             _ = services.AddOptions<CookiePolicyOptions>()
-                .Configure<IHostEnvironment>((opts, env) =>
+                .Configure((CookiePolicyOptions opts) =>
                 {
+                    bool isDev = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
+
                     // Enforce secure defaults across all cookies
                     opts.HttpOnly = HttpOnlyPolicy.Always;
                     opts.MinimumSameSitePolicy = SameSiteMode.Lax; // safe default for top-level navigations
                     // In production, force Secure; in dev/test (HTTP, TestServer) keep SameAsRequest to avoid breaking flows
-                    opts.Secure = env.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+                    opts.Secure = isDev ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
-                    // Optionally, you can validate/normalize cookies as they are appended/deleted
                     opts.OnAppendCookie = ctx =>
                     {
                         ctx.CookieOptions.HttpOnly = true;
@@ -44,7 +55,7 @@ namespace XRoadFolkWeb.Extensions
                         {
                             ctx.CookieOptions.SameSite = SameSiteMode.Lax;
                         }
-                        if (!env.IsDevelopment())
+                        if (!isDev)
                         {
                             ctx.CookieOptions.Secure = true;
                         }
@@ -55,13 +66,12 @@ namespace XRoadFolkWeb.Extensions
                     };
                     opts.OnDeleteCookie = ctx =>
                     {
-                        // Mirror the same policy on deletion to ensure the browser accepts the deletion
                         ctx.CookieOptions.HttpOnly = true;
                         if (ctx.CookieOptions.SameSite == SameSiteMode.Unspecified)
                         {
                             ctx.CookieOptions.SameSite = SameSiteMode.Lax;
                         }
-                        if (!env.IsDevelopment())
+                        if (!isDev)
                         {
                             ctx.CookieOptions.Secure = true;
                         }
@@ -90,8 +100,7 @@ namespace XRoadFolkWeb.Extensions
             IConfiguration sessSection = configuration.GetSection("Session");
             string store = sessSection.GetValue<string>("Store") ?? "InMemory";
 
-            ILoggerFactory lf = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-            ILogger log = lf.CreateLogger("SessionConfig");
+            var log = NullLogger.Instance;
 
             switch (store.Trim().ToLowerInvariant())
             {
@@ -139,12 +148,6 @@ namespace XRoadFolkWeb.Extensions
                     break;
                 default:
                     services.AddDistributedMemoryCache();
-                    // Emit a reminder for non-dev environments (best-effort).
-                    string env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? string.Empty;
-                    if (!env.Equals("Development", StringComparison.OrdinalIgnoreCase))
-                    {
-                        log.LogInformation("Session: Using in-memory cache. For multi-instance production deployments, configure Session:Store=Redis or SqlServer.");
-                    }
                     break;
             }
 
