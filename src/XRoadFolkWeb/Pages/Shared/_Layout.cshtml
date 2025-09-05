@@ -138,13 +138,8 @@
                     <!-- About option removed -->
                     @if (showLogs)
                     {
-                        <li class="nav-item dropdown">
-                            <a class="btn btn-sm btn-outline-light dropdown-toggle @(ViewContext.HttpContext.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">@SR["Nav_Logs"]</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" asp-page="/Logs/Http">HTTP</a></li>
-                                <li><a class="dropdown-item" asp-page="/Logs/Soap">SOAP</a></li>
-                                <li><a class="dropdown-item" asp-page="/Logs/App">App</a></li>
-                            </ul>
+                        <li class="nav-item">
+                            <a class="btn btn-sm btn-outline-light @(ViewContext.HttpContext.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" asp-page="/Logs/Http">@SR["Nav_Logs"]</a>
                         </li>
                     }
                 </ul>
