@@ -148,44 +148,75 @@ namespace XRoadFolkWeb.Extensions
             {
                 if (!env.IsDevelopment())
                 {
-                    bool verbose = configuration.GetValue<bool>("Logging:Verbose", false);
-                    bool allowVerbose = configuration.GetValue<bool>("Logging:AllowVerboseInProduction", false);
-                    if (verbose && !allowVerbose)
-                    {
-                        configuration["Logging:Verbose"] = "false";
-                    }
-
-                    void Upsert(string? provider, string category, LogLevel level)
-                    {
-                        int found = -1;
-                        for (int i = 0; i < opts.Rules.Count; i++)
-                        {
-                            var r = opts.Rules[i];
-                            if (string.Equals(r.ProviderName, provider, StringComparison.Ordinal) && string.Equals(r.CategoryName, category, StringComparison.Ordinal))
-                            {
-                                found = i;
-                                break;
-                            }
-                        }
-                        var rule = new LoggerFilterRule(providerName: provider, categoryName: category, logLevel: level, filter: null);
-                        if (found >= 0)
-                        {
-                            opts.Rules[found] = rule;
-                        }
-                        else
-                        {
-                            opts.Rules.Add(rule);
-                        }
-                    }
-
-                    Upsert(null, "Microsoft", LogLevel.Warning);
-                    Upsert(null, "Microsoft.AspNetCore", LogLevel.Warning);
-                    Upsert(null, "System", LogLevel.Warning);
-                    Upsert(null, "Microsoft.Hosting.Lifetime", LogLevel.Information);
-                    Upsert(null, "XRoadFolkWeb", LogLevel.Information);
-                    Upsert(null, "XRoadFolkRaw", LogLevel.Information);
+                    ApplyProductionVerbosityGuard(configuration);
+                    UpsertDefaultRules(opts);
                 }
             });
+        }
+
+        private static void ApplyProductionVerbosityGuard(IConfiguration configuration)
+        {
+            bool verbose = configuration.GetValue<bool>("Logging:Verbose", false);
+            bool allowVerbose = configuration.GetValue<bool>("Logging:AllowVerboseInProduction", false);
+            if (verbose && !allowVerbose)
+            {
+                configuration["Logging:Verbose"] = "false";
+            }
+        }
+
+        private static string NormalizeCategory(string category)
+        {
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return category;
+            }
+            string c = category.Trim();
+            if (c.EndsWith(".*", StringComparison.Ordinal))
+            {
+                c = c[..^2];
+            }
+            if (c.EndsWith(".", StringComparison.Ordinal))
+            {
+                c = c.TrimEnd('.');
+            }
+            return c;
+        }
+
+        private static void UpsertDefaultRules(LoggerFilterOptions opts)
+        {
+            Upsert(opts, null, "Microsoft", LogLevel.Warning);
+            Upsert(opts, null, "Microsoft.AspNetCore", LogLevel.Warning);
+            Upsert(opts, null, "System", LogLevel.Warning);
+            Upsert(opts, null, "Microsoft.Hosting.Lifetime", LogLevel.Information);
+            Upsert(opts, null, "XRoadFolkWeb", LogLevel.Information);
+            Upsert(opts, null, "XRoadFolkRaw", LogLevel.Information);
+        }
+
+        private static void Upsert(LoggerFilterOptions opts, string? provider, string category, LogLevel level)
+        {
+            string norm = NormalizeCategory(category);
+            int found = -1;
+            for (int i = 0; i < opts.Rules.Count; i++)
+            {
+                var r = opts.Rules[i];
+                string existing = r.CategoryName ?? string.Empty;
+                string existingNorm = NormalizeCategory(existing);
+                if (string.Equals(r.ProviderName, provider, StringComparison.Ordinal)
+                    && string.Equals(existingNorm, norm, StringComparison.Ordinal))
+                {
+                    found = i;
+                    break;
+                }
+            }
+            var rule = new LoggerFilterRule(providerName: provider, categoryName: norm, logLevel: level, filter: null);
+            if (found >= 0)
+            {
+                opts.Rules[found] = rule;
+            }
+            else
+            {
+                opts.Rules.Add(rule);
+            }
         }
 
         private static void ConfigureHttpLogOptions(IServiceCollection services)
