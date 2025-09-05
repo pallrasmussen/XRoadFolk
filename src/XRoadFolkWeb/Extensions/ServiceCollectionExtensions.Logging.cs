@@ -37,6 +37,7 @@ namespace XRoadFolkWeb.Extensions
                     // Collect our meters
                     metrics.AddMeter("XRoadFolkRaw");
                     metrics.AddMeter("XRoadFolkWeb");
+                    metrics.AddMeter("XRoadFolkWeb.Startup");
 
                     // ASP.NET Core and runtime metrics are optional; enable based on configuration if needed
                     bool includeAspNet = configuration.GetValue<bool>("OpenTelemetry:Metrics:AspNetCore", true);

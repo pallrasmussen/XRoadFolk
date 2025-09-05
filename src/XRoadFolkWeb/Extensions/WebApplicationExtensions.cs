@@ -13,11 +13,18 @@ using System.IO;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.OutputCaching;
+using System.Diagnostics.Metrics;
 
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class WebApplicationExtensions
     {
+        private static readonly Meter StartupMeter = new("XRoadFolkWeb.Startup");
+        private static readonly Histogram<double> ColdStartSeconds = StartupMeter.CreateHistogram<double>("cold_start_seconds");
+        private static readonly Histogram<double> FirstRequestSeconds = StartupMeter.CreateHistogram<double>("first_request_seconds");
+        private static readonly long ProcessStartTicks = Stopwatch.GetTimestamp();
+        private static bool _firstRequestRecorded;
+
         /// <summary>
         /// LoggerMessage delegates for performance
         /// </summary>
@@ -127,6 +134,10 @@ namespace XRoadFolkWeb.Extensions
             AddNoCacheHeaders(app);
             ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
 
+            // Measure cold start at the moment pipeline is configured (approx. app ready)
+            double coldStartSec = (Stopwatch.GetTimestamp() - ProcessStartTicks) / (double)Stopwatch.Frequency;
+            ColdStartSeconds.Record(coldStartSec);
+
             // Friendly status code pages (e.g., 404/403) -> re-execute /Error/{statusCode}
             app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
@@ -174,6 +185,20 @@ namespace XRoadFolkWeb.Extensions
                 }
             });
             app.UseRouting();
+
+            // First-request JIT timing middleware
+            app.Use(async (ctx, next) =>
+            {
+                bool record = !_firstRequestRecorded && HttpMethods.IsGet(ctx.Request.Method);
+                long start = record ? Stopwatch.GetTimestamp() : 0;
+                await next();
+                if (record)
+                {
+                    _firstRequestRecorded = true;
+                    double sec = (Stopwatch.GetTimestamp() - start) / (double)Stopwatch.Frequency;
+                    FirstRequestSeconds.Record(sec);
+                }
+            });
 
             // Response caching for safe GETs
             app.UseResponseCaching();
