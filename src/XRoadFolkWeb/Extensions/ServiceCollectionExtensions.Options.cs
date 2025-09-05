@@ -3,6 +3,7 @@ using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Infrastructure;
+using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -23,6 +24,13 @@ public static partial class ServiceCollectionExtensions
         services.AddOptions<HttpOptions>()
             .Bind(configuration.GetSection("Http"));
         services.AddSingleton<IValidateOptions<HttpOptions>, XRoadFolkWeb.Validation.HttpOptionsValidator>();
+
+        // Retry.Http strongly-typed options with validation
+        services.AddOptions<HttpRetryOptions>()
+            .Bind(configuration.GetSection("Retry:Http"))
+            .ValidateDataAnnotations()
+            .Validate(o => o.TimeoutMs >= 1000, "Retry:Http: TimeoutMs must be >= 1000")
+            .Validate(o => o.Attempts >= 0 && o.Attempts <= 10, "Retry:Http: Attempts must be between 0 and 10");
 
         // Safe SOAP sanitization hook
         bool maskTokens = configuration.GetValue<bool>("Logging:MaskTokens", true);

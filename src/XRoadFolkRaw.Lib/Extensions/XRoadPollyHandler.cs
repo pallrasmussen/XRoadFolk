@@ -2,38 +2,33 @@ using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Polly;
+using XRoadFolkRaw.Lib.Options;
+using Microsoft.Extensions.Options;
 
 namespace XRoadFolkRaw.Lib.Extensions
 {
     internal sealed class XRoadPollyHandler : DelegatingHandler
     {
-        private readonly IConfiguration _cfg;
+        private readonly HttpRetryOptions _opts;
         private readonly ILogger _log;
 
-        public XRoadPollyHandler(IConfiguration cfg, ILoggerFactory lf)
+        public XRoadPollyHandler(IOptions<HttpRetryOptions> opts, ILoggerFactory lf)
         {
-            _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _opts = opts?.Value ?? throw new ArgumentNullException(nameof(opts));
             _log = lf?.CreateLogger("XRoad.Http") ?? throw new ArgumentNullException(nameof(lf));
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             string op = request.Headers.TryGetValues("X-XRoad-Operation", out var values) ? (values.FirstOrDefault() ?? string.Empty) : string.Empty;
-            string key = string.IsNullOrWhiteSpace(op) ? "Default" : op;
+            var eff = ResolveEffective(op);
 
-            int timeoutMs = _cfg.GetValue<int>($"Retry:Http:{key}:TimeoutMs", _cfg.GetValue<int>("Retry:Http:TimeoutMs", 30000));
-            int attempts = _cfg.GetValue<int>($"Retry:Http:{key}:Attempts", _cfg.GetValue<int>("Retry:Http:Attempts", 3));
-            int baseDelayMs = _cfg.GetValue<int>($"Retry:Http:{key}:BaseDelayMs", _cfg.GetValue<int>("Retry:Http:BaseDelayMs", 200));
-            int jitterMs = _cfg.GetValue<int>($"Retry:Http:{key}:JitterMs", _cfg.GetValue<int>("Retry:Http:JitterMs", 250));
-            int breakFailures = _cfg.GetValue<int>($"Retry:Http:{key}:BreakFailures", _cfg.GetValue<int>("Retry:Http:BreakFailures", 5));
-            int breakDurationMs = _cfg.GetValue<int>($"Retry:Http:{key}:BreakDurationMs", _cfg.GetValue<int>("Retry:Http:BreakDurationMs", 30000));
-
-            attempts = Math.Clamp(attempts, 0, 10);
-            timeoutMs = Math.Max(1000, timeoutMs);
-            baseDelayMs = Math.Max(0, baseDelayMs);
-            jitterMs = Math.Max(0, jitterMs);
-            breakFailures = Math.Clamp(breakFailures, 1, 100);
-            breakDurationMs = Math.Max(1000, breakDurationMs);
+            int attempts = Math.Clamp(eff.Attempts, 0, 10);
+            int timeoutMs = Math.Max(1000, eff.TimeoutMs);
+            int baseDelayMs = Math.Max(0, eff.BaseDelayMs);
+            int jitterMs = Math.Max(0, eff.JitterMs);
+            int breakFailures = Math.Clamp(eff.BreakFailures, 1, 100);
+            int breakDurationMs = Math.Max(1000, eff.BreakDurationMs);
 
             var jitterer = new Random();
             IAsyncPolicy<HttpResponseMessage> retry = Policy<HttpResponseMessage>
@@ -42,21 +37,42 @@ namespace XRoadFolkRaw.Lib.Extensions
                 .OrResult(r => (int)r.StatusCode >= 500)
                 .WaitAndRetryAsync(attempts,
                     i => TimeSpan.FromMilliseconds((baseDelayMs * (1 << (i - 1))) + jitterer.Next(0, jitterMs)),
-                    (outcome, delay, i, _) => _log.LogWarning("XRoad HTTP retry {Attempt} after {Delay}ms for {Operation}", i, delay.TotalMilliseconds, key));
+                    (outcome, delay, i, _) => _log.LogWarning("XRoad HTTP retry {Attempt} after {Delay}ms for {Operation}", i, delay.TotalMilliseconds, op));
 
             IAsyncPolicy<HttpResponseMessage> breaker = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
                 .Or<TaskCanceledException>()
                 .OrResult(r => (int)r.StatusCode >= 500)
                 .CircuitBreakerAsync(breakFailures, TimeSpan.FromMilliseconds(breakDurationMs),
-                    (outcome, ts) => _log.LogWarning(outcome.Exception, "XRoad HTTP circuit opened for {Operation} during {Duration}ms", key, ts.TotalMilliseconds),
-                    () => _log.LogInformation("XRoad HTTP circuit reset for {Operation}", key));
+                    (outcome, ts) => _log.LogWarning(outcome.Exception, "XRoad HTTP circuit opened for {Operation} during {Duration}ms", op, ts.TotalMilliseconds),
+                    () => _log.LogInformation("XRoad HTTP circuit reset for {Operation}", op));
 
             IAsyncPolicy<HttpResponseMessage> timeout = Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromMilliseconds(timeoutMs));
 
             IAsyncPolicy<HttpResponseMessage> pipeline = Policy.WrapAsync(timeout, breaker, retry);
 
             return pipeline.ExecuteAsync(ct => base.SendAsync(request, ct), cancellationToken);
+        }
+
+        private HttpRetryOptions ResolveEffective(string? op)
+        {
+            if (string.IsNullOrWhiteSpace(op)) return _opts;
+            if (_opts.Operations is null) return _opts;
+            if (!_opts.Operations.TryGetValue(op!, out var ov) && !_opts.Operations.TryGetValue("Default", out ov))
+            {
+                return _opts;
+            }
+
+            return new HttpRetryOptions
+            {
+                Attempts = ov.Attempts ?? _opts.Attempts,
+                BaseDelayMs = ov.BaseDelayMs ?? _opts.BaseDelayMs,
+                JitterMs = ov.JitterMs ?? _opts.JitterMs,
+                TimeoutMs = ov.TimeoutMs ?? _opts.TimeoutMs,
+                BreakFailures = ov.BreakFailures ?? _opts.BreakFailures,
+                BreakDurationMs = ov.BreakDurationMs ?? _opts.BreakDurationMs,
+                Operations = _opts.Operations,
+            };
         }
     }
 }
