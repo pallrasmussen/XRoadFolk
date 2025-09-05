@@ -76,6 +76,8 @@ namespace XRoadFolkWeb.Infrastructure
             PublishToStream(e);
             if (!TryWriteToChannel(e) && !TryBestEffortWarnError(e))
             {
+                // Log the enqueue drop for operational visibility and record metrics
+                LogEnqueueDrop(_log, e.Level, e.Category, e.EventId);
                 RecordDrop(e, reason: "backpressure");
             }
         }
