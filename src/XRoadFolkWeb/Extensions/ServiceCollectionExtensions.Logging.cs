@@ -21,7 +21,8 @@ namespace XRoadFolkWeb.Extensions
             {
                 builder.ClearProviders();
                 builder.AddConfiguration(configuration.GetSection("Logging"));
-                builder.AddConsole(o => o.IncludeScopes = true);
+                // Use non-obsolete API to include scopes in console output
+                builder.AddSimpleConsole(o => o.IncludeScopes = true);
                 builder.AddDebug();
             });
 
