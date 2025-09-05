@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -13,9 +14,6 @@ namespace XRoadFolkRaw.Lib
         private string? _token;
         private DateTimeOffset _expiresUtc = DateTimeOffset.MinValue;
 
-        /// <summary>
-        /// Coalesce concurrent refreshs
-        /// </summary>
         private Task<string>? _refreshTask;
 
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
@@ -55,7 +53,6 @@ namespace XRoadFolkRaw.Lib
             }
             finally
             {
-                // Use non-cancellable cleanup to ensure _refreshTask is cleared even if caller cancels
                 await _gate.WaitAsync().ConfigureAwait(false);
                 try
                 {
@@ -79,7 +76,18 @@ namespace XRoadFolkRaw.Lib
             XDocument doc = LoadXml(xml);
             (string token, string? expiryText) = ExtractTokenAndExpiry(doc);
             _token = token;
-            _expiresUtc = ComputeExpiry(expiryText) - _skew;
+
+            DateTimeOffset exp = ComputeExpiryFromText(expiryText);
+            if (exp == DateTimeOffset.MinValue)
+            {
+                // Try to infer from JWT 'exp' if possible
+                if (TryGetJwtExpiryUtc(_token, out DateTimeOffset jwtExp))
+                {
+                    exp = jwtExp;
+                }
+            }
+
+            _expiresUtc = (exp == DateTimeOffset.MinValue ? DateTimeOffset.UtcNow.AddMinutes(30) : exp) - _skew;
             return _token;
         }
 
@@ -107,24 +115,46 @@ namespace XRoadFolkRaw.Lib
             foreach (XElement el in doc.Descendants())
             {
                 string name = el.Name.LocalName;
-                if (tokenText is null && name.Equals("token", StringComparison.OrdinalIgnoreCase))
+
+                // Token candidates
+                if (tokenText is null && (name.Equals("token", StringComparison.OrdinalIgnoreCase)
+                                          || name.Equals("accessToken", StringComparison.OrdinalIgnoreCase)
+                                          || name.Equals("access_token", StringComparison.OrdinalIgnoreCase)
+                                          || name.Equals("authToken", StringComparison.OrdinalIgnoreCase)))
                 {
-                    tokenText = el.Value?.Trim();
+                    tokenText = ReadValueOrValueAttribute(el);
                     if (!string.IsNullOrEmpty(tokenText) && expiryText is not null)
                     {
-                        break; // found both
+                        break;
                     }
                     continue;
                 }
 
+                // Expiry candidates
                 if (expiryText is null && (name.Equals("expires", StringComparison.OrdinalIgnoreCase)
-                    || name.Equals("expiry", StringComparison.OrdinalIgnoreCase)
-                    || name.Equals("expiration", StringComparison.OrdinalIgnoreCase)))
+                                           || name.Equals("expiry", StringComparison.OrdinalIgnoreCase)
+                                           || name.Equals("expiration", StringComparison.OrdinalIgnoreCase)
+                                           || name.Equals("expiresIn", StringComparison.OrdinalIgnoreCase)
+                                           || name.Equals("expires_in", StringComparison.OrdinalIgnoreCase)))
                 {
-                    expiryText = el.Value?.Trim();
+                    expiryText = ReadValueOrValueAttribute(el);
                     if (!string.IsNullOrEmpty(expiryText) && tokenText is not null)
                     {
-                        break; // found both
+                        break;
+                    }
+                }
+
+                // Also look at attributes on a <token> element
+                if (tokenText is not null && expiryText is null && el.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase))
+                {
+                    expiryText = el.Attribute("expires")?.Value
+                              ?? el.Attribute("expiry")?.Value
+                              ?? el.Attribute("expiration")?.Value
+                              ?? el.Attribute("expiresIn")?.Value
+                              ?? el.Attribute("expires_in")?.Value;
+                    if (!string.IsNullOrWhiteSpace(expiryText))
+                    {
+                        break;
                     }
                 }
             }
@@ -136,22 +166,99 @@ namespace XRoadFolkRaw.Lib
             return (tokenText!, expiryText);
         }
 
-        private static DateTimeOffset ComputeExpiry(string? expiryText)
+        private static string? ReadValueOrValueAttribute(XElement el)
         {
-            if (!string.IsNullOrWhiteSpace(expiryText))
+            string? v = el.Value?.Trim();
+            if (!string.IsNullOrEmpty(v))
             {
-                string txt = expiryText!;
-                if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
-                {
-                    return exp;
-                }
-                if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds))
-                {
-                    return DateTimeOffset.UtcNow.AddSeconds(seconds);
-                }
-                return DateTimeOffset.UtcNow.AddMinutes(30);
+                return v;
             }
-            return DateTimeOffset.UtcNow.AddMinutes(30);
+            string? attr = el.Attribute("value")?.Value?.Trim();
+            return string.IsNullOrEmpty(attr) ? null : attr;
+        }
+
+        private static DateTimeOffset ComputeExpiryFromText(string? expiryText)
+        {
+            if (string.IsNullOrWhiteSpace(expiryText))
+            {
+                return DateTimeOffset.MinValue;
+            }
+
+            string txt = expiryText.Trim();
+
+            // Try ISO / RFC date-time
+            if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
+            {
+                return exp;
+            }
+
+            // Try numeric epoch/relative
+            if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long num))
+            {
+                // Heuristic: large values are likely epoch milliseconds
+                if (num > 9999999999L) // > ~Sat Nov 20 2286 in seconds
+                {
+                    try { return DateTimeOffset.FromUnixTimeMilliseconds(num); } catch { }
+                }
+                else if (num > 1000000000L) // plausible epoch seconds
+                {
+                    try { return DateTimeOffset.FromUnixTimeSeconds(num); } catch { }
+                }
+                else
+                {
+                    // Treat as relative seconds
+                    return DateTimeOffset.UtcNow.AddSeconds(num);
+                }
+            }
+
+            return DateTimeOffset.MinValue;
+        }
+
+        private static bool TryGetJwtExpiryUtc(string? token, out DateTimeOffset exp)
+        {
+            exp = DateTimeOffset.MinValue;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            string[] parts = token.Split('.');
+            if (parts.Length != 3)
+            {
+                return false;
+            }
+
+            try
+            {
+                // Decode payload (Base64Url)
+                string payload = parts[1];
+                byte[] jsonBytes = Base64UrlDecode(payload);
+                using JsonDocument doc = JsonDocument.Parse(jsonBytes);
+                if (doc.RootElement.TryGetProperty("exp", out JsonElement expEl))
+                {
+                    if (expEl.ValueKind == JsonValueKind.Number && expEl.TryGetInt64(out long seconds))
+                    {
+                        exp = DateTimeOffset.FromUnixTimeSeconds(seconds);
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+            return false;
+        }
+
+        private static byte[] Base64UrlDecode(string input)
+        {
+            string s = input.Replace('-', '+').Replace('_', '/');
+            switch (s.Length % 4)
+            {
+                case 2: s += "=="; break;
+                case 3: s += "="; break;
+            }
+            return Convert.FromBase64String(s);
         }
 
         private bool NeedsRefresh()
