@@ -25,9 +25,20 @@ namespace XRoadFolkWeb.Infrastructure
 
         public static string FormatLine(XRoadFolkWeb.Infrastructure.LogEntry e)
         {
-            string msg = Sanitize(e.Message);
-            string ex = Sanitize(e.Exception);
+            // Sanitize PII and secrets prior to formatting
+            bool mask = _maskTokens;
+            string msg = PiiSanitizer.Sanitize(e.Message, mask);
+            string ex = PiiSanitizer.Sanitize(e.Exception, mask);
+            msg = Sanitize(msg);
+            ex = Sanitize(ex);
             return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}");
+        }
+
+        // cached flag set via Configure call at startup
+        private static volatile bool _maskTokens = true;
+        public static void Configure(bool maskTokens)
+        {
+            _maskTokens = maskTokens;
         }
     }
 }

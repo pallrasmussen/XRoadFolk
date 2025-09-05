@@ -7,6 +7,8 @@ using XRoadFolkWeb.Infrastructure;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using XRoadFolkRaw.Lib;
+using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -16,6 +18,16 @@ namespace XRoadFolkWeb.Extensions
         {
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(configuration);
+
+            // Bind logging options and propagate masking to sanitizers/formatters
+            services.AddOptions<LoggingOptions>()
+                    .Bind(configuration.GetSection("Logging"));
+            services.PostConfigure<LoggingOptions>(opts =>
+            {
+                bool maskTokens = opts.MaskTokens;
+                SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
+                LogLineFormatter.Configure(maskTokens);
+            });
 
             _ = services.AddLogging(builder =>
             {
@@ -135,12 +147,16 @@ namespace XRoadFolkWeb.Extensions
 
             _ = services.AddSingleton<IHttpLogStore>(sp =>
             {
+                var env = sp.GetRequiredService<IHostEnvironment>();
+                var logOpts = sp.GetRequiredService<IOptions<LoggingOptions>>().Value;
+                bool mask = !env.IsDevelopment() || logOpts.MaskTokens; // enforce masking outside Development
+
                 HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
-                if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
-                {
-                    return sp.GetRequiredService<FileBackedHttpLogStore>();
-                }
-                return new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
+                IHttpLogStore inner = (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
+                    ? sp.GetRequiredService<FileBackedHttpLogStore>()
+                    : new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
+
+                return mask ? new MaskingHttpLogStore(inner, sp.GetRequiredService<IOptions<LoggingOptions>>(), env) : inner;
             });
 
             _ = services.AddSingleton<IHostedService>(sp =>
