@@ -211,34 +211,22 @@ namespace XRoadFolkRaw.Lib
             string? pemCert = xr.Certificate?.PemCertPath;
             string? pemKey = xr.Certificate?.PemKeyPath;
             bool hasPfx = !string.IsNullOrWhiteSpace(pfx);
-            bool hasPem = !string.IsNullOrWhiteSpace(pemCert) || !string.IsNullOrWhiteSpace(pemKey);
+            bool hasPemCert = !string.IsNullOrWhiteSpace(pemCert);
+            bool hasPemKey = !string.IsNullOrWhiteSpace(pemKey);
+            bool hasPem = hasPemCert || hasPemKey;
 
-            if (requireClientCertificate && !hasPfx && !hasPem)
+            if (requireClientCertificate && !hasPfx && !(hasPemCert && hasPemKey))
             {
                 errs.Add(loc[Messages.ConfigureClientCertificate]);
             }
-            if (hasPfx && pfx != null && !File.Exists(pfx))
+
+            // Structural validation for PEM mode: both required if any specified
+            if (hasPem && !(hasPemCert && hasPemKey))
             {
-                errs.Add(loc[Messages.PfxFileNotFound, pfx]);
+                errs.Add(loc[Messages.PemModeRequiresBothPemCertPathAndPemKeyPath]);
             }
-            if (hasPem)
-            {
-                if (string.IsNullOrWhiteSpace(pemCert) || string.IsNullOrWhiteSpace(pemKey))
-                {
-                    errs.Add(loc[Messages.PemModeRequiresBothPemCertPathAndPemKeyPath]);
-                }
-                else
-                {
-                    if (pemCert != null && !File.Exists(pemCert))
-                    {
-                        errs.Add(loc[Messages.PemCertFileNotFound, pemCert]);
-                    }
-                    if (pemKey != null && !File.Exists(pemKey))
-                    {
-                        errs.Add(loc[Messages.PemKeyFileNotFound, pemKey]);
-                    }
-                }
-            }
+
+            // Note: File existence checks are host-specific and resolved by the web validator (which knows ContentRootPath).
         }
 
         private static void ReportErrorsAndThrow(ILogger log, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)

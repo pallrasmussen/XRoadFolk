@@ -64,7 +64,7 @@ namespace XRoadFolkWeb.Infrastructure
                 }
                 if (!File.Exists(probe))
                 {
-                    errors.Add($"{key} file not found: '{path}'.");
+                    errors.Add($"{key} file not found: '{path}' (resolved: '{probe}').");
                 }
             }
 
