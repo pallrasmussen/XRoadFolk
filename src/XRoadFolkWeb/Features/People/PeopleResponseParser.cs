@@ -176,7 +176,16 @@ namespace XRoadFolkWeb.Features.People
                     string? firstName = ExtractFirstName(nameItems);
                     string? lastName = ExtractLastName(nameItems);
                     string? dateOfBirth = ExtractDateOfBirth(p);
-                    string? ssn = ExtractSsn(p, people.Count, requestSsn);
+                    string? ssn = ExtractSsn(p);
+
+                    // Only fallback to request SSN when a single result exists AND it has other identifying data
+                    if (string.IsNullOrWhiteSpace(ssn)
+                        && people.Count == 1
+                        && !string.IsNullOrWhiteSpace(requestSsn)
+                        && (!string.IsNullOrWhiteSpace(publicId) || !string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName)))
+                    {
+                        ssn = requestSsn;
+                    }
 
                     if (!ShouldIncludeRow(publicId, ssn, firstName, lastName))
                     {
@@ -256,14 +265,9 @@ namespace XRoadFolkWeb.Features.People
                 : civilStatusDate;
         }
 
-        private static string? ExtractSsn(XElement p, int peopleCount, string? requestSsn)
+        private static string? ExtractSsn(XElement p)
         {
-            string? ssn = ElementsBy(p, "SSN").FirstOrDefault()?.Value?.Trim();
-            if (string.IsNullOrWhiteSpace(ssn) && peopleCount == 1 && !string.IsNullOrWhiteSpace(requestSsn))
-            {
-                ssn = requestSsn;
-            }
-            return ssn;
+            return ElementsBy(p, "SSN").FirstOrDefault()?.Value?.Trim();
         }
 
         private static bool ShouldIncludeRow(string? publicId, string? ssn, string? firstName, string? lastName)

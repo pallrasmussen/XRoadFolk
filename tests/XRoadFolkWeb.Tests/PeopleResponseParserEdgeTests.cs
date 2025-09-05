@@ -141,4 +141,53 @@ public class PeopleResponseParserEdgeTests
         var pairs = Parser().FlattenResponse(xml);
         Assert.Empty(pairs);
     }
+
+    [Fact]
+    public void ParsePeopleList_Returns_Empty_When_Ssn_NoMatch_And_Empty_Result_Element()
+    {
+        // Simulate response with a single empty PersonPublicInfo and SSN in criteria
+        string xml = """
+        <Envelope>
+          <Body>
+            <GetPeoplePublicInfoResponse>
+              <ListOfPersonPublicInfo>
+                <PersonPublicInfo />
+              </ListOfPersonPublicInfo>
+              <ListOfPersonPublicInfoCriteria>
+                <PersonPublicInfoCriteria>
+                  <SSN>999999999</SSN>
+                </PersonPublicInfoCriteria>
+              </ListOfPersonPublicInfoCriteria>
+            </GetPeoplePublicInfoResponse>
+          </Body>
+        </Envelope>
+        """;
+
+        var rows = Parser().ParsePeopleList(xml);
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public void ParsePeopleList_Returns_Empty_When_Ssn_NoMatch_And_No_Result_Elements()
+    {
+        // Simulate response with no PersonPublicInfo elements
+        string xml = """
+        <Envelope>
+          <Body>
+            <GetPeoplePublicInfoResponse>
+              <ListOfPersonPublicInfo>
+              </ListOfPersonPublicInfo>
+              <ListOfPersonPublicInfoCriteria>
+                <PersonPublicInfoCriteria>
+                  <SSN>999999999</SSN>
+                </PersonPublicInfoCriteria>
+              </ListOfPersonPublicInfoCriteria>
+            </GetPeoplePublicInfoResponse>
+          </Body>
+        </Envelope>
+        """;
+
+        var rows = Parser().ParsePeopleList(xml);
+        Assert.Empty(rows);
+    }
 }

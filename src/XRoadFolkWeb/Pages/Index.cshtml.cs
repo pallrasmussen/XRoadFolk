@@ -79,6 +79,17 @@ namespace XRoadFolkWeb.Pages
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
         /// <summary>
+        /// Indicates that a search request was successfully executed this request.
+        /// Used by the view to show an empty-state message when no results are returned.
+        /// </summary>
+        public bool HasSearched { get; private set; }
+
+        /// <summary>
+        /// True when a search completed and returned zero people.
+        /// </summary>
+        public bool NoPeopleFound { get; private set; }
+
+        /// <summary>
         /// Expose enabled include keys to the view (lazy-loaded once per request) as read-only
         /// </summary>
         private IReadOnlyList<string>? _enabledPersonIncludeKeys;
@@ -220,6 +231,8 @@ namespace XRoadFolkWeb.Pages
             PeoplePublicInfoResponseXml = res.Xml;
             PeoplePublicInfoResponseXmlPretty = res.Pretty;
             Results = res.Results;
+            HasSearched = true;
+            NoPeopleFound = Results is null || Results.Count == 0;
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -300,6 +313,8 @@ namespace XRoadFolkWeb.Pages
             SelectedNameSuffix = string.Empty;
             PeoplePublicInfoResponseXml = null;
             PeoplePublicInfoResponseXmlPretty = null;
+            HasSearched = false;
+            NoPeopleFound = false;
             return RedirectToPage();
         }
 
