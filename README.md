@@ -197,3 +197,26 @@ The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and 
 
 - Template/resource loading uses positive/negative caching to avoid repeated IO and noisy logs.
 - Accept-Language and XML parsing are hardened against DoS-like inputs.
+
+# XRoadFolk
+
+## Configuration notes
+
+- JSON configuration files (appsettings*.json) do not support comments. Keep comments in this README or separate docs.
+- HttpLogs.PersistToFile: Do not enable in production unless there is a strong operational need and storage/retention is controlled.
+  - Use environment-specific overrides (e.g., appsettings.Production.json) instead of editing appsettings.json.
+- Features.ShowLogs: Should be disabled in production to reduce exposure of log data in the UI.
+
+## Environment-specific configuration
+
+- appsettings.json: Baseline settings shared across all environments.
+- appsettings.Development.json: Development-time tweaks.
+- appsettings.Production.json: Production overrides. See example committed in this repo.
+
+## How to override locally
+
+- Use dotnet user-secrets for secrets and local-only overrides.
+- Environment variables can override any setting using the colon-delimited form, e.g.:
+  - ASPNETCORE_ENVIRONMENT=Production
+  - HttpLogs__PersistToFile=false
+  - Features__ShowLogs=false
