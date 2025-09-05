@@ -147,3 +147,24 @@ dotnet_diagnostic.MA0051.severity = warning
 dotnet_diagnostic.MA0051.severity = warning
 [src/XRoadFolkRaw.Lib/Extensions/ServiceCollectionExtensions.Http.cs]
 dotnet_diagnostic.MA0051.severity = warning
+
+# Incremental tightening (safe): enforce StringComparison and braces on compliant files
+[src/XRoadFolkWeb/Infrastructure/BestMatchRequestCultureProvider.cs]
+dotnet_diagnostic.MA0074.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+[src/XRoadFolkWeb/Infrastructure/FileBackedHttpLogStore.cs]
+dotnet_diagnostic.MA0074.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+[src/XRoadFolkWeb/Infrastructure/InMemoryHttpLog.cs]
+dotnet_diagnostic.MA0074.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+[src/XRoadFolkWeb/Extensions/ServiceCollectionExtensions.Logging.cs]
+dotnet_diagnostic.MA0074.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+[src/XRoadFolkRaw.Lib/ConfigurationLoader.cs]
+dotnet_diagnostic.MA0074.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+[src/XRoadFolkRaw.Lib/FolkRawClient.cs]
+dotnet_diagnostic.MA0074.severity = warning
+[src/XRoadFolkRaw.Lib/TokenHelper.cs]
+dotnet_diagnostic.MA0074.severity = warning
