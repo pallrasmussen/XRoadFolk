@@ -45,15 +45,8 @@ namespace XRoadFolkRaw.Lib
             XRoadSettings xr = config.GetSection("XRoad").Get<XRoadSettings>() ?? new();
             ApplyEnvOverrides(xr);
 
-            List<string> errs = [];
-            ValidateBaseUrl(xr, loc, errs);
-            ValidateHeaders(xr, loc, errs);
-            ValidateClient(xr, loc, errs);
-            ValidateService(xr, loc, errs);
-            ValidateAuth(xr, loc, errs);
-            ValidateTokenInsert(config, loc, errs);
+            List<string> errs = ValidateSettings(xr, config, loc, requireClientCertificate: true);
             ValidateTemplates(config, log);
-            ValidateCertificates(xr, loc, errs);
 
             if (errs.Count > 0)
             {
@@ -63,6 +56,19 @@ namespace XRoadFolkRaw.Lib
             EnsureRequiredSections(xr);
             LogSubsystems(log, xr);
             return (config, xr);
+        }
+
+        public static List<string> ValidateSettings(XRoadSettings xr, IConfiguration config, IStringLocalizer<ConfigurationLoader> loc, bool requireClientCertificate)
+        {
+            List<string> errs = new(capacity: 16);
+            ValidateBaseUrl(xr, loc, errs);
+            ValidateHeaders(xr, loc, errs);
+            ValidateClient(xr, loc, errs);
+            ValidateService(xr, loc, errs);
+            ValidateAuth(xr, loc, errs);
+            ValidateTokenInsert(config, loc, errs);
+            ValidateCertificates(xr, loc, errs, requireClientCertificate);
+            return errs;
         }
 
         private static IConfigurationRoot BuildConfiguration()
@@ -199,18 +205,19 @@ namespace XRoadFolkRaw.Lib
             }
         }
 
-        private static void ValidateCertificates(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        private static void ValidateCertificates(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs, bool requireClientCertificate)
         {
             string? pfx = xr.Certificate?.PfxPath;
             string? pemCert = xr.Certificate?.PemCertPath;
             string? pemKey = xr.Certificate?.PemKeyPath;
             bool hasPfx = !string.IsNullOrWhiteSpace(pfx);
             bool hasPem = !string.IsNullOrWhiteSpace(pemCert) || !string.IsNullOrWhiteSpace(pemKey);
-            if (!hasPfx && !hasPem)
+
+            if (requireClientCertificate && !hasPfx && !hasPem)
             {
                 errs.Add(loc[Messages.ConfigureClientCertificate]);
             }
-            if (pfx != null && !File.Exists(pfx))
+            if (hasPfx && pfx != null && !File.Exists(pfx))
             {
                 errs.Add(loc[Messages.PfxFileNotFound, pfx]);
             }
