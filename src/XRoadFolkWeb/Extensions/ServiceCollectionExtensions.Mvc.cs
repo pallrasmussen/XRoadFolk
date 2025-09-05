@@ -22,12 +22,8 @@ public static partial class ServiceCollectionExtensions
                 options.ModelBinderProviders.Insert(0, new Validation.TrimDigitsModelBinderProvider());
             }
 
-            // Require antiforgery tokens by default outside Development
-            bool isDev = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-            if (!isDev)
-            {
-                options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-            }
+            // Require antiforgery tokens by default in all environments
+            options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
         });
 
         return services;

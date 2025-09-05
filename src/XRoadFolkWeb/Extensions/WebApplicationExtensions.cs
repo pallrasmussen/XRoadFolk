@@ -177,7 +177,7 @@ namespace XRoadFolkWeb.Extensions
             // Correlation scope: TraceId, SpanId, User, SessionId
             AddCorrelationScope(app, loggerFactory);
 
-            // app.UseAntiforgery();
+            app.UseAntiforgery();
 
             MapCultureSwitch(app, cultureLog);
             app.MapRazorPages();
