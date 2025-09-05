@@ -118,7 +118,7 @@ namespace XRoadFolkWeb.Extensions
                     }
                 });
 
-            // Fail-fast guard: prevent excessive verbosity in non-development unless explicitly allowed
+            // Fail-fast guard and production noise reduction
             _ = services.AddOptions<LoggerFilterOptions>().PostConfigure<IHostEnvironment>((opts, env) =>
             {
                 if (!env.IsDevelopment())
@@ -129,6 +129,33 @@ namespace XRoadFolkWeb.Extensions
                     {
                         configuration["Logging:Verbose"] = "false";
                     }
+
+                    // Normalize levels: reduce Microsoft.* and System.* noise
+                    void Upsert(string? provider, string category, LogLevel level)
+                    {
+                        int found = -1;
+                        for (int i = 0; i < opts.Rules.Count; i++)
+                        {
+                            var r = opts.Rules[i];
+                            if (r.ProviderName == provider && string.Equals(r.CategoryName, category, StringComparison.Ordinal))
+                            {
+                                found = i;
+                                break;
+                            }
+                        }
+                        var rule = new LoggerFilterRule(providerName: provider, categoryName: category, logLevel: level, filter: null);
+                        if (found >= 0) opts.Rules[found] = rule; else opts.Rules.Add(rule);
+                    }
+
+                    Upsert(null, "Microsoft", LogLevel.Warning);
+                    Upsert(null, "Microsoft.AspNetCore", LogLevel.Warning);
+                    Upsert(null, "System", LogLevel.Warning);
+                    // Keep lifetime info visible
+                    Upsert(null, "Microsoft.Hosting.Lifetime", LogLevel.Information);
+
+                    // Ensure app namespaces remain at Information by default
+                    Upsert(null, "XRoadFolkWeb", LogLevel.Information);
+                    Upsert(null, "XRoadFolkRaw", LogLevel.Information);
                 }
             });
 
