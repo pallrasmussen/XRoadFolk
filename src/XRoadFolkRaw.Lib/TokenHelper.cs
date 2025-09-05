@@ -2,14 +2,17 @@ using System.Globalization;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace XRoadFolkRaw.Lib
 {
-    public sealed class FolkTokenProviderRaw(Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null) : IDisposable
+    public sealed partial class FolkTokenProviderRaw(Func<CancellationToken, Task<string>> loginCall, TimeSpan? refreshSkew = null, ILogger? logger = null) : IDisposable
     {
         private readonly TimeSpan _skew = refreshSkew ?? TimeSpan.Zero;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly Func<CancellationToken, Task<string>> _loginCall = loginCall ?? throw new ArgumentNullException(nameof(loginCall));
+        private readonly ILogger? _log = logger;
 
         private string? _token;
         private DateTimeOffset _expiresUtc = DateTimeOffset.MinValue;
@@ -80,14 +83,26 @@ namespace XRoadFolkRaw.Lib
             DateTimeOffset exp = ComputeExpiryFromText(expiryText);
             if (exp == DateTimeOffset.MinValue)
             {
-                // Try to infer from JWT 'exp' if possible
-                if (TryGetJwtExpiryUtc(_token, out DateTimeOffset jwtExp))
+                bool usedJwt = TryGetJwtExpiryUtc(_token, out DateTimeOffset jwtExp);
+                if (expiryText is not null)
                 {
-                    exp = jwtExp;
+                    if (usedJwt)
+                    {
+                        LogUnexpectedExpiryUsedJwt(_log ?? NullLogger.Instance, expiryText);
+                        exp = jwtExp;
+                    }
+                    else
+                    {
+                        LogUnexpectedExpiryDefault(_log ?? NullLogger.Instance, expiryText);
+                    }
+                }
+                if (!usedJwt)
+                {
+                    exp = DateTimeOffset.UtcNow.AddMinutes(30);
                 }
             }
 
-            _expiresUtc = (exp == DateTimeOffset.MinValue ? DateTimeOffset.UtcNow.AddMinutes(30) : exp) - _skew;
+            _expiresUtc = exp - _skew;
             return _token;
         }
 
@@ -116,7 +131,6 @@ namespace XRoadFolkRaw.Lib
             {
                 string name = el.Name.LocalName;
 
-                // Token candidates
                 if (tokenText is null && (name.Equals("token", StringComparison.OrdinalIgnoreCase)
                                           || name.Equals("accessToken", StringComparison.OrdinalIgnoreCase)
                                           || name.Equals("access_token", StringComparison.OrdinalIgnoreCase)
@@ -130,7 +144,6 @@ namespace XRoadFolkRaw.Lib
                     continue;
                 }
 
-                // Expiry candidates
                 if (expiryText is null && (name.Equals("expires", StringComparison.OrdinalIgnoreCase)
                                            || name.Equals("expiry", StringComparison.OrdinalIgnoreCase)
                                            || name.Equals("expiration", StringComparison.OrdinalIgnoreCase)
@@ -144,7 +157,6 @@ namespace XRoadFolkRaw.Lib
                     }
                 }
 
-                // Also look at attributes on a <token> element
                 if (tokenText is not null && expiryText is null && el.Name.LocalName.Equals("token", StringComparison.OrdinalIgnoreCase))
                 {
                     expiryText = el.Attribute("expires")?.Value
@@ -186,27 +198,23 @@ namespace XRoadFolkRaw.Lib
 
             string txt = expiryText.Trim();
 
-            // Try ISO / RFC date-time
             if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
             {
                 return exp;
             }
 
-            // Try numeric epoch/relative
             if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long num))
             {
-                // Heuristic: large values are likely epoch milliseconds
-                if (num > 9999999999L) // > ~Sat Nov 20 2286 in seconds
+                if (num > 9999999999L)
                 {
                     try { return DateTimeOffset.FromUnixTimeMilliseconds(num); } catch { }
                 }
-                else if (num > 1000000000L) // plausible epoch seconds
+                else if (num > 1000000000L)
                 {
                     try { return DateTimeOffset.FromUnixTimeSeconds(num); } catch { }
                 }
                 else
                 {
-                    // Treat as relative seconds
                     return DateTimeOffset.UtcNow.AddSeconds(num);
                 }
             }
@@ -230,7 +238,6 @@ namespace XRoadFolkRaw.Lib
 
             try
             {
-                // Decode payload (Base64Url)
                 string payload = parts[1];
                 byte[] jsonBytes = Base64UrlDecode(payload);
                 using JsonDocument doc = JsonDocument.Parse(jsonBytes);
@@ -270,5 +277,11 @@ namespace XRoadFolkRaw.Lib
         {
             _gate.Dispose();
         }
+
+        [LoggerMessage(EventId = 7001, Level = LogLevel.Warning, Message = "Token expiry format unexpected: '{Raw}'. Using JWT 'exp' claim.")]
+        private static partial void LogUnexpectedExpiryUsedJwt(ILogger logger, string Raw);
+
+        [LoggerMessage(EventId = 7002, Level = LogLevel.Warning, Message = "Token expiry format unexpected: '{Raw}'. Falling back to default TTL.")]
+        private static partial void LogUnexpectedExpiryDefault(ILogger logger, string Raw);
     }
 }
