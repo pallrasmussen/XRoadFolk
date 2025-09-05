@@ -15,8 +15,38 @@ namespace XRoadFolkWeb.Infrastructure
         public static readonly Counter<long> LogDrops = Meter.CreateCounter<long>("logs.dropped", unit: "count", description: "Number of log entries dropped due to backpressure");
         public static readonly Counter<long> LogDropsByReason = Meter.CreateCounter<long>("logs.dropped.reason", unit: "count", description: "Log drops by reason (tags: reason, store)");
         public static readonly Counter<long> LogDropsByLevel = Meter.CreateCounter<long>("logs.dropped.level", unit: "count", description: "Log drops by level (tags: level, store)");
-        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => new[] { new Measurement<int>(Volatile.Read(ref _sizeRef), new KeyValuePair<string, object?>("store", "memory")) }, unit: "items", description: "Approximate in-memory log queue size");
-        internal static int _sizeRef;
+
+        private static readonly ConcurrentDictionary<Guid, Func<int>> Providers = new();
+        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>(
+            "logs.queue.length",
+            ObserveQueueLengths,
+            unit: "items",
+            description: "Approximate in-memory log queue size per instance");
+
+        private static IEnumerable<Measurement<int>> ObserveQueueLengths()
+        {
+            foreach (KeyValuePair<Guid, Func<int>> kv in Providers)
+            {
+                int size = 0;
+                try { size = kv.Value(); }
+                catch { }
+                yield return new Measurement<int>(size,
+                    new KeyValuePair<string, object?>("store", "memory"),
+                    new KeyValuePair<string, object?>("instance", kv.Key.ToString()));
+            }
+        }
+
+        public static Guid RegisterProvider(Func<int> provider)
+        {
+            Guid id = Guid.NewGuid();
+            Providers[id] = provider ?? (() => 0);
+            return id;
+        }
+
+        public static void UnregisterProvider(Guid id)
+        {
+            _ = Providers.TryRemove(id, out _);
+        }
     }
 
     public sealed record LogEntry
@@ -59,6 +89,7 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly Task? _fileWriterTask;
         private readonly CancellationTokenSource? _writerCts;
         private volatile bool _disposed;
+        private readonly Guid _metricsHandle;
 
         public InMemoryHttpLog(IOptions<HttpLogOptions> opts, ILogger<InMemoryHttpLog>? logger = null)
         {
@@ -81,6 +112,9 @@ namespace XRoadFolkWeb.Infrastructure
                 SingleWriter = false,
             });
             _ingestTask = Task.Run(() => IngestLoopAsync(_ingestChannel.Reader, _ingestCts.Token));
+
+            // Register per-instance queue length provider
+            _metricsHandle = InMemoryLogMetrics.RegisterProvider(() => Volatile.Read(ref _size));
 
             if (!string.IsNullOrWhiteSpace(_filePath))
             {
@@ -140,7 +174,6 @@ namespace XRoadFolkWeb.Infrastructure
                         // Ring buffer enqueue
                         _queue.Enqueue(item);
                         _ = Interlocked.Increment(ref _size);
-                        InMemoryLogMetrics._sizeRef = _size;
 
                         // Trim until capacity is met (robust under contention)
                         while (Volatile.Read(ref _size) > _capacity)
@@ -148,7 +181,6 @@ namespace XRoadFolkWeb.Infrastructure
                             if (_queue.TryDequeue(out LogEntry? removed))
                             {
                                 _ = Interlocked.Decrement(ref _size);
-                                InMemoryLogMetrics._sizeRef = _size;
                                 // Capacity eviction metrics
                                 InMemoryLogMetrics.LogDrops.Add(1);
                                 InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "capacity"), new KeyValuePair<string, object?>("store", "memory"));
@@ -246,7 +278,6 @@ namespace XRoadFolkWeb.Infrastructure
             {
             }
             Volatile.Write(ref _size, 0);
-            InMemoryLogMetrics._sizeRef = 0;
         }
 
         public IReadOnlyList<LogEntry> GetAll()
@@ -267,6 +298,7 @@ namespace XRoadFolkWeb.Infrastructure
             await CancelFileWriterAsync().ConfigureAwait(false);
             CompleteFileChannelWriter();
             await WaitForBackgroundTasksAsync().ConfigureAwait(false);
+            InMemoryLogMetrics.UnregisterProvider(_metricsHandle);
             DisposeTokens();
         }
 
