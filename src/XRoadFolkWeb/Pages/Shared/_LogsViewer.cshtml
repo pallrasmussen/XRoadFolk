@@ -5,13 +5,17 @@
 }
 <section class="card shadow-sm" id="logs-section" aria-labelledby="logs-heading">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2" role="toolbar" aria-label="@SR["LogsToolbar"]">
+    <div class="d-flex justify-content-between align-items-center mb-2 position-sticky sticky-top bg-body" style="top: -1px; z-index: 2; padding-top:.25rem; padding-bottom:.25rem;" role="toolbar" aria-label="@SR["LogsToolbar"]">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <a asp-page="/Index" class="btn btn-sm btn-outline-dark" id="logs-back" aria-label="@SR["Back"]"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>@SR["Back"]</a>
         <div class="btn-group btn-group-sm" role="group" aria-label="@SR["Kind"]">
           <button type="button" class="btn btn-outline-dark active" data-kind="http" aria-pressed="true">@SR["HTTP"]</button>
           <button type="button" class="btn btn-outline-dark" data-kind="soap" aria-pressed="false">@SR["SOAP"]</button>
           <button type="button" class="btn btn-outline-dark" data-kind="app" aria-pressed="false">@SR["App"]</button>
+        </div>
+        <div class="btn-group btn-group-sm ms-1" role="group" aria-label="@SR["View"]">
+          <button type="button" class="btn btn-outline-dark active" data-view="table" aria-pressed="true">@SR["Table"]</button>
+          <button type="button" class="btn btn-outline-dark" data-view="cards" aria-pressed="false">@SR["Cards"]</button>
         </div>
         <h2 class="card-title mb-0 ms-2 h5" id="logs-heading">@SR["Logs"]</h2>
         <span class="badge text-bg-secondary ms-1" id="logs-count" aria-live="polite">0</span>
@@ -46,28 +50,53 @@
       <div class="col-sm-4 text-sm-end small text-muted" id="logs-status" aria-live="polite"></div>
     </div>
 
-    <div class="table-responsive logs-table-container" style="max-height: 65vh;" role="region" aria-label="@SR["LogsTableRegion"]">
-      <table class="table table-sm table-striped align-middle" id="logs-table">
-        <thead class="table-light position-sticky thead-sticky" style="top:0; z-index:1;">
-          <tr>
-            <th class="th-width-ts" scope="col">@SR["TimestampLocal"]</th>
-            <th class="th-width-lvl" scope="col">@SR["Level"]</th>
-            <th scope="col">@SR["Category"]</th>
-            <th scope="col">@SR["Message"]</th>
-            <th class="text-end" style="width:6rem;" scope="col">@SR["Actions"]</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="logs-container" aria-live="polite">
+      <div class="table-responsive logs-table-container" style="max-height: 65vh;" role="region" aria-label="@SR["LogsTableRegion"]">
+        <table class="table table-sm table-striped align-middle" id="logs-table">
+          <thead class="table-light position-sticky thead-sticky" style="top:0; z-index:1;">
+            <tr>
+              <th class="th-width-ts" scope="col">@SR["TimestampLocal"]</th>
+              <th class="th-width-lvl" scope="col">@SR["Level"]</th>
+              <th scope="col">@SR["Category"]</th>
+              <th scope="col">@SR["Message"]</th>
+              <th class="text-end" style="width:6rem;" scope="col">@SR["Actions"]</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="logs-cards" class="row row-cols-1 row-cols-md-2 g-2 d-none" aria-hidden="true"></div>
     </div>
   </div>
 </section>
+
+<style type="text/css" nonce="@nonce">
+  .lvl-badge { text-transform: capitalize; }
+  .badge-Error, .badge-Critical { background-color: #dc3545 !important; }
+  .badge-Warning { background-color: #ffc107 !important; color: #111; }
+  .badge-Information { background-color: #0d6efd !important; }
+  .badge-Debug { background-color: #6c757d !important; }
+  .badge-Trace { background-color: #20c997 !important; }
+  .card.log-card { border-left: 4px solid transparent; }
+  .log-card[data-level="Error"], .log-card[data-level="Critical"] { border-left-color: #dc3545; }
+  .log-card[data-level="Warning"] { border-left-color: #ffc107; }
+  .log-card[data-level="Information"] { border-left-color: #0d6efd; }
+  .log-card[data-level="Debug"] { border-left-color: #6c757d; }
+  .log-card[data-level="Trace"] { border-left-color: #20c997; }
+  .log-message { white-space: pre-wrap; word-break: break-word; }
+  @@media (prefers-color-scheme: dark) {
+    .card.shadow-sm { box-shadow: 0 .25rem .5rem rgba(255,255,255,.05) !important; }
+    .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255,255,255,.015); }
+  }
+</style>
 
 <script nonce="@nonce">
 (function(){
   function init(){
     var root = document.getElementById('logs-view');
     var kind = (root && root.getAttribute('data-default-kind')) || 'http';
+    var view = 'table';
 
     var paused = false;
     var filterTxt = '';
@@ -76,6 +105,7 @@
 
     var tbody = document.querySelector('#logs-table tbody');
     var tableContainer = document.querySelector('.logs-table-container');
+    var cards = document.getElementById('logs-cards');
     var filter = document.getElementById('logs-filter');
     var level = document.getElementById('logs-level');
     var clearBtn = document.getElementById('logs-clear');
@@ -110,14 +140,41 @@
       });
     });
 
+    // view buttons
+    var viewButtons = document.querySelectorAll('[data-view]');
+    viewButtons.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        viewButtons.forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed','true');
+        view = btn.getAttribute('data-view') || 'table';
+        syncViewVisibility();
+      });
+    });
+
+    function syncViewVisibility(){
+      if (view === 'cards'){
+        cards.classList.remove('d-none');
+        cards.setAttribute('aria-hidden','false');
+        tableContainer.classList.add('d-none');
+        tableContainer.setAttribute('aria-hidden','true');
+      } else {
+        tableContainer.classList.remove('d-none');
+        tableContainer.setAttribute('aria-hidden','false');
+        cards.classList.add('d-none');
+        cards.setAttribute('aria-hidden','true');
+      }
+    }
+
     // Limits and batching
     var MAX_ROWS = 3000;        // hard cap
     var TRIM_TO_ROWS = 2000;    // trim down to after exceeding cap
     var BATCH_FLUSH_MS = 50;    // flush interval for batching
     var pending = [];
+    var pendingCards = [];
     var flushTimer = 0;
 
-    var visible = []; // keep the visible entries (after filter) for export
+    var visible = []; // keep visible entries for export
 
     function rowFor(entry){
       var tr = document.createElement('tr');
@@ -131,6 +188,30 @@
       tr.__entry = entry;
       return tr;
     }
+
+    function cardFor(entry){
+      var col = document.createElement('div');
+      col.className = 'col';
+      col.innerHTML = '<div class="card log-card" data-level="'+escapeHtml(entry.level)+'">\
+        <div class="card-body">\
+          <div class="d-flex justify-content-between align-items-start">\
+            <div>\
+              <div class="small text-muted">'+escapeHtml(entry.category||'')+'</div>\
+              <div class="fw-semibold">'+fmtLocal(entry.timestamp)+'</div>\
+            </div>\
+            <span class="badge lvl-badge badge-'+escapeHtml(String(entry.level||''))+'">'+escapeHtml(String(entry.level||''))+'</span>\
+          </div>\
+          <div class="log-message mt-2">'+escapeHtml(entry.message||'')+'</div>\
+          '+(entry.exception ? '<details class="mt-2"><summary>Exception</summary><pre class="mb-0">'+escapeHtml(entry.exception)+'</pre></details>' : '')+'\
+          <div class="d-flex justify-content-end mt-2">\
+            <button class="btn btn-sm btn-outline-dark" data-action="copy" aria-label="Copy">'+@Html.Raw("'" + SR["Copy"].Value.Replace("'","\\'") + "'")+'</button>\
+          </div>\
+        </div>\
+      </div>';
+      col.__entry = entry;
+      return col;
+    }
+
     function escapeHtml(s){
       return String(s||'').replace(/[&<>]/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]); });
     }
@@ -151,27 +232,40 @@
 
     function flush(){
       flushTimer = 0;
-      if (!pending.length) return;
+      if (!pending.length && !pendingCards.length) return;
 
       var autoscroll = false;
       try {
-        if (tableContainer){
+        if (view === 'table' && tableContainer){
           var nearBottom = (tableContainer.scrollTop + tableContainer.clientHeight) >= (tableContainer.scrollHeight - 8);
           autoscroll = nearBottom;
         }
       } catch {}
 
-      var frag = document.createDocumentFragment();
-      for (var i=0;i<pending.length;i++) frag.appendChild(pending[i]);
-      pending = [];
-      tbody.appendChild(frag);
+      if (pending.length){
+        var frag = document.createDocumentFragment();
+        for (var i=0;i<pending.length;i++) frag.appendChild(pending[i]);
+        pending = [];
+        tbody.appendChild(frag);
+        trimIfNeeded();
+      }
 
-      trimIfNeeded();
+      if (pendingCards.length){
+        var frag2 = document.createDocumentFragment();
+        for (var j=0;j<pendingCards.length;j++) frag2.appendChild(pendingCards[j]);
+        pendingCards = [];
+        cards.appendChild(frag2);
+        trimCardsIfNeeded();
+      }
 
       if (autoscroll && tableContainer){ try { tableContainer.scrollTop = tableContainer.scrollHeight; } catch {} }
 
-      // update visible snapshot & counters
-      visible = Array.prototype.map.call(tbody.children, function(tr){ return tr.__entry; }).filter(Boolean);
+      // update visible snapshot & counters (based on active view)
+      if (view === 'cards'){
+        visible = Array.prototype.map.call(cards.children, function(el){ return el.__entry; }).filter(Boolean);
+      } else {
+        visible = Array.prototype.map.call(tbody.children, function(tr){ return tr.__entry; }).filter(Boolean);
+      }
       if (countEl) countEl.textContent = String(visible.length || 0);
       if (statusEl) statusEl.textContent = (visible.length || 0) + ' ' + @Html.Raw("'" + SR["Entries"].Value.Replace("'","\\'") + "'");
     }
@@ -186,7 +280,22 @@
       } catch(e){ console.debug('LogsViewer: trim failed', e); }
     }
 
-    function append(entry){ if (!match(entry)) return; var tr = rowFor(entry); pending.push(tr); scheduleFlush(); }
+    function trimCardsIfNeeded(){
+      try{
+        var extra = cards.children.length - MAX_ROWS;
+        if (extra > 0){
+          var toRemove = Math.max(extra, cards.children.length - TRIM_TO_ROWS);
+          for (var i=0;i<toRemove;i++){ if (!cards.firstChild) break; cards.removeChild(cards.firstChild); }
+        }
+      } catch(e){ console.debug('LogsViewer: trim cards failed', e); }
+    }
+
+    function append(entry){
+      if (!match(entry)) return;
+      var tr = rowFor(entry); pending.push(tr);
+      var col = cardFor(entry); pendingCards.push(col);
+      scheduleFlush();
+    }
 
     function connect(){
       if (es) try { es.close(); } catch(e){}
@@ -197,6 +306,7 @@
 
     function reloadHistory(){
       tbody.innerHTML = '';
+      cards.innerHTML = '';
       visible = [];
       if (countEl) countEl.textContent = '0';
       if (statusEl) statusEl.textContent = '';
@@ -212,7 +322,7 @@
 
     filter && filter.addEventListener('input', function(){ filterTxt = (filter.value||'').trim().toLowerCase(); reloadHistory(); });
     level && level.addEventListener('change', function(){ filterLevel = (level.value||'').trim().toLowerCase(); reloadHistory(); });
-    clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; visible=[]; if (countEl) countEl.textContent='0'; if (statusEl) statusEl.textContent=''; });
+    clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if (countEl) countEl.textContent='0'; if (statusEl) statusEl.textContent=''; });
     pauseBtn && pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent = paused ? pauseTextResume : pauseTextPause; pauseBtn.setAttribute('aria-pressed', paused ? 'true' : 'false'); });
 
     downloadBtn && downloadBtn.addEventListener('click', function(){
@@ -222,11 +332,12 @@
       }catch(e){ console.warn('LogsViewer: download failed', e); }
     });
 
-    // copy row message
-    tbody.addEventListener('click', function(ev){
+    // copy row/card message
+    document.addEventListener('click', function(ev){
       var b = ev.target && ev.target.closest('[data-action="copy"]'); if(!b) return;
-      var tr = b.closest('tr'); if (!tr || !tr.__entry) return;
-      try { navigator.clipboard.writeText(tr.__entry.message || ''); b.textContent=@Html.Raw("'" + SR["Copied"].Value.Replace("'","\\'") + "'"); setTimeout(function(){ b.textContent=@Html.Raw("'" + SR["Copy"].Value.Replace("'","\\'") + "'"); }, 1200); } catch {}
+      var host = b.closest('tr, .log-card'); if (!host) return;
+      var entry = host.__entry; if (!entry) return;
+      try { navigator.clipboard.writeText(entry.message || ''); b.textContent=@Html.Raw("'" + SR["Copied"].Value.Replace("'","\\'") + "'"); setTimeout(function(){ b.textContent=@Html.Raw("'" + SR["Copy"].Value.Replace("'","\\'") + "'"); }, 1200); } catch {}
     });
 
     backBtn && backBtn.addEventListener('click', function(e){
