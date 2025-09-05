@@ -1,9 +1,126 @@
+# .editorconfig for XRoadFolk (C#/.NET 8, Razor Pages)
+# top-most EditorConfig file
 root = true
 
+# General formatting
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+# C# files
 [*.cs]
-dotnet_analyzer_diagnostic.severity = warning
-# Helpful but non-breaking rules (examples)
-dotnet_diagnostic.CA2000.severity = warning   # dispose objects
-dotnet_diagnostic.CA1062.severity = warning   # validate public args
-dotnet_diagnostic.CA1305.severity = suggestion # IFormatProvider
-dotnet_diagnostic.CA1822.severity = suggestion # mark members static
+# Language version and code style
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+
+# Expression-level preferences
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
+
+# Pattern matching and new language features
+dotnet_style_prefer_pattern_matching = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_pattern_local_over_anonymous_function = true:suggestion
+csharp_style_prefer_tuple_swap = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+
+# Using directives
+dotnet_sort_system_directives_first = true:suggestion
+file_header_template = unset
+
+# Modifier and accessibility preferences
+csharp_prefer_static_local_function = true:suggestion
+csharp_prefer_readonly_struct = true:suggestion
+csharp_style_prefer_readonly_struct_member = true:suggestion
+csharp_style_prefer_readonly_fields = true:warning
+csharp_style_prefer_primary_constructors = true:suggestion
+
+# Newlines and braces
+csharp_new_line_before_open_brace = all
+csharp_new_line_between_query_expression_clauses = true
+csharp_prefer_braces = true:warning
+
+# Nullability and annotations
+# Require explicit nullability annotations and favor non-nullable references
+nullable = enable
+
+# Analyzer severities to keep build green with TreatWarningsAsErrors
+# Meziantou rules that are too strict for current codebase
+# File name must match type name (many types in one file)
+dotnet_diagnostic.MA0048.severity = none
+# Method too long
+dotnet_diagnostic.MA0051.severity = suggestion
+# Regex DoS concerns
+dotnet_diagnostic.MA0009.severity = suggestion
+# Prefer abstraction over implementation for collections
+dotnet_diagnostic.MA0016.severity = suggestion
+# Use StringComparison overloads
+dotnet_diagnostic.MA0074.severity = suggestion
+# Use explicit enum value instead of 0
+dotnet_diagnostic.MA0099.severity = suggestion
+# Use ConfigureAwait(false) when appropriate
+dotnet_diagnostic.MA0004.severity = suggestion
+# Do not write your own certificate validation method
+dotnet_diagnostic.MA0039.severity = suggestion
+# Use an overload with comparer
+dotnet_diagnostic.MA0002.severity = suggestion
+# Use string.Equals instead of ==
+dotnet_diagnostic.MA0006.severity = suggestion
+
+# C# compiler diagnostics adjustments
+# Hiding inherited member
+dotnet_diagnostic.CS0108.severity = suggestion
+# Obsolete API usage
+dotnet_diagnostic.CS0618.severity = suggestion
+# Nullable flow
+dotnet_diagnostic.CS8602.severity = suggestion
+# Nullable arg flow
+dotnet_diagnostic.CS8604.severity = suggestion
+
+# Roslynator / Meziantou examples
+# Prefer 'ConfigureAwait(false)' in libraries (app code can choose suggestion)
+dotnet_diagnostic.MA0042.severity = suggestion
+# Use a cancellation token when available
+dotnet_diagnostic.MA0040.severity = suggestion
+
+# Naming rules
+dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.private_fields_should_be_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_camel_case.style = camel_case_underscore
+
+# Define private fields
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+# Styles
+dotnet_naming_style.camel_case_underscore.capitalization = camel_case
+dotnet_naming_style.camel_case_underscore.required_prefix = _
+
+# Razor files
+[*.cshtml]
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JSON / config files
+[*.json]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2

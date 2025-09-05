@@ -1,4 +1,4 @@
-﻿@using System.Globalization
+@using System.Globalization
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
@@ -56,8 +56,12 @@
     // Feature toggle: Logs button visibility
     bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
 
-    // Antiforgery tokens for AJAX
-    var antiTokens = Af.GetAndStoreTokens(Context);
+    // Antiforgery tokens for AJAX (guard against null HttpContext for analyzers)
+    Microsoft.AspNetCore.Antiforgery.AntiforgeryTokenSet? antiTokens = null;
+    if (Context is not null)
+    {
+        antiTokens = Af.GetAndStoreTokens(Context);
+    }
     var antiReq = antiTokens?.RequestToken;
 }
 <!DOCTYPE html>
