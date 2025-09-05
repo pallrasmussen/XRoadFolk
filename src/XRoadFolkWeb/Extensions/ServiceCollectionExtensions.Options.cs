@@ -19,6 +19,11 @@ public static partial class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<XRoadSettings>, XRoadSettingsValidator>();
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
+        // Http options with environment-aware validation
+        services.AddOptions<HttpOptions>()
+            .Bind(configuration.GetSection("Http"));
+        services.AddSingleton<IValidateOptions<HttpOptions>, XRoadFolkWeb.Validation.HttpOptionsValidator>();
+
         // Safe SOAP sanitization hook
         bool maskTokens = configuration.GetValue<bool>("Logging:MaskTokens", true);
         SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
