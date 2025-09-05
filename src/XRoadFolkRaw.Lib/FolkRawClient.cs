@@ -26,7 +26,9 @@ namespace XRoadFolkRaw.Lib
         private static readonly HashSet<string> SourceHeaders =
             new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, byte> _missingTemplates = new(StringComparer.OrdinalIgnoreCase);
+        // Missing template negative cache with TTL to allow later detection of newly added files/resources
+        private readonly ConcurrentDictionary<string, DateTimeOffset> _missingTemplates = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan MissingTemplateTtl = TimeSpan.FromSeconds(30);
 
         private FolkRawClient(
             HttpClient httpClient,
@@ -175,56 +177,94 @@ namespace XRoadFolkRaw.Lib
             {
                 return true;
             }
-            if (_missingTemplates.ContainsKey(path))
+
+            if (!ShouldProbePath(path))
             {
                 doc = null;
                 return false;
             }
 
-            // Try filesystem
-            if (File.Exists(path))
+            if (TryLoadFromFile(path, out doc))
             {
-                try
-                {
-                    XDocument loaded = XDocument.Load(path);
-                    doc = _templateCache.GetOrAdd(path, loaded);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    // Cache negative to avoid repeated IO on corrupted files too
-                    _missingTemplates.TryAdd(path, 0);
-                    if (_log != null)
-                    {
-                        LogTemplatePreloadFailed(_log, ex, path);
-                    }
-                    doc = null;
-                    return false;
-                }
+                return true;
             }
 
-            // Try embedded resource
+            if (TryLoadFromResource(path, out doc))
+            {
+                return true;
+            }
+
+            MarkMissing(path);
+            doc = null;
+            return false;
+        }
+
+        private bool ShouldProbePath(string path)
+        {
+            if (_missingTemplates.TryGetValue(path, out DateTimeOffset until))
+            {
+                if (DateTimeOffset.UtcNow < until)
+                {
+                    return false;
+                }
+                _ = _missingTemplates.TryRemove(path, out _);
+            }
+            return true;
+        }
+
+        private bool TryLoadFromFile(string path, out XDocument? doc)
+        {
+            doc = null;
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+            try
+            {
+                XDocument loaded = XDocument.Load(path);
+                doc = _templateCache.GetOrAdd(path, loaded);
+                _ = _missingTemplates.TryRemove(path, out _);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DateTimeOffset next = DateTimeOffset.UtcNow + MissingTemplateTtl;
+                if (_missingTemplates.TryAdd(path, next) && _log != null)
+                {
+                    LogTemplatePreloadFailed(_log, ex, path);
+                }
+                return false;
+            }
+        }
+
+        private bool TryLoadFromResource(string path, out XDocument? doc)
+        {
+            doc = null;
             string fileName = Path.GetFileName(path);
             Assembly asm = typeof(FolkRawClient).Assembly;
             string? res = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($".Resources.{fileName}", StringComparison.OrdinalIgnoreCase));
-            if (res is not null)
+            if (res is null)
             {
-                using Stream? s = asm.GetManifestResourceStream(res);
-                if (s is not null)
-                {
-                    XDocument loaded = XDocument.Load(s);
-                    doc = _templateCache.GetOrAdd(path, loaded);
-                    return true;
-                }
+                return false;
             }
+            using Stream? s = asm.GetManifestResourceStream(res);
+            if (s is null)
+            {
+                return false;
+            }
+            XDocument loaded = XDocument.Load(s);
+            doc = _templateCache.GetOrAdd(path, loaded);
+            _ = _missingTemplates.TryRemove(path, out _);
+            return true;
+        }
 
-            // Record missing once and log; subsequent calls hit the cache and skip IO
-            if (_missingTemplates.TryAdd(path, 0) && _log != null)
+        private void MarkMissing(string path)
+        {
+            DateTimeOffset untilNext = DateTimeOffset.UtcNow + MissingTemplateTtl;
+            if (_missingTemplates.TryAdd(path, untilNext) && _log != null)
             {
                 LogTemplatePreloadMissing(_log, path);
             }
-            doc = null;
-            return false;
         }
 
         public async Task<string> LoginAsync(
