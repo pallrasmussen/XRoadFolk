@@ -171,7 +171,13 @@ namespace XRoadFolkWeb.Infrastructure
     }
 
     /// <summary>
-    /// Background worker that drains the channel and persists to file in batches
+    /// Background worker that drains the channel and persists to file in batches.
+    /// Semantics: at-least-once persistence.
+    /// - If a failure occurs mid-batch, some lines may already be written when an exception is thrown.
+    ///   The whole batch is then retried from memory, which can cause duplicate lines (at-least-once).
+    /// - On write failure, lines are buffered in an in-memory backlog and retried periodically.
+    ///   If the backlog exceeds its maximum size, oldest lines are dropped and drop metrics are recorded.
+    /// - On shutdown, attempts to flush the channel tail and any backlog best-effort before exit.
     /// </summary>
     public sealed partial class FileBackedLogWriter(FileBackedHttpLogStore store, IOptions<HttpLogOptions> opts) : BackgroundService
     {
@@ -369,6 +375,11 @@ namespace XRoadFolkWeb.Infrastructure
             _backlog.RemoveRange(0, toDrop);
         }
 
+        /// <summary>
+        /// Append a batch of entries to the current log file and flushes stream and file.
+        /// Note: at-least-once semantics. If an exception happens after some lines have been written,
+        /// the caller will retry the entire batch later, resulting in possible duplicates.
+        /// </summary>
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
         {
             string path = _store.FilePath;
