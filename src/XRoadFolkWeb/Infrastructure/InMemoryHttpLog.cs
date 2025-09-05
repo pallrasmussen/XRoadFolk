@@ -386,6 +386,10 @@ namespace XRoadFolkWeb.Infrastructure
                 return "app";
             }
 
+            private const int MaxScopeChars = 2048; // ~2KB cap
+            private const int MaxScopes = 16;       // depth bound
+            private const int MaxKvpPerScope = 16;  // per-scope kv limit
+
             private static string? RenderScopes(IExternalScopeProvider? provider)
             {
                 if (provider is null)
@@ -393,14 +397,9 @@ namespace XRoadFolkWeb.Infrastructure
                     return null;
                 }
 
-                const int MaxChars = 2048;      // ~2KB cap
-                const int MaxScopes = 16;       // depth bound
-                const int MaxKvpPerScope = 16;  // per-scope kv limit
-
                 StringBuilder sb = new(capacity: 256);
-                bool first = true;
-                int scopeCount = 0;
                 bool truncated = false;
+                int scopeCount = 0;
 
                 provider.ForEachScope<object?>((scope, _) =>
                 {
@@ -409,50 +408,9 @@ namespace XRoadFolkWeb.Infrastructure
                         return;
                     }
 
-                    if (!first)
-                    {
-                        _ = sb.Append(" => ");
-                    }
-
-                    switch (scope)
-                    {
-                        case IEnumerable<KeyValuePair<string, object?>> kvs:
-                            bool firstKv = true;
-                            int kvCount = 0;
-                            _ = sb.Append('{');
-                            foreach (KeyValuePair<string, object?> kv in kvs)
-                            {
-                                if (kvCount >= MaxKvpPerScope) { _ = sb.Append(", ..."); break; }
-                                if (!firstKv)
-                                {
-                                    _ = sb.Append(", ");
-                                }
-                                _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
-                                firstKv = false;
-                                kvCount++;
-                                if (sb.Length > MaxChars)
-                                {
-                                    sb.Length = Math.Max(0, MaxChars - 3);
-                                    _ = sb.Append("...");
-                                    truncated = true;
-                                    break;
-                                }
-                            }
-                            _ = sb.Append('}');
-                            break;
-                        default:
-                            _ = sb.Append(scope?.ToString());
-                            break;
-                    }
-
-                    if (sb.Length > MaxChars)
-                    {
-                        sb.Length = Math.Max(0, MaxChars - 3);
-                        _ = sb.Append("...");
-                        truncated = true;
-                    }
-
-                    first = false;
+                    AppendScopeSeparator(sb, ref scopeCount);
+                    AppendScopeContent(sb, scope, ref truncated);
+                    TruncateIfNeeded(sb, ref truncated);
                     scopeCount++;
                 }, state: null);
 
@@ -460,8 +418,71 @@ namespace XRoadFolkWeb.Infrastructure
                 {
                     return null;
                 }
-
                 return sb.ToString();
+            }
+
+            private static void AppendScopeSeparator(StringBuilder sb, ref int scopeCount)
+            {
+                if (scopeCount > 0)
+                {
+                    _ = sb.Append(" => ");
+                }
+            }
+
+            private static void AppendScopeContent(StringBuilder sb, object? scope, ref bool truncated)
+            {
+                switch (scope)
+                {
+                    case IEnumerable<KeyValuePair<string, object?>> kvs:
+                        AppendKvpScope(sb, kvs, ref truncated);
+                        break;
+                    default:
+                        _ = sb.Append(scope?.ToString());
+                        break;
+                }
+            }
+
+            private static void AppendKvpScope(StringBuilder sb, IEnumerable<KeyValuePair<string, object?>> kvs, ref bool truncated)
+            {
+                bool firstKv = true;
+                int kvCount = 0;
+                _ = sb.Append('{');
+                foreach (KeyValuePair<string, object?> kv in kvs)
+                {
+                    if (kvCount >= MaxKvpPerScope)
+                    {
+                        _ = sb.Append(", ...");
+                        break;
+                    }
+                    if (!firstKv)
+                    {
+                        _ = sb.Append(", ");
+                    }
+                    _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
+                    firstKv = false;
+                    kvCount++;
+                    if (sb.Length > MaxScopeChars)
+                    {
+                        TruncateBuilder(sb, ref truncated);
+                        break;
+                    }
+                }
+                _ = sb.Append('}');
+            }
+
+            private static void TruncateIfNeeded(StringBuilder sb, ref bool truncated)
+            {
+                if (sb.Length > MaxScopeChars)
+                {
+                    TruncateBuilder(sb, ref truncated);
+                }
+            }
+
+            private static void TruncateBuilder(StringBuilder sb, ref bool truncated)
+            {
+                sb.Length = Math.Max(0, MaxScopeChars - 3);
+                _ = sb.Append("...");
+                truncated = true;
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)

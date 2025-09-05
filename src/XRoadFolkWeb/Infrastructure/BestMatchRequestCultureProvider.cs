@@ -24,7 +24,18 @@ namespace XRoadFolkWeb.Infrastructure
         {
             ArgumentNullException.ThrowIfNull(httpContext);
 
-            // 1) cookie takes precedence
+            ProviderCultureResult? cookie = TryGetFromCookie(httpContext);
+            if (cookie is not null)
+            {
+                return Task.FromResult<ProviderCultureResult?>(cookie);
+            }
+
+            ProviderCultureResult? fromAccept = TryGetFromAcceptLanguage(httpContext);
+            return Task.FromResult(fromAccept);
+        }
+
+        private ProviderCultureResult? TryGetFromCookie(HttpContext httpContext)
+        {
             if (httpContext.Request.Cookies.TryGetValue(CookieRequestCultureProvider.DefaultCookieName, out string? cookieVal)
                 && !string.IsNullOrWhiteSpace(cookieVal))
             {
@@ -39,130 +50,174 @@ namespace XRoadFolkWeb.Infrastructure
                         string? match = ResolveCandidate(candidateFromCookie!);
                         if (match is not null)
                         {
-                            return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match));
+                            return new ProviderCultureResult(match, match);
                         }
                     }
                 }
             }
+            return null;
+        }
 
-            // 2) Accept-Language header with quality weights (q). q=0 means "not acceptable" and must be ignored (RFC 9110).
+        private ProviderCultureResult? TryGetFromAcceptLanguage(HttpContext httpContext)
+        {
             StringValues acceptValues = httpContext.Request.Headers.AcceptLanguage;
-            if (!StringValues.IsNullOrEmpty(acceptValues))
+            if (StringValues.IsNullOrEmpty(acceptValues))
             {
-                List<Candidate> items = [];
-                int globalIndex = 0;
-                int processedChars = 0;
+                return null;
+            }
 
-                for (int vi = 0; vi < acceptValues.Count && items.Count < MaxItems && processedChars <= MaxAcceptLanguageTotalChars; vi++)
+            List<Candidate> items = CollectAcceptLanguageCandidates(acceptValues);
+            return SelectBestCandidate(items);
+        }
+
+        private List<Candidate> CollectAcceptLanguageCandidates(StringValues acceptValues)
+        {
+            List<Candidate> items = [];
+            int globalIndex = 0;
+            int processedChars = 0;
+
+            for (int vi = 0; vi < acceptValues.Count && items.Count < MaxItems && processedChars <= MaxAcceptLanguageTotalChars; vi++)
+            {
+                string src = acceptValues[vi]!;
+                processedChars += src.Length;
+                ReadOnlySpan<char> span = src.AsSpan();
+                int i = 0;
+                while (i < span.Length && items.Count < MaxItems)
                 {
-                    string src = acceptValues[vi]!;
-                    processedChars += src.Length;
-                    ReadOnlySpan<char> span = src.AsSpan();
-                    int i = 0;
-                    while (i < span.Length && items.Count < MaxItems)
+                    ReadSegment(span, i, out ReadOnlySpan<char> seg, out int newIndex, out int start);
+                    i = newIndex;
+
+                    seg = Trim(seg);
+                    if (seg.Length == 0)
                     {
-                        int start = i;
-                        int comma = span.Slice(i).IndexOf(',');
-                        if (comma < 0)
-                        {
-                            i = span.Length; // last segment
-                        }
-                        else
-                        {
-                            i += comma + 1; // move past comma
-                        }
+                        globalIndex++;
+                        continue;
+                    }
 
-                        ReadOnlySpan<char> seg = span.Slice(start, (comma < 0 ? span.Length : start + comma) - start);
-                        seg = Trim(seg);
-                        if (seg.Length == 0) { globalIndex++; continue; }
+                    ExtractTagAndQuality(seg, out ReadOnlySpan<char> tag, out double q);
 
-                        double q = 1.0; // default
-                        ReadOnlySpan<char> tag = seg;
-                        int sc = seg.IndexOf(';');
-                        if (sc >= 0)
+                    tag = Trim(tag);
+                    if (ShouldSkip(tag))
+                    {
+                        globalIndex++;
+                        continue;
+                    }
+
+                    if (q > 0d)
+                    {
+                        int tagOffsetInSeg = seg.IndexOf(tag);
+                        int tagStartInSrc = start + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
+                        items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
+                    }
+                    globalIndex++;
+                }
+            }
+            return items;
+        }
+
+        private static void ReadSegment(ReadOnlySpan<char> span, int i, out ReadOnlySpan<char> seg, out int newIndex, out int start)
+        {
+            start = i;
+            int comma = span.Slice(i).IndexOf(',');
+            if (comma < 0)
+            {
+                i = span.Length; // last segment
+            }
+            else
+            {
+                i += comma + 1; // move past comma
+            }
+            seg = span.Slice(start, (comma < 0 ? span.Length : start + comma) - start);
+            newIndex = i;
+        }
+
+        private static void ExtractTagAndQuality(ReadOnlySpan<char> seg, out ReadOnlySpan<char> tag, out double q)
+        {
+            q = 1.0; // default
+            tag = seg;
+            int sc = seg.IndexOf(';');
+            if (sc >= 0)
+            {
+                tag = seg.Slice(0, sc);
+                ReadOnlySpan<char> paramStr = seg.Slice(sc + 1);
+                int pj = 0;
+                while (pj < paramStr.Length)
+                {
+                    int pstart = pj;
+                    int psep = paramStr.Slice(pj).IndexOf(';');
+                    if (psep < 0)
+                    {
+                        pj = paramStr.Length;
+                    }
+                    else
+                    {
+                        pj += psep + 1;
+                    }
+                    ReadOnlySpan<char> part = Trim(paramStr.Slice(pstart, (psep < 0 ? paramStr.Length : pstart + psep) - pstart));
+                    if (part.Length == 0)
+                    {
+                        continue;
+                    }
+                    int eq = part.IndexOf('=');
+                    if (eq > 0)
+                    {
+                        ReadOnlySpan<char> key = Trim(part.Slice(0, eq));
+                        ReadOnlySpan<char> val = Trim(part.Slice(eq + 1));
+                        if (key.Equals("q".AsSpan(), StringComparison.OrdinalIgnoreCase))
                         {
-                            tag = seg.Slice(0, sc);
-                            ReadOnlySpan<char> paramStr = seg.Slice(sc + 1);
-                            int pj = 0;
-                            while (pj < paramStr.Length)
+                            if (!TryParseQuality(val, out double qv))
                             {
-                                int pstart = pj;
-                                int psep = paramStr.Slice(pj).IndexOf(';');
-                                if (psep < 0) pj = paramStr.Length; else pj += psep + 1;
-                                ReadOnlySpan<char> part = Trim(paramStr.Slice(pstart, (psep < 0 ? paramStr.Length : pstart + psep) - pstart));
-                                if (part.Length == 0) continue;
-                                int eq = part.IndexOf('=');
-                                if (eq > 0)
-                                {
-                                    ReadOnlySpan<char> key = Trim(part.Slice(0, eq));
-                                    ReadOnlySpan<char> val = Trim(part.Slice(eq + 1));
-                                    if (key.Equals("q".AsSpan(), StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        if (!TryParseQuality(val, out q))
-                                        {
-                                            q = 1.0; // treat invalid q as default weight
-                                        }
-                                    }
-                                }
+                                q = 1.0; // treat invalid q as default weight
+                            }
+                            else
+                            {
+                                q = qv;
                             }
                         }
-
-                        tag = Trim(tag);
-                        if (tag.Length == 0 || tag.Length > MaxTagLength || tag.Equals("*".AsSpan(), StringComparison.Ordinal))
-                        {
-                            globalIndex++;
-                            continue;
-                        }
-
-                        if (!IsValidTag(tag))
-                        {
-                            globalIndex++;
-                            continue;
-                        }
-
-                        if (q > 0d)
-                        {
-                            int segOffset = start;
-                            int tagOffsetInSeg = seg.IndexOf(tag);
-                            int tagStartInSrc = segOffset + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
-                            items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
-                        }
-                        globalIndex++;
-                    }
-                }
-
-                // Process candidates in priority order: q desc, index asc (stable by manual selection)
-                while (items.Count > 0)
-                {
-                    int best = 0;
-                    for (int k = 1; k < items.Count; k++)
-                    {
-                        if (items[k].Q > items[best].Q || (items[k].Q == items[best].Q && items[k].Index < items[best].Index))
-                        {
-                            best = k;
-                        }
-                    }
-
-                    Candidate cand = items[best];
-                    items.RemoveAt(best);
-
-                    string tag = cand.Source.Substring(cand.Start, cand.Length);
-                    string? match = ResolveCandidate(tag);
-                    if (match is not null)
-                    {
-                        return Task.FromResult<ProviderCultureResult?>(new ProviderCultureResult(match, match));
                     }
                 }
             }
+        }
 
-            return Task.FromResult<ProviderCultureResult?>(null);
+        private static bool ShouldSkip(ReadOnlySpan<char> tag)
+        {
+            return tag.Length == 0 || tag.Length > MaxTagLength || tag.Equals("*".AsSpan(), StringComparison.Ordinal) || !IsValidTag(tag);
+        }
+
+        private ProviderCultureResult? SelectBestCandidate(List<Candidate> items)
+        {
+            while (items.Count > 0)
+            {
+                int best = 0;
+                for (int k = 1; k < items.Count; k++)
+                {
+                    if (items[k].Q > items[best].Q || (items[k].Q == items[best].Q && items[k].Index < items[best].Index))
+                    {
+                        best = k;
+                    }
+                }
+
+                Candidate cand = items[best];
+                items.RemoveAt(best);
+
+                string tag = cand.Source.Substring(cand.Start, cand.Length);
+                string? match = ResolveCandidate(tag);
+                if (match is not null)
+                {
+                    return new ProviderCultureResult(match, match);
+                }
+            }
+            return null;
         }
 
         private static bool TryParseQuality(ReadOnlySpan<char> val, out double q)
         {
             // Strict qvalue parser per RFC: 0 or 1 or 0.xxx or 1.0 (up to 3 decimals)
             q = 1.0;
-            if (val.Length == 0) return false;
+            if (val.Length == 0)
+            {
+                return false;
+            }
 
             // Normalize by trimming quotes if any (robustness)
             if (val.Length >= 2 && ((val[0] == '"' && val[^1] == '"') || (val[0] == '\'' && val[^1] == '\'')))
@@ -178,16 +233,37 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             int dot = val.IndexOf('.');
-            if (dot < 0) return false; // integers other than 0 or 1 are invalid
+            if (dot < 0)
+            {
+                return false; // integers other than 0 or 1 are invalid
+            }
             ReadOnlySpan<char> intPart = val.Slice(0, dot);
             ReadOnlySpan<char> frac = val.Slice(dot + 1);
-            if (frac.Length == 0 || frac.Length > 3) return false;
-            if (!(intPart.Length == 1 && (intPart[0] == '0' || intPart[0] == '1'))) return false;
-            for (int i = 0; i < frac.Length; i++) if (frac[i] < '0' || frac[i] > '9') return false;
+            if (frac.Length == 0 || frac.Length > 3)
+            {
+                return false;
+            }
+            if (!(intPart.Length == 1 && (intPart[0] == '0' || intPart[0] == '1')))
+            {
+                return false;
+            }
+            for (int i = 0; i < frac.Length; i++)
+            {
+                if (frac[i] < '0' || frac[i] > '9')
+                {
+                    return false;
+                }
+            }
             // 1.x must be exactly 1.0, 1.00, or 1.000
             if (intPart[0] == '1')
             {
-                for (int i = 0; i < frac.Length; i++) if (frac[i] != '0') return false;
+                for (int i = 0; i < frac.Length; i++)
+                {
+                    if (frac[i] != '0')
+                    {
+                        return false;
+                    }
+                }
             }
             if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
             {
@@ -200,8 +276,14 @@ namespace XRoadFolkWeb.Infrastructure
         private static bool IsValidTag(ReadOnlySpan<char> tag)
         {
             // Basic BCP47 sanity: letters/digits/hyphen only; no leading/trailing hyphen; no consecutive hyphens
-            if (tag.Length == 0) return false;
-            if (tag[0] == '-' || tag[^1] == '-') return false;
+            if (tag.Length == 0)
+            {
+                return false;
+            }
+            if (tag[0] == '-' || tag[^1] == '-')
+            {
+                return false;
+            }
             bool prevHyphen = false;
             for (int i = 0; i < tag.Length; i++)
             {
@@ -209,7 +291,10 @@ namespace XRoadFolkWeb.Infrastructure
                 bool isAlnum = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
                 if (c == '-')
                 {
-                    if (prevHyphen) return false;
+                    if (prevHyphen)
+                    {
+                        return false;
+                    }
                     prevHyphen = true;
                 }
                 else if (!isAlnum)
@@ -228,8 +313,14 @@ namespace XRoadFolkWeb.Infrastructure
         {
             int i = 0;
             int j = s.Length - 1;
-            while (i <= j && char.IsWhiteSpace(s[i])) i++;
-            while (j >= i && char.IsWhiteSpace(s[j])) j--;
+            while (i <= j && char.IsWhiteSpace(s[i]))
+            {
+                i++;
+            }
+            while (j >= i && char.IsWhiteSpace(s[j]))
+            {
+                j--;
+            }
             return s.Slice(i, j - i + 1);
         }
 
@@ -244,19 +335,36 @@ namespace XRoadFolkWeb.Infrastructure
 
             candidate = candidate.Trim();
 
-            // Exact
+            string? exactOrMapped = TryExactOrMapped(candidate);
+            if (exactOrMapped is not null)
+            {
+                return exactOrMapped;
+            }
+
+            string? byParent = TryParentChain(candidate);
+            if (byParent is not null)
+            {
+                return byParent;
+            }
+
+            return TrySameLanguage(candidate);
+        }
+
+        private string? TryExactOrMapped(string candidate)
+        {
             if (_supported.Contains(candidate))
             {
                 return candidate;
             }
-
-            // Mapping (e.g. "en" -> "en-US", "fo" -> "fo-FO")
             if (_map.TryGetValue(candidate, out string? mapped) && _supported.Contains(mapped))
             {
                 return mapped;
             }
+            return null;
+        }
 
-            // Parent chain (e.g. "da-DK" -> "da")
+        private string? TryParentChain(string candidate)
+        {
             try
             {
                 CultureInfo ci = CultureInfo.GetCultureInfo(candidate);
@@ -278,14 +386,23 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 _log?.LogWarning(ex, "Invalid culture candidate received: {Candidate}", candidate);
             }
+            return null;
+        }
 
-            // Same language (e.g. "en-GB" -> match any supported like "en-US"). Avoid string.Split allocations.
+        private string? TrySameLanguage(string candidate)
+        {
             ReadOnlySpan<char> span = candidate.AsSpan();
             int langLen = 0;
             foreach (char ch in span)
             {
-                if (char.IsLetter(ch)) { langLen++; }
-                else { break; }
+                if (char.IsLetter(ch))
+                {
+                    langLen++;
+                }
+                else
+                {
+                    break;
+                }
             }
             if (langLen == 0)
             {
@@ -309,7 +426,6 @@ namespace XRoadFolkWeb.Infrastructure
                     }
                 }
             }
-
             return null;
         }
     }

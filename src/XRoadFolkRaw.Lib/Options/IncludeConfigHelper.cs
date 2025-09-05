@@ -49,37 +49,8 @@ namespace XRoadFolkRaw.Lib.Options
 
         private static CacheState BuildState(IConfiguration config, ILogger? logger)
         {
-            HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
-
-            IConfigurationSection incSec = config.GetSection("Operations:GetPerson:Request:Include");
-            foreach (IConfigurationSection c in incSec.GetChildren())
-            {
-                if (bool.TryParse(c.Value, out bool on) && on)
-                {
-                    _ = set.Add(c.Key);
-                }
-            }
-
-            GetPersonRequestOptions? req = config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
-            if (req is not null && req.Include != GetPersonInclude.None)
-            {
-                foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
-                {
-                    if (flag == GetPersonInclude.None)
-                    {
-                        continue;
-                    }
-
-                    if ((req.Include & flag) == flag)
-                    {
-                        string? name = Enum.GetName(flag);
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            _ = set.Add(name);
-                        }
-                    }
-                }
-            }
+            HashSet<string> set = CollectIncludeSwitches(config);
+            ExpandFlags(config, set);
 
             // Invalidate cache when configuration reloads and dispose registration
             IChangeToken token = config.GetReloadToken();
@@ -109,6 +80,47 @@ namespace XRoadFolkRaw.Lib.Options
             }, new CallbackState(config, logger));
 
             return new CacheState(set, registration);
+        }
+
+        private static HashSet<string> CollectIncludeSwitches(IConfiguration config)
+        {
+            HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
+
+            IConfigurationSection incSec = config.GetSection("Operations:GetPerson:Request:Include");
+            foreach (IConfigurationSection c in incSec.GetChildren())
+            {
+                if (bool.TryParse(c.Value, out bool on) && on)
+                {
+                    _ = set.Add(c.Key);
+                }
+            }
+            return set;
+        }
+
+        private static void ExpandFlags(IConfiguration config, HashSet<string> set)
+        {
+            GetPersonRequestOptions? req = config.GetSection("Operations:GetPerson:Request").Get<GetPersonRequestOptions>();
+            if (req is null || req.Include == GetPersonInclude.None)
+            {
+                return;
+            }
+
+            foreach (GetPersonInclude flag in Enum.GetValues<GetPersonInclude>())
+            {
+                if (flag == GetPersonInclude.None)
+                {
+                    continue;
+                }
+
+                if ((req.Include & flag) == flag)
+                {
+                    string? name = Enum.GetName(flag);
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        _ = set.Add(name);
+                    }
+                }
+            }
         }
 
         private static void ApplySynonyms(HashSet<string> set)

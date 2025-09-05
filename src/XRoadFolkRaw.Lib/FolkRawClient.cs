@@ -152,7 +152,6 @@ namespace XRoadFolkRaw.Lib
                 }
                 catch (Exception ex)
                 {
-                    // Only unexpected failures reach here; missing files are handled in TryLoadTemplate with one-time log
                     if (_log != null)
                     {
                         LogTemplatePreloadFailed(_log, ex, path);
@@ -265,40 +264,14 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(loginXmlPath));
+            XElement requestEl = PrepareLoginDocument(doc,
+                xId, userId, protocolVersion,
+                clientXRoadInstance, clientMemberClass, clientMemberCode, clientSubsystemCode,
+                serviceXRoadInstance, serviceMemberClass, serviceMemberCode, serviceSubsystemCode,
+                serviceCode, serviceVersion);
 
-            XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
-            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
-            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
-            XNamespace iden = "http://x-road.eu/xsd/identifiers";
-            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-
-            XElement? header = doc.Root?.Element(soapenv + "Header");
-            XElement? body = doc.Root?.Element(soapenv + "Body");
-
-            SetChildValue(header, xro + "id", xId);
-            SetChildValue(header, xro + "protocolVersion", protocolVersion);
-            SetChildValue(header, x + "userId", userId);
-
-            XElement? clientEl = header?.Element(xro + "client");
-            if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
-            clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
-            SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-            SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-            SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-            SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-            XElement? serviceEl = header?.Element(xro + "service");
-            if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
-            serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
-            SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-            SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-            SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-            SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-
-            XElement loginReq = body?.Element(prod + "Login")?.Element("request")
-                ?? throw new InvalidOperationException("Cannot find prod:Login/request in Login.xml");
-            SetChildValue(loginReq, "username", username);
-            SetChildValue(loginReq, "password", password);
+            SetChildValue(requestEl, "username", username);
+            SetChildValue(requestEl, "password", password);
 
             string xmlString = doc.Declaration != null
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
@@ -346,75 +319,447 @@ namespace XRoadFolkRaw.Lib
             ArgumentNullException.ThrowIfNull(serviceVersion);
 
             XDocument doc = new(LoadTemplate(xmlPath));
+            XElement requestBodyEl = PrepareGetPeoplePublicInfoDocument(doc,
+                xId, userId, protocolVersion,
+                clientXRoadInstance, clientMemberClass, clientMemberCode, clientSubsystemCode,
+                serviceXRoadInstance, serviceMemberClass, serviceMemberCode, serviceSubsystemCode,
+                serviceCode, serviceVersion,
+                token);
 
-            XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
-            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
-            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
-            XNamespace iden = "http://x-road.eu/xsd/identifiers";
-            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-
-            XElement? header = doc.Root?.Element(soapenv + "Header");
-            XElement? body = doc.Root?.Element(soapenv + "Body");
-
-            SetChildValue(header, xro + "id", xId);
-            SetChildValue(header, xro + "protocolVersion", protocolVersion);
-            SetChildValue(header, x + "userId", userId);
-
-            XElement? clientEl = header?.Element(xro + "client");
-            if (clientEl == null) { clientEl = new XElement(xro + "client"); header?.Add(clientEl); }
-            clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
-            SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-            SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-            SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-            SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-            XElement? serviceEl = header?.Element(xro + "service");
-            if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header?.Add(serviceEl); }
-            serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
-            SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-            SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-            SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-            SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-            SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-            SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-
-            XElement opEl = body?.Element(prod + "GetPeoplePublicInfo")
-                ?? throw new InvalidOperationException("Cannot find prod:GetPeoplePublicInfo in body");
-            XElement requestEl = opEl.Element("request")
-                ?? throw new InvalidOperationException("Cannot find request under prod:GetPeoplePublicInfo");
-            XElement requestBodyEl = requestEl.Element("requestBody")
-                ?? throw new InvalidOperationException("Cannot find requestBody under request");
-            XElement? criteriaList = requestBodyEl.Element("ListOfPersonPublicInfoCriteria");
-            if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
-            criteriaList.RemoveNodes();
-
-            XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
             if (!string.IsNullOrWhiteSpace(ssn))
             {
-                SetChildValue(criteria, "SSN", ssn);
+                SetChildValue(requestBodyEl, "SSN", ssn);
             }
             if (!string.IsNullOrWhiteSpace(firstName))
             {
-                SetChildValue(criteria, "FirstName", firstName);
+                SetChildValue(requestBodyEl, "FirstName", firstName);
             }
             if (!string.IsNullOrWhiteSpace(lastName))
             {
-                SetChildValue(criteria, "LastName", lastName);
+                SetChildValue(requestBodyEl, "LastName", lastName);
             }
             if (dateOfBirth.HasValue)
             {
-                SetChildValue(criteria, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+                SetChildValue(requestBodyEl, "DateOfBirth", value: dateOfBirth.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
             }
-
-            XElement? requestHeader = requestEl.Element("requestHeader");
-            if (requestHeader == null) { requestHeader = new XElement("requestHeader"); requestEl.Add(requestHeader); }
-            SetChildValue(requestHeader, "token", token);
 
             string xmlString = doc.Declaration != null
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
             return await SendAsync(xmlString, "GetPeoplePublicInfo", ct).ConfigureAwait(false);
+        }
+
+        private static (XElement Header, XElement Body) RequireHeaderAndBody(XDocument doc)
+        {
+            XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
+            XElement header = doc.Root?.Element(soapenv + "Header") ?? throw new InvalidOperationException("Missing SOAP Header");
+            XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
+            return (header, body);
+        }
+
+        private static void CleanTemplateHeader(XElement header)
+        {
+            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
+            header.Elements().Where(e => e.Name.Namespace == x).Remove();
+            header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
+        }
+
+        private static void SetCoreHeaderFields(XElement header, string xId, string protocolVersion, string userId)
+        {
+            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
+            SetChildValue(header, xro + "id", xId);
+            SetChildValue(header, xro + "protocolVersion", protocolVersion);
+            SetChildValue(header, x + "userId", userId);
+        }
+
+        private static void EnsureClientHeader(XElement header,
+                                               string clientXRoadInstance,
+                                               string clientMemberClass,
+                                               string clientMemberCode,
+                                               string clientSubsystemCode)
+        {
+            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+            XNamespace iden = "http://x-road.eu/xsd/identifiers";
+            XElement? clientEl = header.Element(xro + "client");
+            if (clientEl == null) { clientEl = new XElement(xro + "client"); header.Add(clientEl); }
+            clientEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM");
+            SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
+            SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
+            SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
+            SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
+        }
+
+        private static void EnsureServiceHeader(XElement header,
+                                                string serviceXRoadInstance,
+                                                string serviceMemberClass,
+                                                string serviceMemberCode,
+                                                string serviceSubsystemCode,
+                                                string? serviceCode,
+                                                string? serviceVersion)
+        {
+            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
+            XNamespace iden = "http://x-road.eu/xsd/identifiers";
+            XElement? serviceEl = header.Element(xro + "service");
+            if (serviceEl == null) { serviceEl = new XElement(xro + "service"); header.Add(serviceEl); }
+            serviceEl.SetAttributeValue(XName.Get("objectType", iden.NamespaceName), "SERVICE");
+            SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
+            SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
+            SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
+            SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
+            if (!string.IsNullOrWhiteSpace(serviceCode))
+            {
+                SetChildValue(serviceEl, iden + "serviceCode", serviceCode!);
+            }
+            if (!string.IsNullOrWhiteSpace(serviceVersion))
+            {
+                SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion!);
+            }
+        }
+
+        private static XElement PrepareLoginDocument(
+            XDocument doc,
+            string xId,
+            string userId,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion)
+        {
+            (XElement header, XElement body) = RequireHeaderAndBody(doc);
+            CleanTemplateHeader(header);
+            SetCoreHeaderFields(header, xId, protocolVersion, userId);
+            EnsureClientHeader(header, clientXRoadInstance, clientMemberClass, clientMemberCode, clientSubsystemCode);
+            EnsureServiceHeader(header, serviceXRoadInstance, serviceMemberClass, serviceMemberCode, serviceSubsystemCode, serviceCode, serviceVersion);
+
+            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
+            XElement loginReq = body.Element(prod + "Login")?.Element("request")
+                ?? throw new InvalidOperationException("Cannot find prod:Login/request in Login.xml");
+            return loginReq;
+        }
+
+        private static XElement PrepareGetPeoplePublicInfoDocument(
+            XDocument doc,
+            string xId,
+            string userId,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            string token)
+        {
+            (XElement header, XElement body) = RequireHeaderAndBody(doc);
+            CleanTemplateHeader(header);
+            SetCoreHeaderFields(header, xId, protocolVersion, userId);
+            EnsureClientHeader(header, clientXRoadInstance, clientMemberClass, clientMemberCode, clientSubsystemCode);
+            EnsureServiceHeader(header, serviceXRoadInstance, serviceMemberClass, serviceMemberCode, serviceSubsystemCode, serviceCode, serviceVersion);
+
+            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
+            XElement opEl = body.Element(prod + "GetPeoplePublicInfo")
+                ?? throw new InvalidOperationException("Cannot find prod:GetPeoplePublicInfo in body");
+            XElement requestEl = opEl.Element("request")
+                ?? throw new InvalidOperationException("Cannot find request under prod:GetPeoplePublicInfo");
+            XElement requestBodyEl = requestEl.Element("requestBody")
+                ?? throw new InvalidOperationException("Cannot find requestBody under request");
+
+            XElement? criteriaList = requestBodyEl.Element("ListOfPersonPublicInfoCriteria");
+            if (criteriaList == null) { criteriaList = new XElement("ListOfPersonPublicInfoCriteria"); requestBodyEl.Add(criteriaList); }
+            criteriaList.RemoveNodes();
+            XElement criteria = new("PersonPublicInfoCriteria"); criteriaList.Add(criteria);
+
+            XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
+            if (requestHeader.Parent == null)
+            {
+                requestEl.Add(requestHeader);
+            }
+            SetChildValue(requestHeader, "token", token);
+
+            return criteria;
+        }
+
+        private static XElement PrepareGetPersonRequestBody(
+            XDocument doc,
+            string xId,
+            string userId,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            string token)
+        {
+            (XElement header, XElement body) = RequireHeaderAndBody(doc);
+            CleanTemplateHeader(header);
+            SetCoreHeaderFields(header, xId, protocolVersion, userId);
+            EnsureClientHeader(header, clientXRoadInstance, clientMemberClass, clientMemberCode, clientSubsystemCode);
+            EnsureServiceHeader(header, serviceXRoadInstance, serviceMemberClass, serviceMemberCode, serviceSubsystemCode, serviceCode, serviceVersion);
+
+            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
+            XElement opEl = body.Element(prod + "GetPerson")
+                ?? throw new InvalidOperationException("Cannot find prod:GetPerson in body");
+            XElement requestEl = opEl.Element("request")
+                ?? throw new InvalidOperationException("Cannot find request under prod:GetPerson");
+            XElement requestBodyEl = requestEl.Element("requestBody")
+                ?? throw new InvalidOperationException("Cannot find requestBody under request");
+
+            XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
+            if (requestHeader.Parent == null)
+            {
+                requestEl.Add(requestHeader);
+            }
+            SetChildValue(requestHeader, "token", token);
+
+            return requestBodyEl;
+        }
+
+        private static void ApplyGetPersonIdentifiers(XElement requestBodyEl, string? id, string? publicId, string? ssn, string? externalId)
+        {
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                SetChildValue(requestBodyEl, "Id", id!);
+            }
+            if (!string.IsNullOrWhiteSpace(publicId))
+            {
+                SetChildValue(requestBodyEl, "PublicId", publicId!);
+            }
+            else if (!string.IsNullOrWhiteSpace(ssn))
+            {
+                SetChildValue(requestBodyEl, "SSN", ssn!);
+            }
+            if (!string.IsNullOrWhiteSpace(externalId))
+            {
+                SetChildValue(requestBodyEl, "ExternalId", externalId!);
+            }
+        }
+
+        private static void ApplyIncludeBooleans(
+            XElement requestBodyEl,
+            bool? includeAddress,
+            bool? includeContact,
+            bool? includeBirthDate,
+            bool? includeDeathDate,
+            bool? includeGender,
+            bool? includeMaritalStatus,
+            bool? includeCitizenship,
+            bool? includeSsnHistory)
+        {
+            void SetBool(string name, bool? val)
+            {
+                if (val.HasValue)
+                {
+                    SetChildValue(requestBodyEl, name, val.Value ? "true" : "false");
+                }
+            }
+            SetBool("IncludeAddress", includeAddress);
+            SetBool("IncludeContact", includeContact);
+            SetBool("IncludeBirthDate", includeBirthDate);
+            SetBool("IncludeDeathDate", includeDeathDate);
+            SetBool("IncludeGender", includeGender);
+            SetBool("IncludeMaritalStatus", includeMaritalStatus);
+            SetBool("IncludeCitizenship", includeCitizenship);
+            SetBool("IncludeSsnHistory", includeSsnHistory);
+        }
+
+        private static void ApplyIncludeFlags(XElement requestBodyEl, GetPersonInclude inc)
+        {
+            void SetIf(GetPersonInclude flag, string element)
+            {
+                if ((inc & flag) == flag)
+                {
+                    SetChildValue(requestBodyEl, element, "true");
+                }
+            }
+
+            SetIf(GetPersonInclude.Addresses, "IncludeAddresses");
+            SetIf(GetPersonInclude.AddressesHistory, "IncludeAddressesHistory");
+            SetIf(GetPersonInclude.BiologicalParents, "IncludeBiologicalParents");
+            SetIf(GetPersonInclude.ChurchMembership, "IncludeChurchMembership");
+            SetIf(GetPersonInclude.ChurchMembershipHistory, "IncludeChurchMembershipHistory");
+            SetIf(GetPersonInclude.Citizenships, "IncludeCitizenships");
+            SetIf(GetPersonInclude.CitizenshipsHistory, "IncludeCitizenshipsHistory");
+            SetIf(GetPersonInclude.CivilStatus, "IncludeCivilStatus");
+            SetIf(GetPersonInclude.CivilStatusHistory, "IncludeCivilStatusHistory");
+            SetIf(GetPersonInclude.ForeignSsns, "IncludeForeignSsns");
+            SetIf(GetPersonInclude.Incapacity, "IncludeIncapacity");
+            SetIf(GetPersonInclude.IncapacityHistory, "IncludeIncapacityHistory");
+            SetIf(GetPersonInclude.JuridicalChildren, "IncludeJuridicalChildren");
+            SetIf(GetPersonInclude.JuridicalChildrenHistory, "IncludeJuridicalChildrenHistory");
+            SetIf(GetPersonInclude.JuridicalParents, "IncludeJuridicalParents");
+            SetIf(GetPersonInclude.JuridicalParentsHistory, "IncludeJuridicalParentsHistory");
+            SetIf(GetPersonInclude.Names, "IncludeNames");
+            SetIf(GetPersonInclude.NamesHistory, "IncludeNamesHistory");
+            SetIf(GetPersonInclude.Notes, "IncludeNotes");
+            SetIf(GetPersonInclude.NotesHistory, "IncludeNotesHistory");
+            SetIf(GetPersonInclude.Postbox, "IncludePostbox");
+            SetIf(GetPersonInclude.SpecialMarks, "IncludeSpecialMarks");
+            SetIf(GetPersonInclude.SpecialMarksHistory, "IncludeSpecialMarksHistory");
+            SetIf(GetPersonInclude.Spouse, "IncludeSpouse");
+            SetIf(GetPersonInclude.SpouseHistory, "IncludeSpouseHistory");
+            SetIf(GetPersonInclude.Ssn, "IncludeSsn");
+            SetIf(GetPersonInclude.SsnHistory, "IncludeSsnHistory");
+        }
+
+        public async Task<string> GetPersonAsync(
+            string xmlPath,
+            string xId,
+            string userId,
+            string token,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            string? publicId = null,
+            string? ssnForPerson = null,
+            bool? includeAddress = null,
+            bool? includeContact = null,
+            bool? includeBirthDate = null,
+            bool? includeDeathDate = null,
+            bool? includeGender = null,
+            bool? includeMaritalStatus = null,
+            bool? includeCitizenship = null,
+            bool? includeSsnHistory = null,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(xmlPath);
+            ArgumentNullException.ThrowIfNull(xId);
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(token);
+            ArgumentNullException.ThrowIfNull(protocolVersion);
+            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+            ArgumentNullException.ThrowIfNull(clientMemberClass);
+            ArgumentNullException.ThrowIfNull(clientMemberCode);
+            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+            ArgumentNullException.ThrowIfNull(serviceMemberClass);
+            ArgumentNullException.ThrowIfNull(serviceMemberCode);
+            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceCode);
+            ArgumentNullException.ThrowIfNull(serviceVersion);
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+            XElement requestBodyEl = PrepareGetPersonRequestBody(
+                doc,
+                xId,
+                userId,
+                protocolVersion,
+                clientXRoadInstance,
+                clientMemberClass,
+                clientMemberCode,
+                clientSubsystemCode,
+                serviceXRoadInstance,
+                serviceMemberClass,
+                serviceMemberCode,
+                serviceSubsystemCode,
+                serviceCode,
+                serviceVersion,
+                token);
+
+            ApplyGetPersonIdentifiers(requestBodyEl, id: null, publicId: publicId, ssn: ssnForPerson, externalId: null);
+            ApplyIncludeBooleans(requestBodyEl, includeAddress, includeContact, includeBirthDate, includeDeathDate, includeGender, includeMaritalStatus, includeCitizenship, includeSsnHistory);
+
+            string xmlString = doc.Declaration != null
+                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
+                : doc.ToString(SaveOptions.DisableFormatting);
+
+            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
+        }
+
+        public async Task<string> GetPersonAsync(
+            string xmlPath,
+            string xId,
+            string userId,
+            string token,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            GetPersonRequestOptions? options,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(xmlPath);
+            ArgumentNullException.ThrowIfNull(xId);
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(token);
+            ArgumentNullException.ThrowIfNull(protocolVersion);
+            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+            ArgumentNullException.ThrowIfNull(clientMemberClass);
+            ArgumentNullException.ThrowIfNull(clientMemberCode);
+            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+            ArgumentNullException.ThrowIfNull(serviceMemberClass);
+            ArgumentNullException.ThrowIfNull(serviceMemberCode);
+            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceCode);
+            ArgumentNullException.ThrowIfNull(serviceVersion);
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+            XElement requestBodyEl = PrepareGetPersonRequestBody(
+                doc,
+                xId,
+                userId,
+                protocolVersion,
+                clientXRoadInstance,
+                clientMemberClass,
+                clientMemberCode,
+                clientSubsystemCode,
+                serviceXRoadInstance,
+                serviceMemberClass,
+                serviceMemberCode,
+                serviceSubsystemCode,
+                serviceCode,
+                serviceVersion,
+                token);
+
+            if (options is not null)
+            {
+                ApplyGetPersonIdentifiers(requestBodyEl, options.Id, options.PublicId, options.Ssn, options.ExternalId);
+                if (options.Include != GetPersonInclude.None)
+                {
+                    ApplyIncludeFlags(requestBodyEl, options.Include);
+                }
+            }
+
+            string xmlString = doc.Declaration != null
+                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
+                : doc.ToString(SaveOptions.DisableFormatting);
+
+            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
         }
 
         private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
@@ -518,103 +863,7 @@ namespace XRoadFolkRaw.Lib
             string serviceVersion,
             string token)
         {
-            XNamespace soapenv = "http://schemas.xmlsoap.org/soap/envelope/";
-            XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
-            XNamespace prod = "http://us-folk-v2.x-road.eu/producer";
-            XNamespace iden = "http://x-road.eu/xsd/identifiers";
-            XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
-
-            XElement header = doc.Root?.Element(soapenv + "Header") ?? throw new InvalidOperationException("Missing SOAP Header");
-            XElement body = doc.Root?.Element(soapenv + "Body") ?? throw new InvalidOperationException("Missing SOAP Body");
-
-            // Clean templated service/client entries in template header namespaces
-            header.Elements().Where(e => e.Name.Namespace == x).Remove();
-            header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
-
-            XElement serviceEl = new(xro + "service", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SERVICE"));
-            header.Add(serviceEl);
-            SetChildValue(serviceEl, iden + "xRoadInstance", serviceXRoadInstance);
-            SetChildValue(serviceEl, iden + "memberClass", serviceMemberClass);
-            SetChildValue(serviceEl, iden + "memberCode", serviceMemberCode);
-            SetChildValue(serviceEl, iden + "subsystemCode", serviceSubsystemCode);
-            SetChildValue(serviceEl, iden + "serviceCode", serviceCode);
-            SetChildValue(serviceEl, iden + "serviceVersion", serviceVersion);
-
-            XElement clientEl = new(xro + "client", new XAttribute(XName.Get("objectType", iden.NamespaceName), "SUBSYSTEM"));
-            header.Add(clientEl);
-            SetChildValue(clientEl, iden + "xRoadInstance", clientXRoadInstance);
-            SetChildValue(clientEl, iden + "memberClass", clientMemberClass);
-            SetChildValue(clientEl, iden + "memberCode", clientMemberCode);
-            SetChildValue(clientEl, iden + "subsystemCode", clientSubsystemCode);
-
-            SetChildValue(header, xro + "id", xId);
-            SetChildValue(header, xro + "protocolVersion", protocolVersion);
-            SetChildValue(header, x + "userId", userId);
-
-            XElement opEl = body.Element(prod + "GetPerson")
-                ?? throw new InvalidOperationException("Cannot find prod:GetPerson in body");
-            XElement requestEl = opEl.Element("request")
-                ?? throw new InvalidOperationException("Cannot find request under prod:GetPerson");
-            XElement requestBodyEl = requestEl.Element("requestBody")
-                ?? throw new InvalidOperationException("Cannot find requestBody under request");
-
-            XElement requestHeader = requestEl.Element("requestHeader") ?? new XElement("requestHeader");
-            if (requestHeader.Parent == null)
-            {
-                requestEl.Add(requestHeader);
-            }
-
-            SetChildValue(requestHeader, "token", token);
-
-            return (doc, requestBodyEl);
-        }
-
-        public async Task<string> GetPersonAsync(
-            string xmlPath,
-            string xId,
-            string userId,
-            string token,
-            string protocolVersion,
-            string clientXRoadInstance,
-            string clientMemberClass,
-            string clientMemberCode,
-            string clientSubsystemCode,
-            string serviceXRoadInstance,
-            string serviceMemberClass,
-            string serviceMemberCode,
-            string serviceSubsystemCode,
-            string serviceCode,
-            string serviceVersion,
-            string? publicId = null,
-            string? ssnForPerson = null,
-            bool? includeAddress = null,
-            bool? includeContact = null,
-            bool? includeBirthDate = null,
-            bool? includeDeathDate = null,
-            bool? includeGender = null,
-            bool? includeMaritalStatus = null,
-            bool? includeCitizenship = null,
-            bool? includeSsnHistory = null,
-            CancellationToken ct = default)
-        {
-            ArgumentNullException.ThrowIfNull(xmlPath);
-            ArgumentNullException.ThrowIfNull(xId);
-            ArgumentNullException.ThrowIfNull(userId);
-            ArgumentNullException.ThrowIfNull(token);
-            ArgumentNullException.ThrowIfNull(protocolVersion);
-            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
-            ArgumentNullException.ThrowIfNull(clientMemberClass);
-            ArgumentNullException.ThrowIfNull(clientMemberCode);
-            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
-            ArgumentNullException.ThrowIfNull(serviceMemberClass);
-            ArgumentNullException.ThrowIfNull(serviceMemberCode);
-            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceCode);
-            ArgumentNullException.ThrowIfNull(serviceVersion);
-
-            XDocument doc = new(LoadTemplate(xmlPath));
-            (_, XElement RequestBody) = PrepareGetPersonDocument(
+            XElement body = PrepareGetPersonRequestBody(
                 doc,
                 xId,
                 userId,
@@ -630,148 +879,7 @@ namespace XRoadFolkRaw.Lib
                 serviceCode,
                 serviceVersion,
                 token);
-
-            XElement requestBodyEl = RequestBody;
-
-            if (!string.IsNullOrWhiteSpace(publicId))
-            {
-                SetChildValue(requestBodyEl, "PublicId", publicId);
-            }
-            else if (!string.IsNullOrWhiteSpace(ssnForPerson))
-            {
-                SetChildValue(requestBodyEl, "SSN", ssnForPerson);
-            }
-
-            void SetBool(string name, bool? val) { if (val.HasValue) { SetChildValue(requestBodyEl, name, val.Value ? "true" : "false"); } }
-            SetBool("IncludeAddress", includeAddress);
-            SetBool("IncludeContact", includeContact);
-            SetBool("IncludeBirthDate", includeBirthDate);
-            SetBool("IncludeDeathDate", includeDeathDate);
-            SetBool("IncludeGender", includeGender);
-            SetBool("IncludeMaritalStatus", includeMaritalStatus);
-            SetBool("IncludeCitizenship", includeCitizenship);
-            SetBool("IncludeSsnHistory", includeSsnHistory);
-
-            string xmlString = doc.Declaration != null
-                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
-                : doc.ToString(SaveOptions.DisableFormatting);
-
-            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
-        }
-
-        public async Task<string> GetPersonAsync(
-            string xmlPath,
-            string xId,
-            string userId,
-            string token,
-            string protocolVersion,
-            string clientXRoadInstance,
-            string clientMemberClass,
-            string clientMemberCode,
-            string clientSubsystemCode,
-            string serviceXRoadInstance,
-            string serviceMemberClass,
-            string serviceMemberCode,
-            string serviceSubsystemCode,
-            string serviceCode,
-            string serviceVersion,
-            GetPersonRequestOptions? options,
-            CancellationToken ct = default)
-        {
-            ArgumentNullException.ThrowIfNull(xmlPath);
-            ArgumentNullException.ThrowIfNull(xId);
-            ArgumentNullException.ThrowIfNull(userId);
-            ArgumentNullException.ThrowIfNull(token);
-            ArgumentNullException.ThrowIfNull(protocolVersion);
-            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
-            ArgumentNullException.ThrowIfNull(clientMemberClass);
-            ArgumentNullException.ThrowIfNull(clientMemberCode);
-            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
-            ArgumentNullException.ThrowIfNull(serviceMemberClass);
-            ArgumentNullException.ThrowIfNull(serviceMemberCode);
-            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceCode);
-            ArgumentNullException.ThrowIfNull(serviceVersion);
-
-            XDocument doc = new(LoadTemplate(xmlPath));
-            (_, XElement RequestBody) = PrepareGetPersonDocument(
-                doc,
-                xId,
-                userId,
-                protocolVersion,
-                clientXRoadInstance,
-                clientMemberClass,
-                clientMemberCode,
-                clientSubsystemCode,
-                serviceXRoadInstance,
-                serviceMemberClass,
-                serviceMemberCode,
-                serviceSubsystemCode,
-                serviceCode,
-                serviceVersion,
-                token);
-
-            XElement requestBodyEl = RequestBody;
-
-            if (!string.IsNullOrWhiteSpace(options?.Id))
-            {
-                SetChildValue(requestBodyEl, "Id", options!.Id!);
-            }
-
-            if (!string.IsNullOrWhiteSpace(options?.PublicId))
-            {
-                SetChildValue(requestBodyEl, "PublicId", options!.PublicId!);
-            }
-            else if (!string.IsNullOrWhiteSpace(options?.Ssn))
-            {
-                SetChildValue(requestBodyEl, "SSN", options!.Ssn!);
-            }
-
-            if (!string.IsNullOrWhiteSpace(options?.ExternalId))
-            {
-                SetChildValue(requestBodyEl, "ExternalId", options!.ExternalId!);
-            }
-
-            if (options is not null && options.Include != GetPersonInclude.None)
-            {
-                GetPersonInclude inc = options.Include;
-                void SetIf(GetPersonInclude flag, string element) { if ((inc & flag) == flag) { SetChildValue(requestBodyEl, element, "true"); } }
-
-                SetIf(GetPersonInclude.Addresses, "IncludeAddresses");
-                SetIf(GetPersonInclude.AddressesHistory, "IncludeAddressesHistory");
-                SetIf(GetPersonInclude.BiologicalParents, "IncludeBiologicalParents");
-                SetIf(GetPersonInclude.ChurchMembership, "IncludeChurchMembership");
-                SetIf(GetPersonInclude.ChurchMembershipHistory, "IncludeChurchMembershipHistory");
-                SetIf(GetPersonInclude.Citizenships, "IncludeCitizenships");
-                SetIf(GetPersonInclude.CitizenshipsHistory, "IncludeCitizenshipsHistory");
-                SetIf(GetPersonInclude.CivilStatus, "IncludeCivilStatus");
-                SetIf(GetPersonInclude.CivilStatusHistory, "IncludeCivilStatusHistory");
-                SetIf(GetPersonInclude.ForeignSsns, "IncludeForeignSsns");
-                SetIf(GetPersonInclude.Incapacity, "IncludeIncapacity");
-                SetIf(GetPersonInclude.IncapacityHistory, "IncludeIncapacityHistory");
-                SetIf(GetPersonInclude.JuridicalChildren, "IncludeJuridicalChildren");
-                SetIf(GetPersonInclude.JuridicalChildrenHistory, "IncludeJuridicalChildrenHistory");
-                SetIf(GetPersonInclude.JuridicalParents, "IncludeJuridicalParents");
-                SetIf(GetPersonInclude.JuridicalParentsHistory, "IncludeJuridicalParentsHistory");
-                SetIf(GetPersonInclude.Names, "IncludeNames");
-                SetIf(GetPersonInclude.NamesHistory, "IncludeNamesHistory");
-                SetIf(GetPersonInclude.Notes, "IncludeNotes");
-                SetIf(GetPersonInclude.NotesHistory, "IncludeNotesHistory");
-                SetIf(GetPersonInclude.Postbox, "IncludePostbox");
-                SetIf(GetPersonInclude.SpecialMarks, "IncludeSpecialMarks");
-                SetIf(GetPersonInclude.SpecialMarksHistory, "IncludeSpecialMarksHistory");
-                SetIf(GetPersonInclude.Spouse, "IncludeSpouse");
-                SetIf(GetPersonInclude.SpouseHistory, "IncludeSpouseHistory");
-                SetIf(GetPersonInclude.Ssn, "IncludeSsn");
-                SetIf(GetPersonInclude.SsnHistory, "IncludeSsnHistory");
-            }
-
-            string xmlString = doc.Declaration != null
-                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
-                : doc.ToString(SaveOptions.DisableFormatting);
-
-            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
+            return (doc, body);
         }
 
         public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)

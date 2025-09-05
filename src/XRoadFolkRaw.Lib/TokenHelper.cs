@@ -76,7 +76,15 @@ namespace XRoadFolkRaw.Lib
         private async Task<string> RefreshAsync(CancellationToken ct)
         {
             string xml = await _loginCall(ct).ConfigureAwait(false);
+            XDocument doc = LoadXml(xml);
+            (string token, string? expiryText) = ExtractTokenAndExpiry(doc);
+            _token = token;
+            _expiresUtc = ComputeExpiry(expiryText) - _skew;
+            return _token;
+        }
 
+        private static XDocument LoadXml(string xml)
+        {
             XmlReaderSettings settings = new()
             {
                 DtdProcessing = DtdProcessing.Prohibit,
@@ -88,8 +96,11 @@ namespace XRoadFolkRaw.Lib
 
             using StringReader sr = new(xml);
             using XmlReader reader = XmlReader.Create(sr, settings);
-            XDocument doc = XDocument.Load(reader, LoadOptions.None);
+            return XDocument.Load(reader, LoadOptions.None);
+        }
 
+        private static (string Token, string? Expiry) ExtractTokenAndExpiry(XDocument doc)
+        {
             string? tokenText = null;
             string? expiryText = null;
 
@@ -122,31 +133,25 @@ namespace XRoadFolkRaw.Lib
             {
                 throw new InvalidOperationException("Login response did not contain <token>");
             }
+            return (tokenText!, expiryText);
+        }
 
-            _token = tokenText!;
-
+        private static DateTimeOffset ComputeExpiry(string? expiryText)
+        {
             if (!string.IsNullOrWhiteSpace(expiryText))
             {
                 string txt = expiryText!;
                 if (DateTimeOffset.TryParse(txt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset exp))
                 {
-                    _expiresUtc = exp - _skew;
+                    return exp;
                 }
-                else if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds))
+                if (long.TryParse(txt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds))
                 {
-                    _expiresUtc = DateTimeOffset.UtcNow.AddSeconds(seconds) - _skew;
+                    return DateTimeOffset.UtcNow.AddSeconds(seconds);
                 }
-                else
-                {
-                    _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
-                }
+                return DateTimeOffset.UtcNow.AddMinutes(30);
             }
-            else
-            {
-                _expiresUtc = DateTimeOffset.UtcNow.AddMinutes(30) - _skew;
-            }
-
-            return _token;
+            return DateTimeOffset.UtcNow.AddMinutes(30);
         }
 
         private bool NeedsRefresh()

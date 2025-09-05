@@ -40,14 +40,42 @@ namespace XRoadFolkRaw.Lib
         {
             ArgumentNullException.ThrowIfNull(log);
             ArgumentNullException.ThrowIfNull(loc);
-            IConfigurationRoot config = new ConfigurationBuilder()
+            IConfigurationRoot config = BuildConfiguration();
+
+            XRoadSettings xr = config.GetSection("XRoad").Get<XRoadSettings>() ?? new();
+            ApplyEnvOverrides(xr);
+
+            List<string> errs = [];
+            ValidateBaseUrl(xr, loc, errs);
+            ValidateHeaders(xr, loc, errs);
+            ValidateClient(xr, loc, errs);
+            ValidateService(xr, loc, errs);
+            ValidateAuth(xr, loc, errs);
+            ValidateTokenInsert(config, loc, errs);
+            ValidateTemplates(config, log);
+            ValidateCertificates(xr, loc, errs);
+
+            if (errs.Count > 0)
+            {
+                ReportErrorsAndThrow(log, loc, errs);
+            }
+
+            EnsureRequiredSections(xr);
+            LogSubsystems(log, xr);
+            return (config, xr);
+        }
+
+        private static IConfigurationRoot BuildConfiguration()
+        {
+            return new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables()
                 .Build();
+        }
 
-            XRoadSettings xr = config.GetSection("XRoad").Get<XRoadSettings>() ?? new();
-
+        private static void ApplyEnvOverrides(XRoadSettings xr)
+        {
             string? envBase = Environment.GetEnvironmentVariable("XR_BASE_URL");
             string? envUser = Environment.GetEnvironmentVariable("XR_USER");
             string? envPass = Environment.GetEnvironmentVariable("XR_PASSWORD");
@@ -55,75 +83,124 @@ namespace XRoadFolkRaw.Lib
             {
                 xr.BaseUrl = envBase.Trim();
             }
-
             if (!string.IsNullOrWhiteSpace(envUser))
             {
                 xr.Auth ??= new AuthSettings();
                 xr.Auth.Username = envUser.Trim();
             }
-
             if (!string.IsNullOrWhiteSpace(envPass))
             {
                 xr.Auth ??= new AuthSettings();
                 xr.Auth.Password = envPass;
             }
+        }
 
-            List<string> errs = [];
-            void Req(bool ok, string key, params object[] args)
+        private static void ValidateBaseUrl(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
+            if (string.IsNullOrWhiteSpace(xr.BaseUrl))
             {
-                if (!ok)
-                {
-                    errs.Add(loc[key, args]);
-                }
+                errs.Add(loc[Messages.XRoadBaseUrlMissing]);
             }
-
-            Req(!string.IsNullOrWhiteSpace(xr.BaseUrl), Messages.XRoadBaseUrlMissing);
-            if (!string.IsNullOrWhiteSpace(xr.BaseUrl) && !Uri.TryCreate(xr.BaseUrl, UriKind.Absolute, out _))
+            else if (!Uri.TryCreate(xr.BaseUrl, UriKind.Absolute, out _))
             {
                 errs.Add(loc[Messages.XRoadBaseUrlInvalidUri, xr.BaseUrl]);
             }
+        }
 
+        private static void ValidateHeaders(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             HeaderSettings headers = xr.Headers;
-            Req(headers != null && !string.IsNullOrWhiteSpace(headers.ProtocolVersion), Messages.XRoadHeadersProtocolVersionMissing);
+            if (headers == null || string.IsNullOrWhiteSpace(headers.ProtocolVersion))
+            {
+                errs.Add(loc[Messages.XRoadHeadersProtocolVersionMissing]);
+            }
+        }
 
+        private static void ValidateClient(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             ClientIdSettings? cli = xr.Client;
-            Req(cli != null, Messages.XRoadClientSectionMissing);
-            Req(cli != null && !string.IsNullOrWhiteSpace(cli.XRoadInstance), Messages.XRoadClientXRoadInstanceMissing);
-            Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberClass), Messages.XRoadClientMemberClassMissing);
-            Req(cli != null && !string.IsNullOrWhiteSpace(cli.MemberCode), Messages.XRoadClientMemberCodeMissing);
-            Req(cli != null && !string.IsNullOrWhiteSpace(cli.SubsystemCode), Messages.XRoadClientSubsystemCodeMissing);
+            if (cli == null)
+            {
+                errs.Add(loc[Messages.XRoadClientSectionMissing]);
+            }
+            if (cli == null || string.IsNullOrWhiteSpace(cli.XRoadInstance))
+            {
+                errs.Add(loc[Messages.XRoadClientXRoadInstanceMissing]);
+            }
+            if (cli == null || string.IsNullOrWhiteSpace(cli.MemberClass))
+            {
+                errs.Add(loc[Messages.XRoadClientMemberClassMissing]);
+            }
+            if (cli == null || string.IsNullOrWhiteSpace(cli.MemberCode))
+            {
+                errs.Add(loc[Messages.XRoadClientMemberCodeMissing]);
+            }
+            if (cli == null || string.IsNullOrWhiteSpace(cli.SubsystemCode))
+            {
+                errs.Add(loc[Messages.XRoadClientSubsystemCodeMissing]);
+            }
+        }
 
+        private static void ValidateService(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             ServiceIdSettings? svc = xr.Service;
-            Req(svc != null, Messages.XRoadServiceSectionMissing);
-            Req(svc != null && !string.IsNullOrWhiteSpace(svc.XRoadInstance), Messages.XRoadServiceXRoadInstanceMissing);
-            Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberClass), Messages.XRoadServiceMemberClassMissing);
-            Req(svc != null && !string.IsNullOrWhiteSpace(svc.MemberCode), Messages.XRoadServiceMemberCodeMissing);
-            Req(svc != null && !string.IsNullOrWhiteSpace(svc.SubsystemCode), Messages.XRoadServiceSubsystemCodeMissing);
+            if (svc == null)
+            {
+                errs.Add(loc[Messages.XRoadServiceSectionMissing]);
+            }
+            if (svc == null || string.IsNullOrWhiteSpace(svc.XRoadInstance))
+            {
+                errs.Add(loc[Messages.XRoadServiceXRoadInstanceMissing]);
+            }
+            if (svc == null || string.IsNullOrWhiteSpace(svc.MemberClass))
+            {
+                errs.Add(loc[Messages.XRoadServiceMemberClassMissing]);
+            }
+            if (svc == null || string.IsNullOrWhiteSpace(svc.MemberCode))
+            {
+                errs.Add(loc[Messages.XRoadServiceMemberCodeMissing]);
+            }
+            if (svc == null || string.IsNullOrWhiteSpace(svc.SubsystemCode))
+            {
+                errs.Add(loc[Messages.XRoadServiceSubsystemCodeMissing]);
+            }
+        }
 
+        private static void ValidateAuth(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             AuthSettings auth = xr.Auth;
-            Req(auth != null && !string.IsNullOrWhiteSpace(auth.UserId), Messages.XRoadAuthUserIdMissing);
+            if (auth == null || string.IsNullOrWhiteSpace(auth.UserId))
+            {
+                errs.Add(loc[Messages.XRoadAuthUserIdMissing]);
+            }
+        }
 
+        private static void ValidateTokenInsert(IConfiguration config, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             string tokenModeRaw = (config.GetValue<string>("XRoad:TokenInsert:Mode") ?? "request").Trim();
             if (!string.Equals(tokenModeRaw, "request", StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(tokenModeRaw, "header", StringComparison.OrdinalIgnoreCase))
             {
                 errs.Add(loc[Messages.XRoadTokenInsertModeInvalid]);
             }
+        }
 
+        private static void ValidateTemplates(IConfiguration config, ILogger log)
+        {
             string gpPath = config.GetValue<string>("Operations:GetPeoplePublicInfo:XmlPath") ?? "GetPeoplePublicInfo.xml";
             string personPath = config.GetValue<string>("Operations:GetPerson:XmlPath") ?? "GetPerson.xml";
             if (!File.Exists(gpPath))
             {
-                // Do not fail: FolkRawClient has built-in fallback templates
                 MissingPeopleInfoTemplate(log, gpPath);
             }
-
             if (!File.Exists(personPath))
             {
-                // Do not fail: FolkRawClient has built-in fallback templates
                 MissingPersonTemplate(log, personPath);
             }
+        }
 
+        private static void ValidateCertificates(XRoadSettings xr, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
             string? pfx = xr.Certificate?.PfxPath;
             string? pemCert = xr.Certificate?.PemCertPath;
             string? pemKey = xr.Certificate?.PemKeyPath;
@@ -133,12 +210,10 @@ namespace XRoadFolkRaw.Lib
             {
                 errs.Add(loc[Messages.ConfigureClientCertificate]);
             }
-
             if (pfx != null && !File.Exists(pfx))
             {
                 errs.Add(loc[Messages.PfxFileNotFound, pfx]);
             }
-
             if (hasPem)
             {
                 if (string.IsNullOrWhiteSpace(pemCert) || string.IsNullOrWhiteSpace(pemKey))
@@ -151,41 +226,41 @@ namespace XRoadFolkRaw.Lib
                     {
                         errs.Add(loc[Messages.PemCertFileNotFound, pemCert]);
                     }
-
                     if (pemKey != null && !File.Exists(pemKey))
                     {
                         errs.Add(loc[Messages.PemKeyFileNotFound, pemKey]);
                     }
                 }
             }
+        }
 
-            if (errs.Count > 0)
+        private static void ReportErrorsAndThrow(ILogger log, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        {
+            ConfigSanityCheckFailed(log);
+            foreach (string e in errs)
             {
-                ConfigSanityCheckFailed(log);
-                foreach (string e in errs)
-                {
-                    ConfigSanityCheckError(log, e);
-                }
-
-                // Aggregate errors into the exception message so callers don't have to inspect logs
-                string header = loc[Messages.ConfigSanityCheckFailedException];
-                string details = string.Join(Environment.NewLine + " - ", errs);
-                string message = header + Environment.NewLine + " - " + details;
-                throw new InvalidOperationException(message);
+                ConfigSanityCheckError(log, e);
             }
+            string header = loc[Messages.ConfigSanityCheckFailedException];
+            string details = string.Join(Environment.NewLine + " - ", errs);
+            string message = header + Environment.NewLine + " - " + details;
+            throw new InvalidOperationException(message);
+        }
 
-            // After validation, ensure required sections are present and use non-null locals
+        private static void EnsureRequiredSections(XRoadSettings xr)
+        {
             if (xr.Client is null || xr.Service is null)
             {
                 throw new InvalidOperationException("XRoad configuration missing Client or Service section.");
             }
-            ClientIdSettings client = xr.Client;
-            ServiceIdSettings service = xr.Service;
+        }
 
+        private static void LogSubsystems(ILogger log, XRoadSettings xr)
+        {
+            ClientIdSettings client = xr.Client!;
+            ServiceIdSettings service = xr.Service!;
             ClientSubsystem(log, $"{client.XRoadInstance}/{client.MemberClass}/{client.MemberCode}/{client.SubsystemCode}");
             ServiceSubsystem(log, $"{service.XRoadInstance}/{service.MemberClass}/{service.MemberCode}/{service.SubsystemCode}");
-
-            return (config, xr);
         }
 
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Config sanity check failed:")]

@@ -18,7 +18,10 @@ namespace XRoadFolkWeb.Infrastructure
 
         public ValidateOptionsResult Validate(string? name, XRoadSettings options)
         {
-            if (options is null) return ValidateOptionsResult.Fail("XRoad: configuration is required.");
+            if (options is null)
+            {
+                return ValidateOptionsResult.Fail("XRoad: configuration is required.");
+            }
 
             var errors = new List<string>(8);
 
@@ -45,10 +48,22 @@ namespace XRoadFolkWeb.Infrastructure
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(options.Client.XRoadInstance)) errors.Add("XRoad:Client:XRoadInstance must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Client.MemberClass)) errors.Add("XRoad:Client:MemberClass must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Client.MemberCode)) errors.Add("XRoad:Client:MemberCode must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Client.SubsystemCode)) errors.Add("XRoad:Client:SubsystemCode must be configured.");
+                if (string.IsNullOrWhiteSpace(options.Client.XRoadInstance))
+                {
+                    errors.Add("XRoad:Client:XRoadInstance must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Client.MemberClass))
+                {
+                    errors.Add("XRoad:Client:MemberClass must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Client.MemberCode))
+                {
+                    errors.Add("XRoad:Client:MemberCode must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Client.SubsystemCode))
+                {
+                    errors.Add("XRoad:Client:SubsystemCode must be configured.");
+                }
             }
 
             // Service
@@ -58,11 +73,26 @@ namespace XRoadFolkWeb.Infrastructure
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(options.Service.XRoadInstance)) errors.Add("XRoad:Service:XRoadInstance must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Service.MemberClass)) errors.Add("XRoad:Service:MemberClass must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Service.MemberCode)) errors.Add("XRoad:Service:MemberCode must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Service.SubsystemCode)) errors.Add("XRoad:Service:SubsystemCode must be configured.");
-                if (string.IsNullOrWhiteSpace(options.Service.ServiceCode)) errors.Add("XRoad:Service:ServiceCode must be configured.");
+                if (string.IsNullOrWhiteSpace(options.Service.XRoadInstance))
+                {
+                    errors.Add("XRoad:Service:XRoadInstance must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Service.MemberClass))
+                {
+                    errors.Add("XRoad:Service:MemberClass must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Service.MemberCode))
+                {
+                    errors.Add("XRoad:Service:MemberCode must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Service.SubsystemCode))
+                {
+                    errors.Add("XRoad:Service:SubsystemCode must be configured.");
+                }
+                if (string.IsNullOrWhiteSpace(options.Service.ServiceCode))
+                {
+                    errors.Add("XRoad:Service:ServiceCode must be configured.");
+                }
             }
 
             // Auth
@@ -92,10 +122,12 @@ namespace XRoadFolkWeb.Infrastructure
                 errors.Add("XRoad:Certificate must configure either PfxPath or both PemCertPath and PemKeyPath in non-Development environments.");
             }
 
-            // If any path is provided, require it to exist
             void EnsureFileExists(string? path, string key)
             {
-                if (string.IsNullOrWhiteSpace(path)) return;
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    return;
+                }
                 string probe = path;
                 if (!Path.IsPathRooted(probe))
                 {

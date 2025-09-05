@@ -87,9 +87,9 @@ dotnet_diagnostic.CS0108.severity = suggestion
 # Obsolete API usage
 dotnet_diagnostic.CS0618.severity = suggestion
 # Nullable flow
-dotnet_diagnostic.CS8602.severity = warning
+dotnet_diagnostic.CS8602.severity = error
 # Nullable arg flow
-dotnet_diagnostic.CS8604.severity = warning
+dotnet_diagnostic.CS8604.severity = error
 
 # Roslynator / Meziantou examples
 # Prefer 'ConfigureAwait(false)' in libraries (app code can choose suggestion)

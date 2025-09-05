@@ -72,10 +72,18 @@ namespace XRoadFolkWeb.Infrastructure
                 return;
             }
 
-            // Ring buffer
+            EnqueueRing(e);
+            PublishToStream(e);
+            if (!TryWriteToChannel(e) && !TryBestEffortWarnError(e))
+            {
+                RecordDrop(e, reason: "backpressure");
+            }
+        }
+
+        private void EnqueueRing(LogEntry e)
+        {
             _ring.Enqueue(e);
             _ = Interlocked.Increment(ref _ringSize);
-            // Under contention, recompute and trim until we're under capacity
             while (Volatile.Read(ref _ringSize) > Capacity)
             {
                 if (_ring.TryDequeue(out _))
@@ -87,45 +95,49 @@ namespace XRoadFolkWeb.Infrastructure
                     break;
                 }
             }
+        }
 
-            try { _stream?.Publish(e); }
+        private void PublishToStream(LogEntry e)
+        {
+            try
+            {
+                _stream?.Publish(e);
+            }
             catch (Exception ex)
             {
                 LogStreamPublishError(_log, ex);
             }
+        }
 
-            // Channel back-pressure + best effort policy
-            if (_channel.Writer.TryWrite(e))
+        private bool TryWriteToChannel(LogEntry e)
+        {
+            return _channel.Writer.TryWrite(e);
+        }
+
+        private bool TryBestEffortWarnError(LogEntry e)
+        {
+            if (!_rateLimiter.AlwaysAllowWarnError || e.Level < LogLevel.Warning)
             {
-                return;
+                return false;
             }
 
-            bool written = false;
-            if (_rateLimiter.AlwaysAllowWarnError && e.Level >= LogLevel.Warning)
+            for (int i = 0; i < 4; i++)
             {
-                for (int i = 0; i < 4; i++)
+                _ = _channel.Reader.TryRead(out _);
+                if (_channel.Writer.TryWrite(e))
                 {
-                    _ = _channel.Reader.TryRead(out _);
-                    if (_channel.Writer.TryWrite(e))
-                    {
-                        written = true;
-                        break;
-                    }
-                }
-                if (!written)
-                {
-                    _ = Thread.Yield();
-                    written = _channel.Writer.TryWrite(e);
+                    return true;
                 }
             }
+            _ = Thread.Yield();
+            return _channel.Writer.TryWrite(e);
+        }
 
-            if (!written)
-            {
-                LogEnqueueDrop(_log, e.Level, e.Category, e.EventId);
-                LogStoreMetrics.LogDrops.Add(1);
-                LogStoreMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "backpressure"), new KeyValuePair<string, object?>("store", "file"));
-                LogStoreMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "file"));
-            }
+        private static void RecordDrop(LogEntry e, string reason)
+        {
+            LogStoreMetrics.LogDrops.Add(1);
+            LogStoreMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", reason), new KeyValuePair<string, object?>("store", "file"));
+            LogStoreMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "file"));
         }
 
         public void Clear()

@@ -237,56 +237,29 @@ namespace XRoadFolkWeb.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Clear person details on every new search
-            PersonDetails = null;
-            SelectedNameSuffix = string.Empty;
+            ResetPersonDetails();
 
             if (!ModelState.IsValid)
             {
-                int count = ModelState.Values.Sum(v => v.Errors.Count);
-                LogValidationFailed(_logger, count);
-                _errors.Clear();
-                _errors.AddRange(ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-                return Page();
+                return HandleInvalidModelState();
             }
 
-            // Decide the input path:
             bool usingSsn = !string.IsNullOrWhiteSpace(Ssn);
             string? first = FirstName;
             string? last = LastName;
             string? dobInput = DateOfBirth;
 
-            // If SSN is empty, require First + Last + DOB (presence only here).
-            if (!usingSsn && (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput)))
+            if (!usingSsn && MissingNameDob(first, last, dobInput))
             {
-                LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
-                LogValidationFailed(_logger, 1);
-                ModelState.AddModelError(string.Empty, msg);
-                _errors.Clear();
-                _errors.Add(msg);
-                return Page();
+                return HandleMissingNameDob();
             }
 
-            // Only validate the chosen path to avoid spurious cross-field errors
             (bool ok, IReadOnlyList<string> errs, string? ssnNorm, DateTimeOffset? dob) =
-                InputValidation.ValidateCriteria(
-                    usingSsn ? Ssn : null,
-                    usingSsn ? null : first,
-                    usingSsn ? null : last,
-                    usingSsn ? null : dobInput,
-                    _valLoc);
+                ValidateChosenPath(usingSsn, first, last, dobInput);
 
             if (!ok)
             {
-                LogValidationFailed(_logger, errs.Count);
-                foreach (string err in errs)
-                {
-                    ModelState.AddModelError(string.Empty, err);
-                }
-
-                _errors.Clear();
-                _errors.AddRange(errs);
-                return Page();
+                return HandleValidationErrors(errs);
             }
 
             try
@@ -300,7 +273,59 @@ namespace XRoadFolkWeb.Pages
                 return Page();
             }
 
-            // Do not leak criteria via query string; render results directly
+            return Page();
+        }
+
+        private void ResetPersonDetails()
+        {
+            PersonDetails = null;
+            SelectedNameSuffix = string.Empty;
+        }
+
+        private IActionResult HandleInvalidModelState()
+        {
+            int count = ModelState.Values.Sum(v => v.Errors.Count);
+            LogValidationFailed(_logger, count);
+            _errors.Clear();
+            _errors.AddRange(ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            return Page();
+        }
+
+        private static bool MissingNameDob(string? first, string? last, string? dobInput)
+        {
+            return string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(last) || string.IsNullOrWhiteSpace(dobInput);
+        }
+
+        private IActionResult HandleMissingNameDob()
+        {
+            LocalizedString msg = _valLoc[name: InputValidation.Errors.ProvideSsnOrNameDob];
+            LogValidationFailed(_logger, 1);
+            ModelState.AddModelError(string.Empty, msg);
+            _errors.Clear();
+            _errors.Add(msg);
+            return Page();
+        }
+
+        private (bool ok, IReadOnlyList<string> errs, string? ssnNorm, DateTimeOffset? dob) ValidateChosenPath(bool usingSsn, string? first, string? last, string? dobInput)
+        {
+            return InputValidation.ValidateCriteria(
+                usingSsn ? Ssn : null,
+                usingSsn ? null : first,
+                usingSsn ? null : last,
+                usingSsn ? null : dobInput,
+                _valLoc);
+        }
+
+        private IActionResult HandleValidationErrors(IReadOnlyList<string> errs)
+        {
+            LogValidationFailed(_logger, errs.Count);
+            foreach (string err in errs)
+            {
+                ModelState.AddModelError(string.Empty, err);
+            }
+
+            _errors.Clear();
+            _errors.AddRange(errs);
             return Page();
         }
 

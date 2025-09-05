@@ -12,9 +12,6 @@ namespace XRoadFolkRaw.Lib.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        /// <summary>
-        /// LoggerMessage delegate for performance
-        /// </summary>
         private static readonly Action<ILogger, Exception?> _logCertWarning =
             LoggerMessage.Define(
                 LogLevel.Warning,
@@ -25,145 +22,172 @@ namespace XRoadFolkRaw.Lib.Extensions
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            _ = services.AddHttpClient("XRoadFolk", (sp, c) =>
-            {
-                XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
-                c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
-                c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
-            })
-            .AddHttpMessageHandler(sp => new XRoadPollyHandler(
+            RegisterHttpClient(services);
+            return services;
+        }
+
+        private static void RegisterHttpClient(IServiceCollection services)
+        {
+            _ = services.AddHttpClient("XRoadFolk", (sp, c) => ConfigureClient(sp, c))
+                .AddHttpMessageHandler(sp => CreatePollyHandler(sp))
+                .ConfigurePrimaryHttpMessageHandler(sp => CreatePrimaryHandler(sp));
+        }
+
+        private static void ConfigureClient(IServiceProvider sp, HttpClient c)
+        {
+            XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+            c.BaseAddress = new Uri(xr.BaseUrl, UriKind.Absolute);
+            c.Timeout = TimeSpan.FromSeconds(xr.Http.TimeoutSeconds);
+        }
+
+        private static DelegatingHandler CreatePollyHandler(IServiceProvider sp)
+        {
+            return new XRoadPollyHandler(
                 sp.GetRequiredService<IOptions<XRoadFolkRaw.Lib.Options.HttpRetryOptions>>(),
-                sp.GetRequiredService<ILoggerFactory>()))
-            .ConfigurePrimaryHttpMessageHandler(static sp =>
+                sp.GetRequiredService<ILoggerFactory>());
+        }
+
+        private static HttpMessageHandler CreatePrimaryHandler(IServiceProvider sp)
+        {
+            XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+
+            SocketsHttpHandler handler = CreateSocketsHandler(xr);
+            TryAttachClientCertificate(sp, xr, handler);
+            ConfigureServerCertificateValidation(sp, handler);
+            return handler;
+        }
+
+        private static SocketsHttpHandler CreateSocketsHandler(XRoadSettings xr)
+        {
+            TimeSpan lifetime = xr.Http.PooledConnectionLifetimeSeconds <= 0
+                ? Timeout.InfiniteTimeSpan
+                : TimeSpan.FromSeconds(xr.Http.PooledConnectionLifetimeSeconds);
+            TimeSpan idle = xr.Http.PooledConnectionIdleTimeoutSeconds <= 0
+                ? Timeout.InfiniteTimeSpan
+                : TimeSpan.FromSeconds(xr.Http.PooledConnectionIdleTimeoutSeconds);
+            int maxPerServer = xr.Http.MaxConnectionsPerServer <= 0 ? 20 : xr.Http.MaxConnectionsPerServer;
+
+            return new SocketsHttpHandler
             {
-                XRoadSettings xr = sp.GetRequiredService<XRoadSettings>();
+                PooledConnectionLifetime = lifetime,
+                PooledConnectionIdleTimeout = idle,
+                MaxConnectionsPerServer = maxPerServer,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            };
+        }
 
-                // Pull limits from configuration with sane bounds
-                TimeSpan lifetime = xr.Http.PooledConnectionLifetimeSeconds <= 0
-                    ? Timeout.InfiniteTimeSpan
-                    : TimeSpan.FromSeconds(xr.Http.PooledConnectionLifetimeSeconds);
-                TimeSpan idle = xr.Http.PooledConnectionIdleTimeoutSeconds <= 0
-                    ? Timeout.InfiniteTimeSpan
-                    : TimeSpan.FromSeconds(xr.Http.PooledConnectionIdleTimeoutSeconds);
-                int maxPerServer = xr.Http.MaxConnectionsPerServer <= 0 ? 20 : xr.Http.MaxConnectionsPerServer;
+        private static void TryAttachClientCertificate(IServiceProvider sp, XRoadSettings xr, SocketsHttpHandler handler)
+        {
+            try
+            {
+                X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
+                handler.SslOptions.ClientCertificates ??= [];
+                _ = handler.SslOptions.ClientCertificates.Add(cert);
+            }
+            catch (Exception ex)
+            {
+                ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
+                _logCertWarning(log, ex);
+            }
+        }
 
-                SocketsHttpHandler handler = new()
+        private static void ConfigureServerCertificateValidation(IServiceProvider sp, SocketsHttpHandler handler)
+        {
+            IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+            IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
+            ILogger serverCertLog = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadServerCert");
+
+            string? cerPath = cfg["XRoad:ServerCertificate:Path"] ?? cfg["Http:ServerCertificate:Path"];
+            X509Certificate2? serverCer = LoadServerCertificate(cerPath, serverCertLog);
+
+            if (serverCer is not null)
+            {
+                ApplyPinning(handler, serverCer);
+            }
+            else
+            {
+                bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", false);
+                if (env.IsDevelopment() && bypass)
                 {
-                    PooledConnectionLifetime = lifetime,
-                    PooledConnectionIdleTimeout = idle,
-                    MaxConnectionsPerServer = maxPerServer,
-                    AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-                };
-
-                try
-                {
-                    X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
-                    handler.SslOptions.ClientCertificates ??= [];
-                    _ = handler.SslOptions.ClientCertificates.Add(cert);
+                    handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;
                 }
+            }
+        }
+
+        private static X509Certificate2? LoadServerCertificate(string? path, ILogger log)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            string p = path;
+            if (!Path.IsPathRooted(p))
+            {
+                string baseDir = AppContext.BaseDirectory;
+                string candidate = Path.Combine(baseDir, p);
+                if (File.Exists(candidate))
+                {
+                    p = candidate;
+                }
+            }
+            if (File.Exists(p))
+            {
+                try { return new X509Certificate2(p); }
                 catch (Exception ex)
                 {
-                    ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
-                    _logCertWarning(log, ex);
+                    log.LogError(ex, "Failed to load server certificate from '{Path}'. Certificate pinning disabled.", p);
+                    return null;
                 }
+            }
+            else
+            {
+                log.LogWarning("Server certificate file not found at '{Path}'. Certificate pinning disabled.", p);
+                return null;
+            }
+        }
 
-                IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
-                IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
-                ILogger serverCertLog = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadServerCert");
+        private static void ApplyPinning(SocketsHttpHandler handler, X509Certificate2 serverCer)
+        {
+            string pinnedThumb = (serverCer.Thumbprint ?? string.Empty).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
 
-                // Optional server certificate pinning (.cer). If configured, this is used in all environments.
-                // Supported keys: XRoad:ServerCertificate:Path or Http:ServerCertificate:Path
-                string? cerPath = cfg["XRoad:ServerCertificate:Path"] ?? cfg["Http:ServerCertificate:Path"];
-                X509Certificate2? serverCer = null;
-                if (!string.IsNullOrWhiteSpace(cerPath))
+            handler.SslOptions.RemoteCertificateValidationCallback = (object _, X509Certificate? presented, X509Chain? chain, SslPolicyErrors errors) =>
+            {
+                if (presented is null)
                 {
-                    string path = cerPath!;
-                    if (!Path.IsPathRooted(path))
-                    {
-                        // Try relative to base directory
-                        string baseDir = AppContext.BaseDirectory;
-                        string candidate = Path.Combine(baseDir, path);
-                        if (File.Exists(candidate))
-                        {
-                            path = candidate;
-                        }
-                    }
-                    if (File.Exists(path))
-                    {
-                        try { serverCer = new X509Certificate2(path); }
-                        catch (Exception ex)
-                        {
-                            serverCer = null;
-                            serverCertLog.LogError(ex, "Failed to load server certificate from '{Path}'. Certificate pinning disabled.", path);
-                        }
-                    }
-                    else
-                    {
-                        serverCertLog.LogWarning("Server certificate file not found at '{Path}'. Certificate pinning disabled.", path);
-                    }
+                    return false;
                 }
 
-                if (serverCer is not null)
+                if (errors == SslPolicyErrors.None)
                 {
-                    string pinnedThumb = (serverCer.Thumbprint ?? string.Empty).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
-
-                    handler.SslOptions.RemoteCertificateValidationCallback = (object _, X509Certificate? presented, X509Chain? chain, SslPolicyErrors errors) =>
-                    {
-                        if (presented is null)
-                        {
-                            return false;
-                        }
-
-                        // Normal trust passes as-is
-                        if (errors == SslPolicyErrors.None)
-                        {
-                            return true;
-                        }
-
-                        // Thumbprint pinning against leaf
-                        X509Certificate2 leaf = presented as X509Certificate2 ?? new X509Certificate2(presented);
-                        string actual = (leaf.Thumbprint ?? string.Empty).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
-                        if (actual.Equals(pinnedThumb, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return true;
-                        }
-
-                        // If CER is a CA cert, try to build a chain that includes it
-                        using X509Chain custom = new();
-                        custom.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                        custom.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-                        custom.ChainPolicy.ExtraStore.Add(serverCer);
-                        bool ok = custom.Build(leaf);
-                        bool containsPinned = false;
-                        if (ok)
-                        {
-                            foreach (var el in custom.ChainElements)
-                            {
-                                if (string.Equals(el.Certificate.Thumbprint, serverCer.Thumbprint, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    containsPinned = true;
-                                    break;
-                                }
-                            }
-                        }
-                        return ok && containsPinned;
-                    };
+                    return true;
                 }
-                else
+
+                X509Certificate2 leaf = presented as X509Certificate2 ?? new X509Certificate2(presented);
+                string actual = (leaf.Thumbprint ?? string.Empty).Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+                if (actual.Equals(pinnedThumb, StringComparison.OrdinalIgnoreCase))
                 {
-                    // No CER configured: keep optional development bypass toggle for convenience.
-                    // Default is strict (no bypass) unless explicitly enabled.
-                    bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", false);
-                    if (env.IsDevelopment() && bypass)
+                    return true;
+                }
+
+                using X509Chain custom = new();
+                custom.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                custom.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+                custom.ChainPolicy.ExtraStore.Add(serverCer);
+                bool ok = custom.Build(leaf);
+                if (!ok)
+                {
+                    return false;
+                }
+                foreach (var el in custom.ChainElements)
+                {
+                    if (string.Equals(el.Certificate.Thumbprint, serverCer.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
-                        handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;
+                        return true;
                     }
                 }
-
-                return handler;
-            });
-
-            return services;
+                return false;
+            };
         }
 
         private static bool DevCertificateValidation(object _, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors)
@@ -205,7 +229,6 @@ namespace XRoadFolkRaw.Lib.Extensions
                                                      | X509VerificationFlags.AllowUnknownCertificateAuthority;
                 bool chainOk = chain.Build(cert2);
 
-                // In development, allow only hostname mismatch if the chain is otherwise valid
                 return chainOk || errors == SslPolicyErrors.RemoteCertificateNameMismatch;
             }
             finally
