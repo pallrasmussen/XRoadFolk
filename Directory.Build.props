@@ -3,4 +3,17 @@
   <ItemGroup Condition="'$(MSBuildProjectName)' != 'XRoadFolkRaw.Tests'">
     <Compile Remove="**/*Tests.cs" />
   </ItemGroup>
+
+  <!-- Treat warnings as errors in CI builds for consistency -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors Condition="'$(CI)' == 'true' or '$(ContinuousIntegrationBuild)' == 'true'">true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Enable additional nullability analysis as warnings first -->
+  <PropertyGroup>
+    <!-- Prefer enhanced nullability flow analysis when available -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <!-- Enable nullable warnings for oblivious annotations -->
+    <WarningsAsWarnings>CS8618;CS8625;CS8774;CS8762</WarningsAsWarnings>
+  </PropertyGroup>
 </Project>
