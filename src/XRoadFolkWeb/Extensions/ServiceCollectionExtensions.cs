@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -22,6 +23,7 @@ namespace XRoadFolkWeb.Extensions
                 .AddMvcCustomizations()
                 .AddResponseCompressionDefaults()
                 .AddCookiePolicyDefaults()
+                .AddDataProtectionDefaults(configuration)
                 .AddSessionServices(configuration);
 
             if (hasXRoad)
@@ -81,6 +83,51 @@ namespace XRoadFolkWeb.Extensions
                         }
                     };
                 });
+
+            return services;
+        }
+
+        private static IServiceCollection AddDataProtectionDefaults(this IServiceCollection services, IConfiguration configuration)
+        {
+            bool isDev = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
+
+            string appName = configuration["DataProtection:ApplicationName"] ?? "XRoadFolkWeb";
+            var dp = services.AddDataProtection().SetApplicationName(appName);
+
+            if (!isDev)
+            {
+                string? dir = configuration["DataProtection:KeysDirectory"];
+                if (string.IsNullOrWhiteSpace(dir))
+                {
+                    dir = System.IO.Path.Combine(AppContext.BaseDirectory, "keys");
+                }
+                System.IO.Directory.CreateDirectory(dir);
+                _ = dp.PersistKeysToFileSystem(new System.IO.DirectoryInfo(dir));
+
+                if (OperatingSystem.IsWindows())
+                {
+                    _ = dp.ProtectKeysWithDpapi(protectToLocalMachine: true);
+                }
+                else
+                {
+                    string? certPath = configuration["DataProtection:Certificate:Path"];
+                    string? certPwd = configuration["DataProtection:Certificate:Password"];
+                    if (!string.IsNullOrWhiteSpace(certPath) && System.IO.File.Exists(certPath))
+                    {
+                        try
+                        {
+                            var cert = string.IsNullOrEmpty(certPwd)
+                                ? new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath)
+                                : new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath, certPwd);
+                            _ = dp.ProtectKeysWithCertificate(cert);
+                        }
+                        catch
+                        {
+                            // ignore and rely on file permissions/ACLs
+                        }
+                    }
+                }
+            }
 
             return services;
         }
