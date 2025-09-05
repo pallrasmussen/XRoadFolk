@@ -177,6 +177,8 @@ namespace XRoadFolkWeb.Infrastructure
     {
         private readonly FileBackedHttpLogStore _store = store;
         private readonly IOptions<HttpLogOptions> _opts = opts;
+        private readonly List<LogEntry> _backlog = new(capacity: 2048);
+        private int MaxBacklog => Math.Max(1000, _opts.Value.MaxQueue);
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -191,14 +193,14 @@ namespace XRoadFolkWeb.Infrastructure
                 try
                 {
                     await ReadBatchAsync(reader, batch, stoppingToken).ConfigureAwait(false);
-                    if (batch.Count == 0)
+                    if (await HandleBacklogFirstAsync(batch, flushInterval, stoppingToken).ConfigureAwait(false))
                     {
-                        await Task.Delay(flushInterval, stoppingToken).ConfigureAwait(false);
                         continue;
                     }
-
-                    await AppendBatchAsync(batch, stoppingToken).ConfigureAwait(false);
-                    batch.Clear();
+                    if (await HandleCurrentBatchAsync(batch, flushInterval, stoppingToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -214,6 +216,57 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             await SafeFlushTailAsync(reader, new List<LogEntry>(capacity: 512)).ConfigureAwait(false);
+        }
+
+        private async Task<bool> HandleBacklogFirstAsync(List<LogEntry> batch, int flushInterval, CancellationToken ct)
+        {
+            if (_backlog.Count > 0 && batch.Count == 0)
+            {
+                if (await TryAppendAsync(_backlog, ct).ConfigureAwait(false))
+                {
+                    _backlog.Clear();
+                }
+                else
+                {
+                    await Task.Delay(flushInterval, ct).ConfigureAwait(false);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private async Task<bool> HandleCurrentBatchAsync(List<LogEntry> batch, int flushInterval, CancellationToken ct)
+        {
+            if (batch.Count == 0)
+            {
+                await Task.Delay(flushInterval, ct).ConfigureAwait(false);
+                return true;
+            }
+
+            if (_backlog.Count > 0)
+            {
+                _backlog.AddRange(batch);
+                batch.Clear();
+                if (await TryAppendAsync(_backlog, ct).ConfigureAwait(false))
+                {
+                    _backlog.Clear();
+                }
+                else
+                {
+                    TrimBacklogIfNeeded();
+                    await Task.Delay(flushInterval, ct).ConfigureAwait(false);
+                }
+                return true;
+            }
+
+            if (!await TryAppendAsync(batch, ct).ConfigureAwait(false))
+            {
+                _backlog.AddRange(batch);
+                TrimBacklogIfNeeded();
+                await Task.Delay(flushInterval, ct).ConfigureAwait(false);
+            }
+            batch.Clear();
+            return false;
         }
 
         private static void EnsureDirectoryExists(string path)
@@ -249,20 +302,71 @@ namespace XRoadFolkWeb.Infrastructure
                     tail.Add(item);
                     if (tail.Count >= 1024)
                     {
-                        await AppendBatchAsync(tail, CancellationToken.None).ConfigureAwait(false);
+                        if (!await TryAppendAsync(tail, CancellationToken.None).ConfigureAwait(false))
+                        {
+                            // Could not flush; move to backlog and break
+                            _backlog.AddRange(tail);
+                            tail.Clear();
+                            break;
+                        }
                         tail.Clear();
                     }
                 }
                 if (tail.Count > 0)
                 {
-                    await AppendBatchAsync(tail, CancellationToken.None).ConfigureAwait(false);
-                    tail.Clear();
+                    if (!await TryAppendAsync(tail, CancellationToken.None).ConfigureAwait(false))
+                    {
+                        _backlog.AddRange(tail);
+                        tail.Clear();
+                    }
+                    else
+                    {
+                        tail.Clear();
+                    }
+                }
+
+                if (_backlog.Count > 0)
+                {
+                    _ = await TryAppendAsync(_backlog, CancellationToken.None).ConfigureAwait(false);
+                    _backlog.Clear();
                 }
             }
             catch (Exception ex)
             {
                 LogWriteBatchError(_store.Logger, ex);
             }
+        }
+
+        private async Task<bool> TryAppendAsync(List<LogEntry> entries, CancellationToken ct)
+        {
+            try
+            {
+                await AppendBatchAsync(entries, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogWriteBatchError(_store.Logger, ex);
+                return false;
+            }
+        }
+
+        private void TrimBacklogIfNeeded()
+        {
+            int max = MaxBacklog;
+            if (_backlog.Count <= max)
+            {
+                return;
+            }
+            int toDrop = _backlog.Count - max;
+            for (int i = 0; i < toDrop; i++)
+            {
+                LogEntry e = _backlog[i];
+                LogStoreMetrics.LogDrops.Add(1);
+                LogStoreMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "fs_backlog_full"), new KeyValuePair<string, object?>("store", "file"));
+                LogStoreMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "file"));
+            }
+            _backlog.RemoveRange(0, toDrop);
         }
 
         private async Task AppendBatchAsync(List<LogEntry> batch, CancellationToken ct)
