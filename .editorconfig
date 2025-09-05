@@ -61,7 +61,7 @@ nullable = enable
 # Meziantou rules that are too strict for current codebase
 # File name must match type name (many types in one file)
 dotnet_diagnostic.MA0048.severity = none
-# Method too long (will tighten later as we refactor)
+# Method too long (phase 1: global suggestion)
 dotnet_diagnostic.MA0051.severity = suggestion
 # Regex DoS concerns (monitor and tighten later)
 dotnet_diagnostic.MA0009.severity = suggestion
@@ -125,3 +125,7 @@ indent_size = 2
 [*.{yml,yaml}]
 indent_style = space
 indent_size = 2
+
+# Phase enforcement: treat MA0051 as warning for WebApplicationExtensions.cs only
+[src/XRoadFolkWeb/Extensions/WebApplicationExtensions.cs]
+dotnet_diagnostic.MA0051.severity = warning

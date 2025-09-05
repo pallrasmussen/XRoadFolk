@@ -106,7 +106,10 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Add(LogEntry e)
         {
-            if (_disposed) { return; }
+            if (_disposed)
+            {
+                return;
+            }
             ArgumentNullException.ThrowIfNull(e);
 
             if (_rateLimiter.ShouldDrop(e.Level))
@@ -239,7 +242,9 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Clear()
         {
-            while (_queue.TryDequeue(out _)) { }
+            while (_queue.TryDequeue(out _))
+            {
+            }
             Volatile.Write(ref _size, 0);
             InMemoryLogMetrics._sizeRef = 0;
         }
@@ -251,28 +256,65 @@ namespace XRoadFolkWeb.Infrastructure
 
         public async ValueTask DisposeAsync()
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             _disposed = true;
 
-            try { _ingestCts.Cancel(); } catch { }
-            try { _ingestChannel.Writer.TryComplete(); } catch { }
+            try
+            {
+                _ingestCts.Cancel();
+            }
+            catch
+            {
+            }
 
-            try { if (_writerCts is not null) await _writerCts.CancelAsync().ConfigureAwait(false); } catch { }
+            try
+            {
+                _ingestChannel.Writer.TryComplete();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (_writerCts is not null)
+                {
+                    await _writerCts.CancelAsync().ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+            }
 
             if (_fileChannel is not null)
             {
-                try { _fileChannel.Writer.TryComplete(); }
+                try
+                {
+                    _fileChannel.Writer.TryComplete();
+                }
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, "InMemoryHttpLog: Error completing file channel writer during dispose");
                 }
             }
 
-            try { await _ingestTask.ConfigureAwait(false); } catch { }
+            try
+            {
+                await _ingestTask.ConfigureAwait(false);
+            }
+            catch
+            {
+            }
 
             if (_fileWriterTask is not null)
             {
-                try { await _fileWriterTask.ConfigureAwait(false); }
+                try
+                {
+                    await _fileWriterTask.ConfigureAwait(false);
+                }
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, "InMemoryHttpLog: Error waiting for file writer task during dispose");
