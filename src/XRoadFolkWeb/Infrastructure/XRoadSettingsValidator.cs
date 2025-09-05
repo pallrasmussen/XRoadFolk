@@ -23,9 +23,24 @@ namespace XRoadFolkWeb.Infrastructure
                 return ValidateOptionsResult.Fail("XRoad: configuration is required.");
             }
 
-            var errors = new List<string>(8);
+            var errors = new List<string>(16);
+            ValidateBaseUrl(options, errors);
+            ValidateHeaders(options, errors);
+            ValidateClient(options, errors);
+            ValidateService(options, errors);
+            ValidateAuth(options, errors);
+            ValidateTokenMode(options, errors);
+            ValidateCertificates(options, errors);
 
-            // Base URL
+            if (errors.Count > 0)
+            {
+                return ValidateOptionsResult.Fail(errors);
+            }
+            return ValidateOptionsResult.Success;
+        }
+
+        private static void ValidateBaseUrl(XRoadSettings options, List<string> errors)
+        {
             if (string.IsNullOrWhiteSpace(options.BaseUrl))
             {
                 errors.Add("XRoad:BaseUrl must be configured.");
@@ -34,84 +49,91 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 errors.Add($"XRoad:BaseUrl '{options.BaseUrl}' is not a valid absolute URI.");
             }
+        }
 
-            // Headers
+        private static void ValidateHeaders(XRoadSettings options, List<string> errors)
+        {
             if (options.Headers is null || string.IsNullOrWhiteSpace(options.Headers.ProtocolVersion))
             {
                 errors.Add("XRoad:Headers:ProtocolVersion must be configured.");
             }
+        }
 
-            // Client
+        private static void ValidateClient(XRoadSettings options, List<string> errors)
+        {
             if (options.Client is null)
             {
                 errors.Add("XRoad:Client section is missing.");
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(options.Client.XRoadInstance))
-                {
-                    errors.Add("XRoad:Client:XRoadInstance must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Client.MemberClass))
-                {
-                    errors.Add("XRoad:Client:MemberClass must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Client.MemberCode))
-                {
-                    errors.Add("XRoad:Client:MemberCode must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Client.SubsystemCode))
-                {
-                    errors.Add("XRoad:Client:SubsystemCode must be configured.");
-                }
+                return;
             }
 
-            // Service
+            if (string.IsNullOrWhiteSpace(options.Client.XRoadInstance))
+            {
+                errors.Add("XRoad:Client:XRoadInstance must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Client.MemberClass))
+            {
+                errors.Add("XRoad:Client:MemberClass must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Client.MemberCode))
+            {
+                errors.Add("XRoad:Client:MemberCode must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Client.SubsystemCode))
+            {
+                errors.Add("XRoad:Client:SubsystemCode must be configured.");
+            }
+        }
+
+        private static void ValidateService(XRoadSettings options, List<string> errors)
+        {
             if (options.Service is null)
             {
                 errors.Add("XRoad:Service section is missing.");
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(options.Service.XRoadInstance))
-                {
-                    errors.Add("XRoad:Service:XRoadInstance must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Service.MemberClass))
-                {
-                    errors.Add("XRoad:Service:MemberClass must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Service.MemberCode))
-                {
-                    errors.Add("XRoad:Service:MemberCode must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Service.SubsystemCode))
-                {
-                    errors.Add("XRoad:Service:SubsystemCode must be configured.");
-                }
-                if (string.IsNullOrWhiteSpace(options.Service.ServiceCode))
-                {
-                    errors.Add("XRoad:Service:ServiceCode must be configured.");
-                }
+                return;
             }
 
-            // Auth
+            if (string.IsNullOrWhiteSpace(options.Service.XRoadInstance))
+            {
+                errors.Add("XRoad:Service:XRoadInstance must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Service.MemberClass))
+            {
+                errors.Add("XRoad:Service:MemberClass must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Service.MemberCode))
+            {
+                errors.Add("XRoad:Service:MemberCode must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Service.SubsystemCode))
+            {
+                errors.Add("XRoad:Service:SubsystemCode must be configured.");
+            }
+            if (string.IsNullOrWhiteSpace(options.Service.ServiceCode))
+            {
+                errors.Add("XRoad:Service:ServiceCode must be configured.");
+            }
+        }
+
+        private static void ValidateAuth(XRoadSettings options, List<string> errors)
+        {
             if (options.Auth is null || string.IsNullOrWhiteSpace(options.Auth.UserId))
             {
                 errors.Add("XRoad:Auth:UserId must be configured.");
             }
+        }
 
-            // TokenInsert mode sanity (accept common values)
+        private static void ValidateTokenMode(XRoadSettings options, List<string> errors)
+        {
             string mode = options.TokenInsert?.Mode ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(mode))
+            if (!string.IsNullOrWhiteSpace(mode) && !IsValidTokenMode(mode))
             {
-                if (!IsValidTokenMode(mode))
-                {
-                    errors.Add($"XRoad:TokenInsert:Mode '{mode}' is invalid. Use 'request' or 'header'.");
-                }
+                errors.Add($"XRoad:TokenInsert:Mode '{mode}' is invalid. Use 'request' or 'header'.");
             }
+        }
 
-            // Certificate requirement: in non-development, require either PFX or PEM pair
+        private void ValidateCertificates(XRoadSettings options, List<string> errors)
+        {
             bool requireClientCert = !_env.IsDevelopment();
             string? pfx = options.Certificate?.PfxPath;
             string? pemCert = options.Certificate?.PemCertPath;
@@ -122,32 +144,26 @@ namespace XRoadFolkWeb.Infrastructure
                 errors.Add("XRoad:Certificate must configure either PfxPath or both PemCertPath and PemKeyPath in non-Development environments.");
             }
 
-            void EnsureFileExists(string? path, string key)
-            {
-                if (string.IsNullOrWhiteSpace(path))
-                {
-                    return;
-                }
-                string probe = path;
-                if (!Path.IsPathRooted(probe))
-                {
-                    probe = Path.Combine(AppContext.BaseDirectory, probe);
-                }
-                if (!File.Exists(probe))
-                {
-                    errors.Add($"{key} file not found: '{path}'.");
-                }
-            }
+            EnsureFileExists(pfx, "XRoad:Certificate:PfxPath", errors);
+            EnsureFileExists(pemCert, "XRoad:Certificate:PemCertPath", errors);
+            EnsureFileExists(pemKey, "XRoad:Certificate:PemKeyPath", errors);
+        }
 
-            EnsureFileExists(pfx, "XRoad:Certificate:PfxPath");
-            EnsureFileExists(pemCert, "XRoad:Certificate:PemCertPath");
-            EnsureFileExists(pemKey, "XRoad:Certificate:PemKeyPath");
-
-            if (errors.Count > 0)
+        private static void EnsureFileExists(string? path, string key, List<string> errors)
+        {
+            if (string.IsNullOrWhiteSpace(path))
             {
-                return ValidateOptionsResult.Fail(errors);
+                return;
             }
-            return ValidateOptionsResult.Success;
+            string probe = path;
+            if (!Path.IsPathRooted(probe))
+            {
+                probe = Path.Combine(AppContext.BaseDirectory, probe);
+            }
+            if (!File.Exists(probe))
+            {
+                errors.Add($"{key} file not found: '{path}'.");
+            }
         }
 
         private static bool IsValidTokenMode(string mode)

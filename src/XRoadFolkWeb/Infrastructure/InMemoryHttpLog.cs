@@ -262,6 +262,16 @@ namespace XRoadFolkWeb.Infrastructure
             }
             _disposed = true;
 
+            CancelIngestion();
+            CompleteIngestionChannel();
+            await CancelFileWriterAsync().ConfigureAwait(false);
+            CompleteFileChannelWriter();
+            await WaitForBackgroundTasksAsync().ConfigureAwait(false);
+            DisposeTokens();
+        }
+
+        private void CancelIngestion()
+        {
             try
             {
                 _ingestCts.Cancel();
@@ -269,7 +279,10 @@ namespace XRoadFolkWeb.Infrastructure
             catch
             {
             }
+        }
 
+        private void CompleteIngestionChannel()
+        {
             try
             {
                 _ingestChannel.Writer.TryComplete();
@@ -277,7 +290,10 @@ namespace XRoadFolkWeb.Infrastructure
             catch
             {
             }
+        }
 
+        private async Task CancelFileWriterAsync()
+        {
             try
             {
                 if (_writerCts is not null)
@@ -288,7 +304,10 @@ namespace XRoadFolkWeb.Infrastructure
             catch
             {
             }
+        }
 
+        private void CompleteFileChannelWriter()
+        {
             if (_fileChannel is not null)
             {
                 try
@@ -300,7 +319,10 @@ namespace XRoadFolkWeb.Infrastructure
                     _logger?.LogError(ex, "InMemoryHttpLog: Error completing file channel writer during dispose");
                 }
             }
+        }
 
+        private async Task WaitForBackgroundTasksAsync()
+        {
             try
             {
                 await _ingestTask.ConfigureAwait(false);
@@ -320,7 +342,10 @@ namespace XRoadFolkWeb.Infrastructure
                     _logger?.LogError(ex, "InMemoryHttpLog: Error waiting for file writer task during dispose");
                 }
             }
+        }
 
+        private void DisposeTokens()
+        {
             _writerCts?.Dispose();
             _ingestCts.Dispose();
         }

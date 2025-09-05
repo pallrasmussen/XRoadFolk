@@ -126,6 +126,24 @@ indent_size = 2
 indent_style = space
 indent_size = 2
 
-# Phase enforcement: treat MA0051 as warning for WebApplicationExtensions.cs only
+# Phase enforcement: treat MA0051 as warning for key refactored files
 [src/XRoadFolkWeb/Extensions/WebApplicationExtensions.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkWeb/Extensions/ServiceCollectionExtensions.Logging.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkWeb/Infrastructure/FileBackedHttpLogStore.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkWeb/Infrastructure/InMemoryHttpLog.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkWeb/Infrastructure/XRoadSettingsValidator.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkRaw.Lib/TokenHelper.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkRaw.Lib/FolkRawClient.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkRaw.Lib/ConfigurationLoader.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkRaw.Lib/Options/IncludeConfigHelper.cs]
+dotnet_diagnostic.MA0051.severity = warning
+[src/XRoadFolkRaw.Lib/Extensions/ServiceCollectionExtensions.Http.cs]
 dotnet_diagnostic.MA0051.severity = warning
