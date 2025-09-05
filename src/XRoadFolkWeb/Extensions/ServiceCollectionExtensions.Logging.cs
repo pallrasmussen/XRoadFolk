@@ -17,6 +17,11 @@ namespace XRoadFolkWeb.Extensions
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(configuration);
 
+            // Bind app-level logging options (e.g., MaskTokens)
+            _ = services.AddOptions<LoggingOptions>()
+                        .Bind(configuration.GetSection("Logging"))
+                        .ValidateOnStart();
+
             ConfigureBuiltInLogging(services, configuration);
             AddOpenTelemetryPipelines(services, configuration);
             PostConfigureLoggerFilters(services, configuration);
@@ -25,6 +30,8 @@ namespace XRoadFolkWeb.Extensions
             RegisterHttpLogServices(services);
             RegisterHostedWriters(services);
             RegisterLogProvider(services);
+            // Validate file persistence path on startup (no-op if not enabled)
+            _ = services.AddHostedService<HttpLogStartupValidator>();
             return services;
         }
 
@@ -199,11 +206,13 @@ namespace XRoadFolkWeb.Extensions
             _ = services.AddSingleton<IHttpLogStore>(sp =>
             {
                 HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
-                if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
-                {
-                    return sp.GetRequiredService<FileBackedHttpLogStore>();
-                }
-                return new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
+                IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
+                ILogger<InMemoryHttpLog>? memLogger = sp.GetService<ILogger<InMemoryHttpLog>>();
+                IHttpLogStore inner = (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
+                    ? sp.GetRequiredService<FileBackedHttpLogStore>()
+                    : new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>(), memLogger);
+
+                return new MaskingHttpLogStore(inner, sp.GetRequiredService<IOptions<LoggingOptions>>(), env);
             });
         }
 
