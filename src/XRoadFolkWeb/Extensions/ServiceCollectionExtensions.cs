@@ -16,6 +16,7 @@ namespace XRoadFolkWeb.Extensions
             bool hasXRoad = !string.IsNullOrWhiteSpace(configuration["XRoad:BaseUrl"]);
 
             services
+                .AddHttpContextAccessor()
                 .AddAppLogging(configuration)
                 .AddAppLocalization(configuration)
                 .AddAppAntiforgery()

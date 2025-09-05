@@ -19,6 +19,7 @@ namespace XRoadFolkWeb.Extensions
 {
     public static partial class WebApplicationExtensions
     {
+        private const string CorrelationHeader = "X-Correlation-Id";
         private static readonly Meter StartupMeter = new("XRoadFolkWeb.Startup");
         private static readonly Histogram<double> ColdStartSeconds = StartupMeter.CreateHistogram<double>("cold_start_seconds");
         private static readonly Histogram<double> FirstRequestSeconds = StartupMeter.CreateHistogram<double>("first_request_seconds");
@@ -132,11 +133,32 @@ namespace XRoadFolkWeb.Extensions
 
             AddCspAndSecurityHeaders(app);
             AddNoCacheHeaders(app);
-            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
 
-            // Measure cold start at the moment pipeline is configured (approx. app ready)
-            double coldStartSec = (Stopwatch.GetTimestamp() - ProcessStartTicks) / (double)Stopwatch.Frequency;
-            ColdStartSeconds.Record(coldStartSec);
+            // CorrelationId emission & response header
+            app.Use(async (ctx, next) =>
+            {
+                string id = ctx.TraceIdentifier;
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    id = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
+                }
+                // mirror as request header if absent (helps downstream middleware/handlers)
+                if (!ctx.Request.Headers.ContainsKey(CorrelationHeader))
+                {
+                    ctx.Request.Headers[CorrelationHeader] = id;
+                }
+                ctx.Response.OnStarting(() =>
+                {
+                    if (!ctx.Response.Headers.ContainsKey(CorrelationHeader))
+                    {
+                        ctx.Response.Headers[CorrelationHeader] = id;
+                    }
+                    return Task.CompletedTask;
+                });
+                await next();
+            });
+
+            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
 
             // Friendly status code pages (e.g., 404/403) -> re-execute /Error/{statusCode}
             app.UseStatusCodePagesWithReExecute("/Error/{0}");
