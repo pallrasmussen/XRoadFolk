@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Localization;
 using System.Globalization;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 
 namespace XRoadFolkWeb.Infrastructure
 {
     /// <summary>
     /// Tries: exact match -> explicit map -> parent cultures -> same language in supported list.
+    /// Uses typed headers for Accept-Language parsing to reduce complexity.
     /// </summary>
     public sealed class BestMatchRequestCultureProvider(IEnumerable<CultureInfo> supportedCultures,
                                            IReadOnlyDictionary<string, string>? map = null,
@@ -14,11 +16,6 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly HashSet<string> _supported = new(supportedCultures.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
         private readonly IReadOnlyDictionary<string, string> _map = map ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly ILogger? _log = logger;
-
-        // Defensive bounds against pathological headers
-        private const int MaxAcceptLanguageTotalChars = 2048;
-        private const int MaxItems = 20;
-        private const int MaxTagLength = 64; // practical upper bound for BCP47 tags
 
         public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
         {
@@ -60,148 +57,52 @@ namespace XRoadFolkWeb.Infrastructure
 
         private ProviderCultureResult? TryGetFromAcceptLanguage(HttpContext httpContext)
         {
-            StringValues acceptValues = httpContext.Request.Headers.AcceptLanguage;
-            if (StringValues.IsNullOrEmpty(acceptValues))
+            // Prefer typed headers; if unavailable, fallback to raw
+            var typed = httpContext.Request.GetTypedHeaders();
+            var langs = typed.AcceptLanguage;
+            if (langs is null || langs.Count == 0)
             {
-                return null;
-            }
-
-            List<Candidate> items = CollectAcceptLanguageCandidates(acceptValues);
-            return SelectBestCandidate(items);
-        }
-
-        private List<Candidate> CollectAcceptLanguageCandidates(StringValues acceptValues)
-        {
-            List<Candidate> items = [];
-            int globalIndex = 0;
-            int processedChars = 0;
-
-            for (int vi = 0; vi < acceptValues.Count && items.Count < MaxItems && processedChars <= MaxAcceptLanguageTotalChars; vi++)
-            {
-                string src = acceptValues[vi]!;
-                processedChars += src.Length;
-                ReadOnlySpan<char> span = src.AsSpan();
-                int i = 0;
-                while (i < span.Length && items.Count < MaxItems)
+                StringValues raw = httpContext.Request.Headers.AcceptLanguage;
+                if (StringValues.IsNullOrEmpty(raw))
                 {
-                    ReadSegment(span, i, out ReadOnlySpan<char> seg, out int newIndex, out int start);
-                    i = newIndex;
-
-                    seg = Trim(seg);
-                    if (seg.Length == 0)
-                    {
-                        globalIndex++;
-                        continue;
-                    }
-
-                    ExtractTagAndQuality(seg, out ReadOnlySpan<char> tag, out double q);
-
-                    tag = Trim(tag);
-                    if (ShouldSkip(tag))
-                    {
-                        globalIndex++;
-                        continue;
-                    }
-
-                    if (q > 0d)
-                    {
-                        int tagOffsetInSeg = seg.IndexOf(tag);
-                        int tagStartInSrc = start + (tagOffsetInSeg < 0 ? 0 : tagOffsetInSeg);
-                        items.Add(new Candidate(src, tagStartInSrc, tag.Length, q, globalIndex));
-                    }
-                    globalIndex++;
+                    return null;
                 }
-            }
-            return items;
-        }
-
-        private static void ReadSegment(ReadOnlySpan<char> span, int i, out ReadOnlySpan<char> seg, out int newIndex, out int start)
-        {
-            start = i;
-            int comma = span.Slice(i).IndexOf(',');
-            if (comma < 0)
-            {
-                i = span.Length; // last segment
-            }
-            else
-            {
-                i += comma + 1; // move past comma
-            }
-            seg = span.Slice(start, (comma < 0 ? span.Length : start + comma) - start);
-            newIndex = i;
-        }
-
-        private static void ExtractTagAndQuality(ReadOnlySpan<char> seg, out ReadOnlySpan<char> tag, out double q)
-        {
-            q = 1.0; // default
-            tag = seg;
-            int sc = seg.IndexOf(';');
-            if (sc >= 0)
-            {
-                tag = seg.Slice(0, sc);
-                ReadOnlySpan<char> paramStr = seg.Slice(sc + 1);
-                int pj = 0;
-                while (pj < paramStr.Length)
+                // Minimal fallback: first raw tag (before ';' / ',')
+                foreach (string? v in raw)
                 {
-                    int pstart = pj;
-                    int psep = paramStr.Slice(pj).IndexOf(';');
-                    if (psep < 0)
-                    {
-                        pj = paramStr.Length;
-                    }
-                    else
-                    {
-                        pj += psep + 1;
-                    }
-                    ReadOnlySpan<char> part = Trim(paramStr.Slice(pstart, (psep < 0 ? paramStr.Length : pstart + psep) - pstart));
-                    if (part.Length == 0)
+                    if (string.IsNullOrWhiteSpace(v))
                     {
                         continue;
                     }
-                    int eq = part.IndexOf('=');
-                    if (eq > 0)
+                    foreach (string seg in v.Split(','))
                     {
-                        ReadOnlySpan<char> key = Trim(part.Slice(0, eq));
-                        ReadOnlySpan<char> val = Trim(part.Slice(eq + 1));
-                        if (key.Equals("q".AsSpan(), StringComparison.OrdinalIgnoreCase))
+                        string tag = seg.Split(';')[0].Trim();
+                        if (string.IsNullOrWhiteSpace(tag))
                         {
-                            if (!TryParseQuality(val, out double qv))
-                            {
-                                q = 1.0; // treat invalid q as default weight
-                            }
-                            else
-                            {
-                                q = qv;
-                            }
+                            continue;
+                        }
+                        string? match = ResolveCandidate(tag);
+                        if (match is not null)
+                        {
+                            return new ProviderCultureResult(match, match);
                         }
                     }
                 }
+                return null;
             }
-        }
 
-        private static bool ShouldSkip(ReadOnlySpan<char> tag)
-        {
-            return tag.Length == 0 || tag.Length > MaxTagLength || tag.Equals("*".AsSpan(), StringComparison.Ordinal) || !IsValidTag(tag);
-        }
+            var ordered = langs
+                .Select((h, idx) => new { Tag = h.Value.Value, Q = h.Quality ?? 1.0, Index = idx })
+                .OrderByDescending(x => x.Q)
+                .ThenBy(x => x.Index);
 
-        private ProviderCultureResult? SelectBestCandidate(List<Candidate> items)
-        {
-            while (items.Count > 0)
+            foreach (var x in ordered)
             {
-                int best = 0;
-                for (int k = 1; k < items.Count; k++)
+                if (string.IsNullOrWhiteSpace(x.Tag))
                 {
-                    if (items[k].Q > items[best].Q || (items[k].Q == items[best].Q && items[k].Index < items[best].Index))
-                    {
-                        best = k;
-                    }
+                    continue;
                 }
-
-                Candidate cand = items[best];
-                items.RemoveAt(best);
-
-                string tag = cand.Source.Substring(cand.Start, cand.Length);
-                string? match = ResolveCandidate(tag);
+                string? match = ResolveCandidate(x.Tag);
                 if (match is not null)
                 {
                     return new ProviderCultureResult(match, match);
@@ -209,122 +110,6 @@ namespace XRoadFolkWeb.Infrastructure
             }
             return null;
         }
-
-        private static bool TryParseQuality(ReadOnlySpan<char> val, out double q)
-        {
-            // Strict qvalue parser per RFC: 0 or 1 or 0.xxx or 1.0 (up to 3 decimals)
-            q = 1.0;
-            if (val.Length == 0)
-            {
-                return false;
-            }
-
-            // Normalize by trimming quotes if any (robustness)
-            if (val.Length >= 2 && ((val[0] == '"' && val[^1] == '"') || (val[0] == '\'' && val[^1] == '\'')))
-            {
-                val = val.Slice(1, val.Length - 2);
-            }
-
-            // Quick paths
-            if (val.Length == 1 && (val[0] == '0' || val[0] == '1'))
-            {
-                q = val[0] - '0';
-                return true;
-            }
-
-            int dot = val.IndexOf('.');
-            if (dot < 0)
-            {
-                return false; // integers other than 0 or 1 are invalid
-            }
-            ReadOnlySpan<char> intPart = val.Slice(0, dot);
-            ReadOnlySpan<char> frac = val.Slice(dot + 1);
-            if (frac.Length == 0 || frac.Length > 3)
-            {
-                return false;
-            }
-            if (!(intPart.Length == 1 && (intPart[0] == '0' || intPart[0] == '1')))
-            {
-                return false;
-            }
-            for (int i = 0; i < frac.Length; i++)
-            {
-                if (frac[i] < '0' || frac[i] > '9')
-                {
-                    return false;
-                }
-            }
-            // 1.x must be exactly 1.0, 1.00, or 1.000
-            if (intPart[0] == '1')
-            {
-                for (int i = 0; i < frac.Length; i++)
-                {
-                    if (frac[i] != '0')
-                    {
-                        return false;
-                    }
-                }
-            }
-            if (double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out double qv))
-            {
-                q = Math.Clamp(qv, 0d, 1d);
-                return true;
-            }
-            return false;
-        }
-
-        private static bool IsValidTag(ReadOnlySpan<char> tag)
-        {
-            // Basic BCP47 sanity: letters/digits/hyphen only; no leading/trailing hyphen; no consecutive hyphens
-            if (tag.Length == 0)
-            {
-                return false;
-            }
-            if (tag[0] == '-' || tag[^1] == '-')
-            {
-                return false;
-            }
-            bool prevHyphen = false;
-            for (int i = 0; i < tag.Length; i++)
-            {
-                char c = tag[i];
-                bool isAlnum = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-                if (c == '-')
-                {
-                    if (prevHyphen)
-                    {
-                        return false;
-                    }
-                    prevHyphen = true;
-                }
-                else if (!isAlnum)
-                {
-                    return false;
-                }
-                else
-                {
-                    prevHyphen = false;
-                }
-            }
-            return true;
-        }
-
-        private static ReadOnlySpan<char> Trim(ReadOnlySpan<char> s)
-        {
-            int i = 0;
-            int j = s.Length - 1;
-            while (i <= j && char.IsWhiteSpace(s[i]))
-            {
-                i++;
-            }
-            while (j >= i && char.IsWhiteSpace(s[j]))
-            {
-                j--;
-            }
-            return s.Slice(i, j - i + 1);
-        }
-
-        private readonly record struct Candidate(string Source, int Start, int Length, double Q, int Index);
 
         private string? ResolveCandidate(string candidate)
         {
