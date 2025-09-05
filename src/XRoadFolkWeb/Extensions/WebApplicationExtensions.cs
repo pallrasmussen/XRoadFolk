@@ -149,6 +149,8 @@ namespace XRoadFolkWeb.Extensions
             {
                 Predicate = r => r.Tags.Contains("ready"),
             });
+            // Simple health endpoint
+            app.MapGet("/health", () => Results.Text("ok", "text/plain"));
 
             // static files, routing, session, antiforgery
             app.UseStaticFiles(new StaticFileOptions
@@ -174,10 +176,11 @@ namespace XRoadFolkWeb.Extensions
             app.UseCookiePolicy();
             app.UseSession();
 
+            // Enforce antiforgery across endpoints (in addition to MVC filter)
+            app.UseAntiforgery();
+
             // Correlation scope: TraceId, SpanId, User, SessionId
             AddCorrelationScope(app, loggerFactory);
-
-            app.UseAntiforgery();
 
             MapCultureSwitch(app, cultureLog);
             app.MapRazorPages();
