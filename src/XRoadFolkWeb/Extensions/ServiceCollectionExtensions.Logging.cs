@@ -207,10 +207,10 @@ namespace XRoadFolkWeb.Extensions
             {
                 HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
                 IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
-                ILogger<InMemoryHttpLog>? memLogger = sp.GetService<ILogger<InMemoryHttpLog>>();
+                // Important: do not resolve ILogger here to avoid circular dependency with our provider
                 IHttpLogStore inner = (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
                     ? sp.GetRequiredService<FileBackedHttpLogStore>()
-                    : new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>(), memLogger);
+                    : new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
 
                 return new MaskingHttpLogStore(inner, sp.GetRequiredService<IOptions<LoggingOptions>>(), env);
             });
