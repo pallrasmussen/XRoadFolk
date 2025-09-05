@@ -281,12 +281,30 @@ namespace XRoadFolkWeb.Extensions
 
         private static void AddStandardSecurityHeaders(IHeaderDictionary headers)
         {
-            if (!headers.ContainsKey("X-Content-Type-Options")) headers.XContentTypeOptions = "nosniff";
-            if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "no-referrer";
-            if (!headers.ContainsKey("X-Frame-Options")) headers.XFrameOptions = "DENY";
-            if (!headers.ContainsKey("Permissions-Policy")) headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
-            if (!headers.ContainsKey("Cross-Origin-Opener-Policy")) headers["Cross-Origin-Opener-Policy"] = "same-origin";
-            if (!headers.ContainsKey("Cross-Origin-Resource-Policy")) headers["Cross-Origin-Resource-Policy"] = "same-origin";
+            if (!headers.ContainsKey("X-Content-Type-Options"))
+            {
+                headers.XContentTypeOptions = "nosniff";
+            }
+            if (!headers.ContainsKey("Referrer-Policy"))
+            {
+                headers["Referrer-Policy"] = "no-referrer";
+            }
+            if (!headers.ContainsKey("X-Frame-Options"))
+            {
+                headers.XFrameOptions = "DENY";
+            }
+            if (!headers.ContainsKey("Permissions-Policy"))
+            {
+                headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
+            }
+            if (!headers.ContainsKey("Cross-Origin-Opener-Policy"))
+            {
+                headers["Cross-Origin-Opener-Policy"] = "same-origin";
+            }
+            if (!headers.ContainsKey("Cross-Origin-Resource-Policy"))
+            {
+                headers["Cross-Origin-Resource-Policy"] = "same-origin";
+            }
         }
 
         private static string BuildCsp(string nonce)
@@ -443,7 +461,10 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapDiagnostics(WebApplication app, IHostEnvironment env)
         {
-            if (!env.IsDevelopment()) return;
+            if (!env.IsDevelopment())
+            {
+                return;
+            }
 
             _ = app.MapGet("/__culture", (HttpContext ctx,
                                           IOptions<RequestLocalizationOptions> locOpts2,
@@ -533,7 +554,10 @@ namespace XRoadFolkWeb.Extensions
         private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
         {
             bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
-            if (!logsEnabled) return;
+            if (!logsEnabled)
+            {
+                return;
+            }
 
             MapLogsList(app);
             MapLogsClear(app);
@@ -687,10 +711,22 @@ namespace XRoadFolkWeb.Extensions
                 try { sessionId = ctx.Session?.Id; } catch { }
 
                 var scope = new Dictionary<string, object?>(StringComparer.Ordinal);
-                if (!string.IsNullOrEmpty(traceId)) scope["TraceId"] = traceId;
-                if (!string.IsNullOrEmpty(spanId)) scope["SpanId"] = spanId;
-                if (!string.IsNullOrEmpty(user)) scope["User"] = user;
-                if (!string.IsNullOrEmpty(sessionId)) scope["SessionId"] = sessionId;
+                if (!string.IsNullOrEmpty(traceId))
+                {
+                    scope["TraceId"] = traceId;
+                }
+                if (!string.IsNullOrEmpty(spanId))
+                {
+                    scope["SpanId"] = spanId;
+                }
+                if (!string.IsNullOrEmpty(user))
+                {
+                    scope["User"] = user;
+                }
+                if (!string.IsNullOrEmpty(sessionId))
+                {
+                    scope["SessionId"] = sessionId;
+                }
 
                 using (scopeLogger.BeginScope(scope))
                 {

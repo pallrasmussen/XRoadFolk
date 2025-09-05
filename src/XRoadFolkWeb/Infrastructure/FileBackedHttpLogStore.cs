@@ -13,9 +13,9 @@ namespace XRoadFolkWeb.Infrastructure
         public static readonly Counter<long> LogDrops = Meter.CreateCounter<long>("logs.dropped", unit: "count", description: "Number of log entries dropped due to backpressure");
         public static readonly Counter<long> LogDropsByReason = Meter.CreateCounter<long>("logs.dropped.reason", unit: "count", description: "Log drops by reason (tags: reason, store)");
         public static readonly Counter<long> LogDropsByLevel = Meter.CreateCounter<long>("logs.dropped.level", unit: "count", description: "Log drops by level (tags: level, store)");
-        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => _ringSizeSnapshot(), unit: "items", description: "Approximate in-memory ring size");
-        // snapshot provider updated by store
+        // Initialize with a non-null snapshot provider to satisfy nullable flow
         private static Func<IEnumerable<Measurement<int>>> _ringSizeSnapshot = () => new[] { new Measurement<int>(0, new KeyValuePair<string, object?>("store", "file")) };
+        public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>("logs.queue.length", () => _ringSizeSnapshot(), unit: "items", description: "Approximate in-memory ring size");
         public static void SetRingSizeProvider(Func<int> provider) => _ringSizeSnapshot = () => new[] { new Measurement<int>(provider(), new KeyValuePair<string, object?>("store", "file")) };
     }
 
