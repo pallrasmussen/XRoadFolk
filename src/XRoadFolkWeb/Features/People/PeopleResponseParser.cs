@@ -153,7 +153,7 @@ namespace XRoadFolkWeb.Features.People
             return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
-        public List<PersonRow> ParsePeopleList(string xml)
+        public List<PersonRow> ParsePeopleList(string? xml)
         {
             List<PersonRow> rows = [];
             if (string.IsNullOrWhiteSpace(xml))
@@ -229,8 +229,13 @@ namespace XRoadFolkWeb.Features.People
                    ?? Enumerable.Empty<XElement>();
         }
 
-        private static string? ExtractFirstName(IEnumerable<XElement> nameItems)
+        private static string? ExtractFirstName(IEnumerable<XElement>? nameItems)
         {
+            if (nameItems is null)
+            {
+                return null;
+            }
+
             List<string?> firstNames = [.. nameItems
                 .Where(n => string.Equals(
                     ElementsBy(n, "Type").FirstOrDefault()?.Value,
@@ -247,8 +252,13 @@ namespace XRoadFolkWeb.Features.People
             return firstNames.Count > 0 ? string.Join(' ', firstNames) : null;
         }
 
-        private static string? ExtractLastName(IEnumerable<XElement> nameItems)
+        private static string? ExtractLastName(IEnumerable<XElement>? nameItems)
         {
+            if (nameItems is null)
+            {
+                return null;
+            }
+
             return nameItems
                 .Where(n => string.Equals(
                     ElementsBy(n, "Type").FirstOrDefault()?.Value,
@@ -289,7 +299,7 @@ namespace XRoadFolkWeb.Features.People
             };
         }
 
-        public List<(string Key, string Value)> FlattenResponse(string xml)
+        public List<(string Key, string Value)> FlattenResponse(string? xml)
         {
             List<(string, string)> pairs = [];
             if (string.IsNullOrWhiteSpace(xml))
@@ -371,10 +381,15 @@ namespace XRoadFolkWeb.Features.People
             return pairs;
         }
 
-        public string PrettyFormatXml(string xml)
+        public string PrettyFormatXml(string? xml)
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(xml))
+                {
+                    return string.Empty;
+                }
+
                 using XmlReader reader = CreateSafeReader(xml);
                 XDocument doc = XDocument.Load(reader, LoadOptions.None);
                 return doc.ToString(SaveOptions.None);
