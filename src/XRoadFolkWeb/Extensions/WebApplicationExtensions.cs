@@ -12,6 +12,7 @@ using XRoadFolkWeb.Shared;
 using System.IO;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Net.Http.Headers;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -173,6 +174,11 @@ namespace XRoadFolkWeb.Extensions
                 }
             });
             app.UseRouting();
+
+            // Response caching for safe GETs
+            app.UseResponseCaching();
+            app.UseOutputCache();
+
             app.UseCookiePolicy();
             app.UseSession();
 
