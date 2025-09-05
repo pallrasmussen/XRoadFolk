@@ -25,22 +25,35 @@ public static partial class ServiceCollectionExtensions
             .Bind(configuration.GetSection("Http"));
         services.AddSingleton<IValidateOptions<HttpOptions>, XRoadFolkWeb.Validation.HttpOptionsValidator>();
 
-        // Retry.Http strongly-typed options with validation
+        // HttpLogs options with DataAnnotations validation and fail-fast
+        services.AddOptions<HttpLogOptions>()
+            .Bind(configuration.GetSection("HttpLogs"))
+            .ValidateDataAnnotations()
+            .Validate(o => !o.PersistToFile || !string.IsNullOrWhiteSpace(o.FilePath), "HttpLogs:FilePath must be set when PersistToFile is true")
+            .ValidateOnStart();
+
+        // Retry.Http strongly-typed options with DataAnnotations and fail-fast
         services.AddOptions<HttpRetryOptions>()
             .Bind(configuration.GetSection("Retry:Http"))
             .ValidateDataAnnotations()
             .Validate(o => o.TimeoutMs >= 1000, "Retry:Http: TimeoutMs must be >= 1000")
-            .Validate(o => o.Attempts >= 0 && o.Attempts <= 10, "Retry:Http: Attempts must be between 0 and 10");
+            .Validate(o => o.Attempts >= 0 && o.Attempts <= 10, "Retry:Http: Attempts must be between 0 and 10")
+            .ValidateOnStart();
 
         // Safe SOAP sanitization hook
         bool maskTokens = configuration.GetValue<bool>("Logging:MaskTokens", true);
         SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
-        // GetPerson options & validator
+        // GetPerson options & validator (runtime validation for identifiers)
         services.AddOptions<GetPersonRequestOptions>()
             .Bind(configuration.GetSection("Operations:GetPerson:Request"));
-
         services.AddSingleton<IValidateOptions<GetPersonRequestOptions>, GetPersonRequestOptionsValidator>();
+
+        // Bind and validate the Include block separately at startup
+        services.AddOptions<GetPersonIncludeOptions>()
+            .Bind(configuration.GetSection("Operations:GetPerson:Request:Include"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Token cache options with validation (defer validation until accessed)
         services.AddOptions<TokenCacheOptions>()

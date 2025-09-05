@@ -1,8 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace XRoadFolkWeb.Infrastructure
 {
     public sealed class LocalizationConfig
     {
+        [Required]
         public string? DefaultCulture { get; set; }
+
+        [MinLength(1)]
         public IList<string> SupportedCultures { get; set; } = [];
 
         /// <summary>
