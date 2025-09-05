@@ -49,6 +49,11 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly HttpLogRateLimiter _rateLimiter;
         private readonly ILogger<InMemoryHttpLog>? _logger;
 
+        // Bounded ingestion channel to enforce backpressure at ingress
+        private readonly Channel<LogEntry> _ingestChannel;
+        private readonly Task _ingestTask;
+        private readonly CancellationTokenSource _ingestCts = new();
+
         // Async file writer (enabled only if _filePath is provided)
         private readonly Channel<string>? _fileChannel;
         private readonly Task? _fileWriterTask;
@@ -67,6 +72,16 @@ namespace XRoadFolkWeb.Infrastructure
             _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
             _logger = logger;
 
+            // Ingestion channel uses MaxQueue to cap memory usage and enforce backpressure
+            _ingestChannel = Channel.CreateBounded<LogEntry>(new BoundedChannelOptions(capacity: Math.Max(1000, cfg.MaxQueue))
+            {
+                AllowSynchronousContinuations = true,
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = false,
+            });
+            _ingestTask = Task.Run(() => IngestLoopAsync(_ingestChannel.Reader, _ingestCts.Token));
+
             if (!string.IsNullOrWhiteSpace(_filePath))
             {
                 // Ensure directory exists once during initialization
@@ -76,7 +91,7 @@ namespace XRoadFolkWeb.Infrastructure
                     Directory.CreateDirectory(dir);
                 }
 
-                // Bounded channel to provide back-pressure; drop on overflow via TryWrite in Add
+                // Bounded channel to provide back-pressure for file persistence
                 _fileChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: Math.Max(1000, cfg.MaxQueue))
                 {
                     AllowSynchronousContinuations = true,
@@ -102,34 +117,66 @@ namespace XRoadFolkWeb.Infrastructure
                 return; // throttled
             }
 
-            _queue.Enqueue(e);
-            _ = Interlocked.Increment(ref _size);
-            InMemoryLogMetrics._sizeRef = _size;
-
-            // Trim until capacity is met (robust under contention)
-            while (Volatile.Read(ref _size) > _capacity)
+            if (!_ingestChannel.Writer.TryWrite(e))
             {
-                if (_queue.TryDequeue(out _))
-                {
-                    _ = Interlocked.Decrement(ref _size);
-                }
-                else
-                {
-                    // Queue observed empty; stop trimming to avoid underflow on _size
-                    break;
-                }
-            }
-
-            if (_fileChannel is null)
-            {
-                return; // no persistence requested
-            }
-
-            string line = LogLineFormatter.FormatLine(e) + Environment.NewLine;
-            if (!_fileChannel.Writer.TryWrite(line))
-            {
+                // Backpressure drop at ingress
+                InMemoryLogMetrics.LogDrops.Add(1);
                 InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "backpressure"), new KeyValuePair<string, object?>("store", "memory"));
                 InMemoryLogMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", e.Level.ToString()), new KeyValuePair<string, object?>("store", "memory"));
+            }
+        }
+
+        private async Task IngestLoopAsync(ChannelReader<LogEntry> reader, CancellationToken ct)
+        {
+            try
+            {
+                while (await reader.WaitToReadAsync(ct).ConfigureAwait(false))
+                {
+                    while (reader.TryRead(out LogEntry? item))
+                    {
+                        // Ring buffer enqueue
+                        _queue.Enqueue(item);
+                        _ = Interlocked.Increment(ref _size);
+                        InMemoryLogMetrics._sizeRef = _size;
+
+                        // Trim until capacity is met (robust under contention)
+                        while (Volatile.Read(ref _size) > _capacity)
+                        {
+                            if (_queue.TryDequeue(out LogEntry? removed))
+                            {
+                                _ = Interlocked.Decrement(ref _size);
+                                InMemoryLogMetrics._sizeRef = _size;
+                                // Capacity eviction metrics
+                                InMemoryLogMetrics.LogDrops.Add(1);
+                                InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "capacity"), new KeyValuePair<string, object?>("store", "memory"));
+                                InMemoryLogMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", removed.Level.ToString()), new KeyValuePair<string, object?>("store", "memory"));
+                            }
+                            else
+                            {
+                                // Queue observed empty; stop trimming to avoid underflow on _size
+                                break;
+                            }
+                        }
+
+                        // Optional persistence to file via bounded channel
+                        if (_fileChannel is not null)
+                        {
+                            string line = LogLineFormatter.FormatLine(item) + Environment.NewLine;
+                            if (!_fileChannel.Writer.TryWrite(line))
+                            {
+                                InMemoryLogMetrics.LogDropsByReason.Add(1, new KeyValuePair<string, object?>("reason", "backpressure"), new KeyValuePair<string, object?>("store", "memory"));
+                                InMemoryLogMetrics.LogDropsByLevel.Add(1, new KeyValuePair<string, object?>("level", item.Level.ToString()), new KeyValuePair<string, object?>("store", "memory"));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "InMemoryHttpLog ingest loop error");
             }
         }
 
@@ -194,6 +241,7 @@ namespace XRoadFolkWeb.Infrastructure
         {
             while (_queue.TryDequeue(out _)) { }
             Volatile.Write(ref _size, 0);
+            InMemoryLogMetrics._sizeRef = 0;
         }
 
         public IReadOnlyList<LogEntry> GetAll()
@@ -206,6 +254,9 @@ namespace XRoadFolkWeb.Infrastructure
             if (_disposed) return;
             _disposed = true;
 
+            try { _ingestCts.Cancel(); } catch { }
+            try { _ingestChannel.Writer.TryComplete(); } catch { }
+
             try { if (_writerCts is not null) await _writerCts.CancelAsync().ConfigureAwait(false); } catch { }
 
             if (_fileChannel is not null)
@@ -217,6 +268,8 @@ namespace XRoadFolkWeb.Infrastructure
                 }
             }
 
+            try { await _ingestTask.ConfigureAwait(false); } catch { }
+
             if (_fileWriterTask is not null)
             {
                 try { await _fileWriterTask.ConfigureAwait(false); }
@@ -227,6 +280,7 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             _writerCts?.Dispose();
+            _ingestCts.Dispose();
         }
 
         public void Dispose()
