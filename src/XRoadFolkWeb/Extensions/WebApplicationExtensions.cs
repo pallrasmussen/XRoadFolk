@@ -686,7 +686,7 @@ namespace XRoadFolkWeb.Extensions
                 string? sessionId = null;
                 try { sessionId = ctx.Session?.Id; } catch { }
 
-                var scope = new Dictionary<string, object?>();
+                var scope = new Dictionary<string, object?>(StringComparer.Ordinal);
                 if (!string.IsNullOrEmpty(traceId)) scope["TraceId"] = traceId;
                 if (!string.IsNullOrEmpty(spanId)) scope["SpanId"] = spanId;
                 if (!string.IsNullOrEmpty(user)) scope["User"] = user;

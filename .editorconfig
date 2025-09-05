@@ -61,13 +61,13 @@ nullable = enable
 # Meziantou rules that are too strict for current codebase
 # File name must match type name (many types in one file)
 dotnet_diagnostic.MA0048.severity = none
-# Method too long
+# Method too long (will tighten later as we refactor)
 dotnet_diagnostic.MA0051.severity = suggestion
-# Regex DoS concerns
+# Regex DoS concerns (monitor and tighten later)
 dotnet_diagnostic.MA0009.severity = suggestion
 # Prefer abstraction over implementation for collections
 dotnet_diagnostic.MA0016.severity = suggestion
-# Use StringComparison overloads
+# Use StringComparison overloads (monitor and tighten later)
 dotnet_diagnostic.MA0074.severity = suggestion
 # Use explicit enum value instead of 0
 dotnet_diagnostic.MA0099.severity = suggestion
@@ -75,10 +75,11 @@ dotnet_diagnostic.MA0099.severity = suggestion
 dotnet_diagnostic.MA0004.severity = suggestion
 # Do not write your own certificate validation method
 dotnet_diagnostic.MA0039.severity = suggestion
-# Use an overload with comparer
-dotnet_diagnostic.MA0002.severity = suggestion
-# Use string.Equals instead of ==
-dotnet_diagnostic.MA0006.severity = suggestion
+# Gradual tightening: promote some easy fixes to warnings
+# Use an overload with comparer (e.g., Dictionary with StringComparer)
+dotnet_diagnostic.MA0002.severity = warning
+# Use string.Equals instead of == for string comparison
+dotnet_diagnostic.MA0006.severity = warning
 
 # C# compiler diagnostics adjustments
 # Hiding inherited member

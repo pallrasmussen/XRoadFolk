@@ -43,8 +43,14 @@ namespace XRoadFolkWeb.Extensions
                     // ASP.NET Core and runtime metrics are optional; enable based on configuration if needed
                     bool includeAspNet = configuration.GetValue<bool>("OpenTelemetry:Metrics:AspNetCore", true);
                     bool includeRuntime = configuration.GetValue<bool>("OpenTelemetry:Metrics:Runtime", false);
-                    if (includeAspNet) metrics.AddAspNetCoreInstrumentation();
-                    if (includeRuntime) metrics.AddRuntimeInstrumentation();
+                    if (includeAspNet)
+                    {
+                        metrics.AddAspNetCoreInstrumentation();
+                    }
+                    if (includeRuntime)
+                    {
+                        metrics.AddRuntimeInstrumentation();
+                    }
 
                     // Prometheus scrape endpoint (optional; disabled by default)
                     if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
@@ -138,14 +144,21 @@ namespace XRoadFolkWeb.Extensions
                         for (int i = 0; i < opts.Rules.Count; i++)
                         {
                             var r = opts.Rules[i];
-                            if (r.ProviderName == provider && string.Equals(r.CategoryName, category, StringComparison.Ordinal))
+                            if (string.Equals(r.ProviderName, provider, StringComparison.Ordinal) && string.Equals(r.CategoryName, category, StringComparison.Ordinal))
                             {
                                 found = i;
                                 break;
                             }
                         }
                         var rule = new LoggerFilterRule(providerName: provider, categoryName: category, logLevel: level, filter: null);
-                        if (found >= 0) opts.Rules[found] = rule; else opts.Rules.Add(rule);
+                        if (found >= 0)
+                        {
+                            opts.Rules[found] = rule;
+                        }
+                        else
+                        {
+                            opts.Rules.Add(rule);
+                        }
                     }
 
                     Upsert(null, "Microsoft", LogLevel.Warning);
