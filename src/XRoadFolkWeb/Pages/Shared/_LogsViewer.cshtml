@@ -1,61 +1,67 @@
+@using XRoadFolkWeb.Shared
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @{
   var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
-<div class="card shadow-sm">
+<section class="card shadow-sm" id="logs-section" aria-labelledby="logs-heading">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-2" role="toolbar" aria-label="@SR["LogsToolbar"]">
       <div class="d-flex align-items-center gap-2 flex-wrap">
-        <a asp-page="/Index" class="btn btn-sm btn-outline-secondary" id="logs-back" title="Back"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back</a>
-        <div class="btn-group btn-group-sm" role="group" aria-label="Kind">
-          <button type="button" class="btn btn-outline-secondary active" data-kind="http">HTTP</button>
-          <button type="button" class="btn btn-outline-secondary" data-kind="soap">SOAP</button>
-          <button type="button" class="btn btn-outline-secondary" data-kind="app">App</button>
+        <a asp-page="/Index" class="btn btn-sm btn-outline-dark" id="logs-back" aria-label="@SR["Back"]"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>@SR["Back"]</a>
+        <div class="btn-group btn-group-sm" role="group" aria-label="@SR["Kind"]">
+          <button type="button" class="btn btn-outline-dark active" data-kind="http" aria-pressed="true">@SR["HTTP"]</button>
+          <button type="button" class="btn btn-outline-dark" data-kind="soap" aria-pressed="false">@SR["SOAP"]</button>
+          <button type="button" class="btn btn-outline-dark" data-kind="app" aria-pressed="false">@SR["App"]</button>
         </div>
-        <h5 class="card-title mb-0 ms-2">Logs</h5>
-        <span class="badge text-bg-secondary ms-1" id="logs-count">0</span>
+        <h2 class="card-title mb-0 ms-2 h5" id="logs-heading">@SR["Logs"]</h2>
+        <span class="badge text-bg-secondary ms-1" id="logs-count" aria-live="polite">0</span>
       </div>
       <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-sm btn-outline-secondary" id="logs-clear" title="Clear logs">Clear</button>
-        <button class="btn btn-sm btn-outline-secondary" id="logs-pause" title="Pause/Resume live stream">Pause</button>
-        <button class="btn btn-sm btn-outline-secondary" id="logs-download" title="Download visible as JSON">Download</button>
+        <button class="btn btn-sm btn-outline-dark" id="logs-clear" aria-label="@SR["ClearLogs"]">@SR["Clear"]</button>
+        <button class="btn btn-sm btn-outline-dark" id="logs-pause" aria-label="@SR["PauseOrResumeLiveStream"]" data-i18n-pause="@SR["Pause"]" data-i18n-resume="@SR["Resume"]">@SR["Pause"]</button>
+        <button class="btn btn-sm btn-outline-dark" id="logs-download" aria-label="@SR["DownloadVisibleAsJson"]">@SR["Download"]</button>
       </div>
     </div>
 
     <div class="row g-2 align-items-center mb-2">
       <div class="col-sm-8">
-        <div class="input-group input-group-sm logs-filter-group">
-          <span class="input-group-text">Filter</span>
-          <input type="text" class="form-control" id="logs-filter" placeholder="Search text in Message or Category">
-          <select class="form-select" id="logs-level" style="max-width:12rem;">
-            <option value="">Any level</option>
-            <option>Trace</option>
-            <option>Debug</option>
-            <option>Information</option>
-            <option>Warning</option>
-            <option>Error</option>
-            <option>Critical</option>
-          </select>
+        <div class="logs-filter-group">
+          <label for="logs-filter" class="form-label visually-hidden">@SR["Filter"]</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text" id="logs-filter-label">@SR["Filter"]</span>
+            <input type="text" class="form-control" id="logs-filter" aria-labelledby="logs-filter-label" placeholder="@SR["SearchInMessageOrCategory"]">
+            <label for="logs-level" class="form-label visually-hidden">@SR["Level"]</label>
+            <select class="form-select" id="logs-level" style="max-width:12rem;" aria-label="@SR["Level"]">
+              <option value="">@SR["AnyLevel"]</option>
+              <option>@SR["Trace"]</option>
+              <option>@SR["Debug"]</option>
+              <option>@SR["Information"]</option>
+              <option>@SR["Warning"]</option>
+              <option>@SR["Error"]</option>
+              <option>@SR["Critical"]</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="col-sm-4 text-sm-end small text-muted" id="logs-status" aria-live="polite"></div>
     </div>
 
-    <div class="table-responsive logs-table-container" style="max-height: 65vh;">
+    <div class="table-responsive logs-table-container" style="max-height: 65vh;" role="region" aria-label="@SR["LogsTableRegion"]">
       <table class="table table-sm table-striped align-middle" id="logs-table">
         <thead class="table-light position-sticky thead-sticky" style="top:0; z-index:1;">
           <tr>
-            <th class="th-width-ts">Timestamp (Local)</th>
-            <th class="th-width-lvl">Level</th>
-            <th>Category</th>
-            <th>Message</th>
-            <th class="text-end" style="width:6rem;">Actions</th>
+            <th class="th-width-ts" scope="col">@SR["TimestampLocal"]</th>
+            <th class="th-width-lvl" scope="col">@SR["Level"]</th>
+            <th scope="col">@SR["Category"]</th>
+            <th scope="col">@SR["Message"]</th>
+            <th class="text-end" style="width:6rem;" scope="col">@SR["Actions"]</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
-</div>
+</section>
 
 <script nonce="@nonce">
 (function(){
@@ -79,14 +85,28 @@
     var statusEl = document.getElementById('logs-status');
     var countEl = document.getElementById('logs-count');
 
+    var pauseTextPause = (pauseBtn && pauseBtn.getAttribute('data-i18n-pause')) || 'Pause';
+    var pauseTextResume = (pauseBtn && pauseBtn.getAttribute('data-i18n-resume')) || 'Resume';
+
     // kind buttons
-    document.querySelectorAll('[data-kind]').forEach(function(btn){
+    var kindButtons = document.querySelectorAll('[data-kind]');
+    kindButtons.forEach(function(btn){
       btn.addEventListener('click', function(){
-        document.querySelectorAll('[data-kind]').forEach(function(b){ b.classList.remove('active'); });
+        kindButtons.forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed','true');
         kind = btn.getAttribute('data-kind') || 'http';
         reloadHistory();
         connect();
+      });
+      btn.addEventListener('keydown', function(e){
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
+          e.preventDefault();
+          var arr = Array.prototype.slice.call(kindButtons);
+          var idx = arr.indexOf(btn);
+          var next = e.key === 'ArrowRight' ? (idx+1)%arr.length : (idx-1+arr.length)%arr.length;
+          arr[next].focus();
+        }
       });
     });
 
@@ -106,7 +126,7 @@
                      '<td>'+escapeHtml(entry.category||'')+'</td>'+
                      '<td>'+escapeHtml(entry.message||'')+'</td>'+
                      '<td class="text-end">'+
-                        '<button class="btn btn-sm btn-outline-secondary" data-action="copy">Copy</button>'+
+                        '<button class="btn btn-sm btn-outline-dark" data-action="copy" aria-label="Copy">'+@Html.Raw("'" + SR["Copy"].Value.Replace("'","\\'") + "'")+'</button>'+
                      '</td>';
       tr.__entry = entry;
       return tr;
@@ -153,7 +173,7 @@
       // update visible snapshot & counters
       visible = Array.prototype.map.call(tbody.children, function(tr){ return tr.__entry; }).filter(Boolean);
       if (countEl) countEl.textContent = String(visible.length || 0);
-      if (statusEl) statusEl.textContent = (visible.length || 0) + ' entries';
+      if (statusEl) statusEl.textContent = (visible.length || 0) + ' ' + @Html.Raw("'" + SR["Entries"].Value.Replace("'","\\'") + "'");
     }
 
     function trimIfNeeded(){
@@ -193,7 +213,7 @@
     filter && filter.addEventListener('input', function(){ filterTxt = (filter.value||'').trim().toLowerCase(); reloadHistory(); });
     level && level.addEventListener('change', function(){ filterLevel = (level.value||'').trim().toLowerCase(); reloadHistory(); });
     clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; visible=[]; if (countEl) countEl.textContent='0'; if (statusEl) statusEl.textContent=''; });
-    pauseBtn && pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
+    pauseBtn && pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent = paused ? pauseTextResume : pauseTextPause; pauseBtn.setAttribute('aria-pressed', paused ? 'true' : 'false'); });
 
     downloadBtn && downloadBtn.addEventListener('click', function(){
       try{
@@ -206,7 +226,7 @@
     tbody.addEventListener('click', function(ev){
       var b = ev.target && ev.target.closest('[data-action="copy"]'); if(!b) return;
       var tr = b.closest('tr'); if (!tr || !tr.__entry) return;
-      try { navigator.clipboard.writeText(tr.__entry.message || ''); b.textContent='Copied'; setTimeout(function(){ b.textContent='Copy'; }, 1200); } catch {}
+      try { navigator.clipboard.writeText(tr.__entry.message || ''); b.textContent=@Html.Raw("'" + SR["Copied"].Value.Replace("'","\\'") + "'"); setTimeout(function(){ b.textContent=@Html.Raw("'" + SR["Copy"].Value.Replace("'","\\'") + "'"); }, 1200); } catch {}
     });
 
     backBtn && backBtn.addEventListener('click', function(e){
