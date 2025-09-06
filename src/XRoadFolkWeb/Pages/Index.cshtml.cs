@@ -79,6 +79,12 @@ namespace XRoadFolkWeb.Pages
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
         /// <summary>
+        /// Holds full GetPerson response (raw + pretty) for Person Details
+        /// </summary>
+        public string? PersonDetailsResponseXml { get; private set; }
+        public string? PersonDetailsResponseXmlPretty { get; private set; }
+
+        /// <summary>
         /// Indicates that a search request was successfully executed this request.
         /// Used by the view to show an empty-state message when no results are returned.
         /// </summary>
@@ -200,9 +206,11 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, ct).ConfigureAwait(false);
+                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string Raw, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, ct).ConfigureAwait(false);
                 PersonDetails = res.Details;
                 SelectedNameSuffix = res.SelectedNameSuffix;
+                PersonDetailsResponseXml = res.Raw;
+                PersonDetailsResponseXmlPretty = res.Pretty;
             }
             catch (Exception ex)
             {
@@ -280,6 +288,8 @@ namespace XRoadFolkWeb.Pages
         {
             PersonDetails = null;
             SelectedNameSuffix = string.Empty;
+            PersonDetailsResponseXml = null;
+            PersonDetailsResponseXmlPretty = null;
         }
 
         private IActionResult HandleInvalidModelState()
@@ -338,6 +348,8 @@ namespace XRoadFolkWeb.Pages
             SelectedNameSuffix = string.Empty;
             PeoplePublicInfoResponseXml = null;
             PeoplePublicInfoResponseXmlPretty = null;
+            PersonDetailsResponseXml = null;
+            PersonDetailsResponseXmlPretty = null;
             HasSearched = false;
             NoPeopleFound = false;
             return RedirectToPage();
@@ -366,12 +378,13 @@ namespace XRoadFolkWeb.Pages
 
             try
             {
-                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
+                (IReadOnlyList<(string Key, string Value)> Details, string Pretty, string Raw, string SelectedNameSuffix) res = await _details.GetAsync(publicId, _loc, EnabledPersonIncludeKeys, HttpContext?.RequestAborted ?? CancellationToken.None);
                 return new JsonResult(new
                 {
                     ok = true,
                     publicId,
                     pretty = res.Pretty,
+                    raw = res.Raw,
                     details = res.Details.Select(p => new { key = p.Key, value = p.Value }).ToArray(),
                 });
             }

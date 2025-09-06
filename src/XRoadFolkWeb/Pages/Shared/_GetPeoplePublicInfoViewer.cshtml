@@ -160,12 +160,44 @@
                   </div>
                 </div>
 
-                <div id="person-details-loading" class="d-none" aria-live="polite">
-                  @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
-                </div>
-                <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+                <ul class="nav nav-tabs small" id="pd-tabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@L["PersonDetails"]</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@L["RawXml"]</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@L["PrettyXml"]</button>
+                  </li>
+                </ul>
 
-                <div id="person-details-body"><!-- accordion injected here --></div>
+                <div class="tab-content border-start border-end border-bottom rounded-bottom p-2" id="pd-tabs-content" style="min-height:10rem;">
+                  <div class="tab-pane fade show active" id="pd-tab-details" role="tabpanel" aria-labelledby="pd-tab-details-btn" tabindex="0">
+                    <div id="person-details-loading" class="d-none" aria-live="polite">
+                      @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
+                    </div>
+                    <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+                    <div id="person-details-body"><!-- accordion injected here --></div>
+                  </div>
+
+                  <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
+                    <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@L["Copy"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@L["Download"]</button>
+                    </div>
+                    <pre class="gpiv-pre" id="pd-raw-pre"></pre>
+                  </div>
+
+                  <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
+                    <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@L["Copy"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@L["Download"]</button>
+                    </div>
+                    <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>

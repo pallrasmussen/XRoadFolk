@@ -30,7 +30,7 @@ namespace XRoadFolkWeb.Features.Index
             return _allowedIncludeKeysCache;
         }
 
-        public async Task<(IReadOnlyList<(string Key, string Value)> Details, string Pretty, string SelectedNameSuffix)> GetAsync(
+        public async Task<(IReadOnlyList<(string Key, string Value)> Details, string Pretty, string Raw, string SelectedNameSuffix)> GetAsync(
             string publicId,
             Microsoft.Extensions.Localization.IStringLocalizer loc,
             IReadOnlyCollection<string>? allowedIncludeKeys = null,
@@ -43,16 +43,45 @@ namespace XRoadFolkWeb.Features.Index
 
             List<(string Key, string Value)> filtered = [.. ApplyPrimaryFilter(pairs)];
 
-            // Include allow-list filter (use provided keys if present, else from cached configuration)
+            // Build an allow-list that includes all observed top-level segments from the response,
+            // ensuring we don't hide any groups returned by GetPerson.
+            HashSet<string> observedTopSegments = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in filtered)
+            {
+                if (string.IsNullOrWhiteSpace(p.Key))
+                {
+                    continue;
+                }
+                int dot = p.Key.IndexOf('.', StringComparison.Ordinal);
+                string top = dot >= 0 ? p.Key[..dot] : p.Key;
+                int bracket = top.IndexOf('[', StringComparison.Ordinal);
+                if (bracket >= 0)
+                {
+                    top = top[..bracket];
+                }
+                if (!string.IsNullOrWhiteSpace(top))
+                {
+                    observedTopSegments.Add(top);
+                }
+            }
+
+            // Include allow-list filter (use provided keys if present, else from cached configuration),
+            // then union with observed top-level segments to permit everything present.
             IReadOnlyCollection<string> allowedBase = (allowedIncludeKeys?.Count > 0)
                 ? allowedIncludeKeys
                 : GetAllowedIncludeKeysFromConfig();
 
-            filtered = [.. ApplyAllowedFilter(filtered, allowedBase)];
+            HashSet<string> allowUnion = new(allowedBase, StringComparer.OrdinalIgnoreCase);
+            foreach (var seg in observedTopSegments)
+            {
+                allowUnion.Add(seg);
+            }
+
+            filtered = [.. ApplyAllowedFilter(filtered, allowUnion)];
 
             string selectedNameSuffix = ComputeSelectedNameSuffix(filtered, loc);
 
-            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), selectedNameSuffix);
+            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), xml, selectedNameSuffix);
         }
 
         private static IEnumerable<(string Key, string Value)> ApplyPrimaryFilter(IEnumerable<(string Key, string Value)> pairs)
