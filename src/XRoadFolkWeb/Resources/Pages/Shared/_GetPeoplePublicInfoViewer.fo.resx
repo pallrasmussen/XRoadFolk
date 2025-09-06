@@ -130,7 +130,7 @@
     <value>Greinayvirlit</value>
   </data>
   <data name="Summary" xml:space="preserve">
-    <value>Samandráttur</value>
+    <value>Almennar fólkaupplýsingar</value>
   </data>
   <data name="MaskSensitive" xml:space="preserve">
     <value>Maskera viðkvæmar</value>
@@ -196,7 +196,7 @@
     <value>Eingi úrslit. Tøm leitingina fyri at vísa alt.</value>
   </data>
   <data name="NoMatchesSummaryClear" xml:space="preserve">
-    <value>Eingi úrslit í samandrátti. Tøm leitingina fyri at vísa alt.</value>
+    <value>Eingi úrslit í Almennar fólkaupplýsingar. Tøm leitingina fyri at vísa alt.</value>
   </data>
   <data name="CopyXml" xml:space="preserve">
     <value>Avrita XML</value>

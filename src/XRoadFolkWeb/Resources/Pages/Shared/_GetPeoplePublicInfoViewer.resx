@@ -130,7 +130,7 @@
     <value>Tree</value>
   </data>
   <data name="Summary" xml:space="preserve">
-    <value>Summary</value>
+    <value>People Public</value>
   </data>
   <data name="MaskSensitive" xml:space="preserve">
     <value>Mask sensitive</value>
@@ -196,7 +196,7 @@
     <value>No matches. Clear search to show all.</value>
   </data>
   <data name="NoMatchesSummaryClear" xml:space="preserve">
-    <value>No matches in Summary. Clear search to show all.</value>
+    <value>No matches in People Public. Clear search to show all.</value>
   </data>
   <data name="CopyXml" xml:space="preserve">
     <value>Copy XML</value>

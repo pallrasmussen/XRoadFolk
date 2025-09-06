@@ -79,13 +79,15 @@
     for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
     return false;
   }
+  // Hide exact field names: Id, PersonAddressId (case-insensitive)
   function isNoiseKey(name) {
     if (!name) return false;
     var n = String(name).toLowerCase();
-    return n === 'id' || n === 'fixed' || n === 'authoritycode' || n === 'personaddressid';
+    return n === 'id' || n === 'personaddressid';
   }
+
   var atSign = String.fromCharCode(64);
-  function buildKvpTableIncludingAttributes(owner) {
+  function buildLeavesTable(owner) {
     var rows = [];
     if (owner && owner.attributes && owner.attributes.length) {
       for (var i = 0; i < owner.attributes.length; i++) {
@@ -98,11 +100,13 @@
     var kids = owner && owner.children ? owner.children : [];
     for (var k = 0; k < kids.length; k++) {
       var ch = kids[k];
-      if (isNil(ch)) continue;
-      if (!hasElementChildren(ch)) {
+      var nil = isNil(ch);
+      var treatAsLeaf = nil || !hasElementChildren(ch);
+      if (treatAsLeaf) {
         if (isNoiseKey(ch.localName)) continue;
-        rows.push({ key: ch.localName, val: (ch.textContent || '').trim() });
-        if (ch.attributes && ch.attributes.length) {
+        var v = nil ? '' : (ch.textContent || '').trim();
+        rows.push({ key: ch.localName, val: v });
+        if (!nil && ch.attributes && ch.attributes.length) {
           for (var a2 = 0; a2 < ch.attributes.length; a2++) {
             var at = ch.attributes[a2];
             var atName = at.localName || at.name || '';
@@ -125,6 +129,7 @@
     t.appendChild(tb); wrap.appendChild(t);
     return wrap;
   }
+
   function getTextLocal(elx, name) {
     if (!elx || !elx.children) return '';
     for (var i = 0; i < elx.children.length; i++) {
@@ -157,6 +162,56 @@
     if (!summaryHost) return;
     qsa('.accordion-collapse', summaryHost).forEach(function (p) { p.classList.toggle('show', !!open); });
     qsa('.accordion-button', summaryHost).forEach(function (b) { b.classList.toggle('collapsed', !open); });
+  }
+
+  function groupChildrenByName(node) {
+    var map = Object.create(null);
+    if (!node || !node.children) return map;
+    for (var i = 0; i < node.children.length; i++) {
+      var c = node.children[i];
+      if (!c || c.nodeType !== 1) continue;
+      if (c.localName === 'Names') continue; // handled separately at top-level
+      if (isNil(c)) continue; // nil nodes rendered as empty leaf rows in table
+      if (!hasElementChildren(c)) continue; // leaves handled in table
+      var nm = c.localName;
+      (map[nm] || (map[nm] = [])).push(c);
+    }
+    return map;
+  }
+
+  function buildNodeContent(node) {
+    var container = document.createElement('div'); container.className = 'd-flex flex-column gap-2';
+
+    var leaves = buildLeavesTable(node);
+    if (leaves) container.appendChild(leaves);
+
+    var groups = groupChildrenByName(node);
+    for (var key in groups) {
+      if (!Object.prototype.hasOwnProperty.call(groups, key)) continue;
+      var arr = groups[key];
+      if (arr.length > 1) {
+        var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
+        for (var i = 0; i < arr.length; i++) {
+          var card3 = el('div', 'p-2 border rounded', null);
+          var title3 = el('div', 'small text-muted mb-1', key + ' #' + (i + 1));
+          card3.appendChild(title3);
+          var inner = buildNodeContent(arr[i]);
+          if (inner) card3.appendChild(inner);
+          listWrap.appendChild(card3);
+        }
+        container.appendChild(listWrap);
+      } else {
+        // Single child: render inline
+        var inner2 = buildNodeContent(arr[0]);
+        var headline = el('div', 'small text-muted mb-1', key);
+        var wrap = document.createElement('div'); wrap.className = 'p-2 border rounded';
+        wrap.appendChild(headline);
+        if (inner2) wrap.appendChild(inner2);
+        container.appendChild(wrap);
+      }
+    }
+
+    return container;
   }
 
   function renderSummary() {
@@ -204,7 +259,7 @@
         if (nameRoot) {
           var firsts = []; var last = '';
           for (var nn = 0; nn < nameRoot.children.length; nn++) {
-            var nm = nameRoot.children[nn]; if (nm.localName !== 'Name' || isNil(nm)) continue;
+            var nm = nameRoot.children[nn]; if (nm.localName !== 'Name') continue;
             var tp = getTextLocal(nm, 'Type'); if (tp === 'FirstName') {
               var order = parseInt(getTextLocal(nm, 'Order') || '9999', 10);
               firsts.push({ o: isNaN(order) ? 9999 : order, v: getTextLocal(nm, 'Value') });
@@ -239,7 +294,7 @@
           var nameItems = [];
           for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
             var nItem = nameRoot.children[n2];
-            if (nItem.localName !== 'Name' || isNil(nItem)) continue;
+            if (nItem.localName !== 'Name') continue;
             var ord = parseInt(getTextLocal(nItem, 'Order') || '9999', 10); if (isNaN(ord)) ord = 9999;
             nameItems.push({ node: nItem, order: ord });
           }
@@ -249,41 +304,42 @@
             var card2 = el('div', 'p-2 border rounded', null);
             var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (ix + 1));
             card2.appendChild(title2);
-            var t2 = buildKvpTableIncludingAttributes(nNode); if (t2) card2.appendChild(t2);
+            var t2 = buildLeavesTable(nNode); if (t2) card2.appendChild(t2);
+            // also render any nested children under Name (if present)
+            var nestedUnderName = buildNodeContent(nNode);
+            if (nestedUnderName && nestedUnderName.childElementCount > (t2 ? 1 : 0)) {
+              card2.appendChild(nestedUnderName);
+            }
             list.appendChild(card2);
           }
           acc.appendChild(accItem(accId, acc.childElementCount, I18N.Names || 'Names', list, false));
         }
 
-        var basicsTable = buildKvpTableIncludingAttributes(person);
+        var basicsTable = buildLeavesTable(person);
         if (basicsTable) acc.appendChild(accItem(accId, acc.childElementCount, I18N.Basics || 'Basics', basicsTable, false));
 
-        var groups = [];
-        for (var g = 0; g < person.children.length; g++) {
-          var ch = person.children[g]; if (isNil(ch)) continue; if (ch.localName === 'Names' || ch.localName === 'CivilStatus') continue; if (hasElementChildren(ch)) groups.push(ch);
-        }
-        for (var gi = 0; gi < groups.length; gi++) {
-          var group = groups[gi];
-          var counts = {}; for (var kk = 0; kk < group.children.length; kk++) { var lk = group.children[kk]; if (isNil(lk)) continue; var nm2 = lk.localName; counts[nm2] = (counts[nm2] || 0) + 1; }
-          var repeated = null; for (var key in counts) { if (counts[key] > 1) { repeated = key; break; } }
-
-          if (repeated) {
-            var items = []; for (var itx = 0; itx < group.children.length; itx++) { var it = group.children[itx]; if (!isNil(it) && it.localName === repeated) items.push(it); }
+        // Render all remaining nested groups recursively (no exclusions)
+        var groups = groupChildrenByName(person);
+        for (var gName in groups) {
+          if (!Object.prototype.hasOwnProperty.call(groups, gName)) continue;
+          var content = document.createElement('div'); content.className = 'd-flex flex-column gap-2';
+          var arr2 = groups[gName];
+          if (arr2.length > 1) {
             var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
-            for (var itx2 = 0; itx2 < items.length; itx2++) {
+            for (var it = 0; it < arr2.length; it++) {
               var card3 = el('div', 'p-2 border rounded', null);
-              var title3 = el('div', 'small text-muted mb-1', repeated + ' #' + (itx2 + 1));
+              var title3 = el('div', 'small text-muted mb-1', gName + ' #' + (it + 1));
               card3.appendChild(title3);
-              var leaves2 = buildKvpTableIncludingAttributes(items[itx2]); if (leaves2) card3.appendChild(leaves2);
-              var nested = []; for (var nc = 0; nc < items[itx2].children.length; nc++) { var kid = items[itx2].children[nc]; if (!isNil(kid) && hasElementChildren(kid)) nested.push(kid); }
-              for (var nx = 0; nx < nested.length; nx++) { var sub = buildKvpTableIncludingAttributes(nested[nx]); if (sub) card3.appendChild(sub); }
+              var inner3 = buildNodeContent(arr2[it]);
+              if (inner3) card3.appendChild(inner3);
               listWrap.appendChild(card3);
             }
-            acc.appendChild(accItem(accId, acc.childElementCount, group.localName, listWrap, false));
+            content.appendChild(listWrap);
           } else {
-            var leaves = buildKvpTableIncludingAttributes(group);
-            acc.appendChild(accItem(accId, acc.childElementCount, group.localName, leaves, false));
+            var inner4 = buildNodeContent(arr2[0]);
+            if (inner4) content.appendChild(inner4);
           }
+          acc.appendChild(accItem(accId, acc.childElementCount, gName, content, false));
         }
 
         wrap.appendChild(acc);

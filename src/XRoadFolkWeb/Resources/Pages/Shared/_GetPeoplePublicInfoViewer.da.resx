@@ -130,7 +130,7 @@
     <value>Trævisning</value>
   </data>
   <data name="Summary" xml:space="preserve">
-    <value>Oversigt</value>
+    <value>Offentlige personoplysninger</value>
   </data>
   <data name="MaskSensitive" xml:space="preserve">
     <value>Maskér følsomme</value>
@@ -196,7 +196,7 @@
     <value>Ingen resultater. Ryd søgning for at vise alle.</value>
   </data>
   <data name="NoMatchesSummaryClear" xml:space="preserve">
-    <value>Ingen resultater i Oversigt. Ryd søgning for at vise alle.</value>
+    <value>Ingen resultater i Offentlige personoplysninger. Ryd søgning for at vise alle.</value>
   </data>
   <data name="CopyXml" xml:space="preserve">
     <value>Kopiér XML</value>
