@@ -393,19 +393,62 @@
   }
 
   function initFullscreen() {
+    // Align People Public fullscreen behavior with Person detail
     document.addEventListener('click', function (e) {
-      var t = e.target;
-      if (t && (t.id === 'gpiv-fullscreen' || (t.closest && t.closest('#gpiv-fullscreen')))) {
-        try {
-          if (!card) return;
-          var entering = !card.classList.contains('gpiv-fullscreen');
-          card.classList.toggle('gpiv-fullscreen');
-          if (entering) { card.style.height = ''; }
-          else { syncViewerHeight(); }
-        } catch (err) {
-          console.error('gpiv: fullscreen toggle failed', err);
+      var t = e && e.target ? e.target : null;
+      if (!t) return;
+      var trigger = (t.id === 'gpiv-fullscreen') || (t.closest && t.closest('#gpiv-fullscreen'));
+      if (!trigger) return;
+      if (!card) return;
+      try { var pdSec = byId('person-details-section'); if (pdSec) pdSec.classList.remove('pd-fullscreen'); } catch (_) {}
+      try {
+        var isApiFull = document.fullscreenElement === card;
+        var hasCssFull = card.classList.contains('gpiv-fullscreen');
+        if (isApiFull) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(function(){ card.classList.remove('gpiv-fullscreen'); });
+          } else {
+            card.classList.remove('gpiv-fullscreen');
+          }
+          return;
         }
+        if (hasCssFull) {
+          card.classList.remove('gpiv-fullscreen');
+          syncViewerHeight();
+          return;
+        }
+        function enterFs(){
+          if (card.requestFullscreen) {
+            card.requestFullscreen({ navigationUI: 'hide' })
+              .then(function(){ card.style.height=''; })
+              .catch(function(){ card.classList.add('gpiv-fullscreen'); card.style.height=''; });
+          } else {
+            card.classList.add('gpiv-fullscreen');
+            card.style.height='';
+          }
+        }
+        if (document.fullscreenElement && document.fullscreenElement !== card) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().then(function(){ enterFs(); }).catch(function(){ card.classList.add('gpiv-fullscreen'); card.style.height=''; });
+          } else {
+            card.classList.add('gpiv-fullscreen');
+            card.style.height='';
+          }
+        } else {
+          enterFs();
+        }
+      } catch (err) {
+        card.classList.toggle('gpiv-fullscreen');
+        card.style.height = '';
+        if (!card.classList.contains('gpiv-fullscreen')) syncViewerHeight();
       }
+    });
+
+    document.addEventListener('fullscreenchange', function(){
+      if (!card) return;
+      var isFs = document.fullscreenElement === card;
+      card.classList.toggle('gpiv-fullscreen', isFs);
+      if (!isFs) syncViewerHeight();
     });
   }
 
