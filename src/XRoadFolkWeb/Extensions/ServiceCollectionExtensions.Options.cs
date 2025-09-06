@@ -4,6 +4,7 @@ using XRoadFolkRaw.Lib.Logging;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Infrastructure;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Hosting;
 
 namespace XRoadFolkWeb.Extensions;
 
@@ -61,11 +62,26 @@ public static partial class ServiceCollectionExtensions
             .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
             .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.");
 
-        // Response viewer options
-        services.AddOptions<ResponseViewerOptions>()
-            .Bind(configuration.GetSection("Features:ResponseViewer"));
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<ResponseViewerOptions>>().Value);
+        // Response viewer options (override to hide XML in Production)
+        AddResponseViewerOptions(services, configuration);
 
         return services;
+    }
+
+    private static void AddResponseViewerOptions(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<ResponseViewerOptions>()
+            .Bind(configuration.GetSection("Features:ResponseViewer"));
+        services.AddSingleton(sp =>
+        {
+            var env = sp.GetRequiredService<IHostEnvironment>();
+            var opts = sp.GetRequiredService<IOptions<ResponseViewerOptions>>().Value;
+            if (env.IsProduction())
+            {
+                opts.ShowRawXml = false;
+                opts.ShowPrettyXml = false;
+            }
+            return opts;
+        });
     }
 }
