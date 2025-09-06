@@ -15,12 +15,11 @@
     <RazorCompileOnBuild>true</RazorCompileOnBuild>
     <RazorCompileOnPublish>true</RazorCompileOnPublish>
     <PublishReadyToRun Condition=" '$(Configuration)' == 'Release' ">true</PublishReadyToRun>
-    <!-- Enable trimming in Release builds to catch/link away dead code -->
-    <PublishTrimmed Condition=" '$(Configuration)' == 'Release' ">true</PublishTrimmed>
-    <TrimMode Condition=" '$(Configuration)' == 'Release' ">partial</TrimMode>
-    <TrimmerDefaultAction Condition=" '$(Configuration)' == 'Release' ">link</TrimmerDefaultAction>
-    <!-- Treat trim warnings as errors in CI to expose reflection issues early -->
-    <TrimWarnAsError Condition=" '$(Configuration)' == 'Release' ">true</TrimWarnAsError>
+
+    <!-- Trimming is NOT supported for Razor Pages; disable trim publish and analyzer to avoid IL2026 -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <TrimWarnAsError>false</TrimWarnAsError>
 
     <!-- Ensure RID-specific assets are restored when needed by VS tooling -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
