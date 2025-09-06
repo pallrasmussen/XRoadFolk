@@ -117,10 +117,13 @@ namespace XRoadFolkWeb.Extensions
                     {
                         try
                         {
-                            var cert = string.IsNullOrEmpty(certPwd)
+                            // CA2000: The Data Protection system holds the certificate reference for the app lifetime.
+                            // Disposing it here would break encryption at runtime. Suppress and document.
+#pragma warning disable CA2000 // Certificate lifetime managed by DataProtection
+                            _ = dp.ProtectKeysWithCertificate(string.IsNullOrEmpty(certPwd)
                                 ? new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath)
-                                : new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath, certPwd);
-                            _ = dp.ProtectKeysWithCertificate(cert);
+                                : new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath, certPwd));
+#pragma warning restore CA2000
                         }
                         catch
                         {
@@ -135,19 +138,19 @@ namespace XRoadFolkWeb.Extensions
 
         /// <summary>
         /// Configure session with safe defaults. Cookie.IsEssential defaults to false to respect consent requirements.
-        /// Store selection (Session:Store): InMemory (default), Redis, or SqlServer.
-        /// - InMemory: simple, fast, but not shared across instances; not suitable for multi-node production.
-        /// - Redis: shared, scalable, good for multi-node; requires Redis endpoint; set Session:Redis:Configuration.
-        /// - SqlServer: shared and durable; higher latency than Redis; set Session:SqlServer:ConnectionString (and optional SchemaName/TableName).
-        /// IdleTimeout is SLIDING expiration for the session data; cookie persistence remains session cookie unless Cookie.MaxAge is set.
-        /// If you set Cookie:IsEssential=true, ensure you have a documented legal basis and/or consent in place.
         /// </summary>
         private static IServiceCollection AddSessionServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Choose backing store
+            ConfigureSessionDistributedCache(services, configuration);
+            ConfigureSessionOptions(services, configuration);
+            _ = services.AddSession();
+            return services;
+        }
+
+        private static void ConfigureSessionDistributedCache(IServiceCollection services, IConfiguration configuration)
+        {
             IConfiguration sessSection = configuration.GetSection("Session");
             string store = sessSection.GetValue<string>("Store") ?? "InMemory";
-
             var log = NullLogger.Instance;
 
             switch (store.Trim().ToLowerInvariant())
@@ -198,85 +201,102 @@ namespace XRoadFolkWeb.Extensions
                     services.AddDistributedMemoryCache();
                     break;
             }
+        }
 
+        private static void ConfigureSessionOptions(IServiceCollection services, IConfiguration configuration)
+        {
             _ = services.AddOptions<SessionOptions>()
                 .Configure<IConfiguration, ILoggerFactory>((options, cfg, lf2) =>
                 {
                     ILogger log2 = lf2.CreateLogger("SessionConfig");
-
                     IConfiguration section = cfg.GetSection("Session");
-
-                    string cookieName = section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
-
-                    // Use shared configuration helpers for booleans
-                    bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", true, log2);
-                    bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", false, log2); // default false for consent-friendly behavior
-
-                    // Enums (with validation)
-                    string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");
-                    string? securePolicyStr = section.GetValue<string>("Cookie:SecurePolicy");
-
-                    // Idle timeout minutes (validate integer) - SLIDING expiration for session data
-                    int idleMinutes = 30;
-                    string? idleStr = section["IdleTimeoutMinutes"];
-                    if (!string.IsNullOrWhiteSpace(idleStr))
-                    {
-                        if (!int.TryParse(idleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out idleMinutes))
-                        {
-                            log2.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
-                            idleMinutes = 30;
-                        }
-                    }
-
-                    SameSiteMode sameSite = SameSiteMode.Strict;
-                    if (!string.IsNullOrWhiteSpace(sameSiteStr))
-                    {
-                        if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))
-                        {
-                            log2.LogWarning("Session: Invalid Cookie:SameSite='{Value}'. Falling back to {Fallback}.", sameSiteStr, sameSite);
-                        }
-                        else
-                        {
-                            sameSite = parsedSameSite;
-                        }
-                    }
-
-                    CookieSecurePolicy securePolicy = CookieSecurePolicy.Always;
-                    if (!string.IsNullOrWhiteSpace(securePolicyStr))
-                    {
-                        if (!Enum.TryParse(securePolicyStr, ignoreCase: true, out CookieSecurePolicy parsedSecure))
-                        {
-                            log2.LogWarning("Session: Invalid Cookie:SecurePolicy='{Value}'. Falling back to ${Fallback}.", securePolicyStr, securePolicy);
-                        }
-                        else
-                        {
-                            securePolicy = parsedSecure;
-                        }
-                    }
-
-                    int origIdle = idleMinutes;
-                    if (idleMinutes < 1)
-                    {
-                        idleMinutes = 1;
-                        log2.LogWarning("Session: IdleTimeoutMinutes {Original} is too small. Clamped to {Clamped} minute.", origIdle, idleMinutes);
-                    }
-
-                    if (cookieIsEssential)
-                    {
-                        log2.LogInformation("Session: Cookie:IsEssential is true. Ensure consent/compliance requirements are met in your jurisdiction.");
-                    }
-
-                    options.Cookie.Name = cookieName;
-                    options.Cookie.HttpOnly = cookieHttpOnly;
-                    options.Cookie.IsEssential = cookieIsEssential;
-                    options.Cookie.SecurePolicy = securePolicy;
-                    options.Cookie.SameSite = sameSite;
-                    // NOTE: Session uses SLIDING expiration equal to IdleTimeout; cookie remains a session cookie unless MaxAge is set explicitly.
-                    options.IdleTimeout = TimeSpan.FromMinutes(idleMinutes);
+                    ApplySessionOptions(options, section, log2);
                 });
+        }
 
-            _ = services.AddSession();
-            return services;
+        private static void ApplySessionOptions(SessionOptions options, IConfiguration section, ILogger log)
+        {
+            string cookieName = GetCookieName(section);
+            bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", true, log);
+            bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", false, log);
+            SameSiteMode sameSite = ParseSameSite(section, log);
+            CookieSecurePolicy securePolicy = ParseSecurePolicy(section, log);
+            int idleMinutes = ParseIdleMinutes(section, log);
+
+            if (cookieIsEssential)
+            {
+                log.LogInformation("Session: Cookie:IsEssential is true. Ensure consent/compliance requirements are met in your jurisdiction.");
+            }
+
+            options.Cookie.Name = cookieName;
+            options.Cookie.HttpOnly = cookieHttpOnly;
+            options.Cookie.IsEssential = cookieIsEssential;
+            options.Cookie.SecurePolicy = securePolicy;
+            options.Cookie.SameSite = sameSite;
+            options.IdleTimeout = TimeSpan.FromMinutes(idleMinutes);
+        }
+
+        private static string GetCookieName(IConfiguration section)
+        {
+            return section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
+        }
+
+        private static int ParseIdleMinutes(IConfiguration section, ILogger log)
+        {
+            int idleMinutes = 30;
+            string? idleStr = section["IdleTimeoutMinutes"];
+            if (!string.IsNullOrWhiteSpace(idleStr))
+            {
+                if (!int.TryParse(idleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out idleMinutes))
+                {
+                    log.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
+                    idleMinutes = 30;
+                }
+            }
+
+            int origIdle = idleMinutes;
+            if (idleMinutes < 1)
+            {
+                idleMinutes = 1;
+                log.LogWarning("Session: IdleTimeoutMinutes {Original} is too small. Clamped to {Clamped} minute.", origIdle, idleMinutes);
+            }
+            return idleMinutes;
+        }
+
+        private static SameSiteMode ParseSameSite(IConfiguration section, ILogger log)
+        {
+            string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");
+            SameSiteMode sameSite = SameSiteMode.Strict;
+            if (!string.IsNullOrWhiteSpace(sameSiteStr))
+            {
+                if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))
+                {
+                    log.LogWarning("Session: Invalid Cookie:SameSite='{Value}'. Falling back to {Fallback}.", sameSiteStr, sameSite);
+                }
+                else
+                {
+                    sameSite = parsedSameSite;
+                }
+            }
+            return sameSite;
+        }
+
+        private static CookieSecurePolicy ParseSecurePolicy(IConfiguration section, ILogger log)
+        {
+            string? securePolicyStr = section.GetValue<string>("Cookie:SecurePolicy");
+            CookieSecurePolicy securePolicy = CookieSecurePolicy.Always;
+            if (!string.IsNullOrWhiteSpace(securePolicyStr))
+            {
+                if (!Enum.TryParse(securePolicyStr, ignoreCase: true, out CookieSecurePolicy parsedSecure))
+                {
+                    log.LogWarning("Session: Invalid Cookie:SecurePolicy='{Value}'. Falling back to ${Fallback}.", securePolicyStr, securePolicy);
+                }
+                else
+                {
+                    securePolicy = parsedSecure;
+                }
+            }
+            return securePolicy;
         }
     }
 }

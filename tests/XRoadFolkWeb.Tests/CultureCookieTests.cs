@@ -27,7 +27,7 @@ namespace XRoadFolkWeb.Tests
         {
             using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
             {
                 Content = new FormUrlEncodedContent(new[]
                 {
@@ -48,14 +48,12 @@ namespace XRoadFolkWeb.Tests
             string? token = await GetAntiTokenAsync(client);
             token.Should().NotBeNullOrEmpty();
 
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
+            post.Content = new FormUrlEncodedContent(new[]
             {
-                Content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string,string>("culture", "xx-YY"),
-                    new KeyValuePair<string,string>("returnUrl", "/")
-                })
-            };
+                new KeyValuePair<string,string>("culture", "xx-YY"),
+                new KeyValuePair<string,string>("returnUrl", "/")
+            });
             post.Headers.Add("RequestVerificationToken", token);
 
             var resp = await client.SendAsync(post);
@@ -71,14 +69,12 @@ namespace XRoadFolkWeb.Tests
             string? token = await GetAntiTokenAsync(client);
             token.Should().NotBeNullOrEmpty();
 
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
+            post.Content = new FormUrlEncodedContent(new[]
             {
-                Content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string,string>("culture", "en-US"),
-                    new KeyValuePair<string,string>("returnUrl", "/")
-                })
-            };
+                new KeyValuePair<string,string>("culture", "en-US"),
+                new KeyValuePair<string,string>("returnUrl", "/")
+            });
             post.Headers.Add("RequestVerificationToken", token);
 
             var resp = await client.SendAsync(post);
@@ -102,14 +98,12 @@ namespace XRoadFolkWeb.Tests
             string? token = await GetAntiTokenAsync(client);
             token.Should().NotBeNullOrEmpty();
 
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
+            post.Content = new FormUrlEncodedContent(new[]
             {
-                Content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string,string>("culture", "en-US"),
-                    new KeyValuePair<string,string>("returnUrl", "http://evil.example.com/")
-                })
-            };
+                new KeyValuePair<string,string>("culture", "en-US"),
+                new KeyValuePair<string,string>("returnUrl", "http://evil.example.com/")
+            });
             post.Headers.Add("RequestVerificationToken", token);
 
             var resp = await client.SendAsync(post);
@@ -131,12 +125,21 @@ namespace XRoadFolkWeb.Tests
         {
             const string marker = "name=\"request-verification-token\"";
             int i = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (i < 0) return null;
+            if (i < 0)
+            {
+                return null;
+            }
             int c = html.IndexOf("content=\"", i, StringComparison.OrdinalIgnoreCase);
-            if (c < 0) return null;
+            if (c < 0)
+            {
+                return null;
+            }
             c += "content=\"".Length;
             int end = html.IndexOf('"', c);
-            if (end <= c) return null;
+            if (end <= c)
+            {
+                return null;
+            }
             return html.Substring(c, end - c);
         }
     }

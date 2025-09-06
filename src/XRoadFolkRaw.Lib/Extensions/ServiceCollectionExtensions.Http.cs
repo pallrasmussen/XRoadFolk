@@ -83,6 +83,7 @@ namespace XRoadFolkRaw.Lib.Extensions
                 X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
                 handler.SslOptions.ClientCertificates ??= [];
                 _ = handler.SslOptions.ClientCertificates.Add(cert);
+                // Handler owns the certificate lifetime; it will be disposed with handler.
             }
             catch (Exception ex)
             {
@@ -98,7 +99,7 @@ namespace XRoadFolkRaw.Lib.Extensions
             ILogger serverCertLog = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadServerCert");
 
             string? cerPath = cfg["XRoad:ServerCertificate:Path"] ?? cfg["Http:ServerCertificate:Path"];
-            X509Certificate2? serverCer = LoadServerCertificate(cerPath, serverCertLog);
+            using X509Certificate2? serverCer = LoadServerCertificate(cerPath, serverCertLog);
 
             if (serverCer is not null)
             {

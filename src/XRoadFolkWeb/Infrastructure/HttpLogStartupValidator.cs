@@ -37,16 +37,10 @@ namespace XRoadFolkWeb.Infrastructure
                     Directory.CreateDirectory(dir);
                 }
 
-                // Try to open or create the file to validate write permissions
-                var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-                try
-                {
-                    await fs.FlushAsync(cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
-                }
+#pragma warning disable MA0004 // await using cannot use ConfigureAwait
+                await using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+#pragma warning restore MA0004
+                await fs.FlushAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!_env.IsDevelopment())
                 {

@@ -57,22 +57,17 @@ dotnet_diagnostic.IDE0011.severity = warning
 # Nullability and annotations
 nullable = enable
 # Additional nullable diagnostics
-# Assignment may be null
 dotnet_diagnostic.CS8601.severity = warning
-# Converting null literal or possible null value to non-nullable type
 dotnet_diagnostic.CS8600.severity = warning
-# Possible null reference return
 dotnet_diagnostic.CS8603.severity = warning
-# Dereference of a possibly null reference (kept strict)
 dotnet_diagnostic.CS8602.severity = error
-# Possible null reference argument (kept strict)
 dotnet_diagnostic.CS8604.severity = error
 
 # Analyzer severities
-# Meziantou rules that are too strict for current codebase
+# Meziantou rules
 dotnet_diagnostic.MA0048.severity = none
-# Method too long (monitor, phase 1)
-dotnet_diagnostic.MA0051.severity = suggestion
+# Method too long: now enforced project-wide
+dotnet_diagnostic.MA0051.severity = warning
 # Regex DoS concerns
 dotnet_diagnostic.MA0009.severity = suggestion
 # Prefer abstraction over implementation for collections
@@ -94,10 +89,12 @@ dotnet_diagnostic.MA0006.severity = warning
 # Use a cancellation token when available (global default)
 dotnet_diagnostic.MA0040.severity = suggestion
 
+# .NET analyzers tightening
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity = warning
+
 # C# compiler diagnostics adjustments
-# Hiding inherited member
 dotnet_diagnostic.CS0108.severity = suggestion
-# Obsolete API usage
 dotnet_diagnostic.CS0618.severity = suggestion
 
 # Naming rules
@@ -137,50 +134,11 @@ dotnet_diagnostic.MA0042.severity = warning
 [src/XRoadFolkWeb/**]
 dotnet_diagnostic.MA0040.severity = warning
 
-# Phase enforcement: treat MA0051 as warning for key refactored files
-[src/XRoadFolkWeb/Extensions/WebApplicationExtensions.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkWeb/Extensions/ServiceCollectionExtensions.Logging.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkWeb/Infrastructure/FileBackedHttpLogStore.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkWeb/Infrastructure/InMemoryHttpLog.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkWeb/Infrastructure/XRoadSettingsValidator.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkRaw.Lib/TokenHelper.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkRaw.Lib/FolkRawClient.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkRaw.Lib/ConfigurationLoader.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkRaw.Lib/Options/IncludeConfigHelper.cs]
-dotnet_diagnostic.MA0051.severity = warning
-[src/XRoadFolkRaw.Lib/Extensions/ServiceCollectionExtensions.Http.cs]
-dotnet_diagnostic.MA0051.severity = warning
-
 # Incremental tightening
 [src/XRoadFolkWeb/Infrastructure/BestMatchRequestCultureProvider.cs]
 dotnet_diagnostic.MA0074.severity = warning
-dotnet_diagnostic.IDE0011.severity = warning
-[src/XRoadFolkWeb/Infrastructure/FileBackedHttpLogStore.cs]
-dotnet_diagnostic.MA0074.severity = warning
-dotnet_diagnostic.IDE0011.severity = warning
-[src/XRoadFolkWeb/Infrastructure/InMemoryHttpLog.cs]
-dotnet_diagnostic.MA0074.severity = warning
-dotnet_diagnostic.IDE0011.severity = warning
-[src/XRoadFolkWeb/Extensions/ServiceCollectionExtensions.Logging.cs]
-dotnet_diagnostic.MA0074.severity = warning
-dotnet_diagnostic.IDE0011.severity = warning
-[src/XRoadFolkRaw.Lib/ConfigurationLoader.cs]
-dotnet_diagnostic.MA0074.severity = warning
-dotnet_diagnostic.IDE0011.severity = warning
-[src/XRoadFolkRaw.Lib/FolkRawClient.cs]
-dotnet_diagnostic.MA0074.severity = warning
-[src/XRoadFolkRaw.Lib/TokenHelper.cs]
-dotnet_diagnostic.MA0074.severity = warning
 
-# Library-specific tightening: enforce ConfigureAwait and CancellationToken usage
+# Library-specific tightening
 [src/XRoadFolkRaw.Lib/**]
 dotnet_diagnostic.MA0004.severity = warning
 [src/XRoadFolkRaw.Lib/**]

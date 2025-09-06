@@ -218,22 +218,16 @@ namespace XRoadFolkWeb.Infrastructure
         private static async Task AppendLinesAsync(string path, long maxBytes, int maxRolls, ILogger? logger, List<string> batch, CancellationToken ct)
         {
             LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, logger);
-            var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-            var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            try
+#pragma warning disable MA0004 // await using cannot use ConfigureAwait
+            await using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+            await using var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+#pragma warning restore MA0004
+            foreach (string l in batch)
             {
-                foreach (string l in batch)
-                {
-                    await sw.WriteAsync(l.AsMemory(), ct).ConfigureAwait(false);
-                }
-                await sw.FlushAsync(ct).ConfigureAwait(false);
-                await fs.FlushAsync(ct).ConfigureAwait(false);
+                await sw.WriteAsync(l.AsMemory(), ct).ConfigureAwait(false);
             }
-            finally
-            {
-                try { await sw.DisposeAsync().ConfigureAwait(false); } catch { }
-                try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
-            }
+            await sw.FlushAsync(ct).ConfigureAwait(false);
+            await fs.FlushAsync(ct).ConfigureAwait(false);
         }
 
         private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger, CancellationToken ct)

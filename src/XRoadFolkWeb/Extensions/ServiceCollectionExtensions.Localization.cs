@@ -14,6 +14,16 @@ namespace XRoadFolkWeb.Extensions
             ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(configuration);
 
+            ConfigureRazorAndLocalization(services);
+            ConfigureRequestLocalization(services, configuration);
+            ConfigureLocalizationOptions(services, configuration);
+
+            services.AddHostedService<LocalizationCoverageHostedService>();
+            return services;
+        }
+
+        private static void ConfigureRazorAndLocalization(IServiceCollection services)
+        {
             _ = services
                 .AddRazorPages()
                 .AddViewLocalization()
@@ -29,7 +39,10 @@ namespace XRoadFolkWeb.Extensions
                 });
 
             _ = services.AddLocalization(opts => opts.ResourcesPath = "Resources");
+        }
 
+        private static void ConfigureRequestLocalization(IServiceCollection services, IConfiguration configuration)
+        {
             _ = services.AddOptions<RequestLocalizationOptions>()
                 .Configure<ILoggerFactory>((opts, lf) =>
                 {
@@ -57,8 +70,10 @@ namespace XRoadFolkWeb.Extensions
                     opts.RequestCultureProviders.Add(new BestMatchRequestCultureProvider(
                         opts.SupportedUICultures, roMap, providerLog));
                 });
+        }
 
-            // Configure and validate app Localization section
+        private static void ConfigureLocalizationOptions(IServiceCollection services, IConfiguration configuration)
+        {
             _ = services.AddOptions<LocalizationConfig>()
                 .Bind(configuration.GetSection("Localization"))
                 .Validate(o => !string.IsNullOrWhiteSpace(o.DefaultCulture), "Localization: DefaultCulture is required.")
@@ -77,13 +92,9 @@ namespace XRoadFolkWeb.Extensions
                 .Validate(o => o.SupportedCultures.Contains(o.DefaultCulture!, StringComparer.OrdinalIgnoreCase),
                     "Localization: DefaultCulture must be included in SupportedCultures.")
                 .ValidateOnStart();
-
-            // Startup coverage logger to verify that some resources exist per culture
-            services.AddHostedService<LocalizationCoverageHostedService>();
-
-            return services;
         }
 
+        // Startup coverage logger to verify that some resources exist per culture
         private sealed class LocalizationCoverageHostedService : IHostedService
         {
             private readonly ILogger<LocalizationCoverageHostedService> _log;

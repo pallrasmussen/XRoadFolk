@@ -37,7 +37,8 @@ namespace XRoadFolkWeb.Tests
         {
             using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-            var clear = await client.PostAsync("/logs/clear", new StringContent(""));
+            using var empty = new StringContent("");
+            var clear = await client.PostAsync("/logs/clear", empty);
             clear.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
             var write = await client.PostAsJsonAsync("/logs/write", new { level = "Information", message = "test" });
@@ -56,13 +57,13 @@ namespace XRoadFolkWeb.Tests
             var token = ExtractMetaToken(html);
             token.Should().NotBeNullOrEmpty();
 
-            var req = new HttpRequestMessage(HttpMethod.Post, "/logs/clear");
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/logs/clear");
             req.Headers.Add("RequestVerificationToken", token);
             req.Content = new StringContent("");
             var resp = await client.SendAsync(req);
             resp.EnsureSuccessStatusCode();
 
-            var req2 = new HttpRequestMessage(HttpMethod.Post, "/logs/write");
+            using var req2 = new HttpRequestMessage(HttpMethod.Post, "/logs/write");
             req2.Headers.Add("RequestVerificationToken", token);
             req2.Content = JsonContent.Create(new { level = "Information", message = "ok" });
             var resp2 = await client.SendAsync(req2);
@@ -73,12 +74,21 @@ namespace XRoadFolkWeb.Tests
         {
             const string marker = "name=\"request-verification-token\"";
             int i = html.IndexOf(marker, System.StringComparison.OrdinalIgnoreCase);
-            if (i < 0) return null;
+            if (i < 0)
+            {
+                return null;
+            }
             int c = html.IndexOf("content=\"", i, System.StringComparison.OrdinalIgnoreCase);
-            if (c < 0) return null;
+            if (c < 0)
+            {
+                return null;
+            }
             c += "content=\"".Length;
             int end = html.IndexOf('"', c);
-            if (end <= c) return null;
+            if (end <= c)
+            {
+                return null;
+            }
             return html.Substring(c, end - c);
         }
     }

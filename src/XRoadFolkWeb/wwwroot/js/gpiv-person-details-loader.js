@@ -16,6 +16,60 @@
     };
   }
 
+  function readI18n(){
+    try{
+      if (window.__gpivI18nCached) return window.__gpivI18nCached;
+      var el = document.getElementById('gpiv-i18n-json');
+      var txt = el ? (el.textContent || '') : '';
+      var obj = {};
+      try { obj = JSON.parse(txt || '{}') || {}; } catch {}
+      window.__gpivI18nCached = obj;
+      return obj;
+    }catch{ return {}; }
+  }
+
+  function prettify(name){
+    var s = String(name || '');
+    // Replace separators with spaces
+    s = s.replace(/[_\-]+/g,' ');
+    // Split camel/PascalCase boundaries
+    s = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+    // Collapse whitespace and capitalize words
+    s = s.trim().replace(/\s+/g, ' ');
+    return s.split(' ').map(function(w){ return w ? (w[0].toUpperCase() + w.slice(1)) : w; }).join(' ');
+  }
+
+  function headerLabelForGroup(rawName){
+    var i18n = readI18n();
+    var t = String(rawName || '');
+    var lower = t.toLowerCase();
+    if (lower === 'summary') return i18n.Summary || 'Summary';
+    if (lower === 'person') return i18n.Basics || 'Basics';
+    if (lower === 'names') return i18n.Names || 'Names';
+    if (lower === 'name') return i18n.Name || 'Name';
+    if (lower === 'publicid') return i18n.PublicId || 'Public Id';
+    if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
+    if (lower.includes('status')) return i18n.Status || 'Status';
+    return prettify(t);
+  }
+
+  function pickGroupFromKey(key){
+    var k = String(key || '');
+    var dot = k.indexOf('.');
+    var first = dot >= 0 ? k.slice(0, dot) : k;
+    var rest = dot >= 0 ? k.slice(dot + 1) : '';
+
+    function stripIndex(s){ var b=s.indexOf('['); return b>=0 ? s.slice(0,b) : s; }
+
+    var fLower = first.toLowerCase();
+    if (rest && (fLower.endsWith('response') || fLower.endsWith('result'))){
+      var dot2 = rest.indexOf('.');
+      var second = dot2 >= 0 ? rest.slice(0, dot2) : rest;
+      return stripIndex(second || first);
+    }
+    return stripIndex(first);
+  }
+
   function activateDetailsTab(){
     try{
       var btn = document.getElementById('gpiv-tab-details-btn');
@@ -126,7 +180,7 @@
     var groups = {};
     (pairs||[]).forEach(function(p){
       var k=p.key||'', v=p.value||'';
-      var seg=k.includes('.') ? k.slice(0,k.indexOf('.')) : k;
+      var seg = pickGroupFromKey(k);
       (groups[seg]=groups[seg]||[]).push({k:k,v:v});
     });
     var keys = Object.keys(groups).sort(function(a,b){
@@ -147,7 +201,7 @@
       btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
       btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false'); btn.setAttribute('aria-controls', cid);
       var ic = document.createElement('i'); ic.className='bi '+iconClassForPd(name)+' me-2'; ic.setAttribute('aria-hidden','true');
-      btn.appendChild(ic); btn.appendChild(document.createTextNode(name));
+      btn.appendChild(ic); btn.appendChild(document.createTextNode(headerLabelForGroup(name)));
       h2.appendChild(btn);
 
       var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':'').trim();

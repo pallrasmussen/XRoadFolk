@@ -386,23 +386,17 @@ namespace XRoadFolkWeb.Infrastructure
 
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
-            var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-            var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            try
+#pragma warning disable MA0004 // await using cannot use ConfigureAwait
+            await using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+            await using var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+#pragma warning restore MA0004
+            foreach (LogEntry e in batch)
             {
-                foreach (LogEntry e in batch)
-                {
-                    string line = LogLineFormatter.FormatLine(e);
-                    await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
-                }
-                await sw.FlushAsync(ct).ConfigureAwait(false);
-                await fs.FlushAsync(ct).ConfigureAwait(false);
+                string line = LogLineFormatter.FormatLine(e);
+                await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
             }
-            finally
-            {
-                try { await sw.DisposeAsync().ConfigureAwait(false); } catch { }
-                try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
-            }
+            await sw.FlushAsync(ct).ConfigureAwait(false);
+            await fs.FlushAsync(ct).ConfigureAwait(false);
         }
 
         [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "Error writing HTTP log batch to file")]

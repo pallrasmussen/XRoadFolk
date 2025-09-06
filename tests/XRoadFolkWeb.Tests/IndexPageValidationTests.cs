@@ -40,7 +40,7 @@ public class IndexPageValidationTests : IClassFixture<WebApplicationFactory<Prog
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
 
-        var form = new FormUrlEncodedContent(new[]
+        using var form = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string,string>("Ssn","123"), // invalid
             new KeyValuePair<string,string>("FirstName",""),
@@ -56,5 +56,24 @@ public class IndexPageValidationTests : IClassFixture<WebApplicationFactory<Prog
         var ssnSpan = doc.QuerySelector("span[data-valmsg-for='Ssn']");
         ssnSpan.Should().NotBeNull();
         (ssnSpan!.TextContent ?? "").Trim().Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Posting_Empty_Form_Shows_Validation_Errors()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = true });
+
+        using var form = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string?, string?>("FirstName", ""),
+            new KeyValuePair<string?, string?>("LastName", ""),
+            new KeyValuePair<string?, string?>("DateOfBirth", ""),
+            new KeyValuePair<string?, string?>("Ssn", "")
+        });
+
+        var resp = await client.PostAsync("/", form);
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        string html = await resp.Content.ReadAsStringAsync();
+        html.Should().Contain("input-validation-error");
     }
 }

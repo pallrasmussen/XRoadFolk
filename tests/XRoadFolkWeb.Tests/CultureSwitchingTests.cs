@@ -31,7 +31,7 @@ namespace XRoadFolkWeb.Tests
                 AllowAutoRedirect = false
             });
 
-            var req = new HttpRequestMessage(HttpMethod.Get, "/");
+            using var req = new HttpRequestMessage(HttpMethod.Get, "/");
             req.Headers.AcceptLanguage.ParseAdd("da-DK,da;q=0.9,en-US;q=0.8,en;q=0.7");
 
             var resp = await client.SendAsync(req);
@@ -58,13 +58,13 @@ namespace XRoadFolkWeb.Tests
             // Extract token from meta tag if present
             string token = ExtractMetaToken(html) ?? string.Empty;
 
-            var formContent = new FormUrlEncodedContent(new[]
+            using var formContent = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string,string>("culture", "fo-FO"),
                 new KeyValuePair<string,string>("returnUrl", "/")
             });
 
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
             post.Content = formContent;
             if (!string.IsNullOrEmpty(token))
             {
@@ -90,7 +90,7 @@ namespace XRoadFolkWeb.Tests
 
             // Post culture
             var token = await GetAntiTokenAsync(client);
-            var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
+            using var post = new HttpRequestMessage(HttpMethod.Post, "/set-culture")
             {
                 Content = new FormUrlEncodedContent(new[]
                 {
@@ -98,7 +98,10 @@ namespace XRoadFolkWeb.Tests
                     new KeyValuePair<string,string>("returnUrl", "/")
                 })
             };
-            if (!string.IsNullOrEmpty(token)) post.Headers.Add("RequestVerificationToken", token);
+            if (!string.IsNullOrEmpty(token))
+            {
+                post.Headers.Add("RequestVerificationToken", token);
+            }
             var resp = await client.SendAsync(post);
             resp.StatusCode.Should().Be(HttpStatusCode.Redirect);
 
@@ -113,12 +116,21 @@ namespace XRoadFolkWeb.Tests
         {
             const string marker = "name=\"request-verification-token\"";
             int i = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (i < 0) return null;
+            if (i < 0)
+            {
+                return null;
+            }
             int c = html.IndexOf("content=\"", i, StringComparison.OrdinalIgnoreCase);
-            if (c < 0) return null;
+            if (c < 0)
+            {
+                return null;
+            }
             c += "content=\"".Length;
             int end = html.IndexOf('"', c);
-            if (end <= c) return null;
+            if (end <= c)
+            {
+                return null;
+            }
             return html.Substring(c, end - c);
         }
 

@@ -67,75 +67,20 @@ namespace XRoadFolkWeb.Features.People
                 base.Dispose(disposing);
             }
 
-            public override string GetAttribute(int i)
-            {
-                return _inner.GetAttribute(i);
-            }
-
-            public override string? GetAttribute(string name)
-            {
-                return _inner.GetAttribute(name);
-            }
-
-            public override string? GetAttribute(string name, string? namespaceURI)
-            {
-                return _inner.GetAttribute(name, namespaceURI);
-            }
-
-            public override string? LookupNamespace(string prefix)
-            {
-                return _inner.LookupNamespace(prefix);
-            }
-
-            public override bool MoveToAttribute(string name)
-            {
-                return _inner.MoveToAttribute(name);
-            }
-
-            public override bool MoveToAttribute(string name, string? ns)
-            {
-                return _inner.MoveToAttribute(name, ns);
-            }
-
-            public override bool MoveToElement()
-            {
-                return _inner.MoveToElement();
-            }
-
-            public override bool MoveToFirstAttribute()
-            {
-                return _inner.MoveToFirstAttribute();
-            }
-
-            public override bool MoveToNextAttribute()
-            {
-                return _inner.MoveToNextAttribute();
-            }
-
-            public override bool ReadAttributeValue()
-            {
-                return _inner.ReadAttributeValue();
-            }
-
-            public override void ResolveEntity()
-            {
-                _inner.ResolveEntity();
-            }
-
-            public override string ReadInnerXml()
-            {
-                return _inner.ReadInnerXml();
-            }
-
-            public override string ReadOuterXml()
-            {
-                return _inner.ReadOuterXml();
-            }
-
-            public override XmlReader ReadSubtree()
-            {
-                return new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
-            }
+            public override string GetAttribute(int i) => _inner.GetAttribute(i);
+            public override string? GetAttribute(string name) => _inner.GetAttribute(name);
+            public override string? GetAttribute(string name, string? namespaceURI) => _inner.GetAttribute(name, namespaceURI);
+            public override string? LookupNamespace(string prefix) => _inner.LookupNamespace(prefix);
+            public override bool MoveToAttribute(string name) => _inner.MoveToAttribute(name);
+            public override bool MoveToAttribute(string name, string? ns) => _inner.MoveToAttribute(name, ns);
+            public override bool MoveToElement() => _inner.MoveToElement();
+            public override bool MoveToFirstAttribute() => _inner.MoveToFirstAttribute();
+            public override bool MoveToNextAttribute() => _inner.MoveToNextAttribute();
+            public override bool ReadAttributeValue() => _inner.ReadAttributeValue();
+            public override void ResolveEntity() => _inner.ResolveEntity();
+            public override string ReadInnerXml() => _inner.ReadInnerXml();
+            public override string ReadOuterXml() => _inner.ReadOuterXml();
+            public override XmlReader ReadSubtree() => new DepthLimitingXmlReader(_inner.ReadSubtree(), _maxDepth);
         }
 
         private static DepthLimitingXmlReader CreateSafeReader(string xml)
@@ -149,7 +94,12 @@ namespace XRoadFolkWeb.Features.People
                 CloseInput = true, // dispose underlying StringReader when reader is disposed
             };
 
-            XmlReader inner = XmlReader.Create(new StringReader(xml), settings);
+            // CA2000: Ownership of both XmlReader and StringReader is transferred to the returned DepthLimitingXmlReader,
+            // which disposes the inner reader; CloseInput=true disposes the StringReader as well.
+#pragma warning disable CA2000
+            var stringReader = new StringReader(xml);
+            var inner = XmlReader.Create(stringReader, settings);
+#pragma warning restore CA2000
             return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
@@ -323,55 +273,7 @@ namespace XRoadFolkWeb.Features.People
                     return pairs;
                 }
 
-                void Flatten(XElement el, string path)
-                {
-                    // Fast path: no child elements -> emit leaf value if non-empty
-                    XElement? firstChild = el.Elements().FirstOrDefault();
-                    if (firstChild is null)
-                    {
-                        string? v = el.Value?.Trim();
-                        if (!string.IsNullOrEmpty(v))
-                        {
-                            string key = string.IsNullOrEmpty(path) ? el.Name.LocalName : path;
-                            pairs.Add((key, v));
-                        }
-                        return;
-                    }
-
-                    // Count occurrences of each child name (avoid List + GroupBy allocations)
-                    Dictionary<string, int> counts = new(StringComparer.Ordinal);
-                    foreach (XElement c in el.Elements())
-                    {
-                        string name = c.Name.LocalName;
-                        counts[name] = counts.TryGetValue(name, out int cnt) ? cnt + 1 : 1;
-                    }
-
-                    // Emit children with optional index for duplicates
-                    Dictionary<string, int>? indexes = null;
-                    foreach (XElement c in el.Elements())
-                    {
-                        string name = c.Name.LocalName;
-                        int count = counts[name];
-                        string next;
-                        if (count == 1)
-                        {
-                            next = string.IsNullOrEmpty(path) ? name : path + "." + name;
-                        }
-                        else
-                        {
-                            indexes ??= new Dictionary<string, int>(StringComparer.Ordinal);
-                            int idx = indexes.TryGetValue(name, out int cur) ? cur : 0;
-                            indexes[name] = idx + 1;
-                            next = string.IsNullOrEmpty(path) ? $"{name}[{idx}]" : $"{path}.{name}[{idx}]";
-                        }
-                        Flatten(c, next);
-                    }
-                }
-
-                foreach (XElement child in resp.Elements())
-                {
-                    Flatten(child, "");
-                }
+                FlattenElements(resp, string.Empty, pairs);
             }
             catch (Exception ex)
             {
@@ -379,6 +281,55 @@ namespace XRoadFolkWeb.Features.People
                 // malformed/unsafe XML -> return empty
             }
             return pairs;
+        }
+
+        private static void FlattenElements(XElement el, string path, List<(string, string)> pairs)
+        {
+            XElement? firstChild = el.Elements().FirstOrDefault();
+            if (firstChild is null)
+            {
+                string? v = el.Value?.Trim();
+                if (!string.IsNullOrEmpty(v))
+                {
+                    string key = string.IsNullOrEmpty(path) ? el.Name.LocalName : path;
+                    pairs.Add((key, v));
+                }
+                return;
+            }
+
+            Dictionary<string, int> counts = CountChildNames(el);
+            Dictionary<string, int>? indexes = null;
+            foreach (XElement c in el.Elements())
+            {
+                string name = c.Name.LocalName;
+                int count = counts[name];
+                string next = ComputeNextPath(path, name, count, ref indexes);
+                FlattenElements(c, next, pairs);
+            }
+        }
+
+        private static Dictionary<string, int> CountChildNames(XElement el)
+        {
+            Dictionary<string, int> counts = new(StringComparer.Ordinal);
+            foreach (XElement c in el.Elements())
+            {
+                string name = c.Name.LocalName;
+                counts[name] = counts.TryGetValue(name, out int cnt) ? cnt + 1 : 1;
+            }
+            return counts;
+        }
+
+        private static string ComputeNextPath(string path, string name, int count, ref Dictionary<string, int>? indexes)
+        {
+            if (count == 1)
+            {
+                return string.IsNullOrEmpty(path) ? name : path + "." + name;
+            }
+
+            indexes ??= new Dictionary<string, int>(StringComparer.Ordinal);
+            int idx = indexes.TryGetValue(name, out int cur) ? cur : 0;
+            indexes[name] = idx + 1;
+            return string.IsNullOrEmpty(path) ? $"{name}[{idx}]" : $"{path}.{name}[{idx}]";
         }
 
         public string PrettyFormatXml(string? xml)

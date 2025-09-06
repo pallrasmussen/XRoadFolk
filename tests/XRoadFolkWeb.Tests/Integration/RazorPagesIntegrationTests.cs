@@ -43,7 +43,7 @@ public class RazorPagesIntegrationTests : IClassFixture<WebApplicationFactory<Pr
             HandleCookies = true,
         });
 
-        var content = new FormUrlEncodedContent(new[]
+        using var content = new FormUrlEncodedContent(new[]
         {
             new KeyValuePair<string?, string?>("culture", "en-US"),
             new KeyValuePair<string?, string?>("returnUrl", "/"),
@@ -66,7 +66,7 @@ public class RazorPagesIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         string token = await GetAntiForgeryTokenAsync(client);
         Assert.False(string.IsNullOrWhiteSpace(token));
 
-        var req = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/set-culture");
         req.Headers.Add("RequestVerificationToken", token);
         req.Content = new FormUrlEncodedContent(new[]
         {
@@ -99,12 +99,13 @@ public class RazorPagesIntegrationTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Contains("\"ok\":true", listJson);
 
         // POST clear without antiforgery -> 400
-        var clearBad = await client.PostAsync("/logs/clear", new StringContent(string.Empty, Encoding.UTF8, "application/json"));
+        using var emptyJson = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+        var clearBad = await client.PostAsync("/logs/clear", emptyJson);
         Assert.Equal(HttpStatusCode.BadRequest, clearBad.StatusCode);
 
         // POST clear with antiforgery -> 200 ok
         string token = await GetAntiForgeryTokenAsync(client);
-        var req = new HttpRequestMessage(HttpMethod.Post, "/logs/clear");
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/logs/clear");
         req.Headers.Add("RequestVerificationToken", token);
         req.Content = new StringContent("{}", Encoding.UTF8, "application/json");
         var clearOk = await client.SendAsync(req);

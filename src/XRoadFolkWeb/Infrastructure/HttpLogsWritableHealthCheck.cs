@@ -27,14 +27,11 @@ namespace XRoadFolkWeb.Infrastructure
                 {
                     Directory.CreateDirectory(dir);
                 }
-                var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-                try
+#pragma warning disable MA0004 // await using cannot use ConfigureAwait
+                await using (var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true))
                 {
+#pragma warning restore MA0004
                     await fs.FlushAsync(cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
                 return HealthCheckResult.Healthy($"Writable: {path}");
             }
