@@ -83,11 +83,10 @@
     var t = String(rawName || '');
     var lower = t.toLowerCase();
     if (lower === 'summary') return i18n.Summary || 'Summary';
-    if (lower === 'person') return i18n.Basics || 'Basics';
-    if (lower === 'names') return i18n.Names || 'Names';
-    if (lower === 'name') return i18n.Name || 'Name';
-    if (lower === 'addresses') return 'Addresses';
-    if (lower === 'address') return 'Addresses';
+    if (lower === 'person' || lower === 'basics') return i18n.Basics || 'Basics';
+    if (lower === 'names' || lower === 'name') return i18n.Names || 'Names';
+    if (lower === 'addresses' || lower === 'address') return 'Addresses';
+    if (lower === 'foreignssns' || lower === 'foreignssn' || (lower.includes('foreign') && lower.includes('ssn'))) return 'Foreign SSNs';
     if (lower === 'publicid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
@@ -112,18 +111,20 @@
     if (idx >= segs.length) return '';
 
     var first = segs[idx];
+    function norm(seg){
+      if (/^address(?:es)?$/i.test(seg)) return 'Addresses';
+      if (/^name(?:s)?$/i.test(seg)) return 'Names';
+      if (/^foreignssn(?:s)?$/i.test(seg)) return 'ForeignSsns';
+      return seg;
+    }
+
     if (/^person$/i.test(first)) {
       if (segs.length >= idx + 3) {
-        var child = segs[idx + 1];
-        if (/^address(?:es)?$/i.test(child)) return 'Addresses';
-        if (/^name(?:s)?$/i.test(child)) return 'Names';
-        return child;
+        return norm(segs[idx + 1]);
       }
       return 'Person';
     }
-    if (/^address(?:es)?$/i.test(first)) return 'Addresses';
-    if (/^name(?:s)?$/i.test(first)) return 'Names';
-    return first;
+    return norm(first);
   }
 
   function activateDetailsTab(){
@@ -162,6 +163,7 @@
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
+    if(e.body && on){ e.body.innerHTML=''; }
     if(e.loading){ e.loading.classList.toggle('d-none', !on); }
   }
   function clearPanel(){
@@ -172,6 +174,22 @@
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
     if(e.body){ e.body.innerHTML=''; }
     if(e.loading){ e.loading.classList.add('d-none'); }
+  }
+  function showInfo(message){
+    var e=getPanelEls(); if(!e.sec) return;
+    activateDetailsTab();
+    activatePdDetailsSubTab();
+    e.sec.classList.remove('d-none');
+    if(e.loading){ e.loading.classList.add('d-none'); }
+    if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
+    if(e.body){
+      var div = document.createElement('div');
+      div.className = 'alert alert-info mb-0';
+      div.setAttribute('role','status');
+      div.textContent = message || 'Select a person to view details.';
+      e.body.innerHTML = '';
+      e.body.appendChild(div);
+    }
   }
   function ensureShownAndFocus(){
     var e=getPanelEls(); if(!e.sec) return;
@@ -208,20 +226,25 @@
     }
   }
 
-  function waitForSummaryThenLoadOnce(){
+  function waitForSummaryThenLoadOnceOrInform(){
     try {
       var host = document.getElementById('gpiv-xml-summary');
       if (!host || !window.MutationObserver) {
         var pid0 = findFirstPersonIdFromEmbeddedXml();
         if (pid0) { loadPerson(pid0); }
+        else { showInfo('Select a person to view details.'); }
         return;
       }
+      var informed = false;
       var mo = new MutationObserver(function(){
         var pid = findFirstPersonId();
         if (pid) { try { mo.disconnect(); } catch {} loadPerson(pid); }
+        else if (!informed) { informed = true; try { mo.disconnect(); } catch {} showInfo('Select a person to view details.'); }
       });
       mo.observe(host, { childList: true, subtree: true });
-    } catch {}
+      // Safety timeout in case summary never changes
+      setTimeout(function(){ if (!informed){ try{ mo.disconnect(); }catch{} showInfo('Select a person to view details.'); } }, 800);
+    } catch { showInfo('Select a person to view details.'); }
   }
 
   function defaultRenderPairsGrouped(pairs){
@@ -230,6 +253,7 @@
       if (t === 'summary') return 'bi-list-check';
       if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
       if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
+      if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
       if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
       if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
@@ -294,8 +318,15 @@
       var seg = pickGroupFromKey(k);
       if (/^address(?:es)?$/i.test(seg)) seg = 'Addresses';
       if (/^name(?:s)?$/i.test(seg)) seg = 'Names';
+      if (/^foreignssn(?:s)?$/i.test(seg)) seg = 'ForeignSsns';
       (groups[seg]=groups[seg]||[]).push({k:k,v:v});
     });
+
+    // Ensure ForeignSsns accordion is always present, even when empty
+    if (!Object.prototype.hasOwnProperty.call(groups, 'ForeignSsns')) {
+      groups['ForeignSsns'] = [];
+    }
+
     var keys = Object.keys(groups).sort(function(a,b){
       var al=a.toLowerCase(), bl=b.toLowerCase();
       var ai=al==='summary'?0:(al==='person'?1:2);
@@ -312,21 +343,44 @@
       var item=document.createElement('div'); item.className='accordion-item'; item.setAttribute('data-group', name);
 
       var h2=document.createElement('h2'); h2.className='accordion-header'; h2.id=hid;
-      var btn=document.createElement('button'); btn.className='accordion-button collapsed';
+      var open = false; // always start collapsed
+      var btn=document.createElement('button'); btn.className='accordion-button' + (open ? '' : ' collapsed');
       btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
-      btn.setAttribute('aria-expanded','false'); btn.setAttribute('aria-controls', cid);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.setAttribute('aria-controls', cid);
       var ic = document.createElement('i'); ic.className='bi '+iconClassForPd(name)+' me-2'; ic.setAttribute('aria-hidden','true');
       btn.appendChild(ic); btn.appendChild(document.createTextNode(headerLabelForGroup(name)));
       h2.appendChild(btn);
 
-      var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse';
+      var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse' + (open ? ' show' : '');
       col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
 
       var body=document.createElement('div'); body.className='accordion-body p-0';
 
-      if (name.toLowerCase()==='addresses' || name.toLowerCase()==='address'){
+      var lname = String(name||'').toLowerCase();
+      if (lname==='addresses' || lname==='address'){
         var list = renderAddressesCardList(items);
-        if (list) body.appendChild(list); else body.appendChild(document.createTextNode('')); 
+        if (list) body.appendChild(list); else body.appendChild(document.createTextNode(''));
+      } else if (lname==='foreignssns' || lname==='foreignssn') {
+        if (!items || items.length === 0) {
+          var ph = document.createElement('div');
+          ph.className = 'text-muted small p-2';
+          ph.textContent = (readI18n().NoForeignSsns || 'No foreign SSNs.');
+          body.appendChild(ph);
+        } else {
+          var respWrapF=document.createElement('div'); respWrapF.className='table-responsive';
+          var tableF=document.createElement('table'); tableF.className='table table-sm table-striped align-middle mb-0';
+          var tbF=document.createElement('tbody');
+          items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+            var k=it.k, v=it.v;
+            var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+            var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+            var tr=document.createElement('tr');
+            var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+            var td=document.createElement('td'); td.textContent=v;
+            tr.appendChild(th); tr.appendChild(td); tbF.appendChild(tr);
+          });
+          tableF.appendChild(tbF); respWrapF.appendChild(tableF); body.appendChild(respWrapF);
+        }
       } else {
         var respWrap=document.createElement('div'); respWrap.className='table-responsive';
         var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
@@ -376,7 +430,7 @@
   async function loadPerson(publicId, sourceEl){
     window.lastPid = lastPid = publicId;
     var els = getPanelEls();
-    if(!publicId || !els.body) return;
+    if(!publicId || !els.body) { showInfo('Select a person to view details.'); return; }
 
     var cached = personCache.get(publicId);
     if (cached && cached.details && cached.details.length) {
@@ -387,7 +441,7 @@
       setPdXml(cached.raw || '', cached.pretty || '');
       ensureShownAndFocus();
     } else {
-      clearPanel(); showLoading(true);
+      showLoading(true);
     }
 
     try {
@@ -405,21 +459,16 @@
         return;
       }
 
-      if (!data.details || !data.details.length) {
-        clearPanel();
-        return;
-      }
-
-      personCache.set(publicId, { details: data.details || [], raw: data.raw || '', pretty: data.pretty || '', ts: Date.now() });
+      var details = Array.isArray(data.details) ? data.details : [];
+      personCache.set(publicId, { details: details, raw: data.raw || '', pretty: data.pretty || '', ts: Date.now() });
 
       clearPanel();
       var builder2 = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
-      var acc = builder2(data.details || []);
-      if (acc) els.body.appendChild(acc);
+      var acc = builder2(details);
+      if (acc) els.body.appendChild(acc); else showInfo('No details to display.');
       setPdXml(data.raw || '', data.pretty || '');
       ensureShownAndFocus();
 
-      // Always activate the Details sub-tab when loading person details
       activatePdDetailsSubTab();
 
       if (sourceEl) markSelectedSummaryCard(sourceEl);
@@ -449,7 +498,7 @@
     var wrap = header.parentElement; // .gpiv-person
     if(!wrap) return;
     var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? wrap.dataset.publicId : '') || '';
-    if(pid) loadPerson(pid, header);
+    if(pid) loadPerson(pid, header); else showInfo('Select a person with a valid ID to view details.');
   });
 
   document.addEventListener('keydown', function(e){
@@ -460,18 +509,40 @@
     var wrap = header.parentElement;
     if(!wrap) return;
     var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? (wrap.dataset.PublicId || wrap.dataset.publicId) : '') || '';
-    if(pid) loadPerson(pid, header);
+    if(pid) loadPerson(pid, header); else showInfo('Select a person with a valid ID to view details.');
   });
 
+  // Outer PersonDetails tab click -> load
   document.addEventListener('click', function(e){
     var tabBtn = e.target && e.target.closest && e.target.closest('#gpiv-tab-details-btn');
     if (!tabBtn) return;
     setTimeout(function(){
-      // Ensure loading state is visible immediately; then resolve PID
-      clearPanel(); showLoading(true);
+      var pid = window.lastPid || findFirstPersonId();
+      if (pid) {
+        loadPerson(pid);
+        return;
+      }
+      // No PID yet: render an empty shell so the pane isn't blank
+      clearPanel();
+      var els = getPanelEls();
+      try {
+        var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]);
+        if (els.body && acc) { els.body.appendChild(acc); }
+        ensureShownAndFocus();
+      } catch {}
+      // Keep waiting to auto-load when a person becomes available
+      waitForSummaryThenLoadOnceOrInform();
+    }, 0);
+  });
+
+  // Inner pd-tab-details sub-tab click -> also load
+  document.addEventListener('click', function(e){
+    var innerBtn = e.target && e.target.closest && e.target.closest('#pd-tab-details-btn');
+    if (!innerBtn) return;
+    setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
       if (pid) { loadPerson(pid); }
-      else { waitForSummaryThenLoadOnce(); }
+      else { clearPanel(); var els = getPanelEls(); try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {} ensureShownAndFocus(); waitForSummaryThenLoadOnceOrInform(); }
     }, 0);
   });
 
@@ -535,6 +606,44 @@
       }
     }
   }catch(e){ try{ console.debug('GPIV: initial gpivPublicId load failed', e); }catch{} }
+
+  // Pre-render shell so the Details pane never appears blank
+  function prerenderShell(){
+    try{
+      var els = getPanelEls();
+      if (!els) return;
+      if (els.sec) els.sec.classList.remove('d-none');
+      if (els.body && !els.body.childElementCount) {
+        var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]);
+        if (acc) els.body.appendChild(acc);
+      }
+    }catch{}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', prerenderShell);
+  } else {
+    prerenderShell();
+  }
+
+  // Also react when the tab is actually shown by Bootstrap
+  document.addEventListener('shown.bs.tab', function(e){
+    try{
+      var t = e && e.target ? e.target : null;
+      if (!t) return;
+      var id = t.getAttribute('id') || '';
+      if (id === 'gpiv-tab-details-btn' || id === 'pd-tab-details-btn') {
+        var pid = window.lastPid || findFirstPersonId();
+        if (pid) { loadPerson(pid); }
+        else {
+          clearPanel();
+          var els = getPanelEls();
+          try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {}
+          ensureShownAndFocus();
+          waitForSummaryThenLoadOnceOrInform();
+        }
+      }
+    }catch{}
+  });
 
   function pdToggleAll(open){
     try{
