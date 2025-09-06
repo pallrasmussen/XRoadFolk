@@ -15,7 +15,12 @@
     <RazorCompileOnBuild>true</RazorCompileOnBuild>
     <RazorCompileOnPublish>true</RazorCompileOnPublish>
     <PublishReadyToRun Condition=" '$(Configuration)' == 'Release' ">true</PublishReadyToRun>
-    <PublishTrimmed Condition=" '$(Configuration)' == 'Release' ">false</PublishTrimmed>
+    <!-- Enable trimming in Release builds to catch/link away dead code -->
+    <PublishTrimmed Condition=" '$(Configuration)' == 'Release' ">true</PublishTrimmed>
+    <TrimMode Condition=" '$(Configuration)' == 'Release' ">partial</TrimMode>
+    <TrimmerDefaultAction Condition=" '$(Configuration)' == 'Release' ">link</TrimmerDefaultAction>
+    <!-- Treat trim warnings as errors in CI to expose reflection issues early -->
+    <TrimWarnAsError Condition=" '$(Configuration)' == 'Release' ">true</TrimWarnAsError>
 
     <!-- Ensure RID-specific assets are restored when needed by VS tooling -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -47,15 +52,25 @@
     <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.12.0" />
     <PackageReference Include="Roslynator.Analyzers" Version="4.12.6">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- Add Microsoft code quality analyzers to catch dead/useless code patterns in CI -->
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- Meziantou analyzer for additional rules -->
     <PackageReference Include="Meziantou.Analyzer" Version="2.0.158">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="8.0.8" />
+    <!-- Required for IServiceCollection.AddStackExchangeRedisCache -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
+    <!-- Required for IServiceCollection.AddDistributedSqlServerCache -->
+    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.8" />
   </ItemGroup>
-  <!-- Remove any explicit EmbeddedResource entries to avoid duplicates.
-       The SDK already includes Resources\**\*.resx automatically. -->
+
+  <!-- Optional: keep some ASP.NET assemblies from being trimmed too aggressively (reflection-heavy) -->
+  <ItemGroup Condition=" '$(Configuration)' == 'Release' ">
+    <TrimmerRootAssembly Include="Microsoft.AspNetCore.App" />
+    <TrimmerRootAssembly Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
 </Project>

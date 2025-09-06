@@ -56,7 +56,7 @@ namespace XRoadFolkRaw.Lib
             }
             finally
             {
-                await _gate.WaitAsync().ConfigureAwait(false);
+                await _gate.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
                     if (ReferenceEquals(refresh, _refreshTask))

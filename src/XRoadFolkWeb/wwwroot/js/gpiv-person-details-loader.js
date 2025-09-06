@@ -250,18 +250,6 @@
     }
   }
 
-  // Back-compat: old .gpiv-pid button
-  document.addEventListener('click', function(e){
-    var btn = e.target && e.target.closest && e.target.closest('.gpiv-pid');
-    if(!btn) return;
-    if(e.ctrlKey || e.metaKey) return;
-    e.preventDefault();
-    try { var viewer = document.querySelector('.gpiv-card'); if (viewer && viewer.classList.contains('gpiv-fullscreen')) viewer.classList.remove('gpiv-fullscreen'); } catch {}
-    var pid = btn.getAttribute('data-public-id') || '';
-    if(!pid){ var txt = btn.textContent || ''; var parts = txt.split(':'); pid = parts.length>1 ? parts.slice(1).join(':').trim() : ''; }
-    if(pid) loadPerson(pid, btn);
-  });
-
   // New: click on person header/card to open details
   document.addEventListener('click', function(e){
     var header = e.target && e.target.closest && e.target.closest('.gpiv-person-header');

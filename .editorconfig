@@ -67,11 +67,13 @@ dotnet_diagnostic.MA0051.severity = suggestion
 dotnet_diagnostic.MA0009.severity = suggestion
 # Prefer abstraction over implementation for collections
 dotnet_diagnostic.MA0016.severity = suggestion
-# Use StringComparison overloads (monitor and tighten later)
-dotnet_diagnostic.MA0074.severity = suggestion
+# Use StringComparison overloads (promoted solution-wide)
+dotnet_diagnostic.MA0074.severity = warning
 # Use explicit enum value instead of 0
 dotnet_diagnostic.MA0099.severity = suggestion
-# Use ConfigureAwait(false) when appropriate
+# Use ConfigureAwait(false) when appropriate (global default)
+dotnet_diagnostic.MA0042.severity = suggestion
+# Use Task.ConfigureAwait(false) (global default)
 dotnet_diagnostic.MA0004.severity = suggestion
 # Do not write your own certificate validation method
 dotnet_diagnostic.MA0039.severity = suggestion
@@ -80,6 +82,8 @@ dotnet_diagnostic.MA0039.severity = suggestion
 dotnet_diagnostic.MA0002.severity = warning
 # Use string.Equals instead of == for string comparison
 dotnet_diagnostic.MA0006.severity = warning
+# Use a cancellation token when available (global default)
+dotnet_diagnostic.MA0040.severity = suggestion
 
 # C# compiler diagnostics adjustments
 # Hiding inherited member
@@ -93,9 +97,8 @@ dotnet_diagnostic.CS8604.severity = error
 
 # Roslynator / Meziantou examples
 # Prefer 'ConfigureAwait(false)' in libraries (app code can choose suggestion)
-dotnet_diagnostic.MA0042.severity = suggestion
-# Use a cancellation token when available
-dotnet_diagnostic.MA0040.severity = suggestion
+# (Overridden for library sources below)
+# Use a cancellation token when available (overridden for library sources below)
 
 # Naming rules
 dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
@@ -125,6 +128,12 @@ indent_size = 2
 [*.{yml,yaml}]
 indent_style = space
 indent_size = 2
+
+# Enforce ConfigureAwait / Task.ConfigureAwait across the entire web project
+[src/XRoadFolkWeb/**]
+dotnet_diagnostic.MA0004.severity = warning
+[src/XRoadFolkWeb/**]
+dotnet_diagnostic.MA0042.severity = warning
 
 # Phase enforcement: treat MA0051 as warning for key refactored files
 [src/XRoadFolkWeb/Extensions/WebApplicationExtensions.cs]
@@ -168,3 +177,11 @@ dotnet_diagnostic.IDE0011.severity = warning
 dotnet_diagnostic.MA0074.severity = warning
 [src/XRoadFolkRaw.Lib/TokenHelper.cs]
 dotnet_diagnostic.MA0074.severity = warning
+
+# Library-specific tightening: enforce ConfigureAwait and CancellationToken usage
+[src/XRoadFolkRaw.Lib/**]
+dotnet_diagnostic.MA0004.severity = warning
+[src/XRoadFolkRaw.Lib/**]
+dotnet_diagnostic.MA0042.severity = warning
+[src/XRoadFolkRaw.Lib/**]
+dotnet_diagnostic.MA0040.severity = warning

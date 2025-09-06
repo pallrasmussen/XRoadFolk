@@ -386,15 +386,23 @@ namespace XRoadFolkWeb.Infrastructure
 
             LogFileRolling.RollIfNeeded(path, _store.MaxFileBytes, _store.MaxRolls, _store.Logger);
 
-            using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-            using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            foreach (LogEntry e in batch)
+            var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+            var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            try
             {
-                string line = LogLineFormatter.FormatLine(e);
-                await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
+                foreach (LogEntry e in batch)
+                {
+                    string line = LogLineFormatter.FormatLine(e);
+                    await sw.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
+                }
+                await sw.FlushAsync(ct).ConfigureAwait(false);
+                await fs.FlushAsync(ct).ConfigureAwait(false);
             }
-            await sw.FlushAsync(ct).ConfigureAwait(false);
-            await fs.FlushAsync(ct).ConfigureAwait(false);
+            finally
+            {
+                try { await sw.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
         }
 
         [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "Error writing HTTP log batch to file")]

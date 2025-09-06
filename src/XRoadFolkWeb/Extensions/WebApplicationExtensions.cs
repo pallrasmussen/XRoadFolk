@@ -134,7 +134,7 @@ namespace XRoadFolkWeb.Extensions
                     }
                     return Task.CompletedTask;
                 });
-                await next();
+                await next().ConfigureAwait(false);
             });
         }
 
@@ -180,7 +180,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 bool record = !_firstRequestRecorded && HttpMethods.IsGet(ctx.Request.Method);
                 long start = record ? Stopwatch.GetTimestamp() : 0;
-                await next();
+                await next().ConfigureAwait(false);
                 if (record)
                 {
                     _firstRequestRecorded = true;
@@ -286,7 +286,7 @@ namespace XRoadFolkWeb.Extensions
                     return Task.CompletedTask;
                 });
 
-                await next();
+                await next().ConfigureAwait(false);
             });
         }
 
@@ -306,7 +306,7 @@ namespace XRoadFolkWeb.Extensions
             }
             if (!headers.ContainsKey("Permissions-Policy"))
             {
-                headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
+                headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), (), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
             }
             if (!headers.ContainsKey("Cross-Origin-Opener-Policy"))
             {
@@ -354,7 +354,7 @@ namespace XRoadFolkWeb.Extensions
                     ctx.Response.Headers.Expires = "0";
                 }
 
-                await next();
+                await next().ConfigureAwait(false);
             });
         }
 
@@ -384,11 +384,11 @@ namespace XRoadFolkWeb.Extensions
                             string type = WebUtility.HtmlEncode(ex.GetType().FullName ?? ex.GetType().Name);
                             string stack = WebUtility.HtmlEncode(ex.StackTrace ?? "");
                             string html = $"<!doctype html><html><head><title>Error</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>{msg}</h1><p><strong>Type:</strong> {type}</p><p><strong>Trace Id:</strong> {traceId}</p><pre style=\"white-space:pre-wrap;\">{stack}</pre></body></html>";
-                            await context.Response.WriteAsync(html);
+                            await context.Response.WriteAsync(html).ConfigureAwait(false);
                         }
                         else
                         {
-                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>");
+                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>").ConfigureAwait(false);
                         }
                     }
                     else
@@ -411,7 +411,7 @@ namespace XRoadFolkWeb.Extensions
                                 inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
                             };
                         }
-                        await context.Response.WriteAsJsonAsync(problem);
+                        await context.Response.WriteAsJsonAsync(problem).ConfigureAwait(false);
                     }
                 });
             });
@@ -448,7 +448,7 @@ namespace XRoadFolkWeb.Extensions
                         _logHttpRequest(reqLog, method, safePath, arg4: null);
                     }
 
-                    await next();
+                    await next().ConfigureAwait(false);
                 });
             }
             else
@@ -505,7 +505,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 try
                 {
-                    await af.ValidateRequestAsync(ctx);
+                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
                 }
                 catch (AntiforgeryValidationException)
                 {
@@ -607,7 +607,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 try
                 {
-                    await af.ValidateRequestAsync(ctx);
+                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
                 }
                 catch (AntiforgeryValidationException)
                 {
@@ -630,7 +630,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 try
                 {
-                    await af.ValidateRequestAsync(ctx);
+                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
                 }
                 catch (AntiforgeryValidationException)
                 {
@@ -682,15 +682,15 @@ namespace XRoadFolkWeb.Extensions
                 (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
                 try
                 {
-                    await foreach (LogEntry entry in reader.ReadAllAsync(ct))
+                    await foreach (LogEntry entry in reader.ReadAllAsync(ct).ConfigureAwait(false))
                     {
                         if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
                         string json = System.Text.Json.JsonSerializer.Serialize(entry);
-                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-                        await ctx.Response.Body.FlushAsync(ct);
+                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct).ConfigureAwait(false);
+                        await ctx.Response.Body.FlushAsync(ct).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException)
@@ -737,7 +737,7 @@ namespace XRoadFolkWeb.Extensions
 
                 using (scopeLogger.BeginScope(scope))
                 {
-                    await next();
+                    await next().ConfigureAwait(false);
                 }
             });
         }

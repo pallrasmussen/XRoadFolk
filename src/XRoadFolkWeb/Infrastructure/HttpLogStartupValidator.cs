@@ -21,11 +21,11 @@ namespace XRoadFolkWeb.Infrastructure
             _log = log;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             if (!_opts.PersistToFile || string.IsNullOrWhiteSpace(_opts.FilePath))
             {
-                return Task.CompletedTask;
+                return;
             }
 
             try
@@ -38,8 +38,15 @@ namespace XRoadFolkWeb.Infrastructure
                 }
 
                 // Try to open or create the file to validate write permissions
-                using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-                fs.Flush();
+                var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+                try
+                {
+                    await fs.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
 
                 if (!_env.IsDevelopment())
                 {
@@ -50,8 +57,6 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 _log.LogError(ex, "HttpLogs: Unable to create or write to '{Path}'. File persistence may not work.", _opts.FilePath);
             }
-
-            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

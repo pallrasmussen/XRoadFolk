@@ -12,11 +12,11 @@ namespace XRoadFolkWeb.Infrastructure
             _opts = opts.Value;
         }
 
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
             if (!_opts.PersistToFile || string.IsNullOrWhiteSpace(_opts.FilePath))
             {
-                return Task.FromResult(HealthCheckResult.Healthy("HttpLogs persistence disabled"));
+                return HealthCheckResult.Healthy("HttpLogs persistence disabled");
             }
 
             try
@@ -27,13 +27,20 @@ namespace XRoadFolkWeb.Infrastructure
                 {
                     Directory.CreateDirectory(dir);
                 }
-                using var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-                fs.Flush();
-                return Task.FromResult(HealthCheckResult.Healthy($"Writable: {path}"));
+                var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+                try
+                {
+                    await fs.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
+                }
+                return HealthCheckResult.Healthy($"Writable: {path}");
             }
             catch (Exception ex)
             {
-                return Task.FromResult(HealthCheckResult.Unhealthy("Cannot write HttpLogs file", ex));
+                return HealthCheckResult.Unhealthy("Cannot write HttpLogs file", ex);
             }
         }
     }

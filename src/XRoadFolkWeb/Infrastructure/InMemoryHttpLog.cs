@@ -215,6 +215,27 @@ namespace XRoadFolkWeb.Infrastructure
             }
         }
 
+        private static async Task AppendLinesAsync(string path, long maxBytes, int maxRolls, ILogger? logger, List<string> batch, CancellationToken ct)
+        {
+            LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, logger);
+            var fs = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
+            var sw = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            try
+            {
+                foreach (string l in batch)
+                {
+                    await sw.WriteAsync(l.AsMemory(), ct).ConfigureAwait(false);
+                }
+                await sw.FlushAsync(ct).ConfigureAwait(false);
+                await fs.FlushAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                try { await sw.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await fs.DisposeAsync().ConfigureAwait(false); } catch { }
+            }
+        }
+
         private static async Task FileWriterLoopAsync(ChannelReader<string> reader, string path, long maxBytes, int maxRolls, ILogger? logger, CancellationToken ct)
         {
             List<string> batch = new(capacity: 512);
@@ -224,11 +245,9 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 try
                 {
-                    // Wait for data
                     if (!await reader.WaitToReadAsync(ct).ConfigureAwait(false))
                     {
-                        // Channel completed; exit
-                        break;
+                        break; // Channel completed; exit
                     }
 
                     // Read up to a batch
@@ -248,16 +267,7 @@ namespace XRoadFolkWeb.Infrastructure
                         continue;
                     }
 
-                    // Roll if needed and append batch asynchronously (UTF-8 without BOM)
-                    LogFileRolling.RollIfNeeded(path, maxBytes, maxRolls, logger);
-                    using FileStream fs = new(path, FileMode.Append, FileAccess.Write, FileShare.Read, bufferSize: 4096, useAsync: true);
-                    using StreamWriter sw = new(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-                    foreach (string l in batch)
-                    {
-                        await sw.WriteAsync(l.AsMemory(), ct).ConfigureAwait(false);
-                    }
-                    await sw.FlushAsync(ct).ConfigureAwait(false);
-                    await fs.FlushAsync(ct).ConfigureAwait(false);
+                    await AppendLinesAsync(path, maxBytes, maxRolls, logger, batch, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -265,7 +275,6 @@ namespace XRoadFolkWeb.Infrastructure
                 }
                 catch (Exception ex)
                 {
-                    // Report errors using provided logger then continue
                     logger?.LogError(ex, "InMemoryHttpLog file writer error");
                     await Task.Delay(flushIntervalMs, ct).ConfigureAwait(false);
                 }

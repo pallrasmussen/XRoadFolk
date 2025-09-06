@@ -389,13 +389,12 @@
       try {
         if (!publicId) return;
         updateView();
-        var badges = qsa('.gpiv-pid', summaryHost);
-        for (var i = 0; i < badges.length; i++) {
-          var pidAttr = badges[i].getAttribute('data-public-id') || '';
-          if (pidAttr === publicId || (badges[i].textContent || '').indexOf(publicId) >= 0) {
-            var wrap = badges[i];
-            while (wrap && wrap !== summaryHost && !wrap.classList.contains('border')) wrap = wrap.parentElement;
-            if (wrap && wrap.scrollIntoView) { wrap.scrollIntoView({ block: 'center' }); wrap.classList.add('gpiv-highlight'); setTimeout(function () { wrap.classList.remove('gpiv-highlight'); }, 1500); }
+        // Prefer modern cards rendered with data-public-id
+        var cards = qsa('.gpiv-person[data-public-id]', summaryHost);
+        for (var i = 0; i < cards.length; i++) {
+          var pidAttr = cards[i].getAttribute('data-public-id') || (cards[i].dataset ? cards[i].dataset.publicId : '');
+          if (pidAttr === publicId) {
+            if (cards[i].scrollIntoView) { cards[i].scrollIntoView({ block: 'center' }); cards[i].classList.add('gpiv-highlight'); setTimeout(function (el) { return function(){ el.classList.remove('gpiv-highlight'); }; }(cards[i]), 1500); }
             break;
           }
         }
