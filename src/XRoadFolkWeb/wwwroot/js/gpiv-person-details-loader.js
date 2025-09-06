@@ -40,6 +40,36 @@
     }catch{ return {}; }
   }
 
+  function parseFirstPublicIdFromXmlText(xmlText){
+    try{
+      if (!xmlText || !xmlText.trim()) return '';
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(xmlText, 'application/xml');
+      var err = doc.querySelector('parsererror'); if (err) return '';
+      var all = doc.getElementsByTagName('*');
+      var firstPerson = null;
+      for (var i=0;i<all.length;i++){ if (all[i].localName === 'PersonPublicInfo') { firstPerson = all[i]; break; } }
+      if (!firstPerson){
+        for (var j=0;j<all.length;j++){ if (all[j].localName === 'Person') { firstPerson = all[j]; break; } }
+      }
+      if (!firstPerson) return '';
+      var kids = firstPerson.getElementsByTagName('*');
+      var pid = '';
+      for (var k=0;k<kids.length;k++){ var ln = kids[k].localName; if (ln === 'PublicId' || ln === 'PersonId'){ pid = (kids[k].textContent||'').trim(); if(pid){ break; } } }
+      return pid || '';
+    }catch{ return ''; }
+  }
+
+  function findFirstPersonIdFromEmbeddedXml(){
+    try{
+      var rawEl = document.getElementById('gpiv-raw-json');
+      var prettyEl = document.getElementById('gpiv-pretty-json');
+      var raw = rawEl ? JSON.parse(rawEl.textContent||'""') : '';
+      var pretty = prettyEl ? JSON.parse(prettyEl.textContent||'""') : '';
+      return parseFirstPublicIdFromXmlText(raw || pretty || '');
+    }catch{ return ''; }
+  }
+
   function prettify(name){
     var s = String(name || '');
     s = s.replace(/[_\-]+/g,' ');
@@ -56,6 +86,8 @@
     if (lower === 'person') return i18n.Basics || 'Basics';
     if (lower === 'names') return i18n.Names || 'Names';
     if (lower === 'name') return i18n.Name || 'Name';
+    if (lower === 'addresses') return 'Addresses';
+    if (lower === 'address') return 'Addresses';
     if (lower === 'publicid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
@@ -63,18 +95,35 @@
   }
 
   function pickGroupFromKey(key){
-    var k = String(key || '');
-    var dot = k.indexOf('.');
-    var first = dot >= 0 ? k.slice(0, dot) : k;
-    var rest = dot >= 0 ? k.slice(dot + 1) : '';
-    function stripIndex(s){ var b=s.indexOf('['); return b>=0 ? s.slice(0,b) : s; }
-    var fLower = first.toLowerCase();
-    if (rest && (fLower.endsWith('response') || fLower.endsWith('result'))){
-      var dot2 = rest.indexOf('.');
-      var second = dot2 >= 0 ? rest.slice(0, dot2) : rest;
-      return stripIndex(second || first);
+    var raw = String(key || '');
+    if (!raw) return '';
+    var parts = raw.split('.');
+    var segs = [];
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i] || '';
+      var b = p.indexOf('[');
+      if (b >= 0) p = p.slice(0, b);
+      p = p.trim();
+      if (p) segs.push(p);
     }
-    return stripIndex(first);
+    if (segs.length === 0) return '';
+    var idx = 0;
+    if (/(?:response|result)$/i.test(segs[0])) idx = 1;
+    if (idx >= segs.length) return '';
+
+    var first = segs[idx];
+    if (/^person$/i.test(first)) {
+      if (segs.length >= idx + 3) {
+        var child = segs[idx + 1];
+        if (/^address(?:es)?$/i.test(child)) return 'Addresses';
+        if (/^name(?:s)?$/i.test(child)) return 'Names';
+        return child;
+      }
+      return 'Person';
+    }
+    if (/^address(?:es)?$/i.test(first)) return 'Addresses';
+    if (/^name(?:s)?$/i.test(first)) return 'Names';
+    return first;
   }
 
   function activateDetailsTab(){
@@ -99,10 +148,8 @@
     try{
       var els = getPanelEls();
       if (!els.pdDetailsBtn || !els.pdDetailsPane) return;
-      // deactivate all pd sub-tabs
       [els.pdDetailsBtn, els.pdRawBtn, els.pdPrettyBtn].forEach(function(b){ if(!b) return; b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
       [els.pdDetailsPane, els.pdRawPane, els.pdPrettyPane].forEach(function(p){ if(!p) return; p.classList.remove('show','active'); });
-      // activate details sub-tab
       els.pdDetailsBtn.classList.add('active');
       els.pdDetailsBtn.setAttribute('aria-selected','true');
       els.pdDetailsPane.classList.add('show','active');
@@ -152,15 +199,23 @@
       var host = document.getElementById('gpiv-xml-summary');
       if (!host) return '';
       var el = host.querySelector('[data-public-id], [data-publicid]');
-      if (!el) return '';
-      return el.getAttribute('data-public-id') || el.getAttribute('data-publicid') || (el.dataset ? (el.dataset.publicId || el.dataset.publicid || '') : '');
-    } catch { return ''; }
+      if (el) {
+        return el.getAttribute('data-public-id') || el.getAttribute('data-publicid') || (el.dataset ? (el.dataset.publicId || el.dataset.publicid || '') : '');
+      }
+      return findFirstPersonIdFromEmbeddedXml();
+    } catch {
+      return '';
+    }
   }
 
   function waitForSummaryThenLoadOnce(){
     try {
       var host = document.getElementById('gpiv-xml-summary');
-      if (!host || !window.MutationObserver) return;
+      if (!host || !window.MutationObserver) {
+        var pid0 = findFirstPersonIdFromEmbeddedXml();
+        if (pid0) { loadPerson(pid0); }
+        return;
+      }
       var mo = new MutationObserver(function(){
         var pid = findFirstPersonId();
         if (pid) { try { mo.disconnect(); } catch {} loadPerson(pid); }
@@ -169,22 +224,14 @@
     } catch {}
   }
 
-  function ensureDefaultPersonLoaded(){
-    var els = getPanelEls(); if(!els.body) return;
-    if (els.body.children && els.body.children.length > 0) { ensureShownAndFocus(); return; }
-    var pid = window.lastPid || findFirstPersonId();
-    if (pid) { loadPerson(pid); }
-    else { waitForSummaryThenLoadOnce(); }
-  }
-
   function defaultRenderPairsGrouped(pairs){
     function iconClassForPd(name){
       var t = String(name || '').toLowerCase();
       if (t === 'summary') return 'bi-list-check';
       if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
+      if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
       if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
-      if (t.includes('address') || t.includes('resid') || t.includes('domic') || t.includes('location') || t.includes('geo') || t.includes('place')) return 'bi-geo-alt';
       if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
       if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation') || t.includes('employer')) return 'bi-briefcase';
       if (t.includes('education') || t.includes('school') || t.includes('study') || t.includes('degree')) return 'bi-mortarboard';
@@ -198,52 +245,105 @@
       return 'bi-list-ul';
     }
 
+    function stripIndex(s){ var b = s.indexOf('['); return b>=0 ? s.slice(0,b) : s; }
+    function parseAddressKey(k){
+      var parts = String(k||'').split('.');
+      var pos = -1; var idxVal = null;
+      for (var i=0;i<parts.length;i++){
+        var raw = parts[i]; var seg = stripIndex(raw);
+        if (/^addresses?$/i.test(seg)) { pos = i; var m = raw.match(/\[(\d+)\]/); if (m) idxVal = (parseInt(m[1],10) || 0) + 1; break; }
+      }
+      if (pos < 0) return null;
+      if (idxVal == null) idxVal = 1;
+      var last = stripIndex(parts[parts.length-1] || '');
+      return { index: idxVal, field: last };
+    }
+
+    function renderAddressesCardList(items){
+      var groups = {};
+      (items||[]).forEach(function(it){
+        var parsed = parseAddressKey(it.k);
+        if (!parsed) return;
+        (groups[parsed.index] = groups[parsed.index] || []).push({ field: parsed.field, value: it.v });
+      });
+      var ids = Object.keys(groups).map(function(x){ return parseInt(x,10)||0; }).sort(function(a,b){ return a-b; });
+      if (!ids.length) return null;
+      var list = document.createElement('div'); list.className='d-flex flex-column gap-2';
+      ids.forEach(function(idx){
+        var card = document.createElement('div'); card.className='p-2 border rounded';
+        var title = document.createElement('div'); title.className='small text-muted mb-1'; title.textContent = 'Address #' + idx;
+        card.appendChild(title);
+        var respWrap=document.createElement('div'); respWrap.className='table-responsive';
+        var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
+        var tb=document.createElement('tbody');
+        var rows = groups[idx].slice().sort(function(a,b){ return a.field.localeCompare(b.field); });
+        rows.forEach(function(r){
+          var tr=document.createElement('tr');
+          var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=r.field;
+          var td=document.createElement('td'); td.textContent=r.value;
+          tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+        });
+        table.appendChild(tb); respWrap.appendChild(table); card.appendChild(respWrap); list.appendChild(card);
+      });
+      return list;
+    }
+
     var groups = {};
     (pairs||[]).forEach(function(p){
       var k=p.key||'', v=p.value||'';
       var seg = pickGroupFromKey(k);
+      if (/^address(?:es)?$/i.test(seg)) seg = 'Addresses';
+      if (/^name(?:s)?$/i.test(seg)) seg = 'Names';
       (groups[seg]=groups[seg]||[]).push({k:k,v:v});
     });
     var keys = Object.keys(groups).sort(function(a,b){
-      var ai=a.toLowerCase()==='summary'?0:1, bi=b.toLowerCase()==='summary'?0:1;
+      var al=a.toLowerCase(), bl=b.toLowerCase();
+      var ai=al==='summary'?0:(al==='person'?1:2);
+      var bi=bl==='summary'?0:(bl==='person'?1:2);
       return (ai-bi)||a.localeCompare(b);
     });
     var accId='pd-acc-'+Date.now();
     var acc=document.createElement('div'); acc.className='accordion'; acc.id=accId;
 
     keys.forEach(function(name, gi){
-      var items=groups[name].slice().sort(function(x,y){ return x.k.localeCompare(y.k); });
+      var items=groups[name].slice();
       var hid=accId+'-h-'+gi, cid=accId+'-c-'+gi;
 
       var item=document.createElement('div'); item.className='accordion-item'; item.setAttribute('data-group', name);
 
       var h2=document.createElement('h2'); h2.className='accordion-header'; h2.id=hid;
-      var btn=document.createElement('button'); btn.className='accordion-button'+(name.toLowerCase()==='summary'?'':' collapsed');
+      var btn=document.createElement('button'); btn.className='accordion-button collapsed';
       btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
-      btn.setAttribute('aria-expanded', name.toLowerCase()==='summary'?'true':'false'); btn.setAttribute('aria-controls', cid);
+      btn.setAttribute('aria-expanded','false'); btn.setAttribute('aria-controls', cid);
       var ic = document.createElement('i'); ic.className='bi '+iconClassForPd(name)+' me-2'; ic.setAttribute('aria-hidden','true');
       btn.appendChild(ic); btn.appendChild(document.createTextNode(headerLabelForGroup(name)));
       h2.appendChild(btn);
 
-      var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse'+(name.toLowerCase()==='summary'?' show':'').trim();
+      var col=document.createElement('div'); col.id=cid; col.className='accordion-collapse collapse';
       col.setAttribute('aria-labelledby', hid); col.setAttribute('data-bs-parent','#'+accId);
 
       var body=document.createElement('div'); body.className='accordion-body p-0';
-      var respWrap=document.createElement('div'); respWrap.className='table-responsive';
-      var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
-      var tb=document.createElement('tbody');
 
-      items.forEach(function(it){
-        var k=it.k, v=it.v;
-        var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
-        var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
-        var tr=document.createElement('tr');
-        var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
-        var td=document.createElement('td'); td.textContent=v;
-        tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
-      });
+      if (name.toLowerCase()==='addresses' || name.toLowerCase()==='address'){
+        var list = renderAddressesCardList(items);
+        if (list) body.appendChild(list); else body.appendChild(document.createTextNode('')); 
+      } else {
+        var respWrap=document.createElement('div'); respWrap.className='table-responsive';
+        var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
+        var tb=document.createElement('tbody');
+        items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+          var k=it.k, v=it.v;
+          var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+          var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+          var tr=document.createElement('tr');
+          var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+          var td=document.createElement('td'); td.textContent=v;
+          tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+        });
+        table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap);
+      }
 
-      table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap); col.appendChild(body); item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
+      col.appendChild(body); item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
     });
     return acc;
   }
@@ -359,14 +459,20 @@
     e.preventDefault();
     var wrap = header.parentElement;
     if(!wrap) return;
-    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? wrap.dataset.PublicId || wrap.dataset.publicId : '') || '';
+    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? (wrap.dataset.PublicId || wrap.dataset.publicId) : '') || '';
     if(pid) loadPerson(pid, header);
   });
 
   document.addEventListener('click', function(e){
     var tabBtn = e.target && e.target.closest && e.target.closest('#gpiv-tab-details-btn');
     if (!tabBtn) return;
-    setTimeout(ensureDefaultPersonLoaded, 0);
+    setTimeout(function(){
+      // Ensure loading state is visible immediately; then resolve PID
+      clearPanel(); showLoading(true);
+      var pid = window.lastPid || findFirstPersonId();
+      if (pid) { loadPerson(pid); }
+      else { waitForSummaryThenLoadOnce(); }
+    }, 0);
   });
 
   document.addEventListener('click', function(e){
