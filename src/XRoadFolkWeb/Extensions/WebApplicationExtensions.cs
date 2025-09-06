@@ -384,11 +384,11 @@ namespace XRoadFolkWeb.Extensions
                             string type = WebUtility.HtmlEncode(ex.GetType().FullName ?? ex.GetType().Name);
                             string stack = WebUtility.HtmlEncode(ex.StackTrace ?? "");
                             string html = $"<!doctype html><html><head><title>Error</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>{msg}</h1><p><strong>Type:</strong> {type}</p><p><strong>Trace Id:</strong> {traceId}</p><pre style=\"white-space:pre-wrap;\">{stack}</pre></body></html>";
-                            await context.Response.WriteAsync(html).ConfigureAwait(false);
+                            await context.Response.WriteAsync(html, context.RequestAborted).ConfigureAwait(false);
                         }
                         else
                         {
-                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>").ConfigureAwait(false);
+                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>", context.RequestAborted).ConfigureAwait(false);
                         }
                     }
                     else
@@ -411,7 +411,7 @@ namespace XRoadFolkWeb.Extensions
                                 inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
                             };
                         }
-                        await context.Response.WriteAsJsonAsync(problem).ConfigureAwait(false);
+                        await context.Response.WriteAsJsonAsync(problem, cancellationToken: context.RequestAborted).ConfigureAwait(false);
                     }
                 });
             });

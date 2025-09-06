@@ -111,7 +111,7 @@ namespace XRoadFolkWeb.Infrastructure
                 SingleReader = true,
                 SingleWriter = false,
             });
-            _ingestTask = Task.Run(() => IngestLoopAsync(_ingestChannel.Reader, _ingestCts.Token));
+            _ingestTask = Task.Run(() => IngestLoopAsync(_ingestChannel.Reader, _ingestCts.Token), _ingestCts.Token);
 
             // Register per-instance queue length provider
             _metricsHandle = InMemoryLogMetrics.RegisterProvider(() => Volatile.Read(ref _size));
@@ -134,7 +134,7 @@ namespace XRoadFolkWeb.Infrastructure
                     SingleWriter = false,
                 });
                 _writerCts = new CancellationTokenSource();
-                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls, _logger, _writerCts.Token));
+                _fileWriterTask = Task.Run(() => FileWriterLoopAsync(_fileChannel.Reader, _filePath!, _maxFileBytes, _maxRolls, _logger, _writerCts.Token), _writerCts.Token);
             }
         }
 
