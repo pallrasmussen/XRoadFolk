@@ -264,6 +264,7 @@
       if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
       if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
       if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
+      if (t === 'ssns' || t === 'ssn') return 'bi-passport';
       if (t === 'juridicalparents' || t === 'juridicalparent') return 'bi-people-fill';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
       if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
