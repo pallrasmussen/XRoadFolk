@@ -1,9 +1,12 @@
 @using System.Text.Json
 @using XRoadFolkWeb.Extensions
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
+@inject XRoadFolkWeb.Infrastructure.ResponseViewerOptions RespOpts
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
+    bool showRaw = RespOpts?.ShowRawXml ?? true;
+    bool showPretty = RespOpts?.ShowPrettyXml ?? true;
 
     var gpivI18n = new {
         NoXmlToDisplay = L["NoXmlToDisplay"].Value,
@@ -21,7 +24,15 @@
         Collapse = L["Collapse"].Value,
         ExtendedSearch = L["ExtendedSearch"].Value,
         Fullscreen = L["Fullscreen"].Value,
-        ToggleFullscreen = L["ToggleFullscreen"].Value
+        ToggleFullscreen = L["ToggleFullscreen"].Value,
+        Summary = L["Summary"].Value,
+        RawXml = L["RawXml"].Value,
+        PrettyXml = L["PrettyXml"].Value,
+        Copy = L["Copy"].Value,
+        Copied = L["Copied"].Value,
+        Download = L["Download"].Value,
+        PersonDetails = L["PersonDetails"].Value,
+        Loading = L["Loading"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
@@ -68,6 +79,13 @@
         border-bottom: none;
         padding-block: .25rem;
     }
+
+    /* Tabs */
+    .gpiv-tab-actions { gap: .5rem; }
+    .gpiv-pre { white-space: pre; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: .85rem; padding: .75rem; border-radius: .25rem; background: var(--bs-tertiary-bg, #f8f9fa); }
+    @@media (prefers-color-scheme: dark) {
+      .gpiv-pre { background: rgba(255,255,255,.05); color: inherit; }
+    }
 </style>
 
 <div class="card shadow-sm mb-4 gpiv-card">
@@ -76,14 +94,82 @@
     </div>
 
     <div class="card-body">
-        <!-- Toolbar: no buttons now (Fullscreen moved next to Expand/Collapse) -->
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
           <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
-          <div class="d-flex flex-wrap gap-2 align-items-center"><!-- empty --></div>
+          <div class="d-flex flex-wrap gap-2 align-items-center"><!-- reserved for future --></div>
         </div>
 
-        <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
-        <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 small p-3 border rounded"></div>
+        <ul class="nav nav-tabs small" id="gpiv-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@L["Summary"]</button>
+          </li>
+          @if (showRaw)
+          {
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="gpiv-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-raw" type="button" role="tab" aria-controls="gpiv-tab-raw" aria-selected="false">@L["RawXml"]</button>
+          </li>
+          }
+          @if (showPretty)
+          {
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@L["PrettyXml"]</button>
+          </li>
+          }
+          <li class="nav-item ms-auto" role="presentation">
+            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@L["PersonDetails"]</button>
+          </li>
+        </ul>
+
+        <div class="tab-content border-start border-end border-bottom rounded-bottom p-2 small" id="gpiv-tabs-content" style="min-height:12rem;">
+          <div class="tab-pane fade show active" id="gpiv-tab-summary" role="tabpanel" aria-labelledby="gpiv-tab-summary-btn" tabindex="0">
+            <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
+            <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 p-3 rounded"></div>
+          </div>
+
+          @if (showRaw)
+          {
+          <div class="tab-pane fade" id="gpiv-tab-raw" role="tabpanel" aria-labelledby="gpiv-tab-raw-btn" tabindex="0">
+            <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-raw">@L["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-raw">@L["Download"]</button>
+            </div>
+            <pre class="gpiv-pre" id="gpiv-raw-pre"></pre>
+          </div>
+          }
+
+          @if (showPretty)
+          {
+          <div class="tab-pane fade" id="gpiv-tab-pretty" role="tabpanel" aria-labelledby="gpiv-tab-pretty-btn" tabindex="0">
+            <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@L["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@L["Download"]</button>
+            </div>
+            <pre class="gpiv-pre" id="gpiv-pretty-pre"></pre>
+          </div>
+          }
+
+          <div class="tab-pane fade" id="gpiv-tab-details" role="tabpanel" aria-labelledby="gpiv-tab-details-btn" tabindex="0">
+            <div id="person-details-section" class="card shadow-sm mb-0 person-details d-none" role="region" aria-labelledby="pd-title">
+              <div class="card-body">
+                <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
+                  <h5 id="pd-title" class="card-title mb-0">@L["PersonDetails"]</h5>
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@L["Expand"]</button>
+                    <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@L["Collapse"]</button>
+                    <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@L["Fullscreen"]</button>
+                  </div>
+                </div>
+
+                <div id="person-details-loading" class="d-none" aria-live="polite">
+                  @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
+                </div>
+                <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+
+                <div id="person-details-body"><!-- accordion injected here --></div>
+              </div>
+            </div>
+          </div>
+        </div>
     </div>
 </div>
 
@@ -95,3 +181,29 @@
 <script src="~/js/gpiv-viewer.js" asp-append-version="true" defer></script>
 <!-- Externalized person details loader to avoid inline scripts -->
 <script src="~/js/gpiv-person-details-loader.js" asp-append-version="true" defer></script>
+
+<script nonce="@nonce">
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function text(id){ var el=byId(id); return el? (el.textContent||'') : ''; }
+  function download(name, content){ try{ var blob=new Blob([content||''], { type: 'text/xml;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){ console.error('gpiv: download failed', e);} }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    try{
+      var raw = JSON.parse(text('gpiv-raw-json')) || '';
+      var pretty = JSON.parse(text('gpiv-pretty-json')) || '';
+      var i18n = {};
+      try{ i18n = JSON.parse(text('gpiv-i18n-json')) || {}; }catch{}
+
+      var rawPre = byId('gpiv-raw-pre'); if(rawPre) rawPre.textContent = raw || i18n.NoXmlToDisplay || '';
+      var prettyPre = byId('gpiv-pretty-pre'); if(prettyPre) prettyPre.textContent = pretty || raw || i18n.NoXmlToDisplay || '';
+
+      var copyRaw = byId('gpiv-copy-raw'); if (copyRaw) copyRaw.addEventListener('click', function(){ try{ navigator.clipboard.writeText(raw || ''); copyRaw.textContent = (i18n.Copied||'Copied'); setTimeout(function(){ copyRaw.textContent = (i18n.Copy||'Copy'); }, 1200);}catch{}});
+      var copyPretty = byId('gpiv-copy-pretty'); if (copyPretty) copyPretty.addEventListener('click', function(){ try{ navigator.clipboard.writeText(pretty || raw || ''); copyPretty.textContent = (i18n.Copied||'Copied'); setTimeout(function(){ copyPretty.textContent = (i18n.Copy||'Copy'); }, 1200);}catch{}});
+
+      var dlRaw = byId('gpiv-dl-raw'); if (dlRaw) dlRaw.addEventListener('click', function(){ var name='GetPeoplePublicInfo_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; download(name, raw || ''); });
+      var dlPretty = byId('gpiv-dl-pretty'); if (dlPretty) dlPretty.addEventListener('click', function(){ var name='GetPeoplePublicInfo_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; download(name, pretty || raw || ''); });
+    }catch(e){ console.error('gpiv: tabs init failed', e); }
+  });
+})();
+</script>

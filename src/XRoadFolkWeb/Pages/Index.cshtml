@@ -81,7 +81,7 @@
         </div>
     </div>
 
-    <!-- GetPeoplePublicInfo viewer -->
+    <!-- GetPeoplePublicInfo viewer & Person Details combined -->
     <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
         @if ((Model?.Results?.Count ?? 0) > 0)
         {
@@ -95,35 +95,6 @@
         {
             <div class="alert alert-info" role="status">@L["NoPeopleFound"]</div>
         }
-
-        <!-- GetPerson response (AJAX-filled; kept separate and below the viewer) -->
-        <div id="person-details-section" class="card shadow-sm mb-4 person-details d-none" role="region" aria-labelledby="pd-title">
-          <div class="card-body">
-            <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-              <h5 id="pd-title" class="card-title mb-0">
-                @L["PersonDetails"]
-                @if (!string.IsNullOrWhiteSpace(Model?.SelectedNameSuffix))
-                {
-                    <small class="text-muted ms-2">@Model.SelectedNameSuffix</small>
-                }
-              </h5>
-
-              <div class="d-flex flex-wrap gap-2">
-                <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@L["Expand"]</button>
-                <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@L["Collapse"]</button>
-                <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@L["Fullscreen"]</button>
-              </div>
-            </div>
-
-            <div id="person-details-loading" class="d-none" aria-live="polite">
-              @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = L["Loading"].Value, ["Size"] = "sm", ["Color"] = "text-secondary" })
-            </div>
-            <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
-
-            <div id="person-details-body"><!-- accordion injected here --></div>
-          </div>
-        </div>
-
     </div>
 </div>
 
@@ -140,174 +111,80 @@
     <script src="~/js/validation-letters-only.js"></script>
 
     <script nonce="@nonce">
-  // Expand/Collapse all panels inside GetPerson and robust Fullscreen toggle (Fullscreen API + CSS fallback)
-  document.addEventListener('click', function (e) {
-    if (e.target && e.target.id === 'pd-expand-all') {
-      var panes = document.querySelectorAll('#person-details-section .accordion-collapse');
-      panes.forEach(function (p) { p.classList.add('show'); });
-      var btns = document.querySelectorAll('#person-details-section .accordion-button');
-      btns.forEach(function (b) { b.classList.remove('collapsed'); });
-    }
-    if (e.target && e.target.id === 'pd-collapse-all') {
-      var panes2 = document.querySelectorAll('#person-details-section .accordion-collapse');
-      panes2.forEach(function (p) { p.classList.remove('show'); });
-      var btns2 = document.querySelectorAll('#person-details-section .accordion-button');
-      btns2.forEach(function (b) { b.classList.add('collapsed'); });
-    }
-    var fsBtn = e.target && e.target.closest && e.target.closest('#pd-fullscreen');
-    if (fsBtn) {
-      var sec = document.getElementById('person-details-section');
-      if (!sec) return;
-
-      // Always drop viewer fullscreen before toggling PD fullscreen
-      try { var viewer = document.querySelector('.gpiv-card'); if (viewer) viewer.classList.remove('gpiv-fullscreen'); } catch {}
-
-      try {
-        var apiFull = document.fullscreenElement === sec;
-        var cssFull = sec.classList.contains('pd-fullscreen');
-
-        if (apiFull) {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().catch(function(){ sec.classList.remove('pd-fullscreen'); });
-          } else {
-            sec.classList.remove('pd-fullscreen');
-          }
-          return;
-        }
-        if (cssFull) {
-          sec.classList.remove('pd-fullscreen');
-          return;
-        }
-
-        function enterFs(){
-          if (sec.requestFullscreen) {
-            sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.add('pd-fullscreen'); });
-          } else {
-            sec.classList.add('pd-fullscreen');
-          }
-        }
-
-        if (document.fullscreenElement && document.fullscreenElement !== sec) {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().then(function(){ enterFs(); }).catch(function(){ sec.classList.add('pd-fullscreen'); });
-          } else {
-            sec.classList.add('pd-fullscreen');
-          }
-        } else {
-          enterFs();
-        }
-      } catch (err) {
-        // Fallback toggle
-        sec.classList.toggle('pd-fullscreen');
-      }
-    }
-  });
-
-  // Keep CSS class in sync with DOM fullscreen changes (API only)
-  document.addEventListener('fullscreenchange', function(){
-    var sec = document.getElementById('person-details-section');
-    if (!sec) return;
-    var isFs = document.fullscreenElement === sec;
-    sec.classList.toggle('pd-fullscreen', isFs);
-  });
-    </script>
-
-    <script nonce="@nonce">
-// Enhance the existing appended helper (mask removed)
-(function(){
-  function getToolbarEls() { return { copyJson: document.getElementById('pd-copy-json'), dlJson: document.getElementById('pd-download-json') }; }
-  function pairsToObject(pairs) { var root = {}; (pairs || []).forEach(function(p){ var path = String(p.key || '').split('.'); var curr = root; for (var i=0;i<path.length;i++){ var seg=path[i]; var m=seg.match(/^(.+)[(\[](?:(\d+))[)\]]$/); if(!m){ m=seg.match(/^(.+)\[(\d+)\]$/); } if(m){ var base=m[1], idx=parseInt(m[2],10); curr[base]=curr[base]||[]; curr=curr[base]; curr[idx]=curr[idx]||{}; curr=curr[idx]; } else { if(i===path.length-1){ curr[seg]=p.value; } else { curr[seg]=curr[seg]||{}; curr=curr[seg]; } } } }); return root; }
-  function stateKey(pid){ return 'pd-acc-open:' + pid; }
-  function saveAccState(pid){ try{ if(!pid) return; var open=[]; document.querySelectorAll('#person-details-section .accordion-item').forEach(function(it){ var name=it.getAttribute('data-group')||''; var col=it.querySelector('.accordion-collapse'); if(name && col && col.classList.contains('show')) open.push(name); }); localStorage.setItem(stateKey(pid), JSON.stringify(open)); }catch(e){}
-  function restoreAccState(pid){ try{ if(!pid) return; var raw=localStorage.getItem(stateKey(pid)); if(!raw) return; var open=JSON.parse(raw||'[]'); document.querySelectorAll('#person-details-section .accordion-item').forEach(function(it){ var name=it.getAttribute('data-group')||''; var col=it.querySelector('.accordion-collapse'); var btn=it.querySelector('.accordion-button'); var shouldOpen=open.indexOf(name)>=0; if(col && btn){ col.classList.toggle('show', shouldOpen); btn.classList.toggle('collapsed', !shouldOpen); } }); }catch(e){}
-  var originalRender = window._renderPairsGroupedForPerson || null;
-  function renderPairsWithUX(pairs, pid){ var builder=(originalRender || window.renderPairsGrouped || null); if(!builder){ builder=function(ps){ return (typeof renderPairsGrouped==='function') ? renderPairsGrouped(ps) : document.createTextNode(''); }; } var acc=builder(pairs||[]); setTimeout(function(){ restoreAccState(pid); },0); return acc; }
-  var pdBody=document.getElementById('person-details-body');
-  function rerenderCurrent(){ try{ var pid=window.lastPid||null; if(!pid || !pdBody) return; var cache=(window.personCache and window.personCache.get) ? window.personCache.get(pid) : null; if(!cache or !cache.details) return; pdBody.innerHTML=''; var acc=renderPairsWithUX(cache.details, pid); if(acc) pdBody.appendChild(acc); saveAccState(pid); }catch(e){}
-  var tbe=getToolbarEls();
-  tbe.copyJson && tbe.copyJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var text=JSON.stringify(pairsToObject(cache.details), null, 2); (navigator.clipboard and navigator.clipboard.writeText(text).catch(function(){}) ) || (function(){ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-10000px'; document.body.appendChild(ta); ta.select(); try{ if(document.execCommand) document.execCommand('copy'); }catch(e){} ta.remove(); })(); }catch(e){} });
-  tbe.dlJson && tbe.dlJson.addEventListener('click', function(){ try{ var pid=window.lastPid||null; if(!pid) return; var cache=window.personCache ? window.personCache.get(pid) : null; if(!cache || !cache.details) return; var blob=new Blob([JSON.stringify(pairsToObject(cache.details), null, 2)], { type: 'application/json;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='person_' + pid + '.json'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){} });
-  document.addEventListener('click', function(ev){ var pid=window.lastPid||null; if(!pid) return; var btn=ev.target and ev.target.closest and ev.target.closest('#person-details-section .accordion-button'); if (btn) setTimeout(function(){ saveAccState(pid); }, 0); });
-  window.__pdUx = { renderPairsWithUX: renderPairsWithUX, restoreAccState: restoreAccState, saveAccState: saveAccState, rerenderCurrent: rerenderCurrent };
-  try{ var mo=new MutationObserver(function(){ var pid=window.lastPid||null; if(!pid) return; saveAccState(pid); }); if(pdBody) mo.observe(pdBody, { childList: true }); }catch(e){}
-})();
-    </script>
-
-    <script nonce="@nonce">
-// Clear/hide Person Details immediately on new search submit
-(function(){
-  var form = document.getElementById('gpip-search-form');
-  if (!form) return;
-  form.addEventListener('submit', function(){
-    try{
-      var sec = document.getElementById('person-details-section');
-      var body = document.getElementById('person-details-body');
-      var err = document.getElementById('person-details-error');
-      var loading = document.getElementById('person-details-loading');
-      if (sec) sec.classList.add('d-none');
-      if (body) body.innerHTML='';
-      if (err) { err.classList.add('d-none'); err.textContent=''; }
-      if (loading) loading.classList.add('d-none');
-      window.lastPid = null;
-      if (window.personCache && window.personCache.clear) window.personCache.clear();
+  // Clear/hide Person Details immediately on new search submit
+  (function(){
+    var form = document.getElementById('gpip-search-form');
+    if (!form) return;
+    form.addEventListener('submit', function(){
       try{
-        var url = new URL(window.location.href);
-        url.searchParams.delete('gpivPublicId');
-        history.replaceState(null,'',url.toString());
+        var sec = document.getElementById('person-details-section');
+        var body = document.getElementById('person-details-body');
+        var err = document.getElementById('person-details-error');
+        var loading = document.getElementById('person-details-loading');
+        if (sec) sec.classList.add('d-none');
+        if (body) body.innerHTML='';
+        if (err) { err.classList.add('d-none'); err.textContent=''; }
+        if (loading) loading.classList.add('d-none');
+        window.lastPid = null;
+        if (window.personCache && window.personCache.clear) window.personCache.clear();
+        try{
+          var url = new URL(window.location.href);
+          url.searchParams.delete('gpivPublicId');
+          history.replaceState(null,'',url.toString());
+        }catch{}
       }catch{}
-    }catch{}
-  });
-})();
+    });
+  })();
     </script>
 
     <script nonce="@nonce">
-// Persist and restore Index search form values across Back navigation
-(function(){
-  var form = document.getElementById('gpip-search-form');
-  if (!form) return;
-  var KEY = 'index:formState';
-  var FLAG = 'restoreIndexOnBack';
+  // Persist and restore Index search form values across Back navigation
+  (function(){
+    var form = document.getElementById('gpip-search-form');
+    if (!form) return;
+    var KEY = 'index:formState';
+    var FLAG = 'restoreIndexOnBack';
 
-  function qs(name){ return form.querySelector('[name="'+name+'"]'); }
-  function getState(){
-    return {
-      Ssn: (qs('Ssn') && qs('Ssn').value) || '',
-      FirstName: (qs('FirstName') and qs('FirstName').value) || '',
-      LastName: (qs('LastName') and qs('LastName').value) || '',
-      DateOfBirth: (qs('DateOfBirth') and qs('DateOfBirth').value) || ''
-    };
-  }
-  function setState(s){ if(!s) return; try{
-    if (qs('Ssn')) qs('Ssn').value = s.Ssn || '';
-    if (qs('FirstName')) qs('FirstName').value = s.FirstName || '';
-    if (qs('LastName')) qs('LastName').value = s.LastName || '';
-    if (qs('DateOfBirth')) qs('DateOfBirth').value = s.DateOfBirth || '';
-  }catch(e){ console.debug('Index: setState failed', e); } }
-
-  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){ console.debug('Index: sessionStorage.setItem failed', e); }
-
-  // Restore only when the Back flag is set by the logs pages
-  try{
-    if (sessionStorage.getItem(FLAG) === '1'){
-      var raw = sessionStorage.getItem(KEY) || '{}';
-      var st = {};
-      try{ st = JSON.parse(raw); }catch(e){}
-      setState(st);
-      sessionStorage.removeItem(FLAG);
+    function qs(name){ return form.querySelector('[name="'+name+'"]'); }
+    function getState(){
+      return {
+        Ssn: (qs('Ssn') && qs('Ssn').value) || '',
+        FirstName: (qs('FirstName') && qs('FirstName').value) || '',
+        LastName: (qs('LastName') && qs('LastName').value) || '',
+        DateOfBirth: (qs('DateOfBirth') && qs('DateOfBirth').value) || ''
+      };
     }
-  }catch(e){ console.debug('Index: restore from sessionStorage failed', e); }
+    function setState(s){ if(!s) return; try{
+      if (qs('Ssn')) qs('Ssn').value = s.Ssn || '';
+      if (qs('FirstName')) qs('FirstName').value = s.FirstName || '';
+      if (qs('LastName')) qs('LastName').value = s.LastName || '';
+      if (qs('DateOfBirth')) qs('DateOfBirth').value = s.DateOfBirth || '';
+    }catch(e){ console.debug('Index: setState failed', e); } }
 
-  form.addEventListener('input', save);
-  form.addEventListener('change', save);
-  form.addEventListener('submit', function(ev){
-    // If Clear handler, remove saved state
+    function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){ console.debug('Index: sessionStorage.setItem failed', e); } }
+
+    // Restore only when the Back flag is set by the logs pages
     try{
-      var sub = ev.submitter;
-      var fa = sub and sub.getAttribute and sub.getAttribute('formaction');
-      var isClear = !!(fa and fa.toLowerCase().indexOf('handler=clear')>=0);
-      if (isClear) sessionStorage.removeItem(KEY); else save();
-    }catch(e){ console.debug('Index: submit handler failed', e); }
-  });
-})();
+      if (sessionStorage.getItem(FLAG) === '1'){
+        var raw = sessionStorage.getItem(KEY) || '{}';
+        var st = {};
+        try{ st = JSON.parse(raw); }catch(e){}
+        setState(st);
+        sessionStorage.removeItem(FLAG);
+      }
+    }catch(e){ console.debug('Index: restore from sessionStorage failed', e); }
+
+    form.addEventListener('input', save);
+    form.addEventListener('change', save);
+    form.addEventListener('submit', function(ev){
+      // If Clear handler, remove saved state
+      try{
+        var sub = ev.submitter;
+        var fa = sub && sub.getAttribute && sub.getAttribute('formaction');
+        var isClear = !!(fa && fa.toLowerCase().indexOf('handler=clear')>=0);
+        if (isClear) sessionStorage.removeItem(KEY); else save();
+      }catch(e){ console.debug('Index: submit handler failed', e); }
+    });
+  })();
     </script>
 }

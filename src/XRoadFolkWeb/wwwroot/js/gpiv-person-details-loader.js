@@ -15,14 +15,37 @@
       title: document.querySelector('#person-details-section .card-title')
     };
   }
+
+  function activateDetailsTab(){
+    try{
+      var btn = document.getElementById('gpiv-tab-details-btn');
+      var pane = document.getElementById('gpiv-tab-details');
+      if (!btn || !pane) return;
+      // Deactivate all
+      document.querySelectorAll('#gpiv-tabs button[data-bs-target]').forEach(function(b){
+        b.classList.remove('active');
+        b.setAttribute('aria-selected','false');
+      });
+      document.querySelectorAll('#gpiv-tabs-content .tab-pane').forEach(function(p){
+        p.classList.remove('show','active');
+      });
+      // Activate details
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      pane.classList.add('show','active');
+    }catch(e){ try{ console.debug('GPIV: activateDetailsTab failed', e); }catch{} }
+  }
+
   function showLoading(on){
     var e=getPanelEls(); if(!e.sec) return;
+    activateDetailsTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
     if(e.loading){ e.loading.classList.toggle('d-none', !on); }
   }
   function clearPanel(){
     var e=getPanelEls(); if(!e.sec) return;
+    activateDetailsTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
     if(e.body){ e.body.innerHTML=''; }
@@ -30,6 +53,7 @@
   }
   function ensureShownAndFocus(){
     var e=getPanelEls(); if(!e.sec) return;
+    activateDetailsTab();
     e.sec.classList.remove('d-none');
     if(e.title){
       e.title.setAttribute('tabindex','-1');
@@ -45,6 +69,37 @@
       while (wrap && wrap !== host && !(wrap.classList && wrap.classList.contains('border') && wrap.classList.contains('rounded'))) wrap = wrap.parentElement;
       if (wrap && wrap !== host) wrap.classList.add('gpiv-active-card');
     } catch (e) { try{ console.debug('GPIV: markSelectedSummaryCard failed', e); }catch{} }
+  }
+
+  function findFirstPersonId(){
+    try {
+      var host = document.getElementById('gpiv-xml-summary');
+      if (!host) return '';
+      var el = host.querySelector('[data-public-id], [data-publicid]');
+      if (!el) return '';
+      return el.getAttribute('data-public-id') || el.getAttribute('data-publicid') || (el.dataset ? (el.dataset.publicId || el.dataset.publicid || '') : '');
+    } catch { return ''; }
+  }
+
+  function waitForSummaryThenLoadOnce(){
+    try {
+      var host = document.getElementById('gpiv-xml-summary');
+      if (!host || !window.MutationObserver) return;
+      var mo = new MutationObserver(function(){
+        var pid = findFirstPersonId();
+        if (pid) { try { mo.disconnect(); } catch {} loadPerson(pid); }
+      });
+      mo.observe(host, { childList: true, subtree: true });
+    } catch {}
+  }
+
+  function ensureDefaultPersonLoaded(){
+    var els = getPanelEls(); if(!els.body) return;
+    // If content already present, ensure visible and return
+    if (els.body.children && els.body.children.length > 0) { ensureShownAndFocus(); return; }
+    var pid = window.lastPid || findFirstPersonId();
+    if (pid) { loadPerson(pid); }
+    else { waitForSummaryThenLoadOnce(); }
   }
 
   function defaultRenderPairsGrouped(pairs){
@@ -195,24 +250,106 @@
     }
   }
 
+  // Back-compat: old .gpiv-pid button
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest && e.target.closest('.gpiv-pid');
     if(!btn) return;
     if(e.ctrlKey || e.metaKey) return;
     e.preventDefault();
-    try {
-      var viewer = document.querySelector('.gpiv-card');
-      if (viewer && viewer.classList.contains('gpiv-fullscreen')) viewer.classList.remove('gpiv-fullscreen');
-    } catch {}
+    try { var viewer = document.querySelector('.gpiv-card'); if (viewer && viewer.classList.contains('gpiv-fullscreen')) viewer.classList.remove('gpiv-fullscreen'); } catch {}
     var pid = btn.getAttribute('data-public-id') || '';
-    if(!pid){
-      var txt = btn.textContent || '';
-      var parts = txt.split(':');
-      pid = parts.length>1 ? parts.slice(1).join(':').trim() : '';
-    }
+    if(!pid){ var txt = btn.textContent || ''; var parts = txt.split(':'); pid = parts.length>1 ? parts.slice(1).join(':').trim() : ''; }
     if(pid) loadPerson(pid, btn);
   });
 
+  // New: click on person header/card to open details
+  document.addEventListener('click', function(e){
+    var header = e.target && e.target.closest && e.target.closest('.gpiv-person-header');
+    if(!header) return;
+    if(e.ctrlKey || e.metaKey) return;
+    var wrap = header.parentElement; // .gpiv-person
+    if(!wrap) return;
+    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? wrap.dataset.publicId : '') || '';
+    if(pid) loadPerson(pid, header);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var header = e.target && e.target.closest && e.target.closest('.gpiv-person-header');
+    if(!header) return;
+    e.preventDefault();
+    var wrap = header.parentElement;
+    if(!wrap) return;
+    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? wrap.dataset.publicId : '') || '';
+    if(pid) loadPerson(pid, header);
+  });
+
+  // Populate details when Details tab is clicked, even without selecting a person
+  document.addEventListener('click', function(e){
+    var tabBtn = e.target && e.target.closest && e.target.closest('#gpiv-tab-details-btn');
+    if (!tabBtn) return;
+    // Defer to allow Bootstrap (if present) to toggle classes first
+    setTimeout(ensureDefaultPersonLoaded, 0);
+  });
+
+  // Fullscreen toggle for Person Details panel
+  document.addEventListener('click', function(e){
+    var fsBtn = e.target && e.target.closest && e.target.closest('#pd-fullscreen');
+    if (!fsBtn) return;
+    var sec = document.getElementById('person-details-section');
+    if (!sec) return;
+
+    // Always drop viewer fullscreen before toggling PD fullscreen
+    try { var viewer = document.querySelector('.gpiv-card'); if (viewer) viewer.classList.remove('gpiv-fullscreen'); } catch {}
+
+    try {
+      var isApiFull = document.fullscreenElement === sec;
+      var hasCssFull = sec.classList.contains('pd-fullscreen');
+      if (isApiFull) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(function(){ sec.classList.remove('pd-fullscreen'); });
+        } else {
+          sec.classList.remove('pd-fullscreen');
+        }
+        return;
+      }
+      if (hasCssFull) {
+        sec.classList.remove('pd-fullscreen');
+        return;
+      }
+
+      function enterFs(){
+        if (sec.requestFullscreen) {
+          sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.add('pd-fullscreen'); });
+        } else {
+          sec.classList.add('pd-fullscreen');
+        }
+      }
+
+      if (document.fullscreenElement && document.fullscreenElement !== sec) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().then(function(){ enterFs(); }).catch(function(){ sec.classList.add('pd-fullscreen'); });
+        } else {
+          sec.classList.add('pd-fullscreen');
+        }
+      } else {
+        enterFs();
+      }
+    } catch (err) {
+      // Fallback toggle
+      sec.classList.toggle('pd-fullscreen');
+    }
+  });
+
+  // Sync CSS fallback with Fullscreen API state
+  document.addEventListener('fullscreenchange', function(){
+    var sec = document.getElementById('person-details-section');
+    if (!sec) return;
+    var isFs = document.fullscreenElement === sec;
+    sec.classList.toggle('pd-fullscreen', isFs);
+  });
+
+  // Deep-link handler remains
   try{
     var qs=new URLSearchParams(window.location.search);
     var pid=qs.get('gpivPublicId');

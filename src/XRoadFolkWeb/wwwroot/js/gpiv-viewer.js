@@ -222,17 +222,12 @@
         wrap.dataset.name = fullName || '';
         wrap.dataset.publicId = publicId || '';
         wrap.dataset.dob = dob || '';
+        if (publicId) { try { wrap.setAttribute('data-public-id', publicId); } catch(e) {} }
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
-        if (publicId) {
-          var pidBtn = document.createElement('button');
-          pidBtn.type = 'button';
-          pidBtn.className = 'btn btn-sm btn-outline-secondary gpiv-pid ms-auto';
-          pidBtn.setAttribute('data-public-id', publicId);
-          pidBtn.textContent = (I18N.ExtendedSearch || 'Extended search');
-          header.appendChild(pidBtn);
-        }
+        // Make header accessible and clickable to open details
+        try { header.setAttribute('role','button'); header.setAttribute('tabindex','0'); } catch(e) {}
 
         wrap.appendChild(header);
 

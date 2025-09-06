@@ -61,6 +61,11 @@ public static partial class ServiceCollectionExtensions
             .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
             .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.");
 
+        // Response viewer options
+        services.AddOptions<ResponseViewerOptions>()
+            .Bind(configuration.GetSection("Features:ResponseViewer"));
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<ResponseViewerOptions>>().Value);
+
         return services;
     }
 }

@@ -216,4 +216,10 @@
   <data name="ExtendedSearch" xml:space="preserve">
     <value>Fleiri upplýsingar...</value>
   </data>
+  <data name="PersonDetails" xml:space="preserve">
+    <value>Persónsupplýsingar</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Lesi inn</value>
+  </data>
 </root>
