@@ -3,15 +3,16 @@
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0d6efd"/>
-      <stop offset="100%" stop-color="#6610f2"/>
+      <stop offset="100%" stop-color="#20c997"/>
     </linearGradient>
-    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
-    </filter>
   </defs>
-  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#g)" filter="url(#s)"/>
-  <!-- Stylized XF monogram -->
-  <g fill="#fff" transform="translate(26,32)">
-    <path d="M0 0h18l14 22 14-22h18l-23 34 23 34H60L46 46 32 68H14l23-34L14 0Z" opacity="0.95"/>
+  <!-- Rounded background -->
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#g)"/>
+  <!-- Person silhouette -->
+  <g fill="#ffffff" opacity="0.98">
+    <!-- Head -->
+    <circle cx="64" cy="46" r="18"/>
+    <!-- Shoulders / torso -->
+    <path d="M32 92c0-16.5 14.8-26 32-26s32 9.5 32 26v8a6 6 0 0 1-6 6H38a6 6 0 0 1-6-6v-8z"/>
   </g>
 </svg>
