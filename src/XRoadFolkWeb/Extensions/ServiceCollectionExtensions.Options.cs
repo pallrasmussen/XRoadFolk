@@ -41,7 +41,7 @@ public static partial class ServiceCollectionExtensions
             .ValidateOnStart();
 
         // Safe SOAP sanitization hook
-        bool maskTokens = configuration.GetValue<bool>("Logging:MaskTokens", true);
+        bool maskTokens = configuration.GetValue<bool>(key: "Logging:MaskTokens", defaultValue: true);
         SafeSoapLogger.GlobalSanitizer = s => SoapSanitizer.Scrub(s, maskTokens);
 
         // GetPerson options & validator (runtime validation for identifiers)

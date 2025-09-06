@@ -107,7 +107,7 @@ namespace XRoadFolkRaw.Lib.Extensions
             }
             else
             {
-                bool bypass = cfg.GetValue<bool>("Http:BypassServerCertificateValidation", false);
+                bool bypass = cfg.GetValue<bool>(key: "Http:BypassServerCertificateValidation", defaultValue: false);
                 if (env.IsDevelopment() && bypass)
                 {
                     handler.SslOptions.RemoteCertificateValidationCallback = DevCertificateValidation;

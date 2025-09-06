@@ -220,8 +220,8 @@ namespace XRoadFolkWeb.Extensions
         private static void ApplySessionOptions(SessionOptions options, IConfiguration section, ILogger log)
         {
             string cookieName = GetCookieName(section);
-            bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", true, log);
-            bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", false, log);
+            bool cookieHttpOnly = section.GetBoolOrDefault("Cookie:HttpOnly", @default: true, logger: log);
+            bool cookieIsEssential = section.GetBoolOrDefault("Cookie:IsEssential", @default: false, logger: log);
             SameSiteMode sameSite = ParseSameSite(section, log);
             CookieSecurePolicy securePolicy = ParseSecurePolicy(section, log);
             int idleMinutes = ParseIdleMinutes(section, log);

@@ -74,9 +74,8 @@ dotnet_diagnostic.CA1309.severity = warning
 dotnet_diagnostic.CA2000.severity = warning
 
 # Meziantou analyzers
-# MA0003 (prefer StringComparisonInvariant/Ordinal) — start as suggestion to avoid noise
-# We already enforce MA0074 and MA0006 as warnings for string comparisons
-# Escalate MA0003 later if needed
+# Promote MA0003 (Use StringComparison / Invariant) to warning for stricter enforcement
+dotnet_diagnostic.MA0003.severity = warning
 
 # Existing settings preserved below
 
@@ -92,8 +91,6 @@ dotnet_diagnostic.MA0048.severity = none
 .dotnet_diagnostic.MA0002.severity = warning
 .dotnet_diagnostic.MA0006.severity = warning
 .dotnet_diagnostic.MA0040.severity = suggestion
-# New: set MA0003 to suggestion initially
-dotnet_diagnostic.MA0003.severity = suggestion
 
 # Razor files
 [*.cshtml]

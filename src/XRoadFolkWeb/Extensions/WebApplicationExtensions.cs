@@ -217,7 +217,7 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapOptionalPrometheus(WebApplication app, IConfiguration configuration)
         {
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Prometheus:Enabled", defaultValue: false))
             {
                 app.MapPrometheusScrapingEndpoint();
             }

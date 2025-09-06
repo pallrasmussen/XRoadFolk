@@ -66,8 +66,8 @@ namespace XRoadFolkWeb.Extensions
             metrics.AddMeter("XRoadFolkWeb");
             metrics.AddMeter("XRoadFolkWeb.Startup");
 
-            bool includeAspNet = configuration.GetValue<bool>("OpenTelemetry:Metrics:AspNetCore", true);
-            bool includeRuntime = configuration.GetValue<bool>("OpenTelemetry:Metrics:Runtime", false);
+            bool includeAspNet = configuration.GetValue<bool>(key: "OpenTelemetry:Metrics:AspNetCore", defaultValue: true);
+            bool includeRuntime = configuration.GetValue<bool>(key: "OpenTelemetry:Metrics:Runtime", defaultValue: false);
             if (includeAspNet)
             {
                 metrics.AddAspNetCoreInstrumentation();
@@ -77,15 +77,15 @@ namespace XRoadFolkWeb.Extensions
                 metrics.AddRuntimeInstrumentation();
             }
 
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Prometheus:Enabled", defaultValue: false))
             {
                 metrics.AddPrometheusExporter();
             }
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Console:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Console:Enabled", defaultValue: false))
             {
                 metrics.AddConsoleExporter();
             }
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Otlp:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Otlp:Enabled", defaultValue: false))
             {
                 string? endpoint = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Endpoint");
                 metrics.AddOtlpExporter(o =>
@@ -116,11 +116,11 @@ namespace XRoadFolkWeb.Extensions
             });
             tracing.AddHttpClientInstrumentation();
 
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Console:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Console:Enabled", defaultValue: false))
             {
                 tracing.AddConsoleExporter();
             }
-            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Otlp:Enabled", false))
+            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Otlp:Enabled", defaultValue: false))
             {
                 string? endpoint = configuration.GetValue<string>("OpenTelemetry:Exporters:Otlp:Endpoint");
                 tracing.AddOtlpExporter(o =>
@@ -156,8 +156,8 @@ namespace XRoadFolkWeb.Extensions
 
         private static void ApplyProductionVerbosityGuard(IConfiguration configuration)
         {
-            bool verbose = configuration.GetValue<bool>("Logging:Verbose", false);
-            bool allowVerbose = configuration.GetValue<bool>("Logging:AllowVerboseInProduction", false);
+            bool verbose = configuration.GetValue<bool>(key: "Logging:Verbose", defaultValue: false);
+            bool allowVerbose = configuration.GetValue<bool>(key: "Logging:AllowVerboseInProduction", defaultValue: false);
             if (verbose && !allowVerbose)
             {
                 configuration["Logging:Verbose"] = "false";
@@ -184,12 +184,12 @@ namespace XRoadFolkWeb.Extensions
 
         private static void UpsertDefaultRules(LoggerFilterOptions opts)
         {
-            Upsert(opts, null, "Microsoft", LogLevel.Warning);
-            Upsert(opts, null, "Microsoft.AspNetCore", LogLevel.Warning);
-            Upsert(opts, null, "System", LogLevel.Warning);
-            Upsert(opts, null, "Microsoft.Hosting.Lifetime", LogLevel.Information);
-            Upsert(opts, null, "XRoadFolkWeb", LogLevel.Information);
-            Upsert(opts, null, "XRoadFolkRaw", LogLevel.Information);
+            Upsert(opts, provider: null, category: "Microsoft", level: LogLevel.Warning);
+            Upsert(opts, provider: null, category: "Microsoft.AspNetCore", level: LogLevel.Warning);
+            Upsert(opts, provider: null, category: "System", level: LogLevel.Warning);
+            Upsert(opts, provider: null, category: "Microsoft.Hosting.Lifetime", level: LogLevel.Information);
+            Upsert(opts, provider: null, category: "XRoadFolkWeb", level: LogLevel.Information);
+            Upsert(opts, provider: null, category: "XRoadFolkRaw", level: LogLevel.Information);
         }
 
         private static void Upsert(LoggerFilterOptions opts, string? provider, string category, LogLevel level)
