@@ -269,7 +269,7 @@ namespace XRoadFolkWeb.Extensions
         private static SameSiteMode ParseSameSite(IConfiguration section, ILogger log)
         {
             string? sameSiteStr = section.GetValue<string>("Cookie:SameSite");
-            SameSiteMode sameSite = SameSiteMode.Strict;
+            SameSiteMode sameSite = SameSiteMode.Lax;
             if (!string.IsNullOrWhiteSpace(sameSiteStr))
             {
                 if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))

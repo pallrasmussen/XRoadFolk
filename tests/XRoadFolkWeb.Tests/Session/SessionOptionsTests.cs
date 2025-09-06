@@ -21,7 +21,10 @@ namespace XRoadFolkWeb.Tests.Session
                 ["Localization:DefaultCulture"] = "en-US",
                 ["Localization:SupportedCultures:0"] = "en-US",
             };
-            foreach (var (k, v) in pairs) dict[k] = v;
+            foreach (var (k, v) in pairs)
+            {
+                dict[k] = v;
+            }
 
             IConfiguration cfg = new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
             var services = new ServiceCollection();
@@ -29,6 +32,17 @@ namespace XRoadFolkWeb.Tests.Session
             IServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
             var opts = sp.GetRequiredService<IOptions<SessionOptions>>();
             return (sp, opts);
+        }
+
+        [Fact]
+        public void Defaults_Are_Lax_Secure_And_NotEssential()
+        {
+            (_, var opts) = BuildWithConfig();
+            var o = opts.Value;
+            o.Cookie.SameSite.Should().Be(SameSiteMode.Lax);
+            o.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.Always);
+            o.Cookie.HttpOnly.Should().BeTrue();
+            o.Cookie.IsEssential.Should().BeFalse();
         }
 
         [Fact]
@@ -42,10 +56,10 @@ namespace XRoadFolkWeb.Tests.Session
             );
 
             var o = opts.Value;
-            o.Cookie.SameSite.Should().Be(SameSiteMode.Strict);
+            o.Cookie.SameSite.Should().Be(SameSiteMode.Lax);
             o.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.Always);
             o.Cookie.HttpOnly.Should().BeTrue();
-            o.Cookie.IsEssential.Should().BeTrue();
+            o.Cookie.IsEssential.Should().BeFalse();
         }
 
         [Fact]
