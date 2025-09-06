@@ -4,29 +4,29 @@ namespace XRoadFolkRaw.Lib
 {
     public static partial class SoapSanitizer
     {
-        [GeneratedRegex("<(?:\\w+:)?username>(.*?)</(?:\\w+:)?username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<(?:\\w+:)?username>(.*?)</(?:\\w+:)?username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsUserRegex();
 
-        [GeneratedRegex("<(?:\\w+:)?password>(.*?)</(?:\\w+:)?password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<(?:\\w+:)?password>(.*?)</(?:\\w+:)?password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsPassRegex();
 
-        [GeneratedRegex("<(?:\\w+:)?token>(.*?)</(?:\\w+:)?token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<(?:\\w+:)?token>(.*?)</(?:\\w+:)?token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsTokenRegex();
 
-        [GeneratedRegex("<(?<tag>(?:\\w+:)?userId)>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?userId)>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsUserIdRegex();
 
         // Common token aliases in payloads and WS-Security
-        [GeneratedRegex("<(?<tag>(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken))>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken))>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex TokenAliasesRegex();
 
-        [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex UserRegex();
 
-        [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<password>(.*?)</password>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex PassRegex();
 
-        [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture)]
+        [GeneratedRegex("<token>(.*?)</token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex TokenRegex();
 
         public static string Scrub(string xml, bool maskTokens = true)

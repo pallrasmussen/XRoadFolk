@@ -20,6 +20,7 @@ namespace XRoadFolkWeb.Tests
 
         public CultureSwitchingTests(WebApplicationFactory<Program> factory)
         {
+            ArgumentNullException.ThrowIfNull(factory);
             _factory = factory.WithWebHostBuilder(_ => { });
         }
 

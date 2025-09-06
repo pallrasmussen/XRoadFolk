@@ -45,7 +45,7 @@ namespace XRoadFolkRaw.Lib
             XRoadSettings xr = config.GetSection("XRoad").Get<XRoadSettings>() ?? new();
             ApplyEnvOverrides(xr);
 
-            List<string> errs = ValidateSettings(xr, config, loc, requireClientCertificate: true);
+            IReadOnlyList<string> errs = ValidateSettings(xr, config, loc, requireClientCertificate: true);
             ValidateTemplates(config, log);
 
             if (errs.Count > 0)
@@ -58,8 +58,12 @@ namespace XRoadFolkRaw.Lib
             return (config, xr);
         }
 
-        public static List<string> ValidateSettings(XRoadSettings xr, IConfiguration config, IStringLocalizer<ConfigurationLoader> loc, bool requireClientCertificate)
+        public static IReadOnlyList<string> ValidateSettings(XRoadSettings xr, IConfiguration config, IStringLocalizer<ConfigurationLoader> loc, bool requireClientCertificate)
         {
+            ArgumentNullException.ThrowIfNull(xr);
+            ArgumentNullException.ThrowIfNull(config);
+            ArgumentNullException.ThrowIfNull(loc);
+
             List<string> errs = new(capacity: 16);
             ValidateBaseUrl(xr, loc, errs);
             ValidateHeaders(xr, loc, errs);
@@ -229,7 +233,7 @@ namespace XRoadFolkRaw.Lib
             // Note: File existence checks are host-specific and resolved by the web validator (which knows ContentRootPath).
         }
 
-        private static void ReportErrorsAndThrow(ILogger log, IStringLocalizer<ConfigurationLoader> loc, List<string> errs)
+        private static void ReportErrorsAndThrow(ILogger log, IStringLocalizer<ConfigurationLoader> loc, IReadOnlyList<string> errs)
         {
             ConfigSanityCheckFailed(log);
             foreach (string e in errs)

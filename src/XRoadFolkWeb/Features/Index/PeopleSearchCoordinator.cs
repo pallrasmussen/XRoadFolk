@@ -12,8 +12,8 @@ namespace XRoadFolkWeb.Features.Index
         {
             string xml = await _service.GetPeoplePublicInfoAsync(ssn, firstName, lastName, dateOfBirth, ct).ConfigureAwait(false);
             string pretty = _parser.PrettyFormatXml(xml);
-            List<PersonRow> results = _parser.ParsePeopleList(xml);
-            return (xml, pretty, results.AsReadOnly());
+            IReadOnlyList<PersonRow> results = _parser.ParsePeopleList(xml);
+            return (xml, pretty, results);
         }
     }
 }

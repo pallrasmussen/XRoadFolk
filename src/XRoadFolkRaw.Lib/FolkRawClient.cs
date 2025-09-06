@@ -95,7 +95,9 @@ namespace XRoadFolkRaw.Lib
 
                 if (bypassServerCertificateValidation)
                 {
+#pragma warning disable MA0039 // Do not write your own certificate validation method
                     handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore MA0039
                 }
 
                 if (clientCertificate is not null)

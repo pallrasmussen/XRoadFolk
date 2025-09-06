@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -19,6 +20,7 @@ namespace XRoadFolkWeb.Tests
 
         public LogsEndpointsSecurityTests(WebApplicationFactory<Program> factory)
         {
+            ArgumentNullException.ThrowIfNull(factory);
             _factory = factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureAppConfiguration((ctx, cfg) =>

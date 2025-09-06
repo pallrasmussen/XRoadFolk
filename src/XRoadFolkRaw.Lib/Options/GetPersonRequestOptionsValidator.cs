@@ -57,7 +57,7 @@ namespace XRoadFolkRaw.Lib.Options
 
             // Validate Include contains only known flags using cached mask
             GetPersonInclude unknown = options.Include & ~KnownMask;
-            return unknown != 0
+            return unknown != GetPersonInclude.None
                 ? ValidateOptionsResult.Fail($"Include contains undefined flag(s): {(int)unknown}.")
                 : ValidateOptionsResult.Success;
         }

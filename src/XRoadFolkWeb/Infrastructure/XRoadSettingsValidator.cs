@@ -37,7 +37,8 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             bool requireClientCert = !_env.IsDevelopment();
-            List<string> errors = ConfigurationLoader.ValidateSettings(options, _config, _loc, requireClientCert);
+            IReadOnlyList<string> list = ConfigurationLoader.ValidateSettings(options, _config, _loc, requireClientCert);
+            var errors = new List<string>(list);
 
             // Also verify referenced files exist within the web app base path
             ProbeFiles(options, errors);

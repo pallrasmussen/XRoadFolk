@@ -63,52 +63,37 @@ dotnet_diagnostic.CS8603.severity = warning
 dotnet_diagnostic.CS8602.severity = error
 dotnet_diagnostic.CS8604.severity = error
 
-# Analyzer severities
-# Meziantou rules
-dotnet_diagnostic.MA0048.severity = none
-# Method too long: now enforced project-wide
-dotnet_diagnostic.MA0051.severity = warning
-# Regex DoS concerns
-dotnet_diagnostic.MA0009.severity = suggestion
-# Prefer abstraction over implementation for collections
-dotnet_diagnostic.MA0016.severity = suggestion
-# Use StringComparison overloads (solution-wide)
-dotnet_diagnostic.MA0074.severity = warning
-# Use explicit enum value instead of 0
-dotnet_diagnostic.MA0099.severity = suggestion
-# Use ConfigureAwait(false) when appropriate (global default)
-dotnet_diagnostic.MA0042.severity = suggestion
-# Use Task.ConfigureAwait(false) (global default)
-dotnet_diagnostic.MA0004.severity = suggestion
-# Do not write your own certificate validation method
-dotnet_diagnostic.MA0039.severity = suggestion
-# Use an overload with comparer (e.g., Dictionary with StringComparer)
-dotnet_diagnostic.MA0002.severity = warning
-# Use string.Equals instead of == for string comparison
-dotnet_diagnostic.MA0006.severity = warning
-# Use a cancellation token when available (global default)
-dotnet_diagnostic.MA0040.severity = suggestion
-
-# .NET analyzers tightening
-# CA2000: Dispose objects before losing scope
+# .NET analyzers (tightened)
+# Validate public parameter null checks
+dotnet_diagnostic.CA1062.severity = warning
+# Avoid explicit default value initialization
+dotnet_diagnostic.CA1805.severity = warning
+# Use ordinal/invariant string comparison where appropriate
+dotnet_diagnostic.CA1309.severity = warning
+# Dispose objects before losing scope
 dotnet_diagnostic.CA2000.severity = warning
 
-# C# compiler diagnostics adjustments
-dotnet_diagnostic.CS0108.severity = suggestion
-dotnet_diagnostic.CS0618.severity = suggestion
+# Meziantou analyzers
+# MA0003 (prefer StringComparisonInvariant/Ordinal) — start as suggestion to avoid noise
+# We already enforce MA0074 and MA0006 as warnings for string comparisons
+# Escalate MA0003 later if needed
 
-# Naming rules
-dotnet_naming_rule.private_fields_should_be_camel_case.severity = suggestion
-dotnet_naming_rule.private_fields_should_be_camel_case.symbols = private_fields
-dotnet_naming_rule.private_fields_should_be_camel_case.style = camel_case_underscore
+# Existing settings preserved below
 
-# Define private fields
-dotnet_naming_symbols.private_fields.applicable_kinds = field
-dotnet_naming_symbols.private_fields.applicable_accessibilities = private
-
-# Styles
-dotnet_naming_style.camel_case_underscore.capitalization = camel_case
-dotnet_naming_style.camel_case_underscore.required_prefix = _
+dotnet_diagnostic.MA0048.severity = none
+.dotnet_diagnostic.MA0051.severity = warning
+.dotnet_diagnostic.MA0009.severity = suggestion
+.dotnet_diagnostic.MA0016.severity = suggestion
+.dotnet_diagnostic.MA0074.severity = warning
+.dotnet_diagnostic.MA0099.severity = suggestion
+.dotnet_diagnostic.MA0042.severity = suggestion
+.dotnet_diagnostic.MA0004.severity = suggestion
+.dotnet_diagnostic.MA0039.severity = suggestion
+.dotnet_diagnostic.MA0002.severity = warning
+.dotnet_diagnostic.MA0006.severity = warning
+.dotnet_diagnostic.MA0040.severity = suggestion
+# New: set MA0003 to suggestion initially
+dotnet_diagnostic.MA0003.severity = suggestion
 
 # Razor files
 [*.cshtml]

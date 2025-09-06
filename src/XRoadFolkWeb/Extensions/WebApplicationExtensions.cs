@@ -53,10 +53,10 @@ namespace XRoadFolkWeb.Extensions
                 new EventId(1003, "UnhandledException"),
                 "Unhandled exception at {Path}. TraceId={TraceId}");
 
-        [GeneratedRegex(@"\b\d{6,}\b")]
+        [GeneratedRegex("\\b\\d{6,}\\b", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex LongDigitsRegex();
 
-        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")]
+        [GeneratedRegex("\\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\b", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex GuidRegex();
 
         /// <summary>
@@ -741,7 +741,5 @@ namespace XRoadFolkWeb.Extensions
                 }
             });
         }
-
-        private static bool IsStaticAssetPath(string? path, bool dummy) => IsStaticAssetPath(path);
     }
 }

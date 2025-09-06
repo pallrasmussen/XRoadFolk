@@ -19,6 +19,7 @@ namespace XRoadFolkWeb.Tests
 
         public CultureCookieTests(WebApplicationFactory<Program> factory)
         {
+            ArgumentNullException.ThrowIfNull(factory);
             _factory = factory.WithWebHostBuilder(_ => { });
         }
 

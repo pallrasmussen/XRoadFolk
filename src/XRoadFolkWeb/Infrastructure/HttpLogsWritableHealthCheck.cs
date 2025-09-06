@@ -9,6 +9,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         public HttpLogsWritableHealthCheck(IOptions<HttpLogOptions> opts)
         {
+            ArgumentNullException.ThrowIfNull(opts);
             _opts = opts.Value;
         }
 

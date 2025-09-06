@@ -16,6 +16,7 @@ public class RazorPagesIntegrationTests : IClassFixture<WebApplicationFactory<Pr
 
     public RazorPagesIntegrationTests(WebApplicationFactory<Program> factory)
     {
+        ArgumentNullException.ThrowIfNull(factory);
         _factory = factory.WithWebHostBuilder(_ => { });
     }
 

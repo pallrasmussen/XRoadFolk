@@ -1,11 +1,8 @@
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using OpenTelemetry;
-using OpenTelemetry.Trace;
-using XRoadFolkWeb;
 using Xunit;
 
 namespace XRoadFolkWeb.Tests
@@ -16,20 +13,17 @@ namespace XRoadFolkWeb.Tests
 
         public OpenTelemetryTracingTests(WebApplicationFactory<Program> factory)
         {
+            ArgumentNullException.ThrowIfNull(factory);
             _factory = factory.WithWebHostBuilder(_ => { });
         }
 
         [Fact]
-        public async Task Tracing_Is_Registered_And_Basic_Request_Works()
+        public async Task Index_Returns_200_And_TraceId_Header()
         {
             using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-
             var resp = await client.GetAsync("/");
             resp.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            using var scope = _factory.Services.CreateScope();
-            var provider = scope.ServiceProvider.GetRequiredService<TracerProvider>();
-            provider.Should().NotBeNull();
+            resp.Headers.Contains("traceparent").Should().BeTrue();
         }
     }
 }

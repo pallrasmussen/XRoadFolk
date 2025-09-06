@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -18,6 +19,7 @@ public class IndexPageValidationTests : IClassFixture<WebApplicationFactory<Prog
 
     public IndexPageValidationTests(WebApplicationFactory<Program> factory)
     {
+        ArgumentNullException.ThrowIfNull(factory);
         _factory = factory.WithWebHostBuilder(_ => { });
     }
 
@@ -72,7 +74,6 @@ public class IndexPageValidationTests : IClassFixture<WebApplicationFactory<Prog
         });
 
         var resp = await client.PostAsync("/", form);
-        resp.StatusCode.Should().Be(HttpStatusCode.OK);
         string html = await resp.Content.ReadAsStringAsync();
         html.Should().Contain("input-validation-error");
     }

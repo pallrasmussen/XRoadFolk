@@ -6,19 +6,19 @@ namespace XRoadFolkWeb.Infrastructure
 {
     internal static partial class PiiSanitizer
     {
-        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled)]
+        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex GuidRegex();
 
-        [GeneratedRegex(@"\b\d{6,}\b", RegexOptions.Compiled)]
+        [GeneratedRegex(@"\b\d{6,}\b", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex LongDigitsRegex();
 
-        [GeneratedRegex(@"(?i)(Authorization\s*:\s*Bearer\s+)([^\s]+)")] 
+        [GeneratedRegex(@"(?i)(Authorization\s*:\s*Bearer\s+)([^\s]+)", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
         private static partial Regex BearerRegex();
 
-        [GeneratedRegex(@"(?i)(Api[-_ ]?Key\s*[:=]\s*)([^\s]+)")] 
+        [GeneratedRegex(@"(?i)(Api[-_ ]?Key\s*[:=]\s*)([^\s]+)", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking | RegexOptions.ExplicitCapture)]
         private static partial Regex ApiKeyRegex();
 
-        [GeneratedRegex(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        [GeneratedRegex(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex EmailRegex();
 
         public static string Sanitize(string? input, bool maskTokens)

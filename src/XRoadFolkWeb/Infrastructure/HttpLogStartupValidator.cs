@@ -16,6 +16,9 @@ namespace XRoadFolkWeb.Infrastructure
 
         public HttpLogStartupValidator(IHostEnvironment env, IOptions<HttpLogOptions> opts, ILogger<HttpLogStartupValidator> log)
         {
+            ArgumentNullException.ThrowIfNull(env);
+            ArgumentNullException.ThrowIfNull(opts);
+            ArgumentNullException.ThrowIfNull(log);
             _env = env;
             _opts = opts.Value;
             _log = log;

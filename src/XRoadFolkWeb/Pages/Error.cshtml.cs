@@ -5,8 +5,9 @@ namespace XRoadFolkWeb.Pages
 {
     public class ErrorModel : PageModel
     {
-        [FromRoute(Name = "statusCode")]
-        public int? StatusCode { get; set; }
+        public string? RequestId { get; set; }
+        public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+        public new int? StatusCode { get; set; }
 
         public string Title { get; private set; } = "An error occurred";
         public string? Message { get; private set; }

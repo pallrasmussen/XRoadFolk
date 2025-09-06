@@ -103,7 +103,7 @@ namespace XRoadFolkWeb.Features.People
             return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
-        public List<PersonRow> ParsePeopleList(string? xml)
+        public IReadOnlyList<PersonRow> ParsePeopleList(string? xml)
         {
             List<PersonRow> rows = [];
             if (string.IsNullOrWhiteSpace(xml))
@@ -249,7 +249,7 @@ namespace XRoadFolkWeb.Features.People
             };
         }
 
-        public List<(string Key, string Value)> FlattenResponse(string? xml)
+        public IReadOnlyList<(string Key, string Value)> FlattenResponse(string? xml)
         {
             List<(string, string)> pairs = [];
             if (string.IsNullOrWhiteSpace(xml))

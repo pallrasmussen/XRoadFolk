@@ -39,7 +39,7 @@ namespace XRoadFolkWeb.Features.Index
             ArgumentNullException.ThrowIfNull(loc);
 
             string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
-            List<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
+            IReadOnlyList<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
 
             List<(string Key, string Value)> filtered = [.. ApplyPrimaryFilter(pairs)];
 

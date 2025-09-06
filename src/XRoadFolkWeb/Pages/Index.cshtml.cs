@@ -102,7 +102,7 @@ namespace XRoadFolkWeb.Pages
             return [.. list];
         }
 
-        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant)]
+        [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex PublicIdRegex();
 
         private static bool IsValidPublicId(string s)

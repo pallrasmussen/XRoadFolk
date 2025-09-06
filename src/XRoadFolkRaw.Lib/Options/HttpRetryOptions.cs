@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace XRoadFolkRaw.Lib.Options
 {
@@ -23,7 +24,7 @@ namespace XRoadFolkRaw.Lib.Options
         public int BreakDurationMs { get; set; } = 30000;
 
         // Operation-specific overrides keyed by operation name (e.g., "GetPerson", "Default")
-        public Dictionary<string, HttpRetryOverride> Operations { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public IDictionary<string, HttpRetryOverride> Operations { get; set; } = new Dictionary<string, HttpRetryOverride>(StringComparer.OrdinalIgnoreCase);
     }
 
     public sealed class HttpRetryOverride

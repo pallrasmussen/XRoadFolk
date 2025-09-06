@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -13,6 +14,7 @@ namespace XRoadFolkWeb.Tests
 
         public CspHeaderTests(WebApplicationFactory<Program> factory)
         {
+            ArgumentNullException.ThrowIfNull(factory);
             _factory = factory.WithWebHostBuilder(_ => { });
         }
 

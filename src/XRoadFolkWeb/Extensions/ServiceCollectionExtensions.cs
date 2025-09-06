@@ -13,6 +13,9 @@ namespace XRoadFolkWeb.Extensions
     {
         public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configuration);
+
             bool hasXRoad = !string.IsNullOrWhiteSpace(configuration["XRoad:BaseUrl"]);
 
             services
