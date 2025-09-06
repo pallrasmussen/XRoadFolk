@@ -142,8 +142,14 @@ namespace XRoadFolkWeb.Extensions
                 }
                 public void Dispose()
                 {
-                    if (_prev is not null) CultureInfo.CurrentCulture = _prev;
-                    if (_prevUi is not null) CultureInfo.CurrentUICulture = _prevUi;
+                    if (_prev is not null)
+                    {
+                        CultureInfo.CurrentCulture = _prev;
+                    }
+                    if (_prevUi is not null)
+                    {
+                        CultureInfo.CurrentUICulture = _prevUi;
+                    }
                 }
             }
         }

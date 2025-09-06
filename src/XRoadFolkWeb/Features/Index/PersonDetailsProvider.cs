@@ -16,7 +16,10 @@ namespace XRoadFolkWeb.Features.Index
         private IReadOnlyList<string>? _allowedIncludeKeysCache;
         private IReadOnlyList<string> GetAllowedIncludeKeysFromConfig()
         {
-            if (_allowedIncludeKeysCache is { Count: > 0 }) return _allowedIncludeKeysCache;
+            if (_allowedIncludeKeysCache is { Count: > 0 })
+            {
+                return _allowedIncludeKeysCache;
+            }
 
             // Base keys (config-backed cache) + ensure core sections
             var baseKeys = IncludeConfigHelper.GetEnabledIncludeKeys(_config);
@@ -144,12 +147,18 @@ namespace XRoadFolkWeb.Features.Index
                 if (first is null && p.Key.EndsWith(".FirstName", StringComparison.OrdinalIgnoreCase))
                 {
                     first = p.Value;
-                    if (last is not null) break;
+                    if (last is not null)
+                    {
+                        break;
+                    }
                 }
                 else if (last is null && p.Key.EndsWith(".LastName", StringComparison.OrdinalIgnoreCase))
                 {
                     last = p.Value;
-                    if (first is not null) break;
+                    if (first is not null)
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -176,8 +185,14 @@ namespace XRoadFolkWeb.Features.Index
                 // Trim whitespace on both sides of the segment
                 int i = start;
                 int j = endExclusive - 1;
-                while (i <= j && char.IsWhiteSpace(key[i])) i++;
-                while (j >= i && char.IsWhiteSpace(key[j])) j--;
+                while (i <= j && char.IsWhiteSpace(key[i]))
+                {
+                    i++;
+                }
+                while (j >= i && char.IsWhiteSpace(key[j]))
+                {
+                    j--;
+                }
 
                 if (i <= j)
                 {

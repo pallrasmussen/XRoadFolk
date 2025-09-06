@@ -6,12 +6,17 @@ namespace XRoadFolkWeb.Infrastructure
     {
         public static string Sanitize(string? s)
         {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
+            if (string.IsNullOrEmpty(s))
+            {
+                return string.Empty;
+            }
+
             ReadOnlySpan<char> span = s.AsSpan();
             if (span.IndexOfAny('\r', '\n') < 0)
             {
                 return s;
             }
+
             return string.Create(span.Length, s, static (dst, state) =>
             {
                 ReadOnlySpan<char> src = state.AsSpan();

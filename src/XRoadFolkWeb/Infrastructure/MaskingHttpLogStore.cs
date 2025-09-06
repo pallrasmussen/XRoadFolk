@@ -22,7 +22,10 @@ namespace XRoadFolkWeb.Infrastructure
 
         public void Add(LogEntry e)
         {
-            if (e is null) throw new ArgumentNullException(nameof(e));
+            if (e is null)
+            {
+                throw new ArgumentNullException(nameof(e));
+            }
             bool mask = !_env.IsDevelopment() || _opts.Value.MaskTokens; // always mask outside Development
 
             var sanitized = new LogEntry

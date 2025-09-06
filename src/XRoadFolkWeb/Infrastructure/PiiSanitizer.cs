@@ -23,7 +23,10 @@ namespace XRoadFolkWeb.Infrastructure
 
         public static string Sanitize(string? input, bool maskTokens)
         {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
 
             // If looks like XML/SOAP, use SOAP sanitizer which respects maskTokens
             string s = input;
@@ -53,7 +56,10 @@ namespace XRoadFolkWeb.Infrastructure
         private static string MaskEmail(string email)
         {
             int at = email.IndexOf('@');
-            if (at <= 1) return "***@***";
+            if (at <= 1)
+            {
+                return "***@***";
+            }
             string user = email[..at];
             string domain = email[(at + 1)..];
             return LoggingHelper.Mask(user, 1) + "@" + LoggingHelper.Mask(domain, 3);
