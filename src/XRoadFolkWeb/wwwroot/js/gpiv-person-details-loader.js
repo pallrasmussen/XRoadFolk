@@ -229,12 +229,19 @@
   function waitForSummaryThenLoadOnceOrInform(){
     try {
       var host = document.getElementById('gpiv-xml-summary');
-      if (!host || !window.MutationObserver) {
+      if (!host) {
         var pid0 = findFirstPersonIdFromEmbeddedXml();
         if (pid0) { loadPerson(pid0); }
         else { showInfo('Select a person to view details.'); }
         return;
       }
+
+      // Try immediately if summary is already rendered
+      var pidNow = findFirstPersonId();
+      if (pidNow) { loadPerson(pidNow); return; }
+
+      if (!window.MutationObserver) { showInfo('Select a person to view details.'); return; }
+
       var informed = false;
       var mo = new MutationObserver(function(){
         var pid = findFirstPersonId();
@@ -251,7 +258,8 @@
     function iconClassForPd(name){
       var t = String(name || '').toLowerCase();
       if (t === 'summary') return 'bi-list-check';
-      if (t === 'person' || t === 'names' || t === 'name') return 'bi-person-lines-fill';
+      if (t === 'person' || t === 'basics') return 'bi-person-vcard';
+      if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
       if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
       if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
@@ -481,7 +489,7 @@
     } catch (err) {
       showLoading(false);
       if (els.err) {
-        els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
+        els.err.innerHTML = 'Failed to load details. <button type=\"button\" id=\"pd-retry\" class=\"btn btn-sm btn-outline-secondary ms-2\">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
         retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
@@ -544,6 +552,26 @@
       if (pid) { loadPerson(pid); }
       else { clearPanel(); var els = getPanelEls(); try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {} ensureShownAndFocus(); waitForSummaryThenLoadOnceOrInform(); }
     }, 0);
+  });
+
+  // Also react when the tab is actually shown by Bootstrap
+  document.addEventListener('shown.bs.tab', function(e){
+    try{
+      var t = e && e.target ? e.target : null;
+      if (!t) return;
+      var id = t.getAttribute('id') || '';
+      if (id === 'gpiv-tab-details-btn' || id === 'pd-tab-details-btn') {
+        var pid = window.lastPid || findFirstPersonId();
+        if (pid) { loadPerson(pid); }
+        else {
+          clearPanel();
+          var els = getPanelEls();
+          try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {}
+          ensureShownAndFocus();
+          waitForSummaryThenLoadOnceOrInform();
+        }
+      }
+    }catch{}
   });
 
   document.addEventListener('click', function(e){
@@ -624,26 +652,6 @@
   } else {
     prerenderShell();
   }
-
-  // Also react when the tab is actually shown by Bootstrap
-  document.addEventListener('shown.bs.tab', function(e){
-    try{
-      var t = e && e.target ? e.target : null;
-      if (!t) return;
-      var id = t.getAttribute('id') || '';
-      if (id === 'gpiv-tab-details-btn' || id === 'pd-tab-details-btn') {
-        var pid = window.lastPid || findFirstPersonId();
-        if (pid) { loadPerson(pid); }
-        else {
-          clearPanel();
-          var els = getPanelEls();
-          try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {}
-          ensureShownAndFocus();
-          waitForSummaryThenLoadOnceOrInform();
-        }
-      }
-    }catch{}
-  });
 
   function pdToggleAll(open){
     try{
