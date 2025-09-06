@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:import namespace="http://www.w3ф.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
@@ -87,5 +87,24 @@
   </data>
   <data name="Culture_fo-FO" xml:space="preserve">
     <value>F&#248;royskt</value>
+  </data>
+  <!-- New empty-state placeholders (Faroese) -->
+  <data name="NoBasics" xml:space="preserve">
+    <value>Eingin grundleggjandi kunning.</value>
+  </data>
+  <data name="NoNames" xml:space="preserve">
+    <value>Ongin nøvn.</value>
+  </data>
+  <data name="NoAddresses" xml:space="preserve">
+    <value>Ongar adressur.</value>
+  </data>
+  <data name="NoForeignSsns" xml:space="preserve">
+    <value>Onki útlendskt p-tal.</value>
+  </data>
+  <data name="NoJuridicalParents" xml:space="preserve">
+    <value>Ongir lógarforeldur.</value>
+  </data>
+  <data name="NoData" xml:space="preserve">
+    <value>Eingi dáta.</value>
   </data>
 </root>

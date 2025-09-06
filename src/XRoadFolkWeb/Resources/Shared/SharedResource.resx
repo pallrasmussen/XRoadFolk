@@ -88,4 +88,23 @@
   <data name="Culture_fo-FO" xml:space="preserve">
     <value>Faroese (Faroe Islands)</value>
   </data>
+  <!-- New empty-state placeholders -->
+  <data name="NoBasics" xml:space="preserve">
+    <value>No basic information.</value>
+  </data>
+  <data name="NoNames" xml:space="preserve">
+    <value>No names.</value>
+  </data>
+  <data name="NoAddresses" xml:space="preserve">
+    <value>No addresses.</value>
+  </data>
+  <data name="NoForeignSsns" xml:space="preserve">
+    <value>No foreign SSNs.</value>
+  </data>
+  <data name="NoJuridicalParents" xml:space="preserve">
+    <value>No juridical parents.</value>
+  </data>
+  <data name="NoData" xml:space="preserve">
+    <value>No data.</value>
+  </data>
 </root>

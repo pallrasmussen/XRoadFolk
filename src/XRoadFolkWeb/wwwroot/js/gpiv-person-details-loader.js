@@ -87,6 +87,7 @@
     if (lower === 'names' || lower === 'name') return i18n.Names || 'Names';
     if (lower === 'addresses' || lower === 'address') return 'Addresses';
     if (lower === 'foreignssns' || lower === 'foreignssn' || (lower.includes('foreign') && lower.includes('ssn'))) return 'Foreign SSNs';
+    if (lower === 'juridicalparents' || lower === 'juridicalparent') return 'Juridical Parents';
     if (lower === 'publicid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
@@ -115,6 +116,7 @@
       if (/^address(?:es)?$/i.test(seg)) return 'Addresses';
       if (/^name(?:s)?$/i.test(seg)) return 'Names';
       if (/^foreignssn(?:s)?$/i.test(seg)) return 'ForeignSsns';
+      if (/^juridicalparent(?:s)?$/i.test(seg)) return 'JuridicalParents';
       return seg;
     }
 
@@ -262,6 +264,7 @@
       if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
       if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
       if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
+      if (t === 'juridicalparents' || t === 'juridicalparent') return 'bi-people-fill';
       if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
       if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
       if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
@@ -275,6 +278,13 @@
       if (t.includes('date') || t.includes('period') || t.includes('valid')) return 'bi-calendar-event';
       if (t.includes('nation') || t.includes('citizen') || t.includes('nationality') || t.includes('country')) return 'bi-flag';
       return 'bi-list-ul';
+    }
+
+    function createPlaceholder(text){
+      var ph = document.createElement('div');
+      ph.className = 'text-muted small p-2';
+      ph.textContent = text;
+      return ph;
     }
 
     function stripIndex(s){ var b = s.indexOf('['); return b>=0 ? s.slice(0,b) : s; }
@@ -327,12 +337,15 @@
       if (/^address(?:es)?$/i.test(seg)) seg = 'Addresses';
       if (/^name(?:s)?$/i.test(seg)) seg = 'Names';
       if (/^foreignssn(?:s)?$/i.test(seg)) seg = 'ForeignSsns';
+      if (/^juridicalparent(?:s)?$/i.test(seg)) seg = 'JuridicalParents';
       (groups[seg]=groups[seg]||[]).push({k:k,v:v});
     });
 
-    // Ensure ForeignSsns accordion is always present, even when empty
-    if (!Object.prototype.hasOwnProperty.call(groups, 'ForeignSsns')) {
-      groups['ForeignSsns'] = [];
+    // Ensure baseline accordions exist even when empty
+    var ALWAYS_GROUPS = ['Person','Names','Addresses','ForeignSsns','JuridicalParents'];
+    for (var i = 0; i < ALWAYS_GROUPS.length; i++) {
+      var g = ALWAYS_GROUPS[i];
+      if (!Object.prototype.hasOwnProperty.call(groups, g)) groups[g] = [];
     }
 
     var keys = Object.keys(groups).sort(function(a,b){
@@ -365,15 +378,17 @@
       var body=document.createElement('div'); body.className='accordion-body p-0';
 
       var lname = String(name||'').toLowerCase();
+      var i18n = readI18n();
       if (lname==='addresses' || lname==='address'){
-        var list = renderAddressesCardList(items);
-        if (list) body.appendChild(list); else body.appendChild(document.createTextNode(''));
+        if (!items || items.length === 0) {
+          body.appendChild(createPlaceholder(i18n.NoAddresses || 'No addresses.'));
+        } else {
+          var list = renderAddressesCardList(items);
+          if (list) body.appendChild(list); else body.appendChild(createPlaceholder(i18n.NoAddresses || 'No addresses.'));
+        }
       } else if (lname==='foreignssns' || lname==='foreignssn') {
         if (!items || items.length === 0) {
-          var ph = document.createElement('div');
-          ph.className = 'text-muted small p-2';
-          ph.textContent = (readI18n().NoForeignSsns || 'No foreign SSNs.');
-          body.appendChild(ph);
+          body.appendChild(createPlaceholder(i18n.NoForeignSsns || 'No foreign SSNs.'));
         } else {
           var respWrapF=document.createElement('div'); respWrapF.className='table-responsive';
           var tableF=document.createElement('table'); tableF.className='table table-sm table-striped align-middle mb-0';
@@ -389,20 +404,78 @@
           });
           tableF.appendChild(tbF); respWrapF.appendChild(tableF); body.appendChild(respWrapF);
         }
+      } else if (lname==='person' || lname==='basics') {
+        if (!items || items.length === 0) {
+          body.appendChild(createPlaceholder(i18n.NoBasics || 'No basic information.'));
+        } else {
+          var respWrapP=document.createElement('div'); respWrapP.className='table-responsive';
+          var tableP=document.createElement('table'); tableP.className='table table-sm table-striped align-middle mb-0';
+          var tbP=document.createElement('tbody');
+          items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+            var k=it.k, v=it.v;
+            var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+            var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+            var tr=document.createElement('tr');
+            var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+            var td=document.createElement('td'); td.textContent=v;
+            tr.appendChild(th); tr.appendChild(td); tbP.appendChild(tr);
+          });
+          tableP.appendChild(tbP); respWrapP.appendChild(tableP); body.appendChild(respWrapP);
+        }
+      } else if (lname==='names' || lname==='name') {
+        if (!items || items.length === 0) {
+          body.appendChild(createPlaceholder(i18n.NoNames || 'No names.'));
+        } else {
+          var respWrapN=document.createElement('div'); respWrapN.className='table-responsive';
+          var tableN=document.createElement('table'); tableN.className='table table-sm table-striped align-middle mb-0';
+          var tbN=document.createElement('tbody');
+          items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+            var k=it.k, v=it.v;
+            var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+            var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+            var tr=document.createElement('tr');
+            var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+            var td=document.createElement('td'); td.textContent=v;
+            tr.appendChild(th); tr.appendChild(td); tbN.appendChild(tr);
+          });
+          tableN.appendChild(tbN); respWrapN.appendChild(tableN); body.appendChild(respWrapN);
+        }
+      } else if (lname==='juridicalparents' || lname==='juridicalparent') {
+        if (!items || items.length === 0) {
+          body.appendChild(createPlaceholder(i18n.NoJuridicalParents || 'No juridical parents.'));
+        } else {
+          var respWrapJ=document.createElement('div'); respWrapJ.className='table-responsive';
+          var tableJ=document.createElement('table'); tableJ.className='table table-sm table-striped align-middle mb-0';
+          var tbJ=document.createElement('tbody');
+          items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+            var k=it.k, v=it.v;
+            var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+            var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+            var tr=document.createElement('tr');
+            var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+            var td=document.createElement('td'); td.textContent=v;
+            tr.appendChild(th); tr.appendChild(td); tbJ.appendChild(tr);
+          });
+          tableJ.appendChild(tbJ); respWrapJ.appendChild(tableJ); body.appendChild(respWrapJ);
+        }
       } else {
         var respWrap=document.createElement('div'); respWrap.className='table-responsive';
         var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
         var tb=document.createElement('tbody');
-        items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
-          var k=it.k, v=it.v;
-          var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
-          var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
-          var tr=document.createElement('tr');
-          var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
-          var td=document.createElement('td'); td.textContent=v;
-          tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
-        });
-        table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap);
+        if (!items || items.length === 0) {
+          body.appendChild(createPlaceholder(i18n.NoData || 'No data.'));
+        } else {
+          items.sort(function(x,y){ return x.k.localeCompare(y.k); }).forEach(function(it){
+            var k=it.k, v=it.v;
+            var lastDot=k.lastIndexOf('.'); var sub=lastDot>=0?k.slice(lastDot+1):k;
+            var bpos=sub.indexOf('['); if(bpos>=0) sub=sub.slice(0,bpos);
+            var tr=document.createElement('tr');
+            var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=sub;
+            var td=document.createElement('td'); td.textContent=v;
+            tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+          });
+          table.appendChild(tb); respWrap.appendChild(table); body.appendChild(respWrap);
+        }
       }
 
       col.appendChild(body); item.appendChild(h2); item.appendChild(col); acc.appendChild(item);
@@ -530,15 +603,14 @@
         loadPerson(pid);
         return;
       }
-      // No PID yet: render an empty shell so the pane isn't blank
+      // No PID yet: render baseline accordions and wait for summary to provide one
       clearPanel();
-      var els = getPanelEls();
       try {
+        var els = getPanelEls();
         var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]);
         if (els.body && acc) { els.body.appendChild(acc); }
         ensureShownAndFocus();
       } catch {}
-      // Keep waiting to auto-load when a person becomes available
       waitForSummaryThenLoadOnceOrInform();
     }, 0);
   });
@@ -550,7 +622,16 @@
     setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
       if (pid) { loadPerson(pid); }
-      else { clearPanel(); var els = getPanelEls(); try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {} ensureShownAndFocus(); waitForSummaryThenLoadOnceOrInform(); }
+      else {
+        clearPanel();
+        try {
+          var els = getPanelEls();
+          var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]);
+          if (els.body && acc) { els.body.appendChild(acc); }
+          ensureShownAndFocus();
+        } catch {}
+        waitForSummaryThenLoadOnceOrInform();
+      }
     }, 0);
   });
 
@@ -565,9 +646,12 @@
         if (pid) { loadPerson(pid); }
         else {
           clearPanel();
-          var els = getPanelEls();
-          try { var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]); if (els.body && acc) els.body.appendChild(acc); } catch {}
-          ensureShownAndFocus();
+          try {
+            var els = getPanelEls();
+            var acc = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped)([]);
+            if (els.body && acc) { els.body.appendChild(acc); }
+            ensureShownAndFocus();
+          } catch {}
           waitForSummaryThenLoadOnceOrInform();
         }
       }

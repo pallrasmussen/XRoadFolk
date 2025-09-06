@@ -1,6 +1,8 @@
 @using System.Text.Json
 @using XRoadFolkWeb.Extensions
+@using XRoadFolkWeb.Shared
 @inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
+@inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject XRoadFolkWeb.Infrastructure.ResponseViewerOptions RespOpts
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
@@ -32,7 +34,14 @@
         Copied = L["Copied"].Value,
         Download = L["Download"].Value,
         PersonDetails = L["PersonDetails"].Value,
-        Loading = L["Loading"].Value
+        Loading = L["Loading"].Value,
+        // New placeholders used by person details loader (use SharedResource localizer)
+        NoBasics = SR["NoBasics"].Value,
+        NoNames = SR["NoNames"].Value,
+        NoAddresses = SR["NoAddresses"].Value,
+        NoForeignSsns = SR["NoForeignSsns"].Value,
+        NoJuridicalParents = SR["NoJuridicalParents"].Value,
+        NoData = SR["NoData"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
