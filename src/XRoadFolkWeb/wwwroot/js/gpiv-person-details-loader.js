@@ -4,29 +4,7 @@
   window.__gpivPidHooked = true;
 
   var H = window.gpivHelpers || {};
-  var iconClassFor = H.iconClassFor || function(name){
-    var t = String(name || '').toLowerCase();
-    if (t === 'summary') return 'bi-list-check';
-    if (t === 'person' || t === 'basics') return 'bi-person-vcard';
-    if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
-    if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
-    if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
-    if (t === 'ssns' || t === 'ssn') return 'bi-passport';
-    if (t === 'juridicalparents' || t === 'juridicalparent') return 'bi-people-fill';
-    if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
-    if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
-    if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
-    if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation') || t.includes('employer')) return 'bi-briefcase';
-    if (t.includes('education') || t.includes('school') || t.includes('study') || t.includes('degree')) return 'bi-mortarboard';
-    if (t.includes('document') || t.includes('certificate') || t.includes('doc') || t.includes('file') || t.includes('paper')) return 'bi-file-earmark-text';
-    if (t.includes('bank') || t.includes('account') || t.includes('finance') || t.includes('iban') || t.includes('bic') || t.includes('payment')) return 'bi-wallet2';
-    if (t.includes('email') || t.includes('mail')) return 'bi-envelope-at';
-    if (t.includes('contact') || t.includes('phone') || t.includes('mobile') || t.includes('tel') || t.includes('fax')) return 'bi-telephone';
-    if (t.includes('id') || t.includes('ident') || t.includes('passport') || t.includes('card') || t.includes('vcard')) return 'bi-person-vcard';
-    if (t.includes('date') || t.includes('period') || t.includes('valid')) return 'bi-calendar-event';
-    if (t.includes('nation') || t.includes('citizen') || t.includes('nationality') || t.includes('country')) return 'bi-flag';
-    return 'bi-list-ul';
-  };
+  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
   var parseAddressKey = H.parseAddressKey || function(k){
     var parts = String(k||'').split('.');
     var pos = -1; var idxVal = null;

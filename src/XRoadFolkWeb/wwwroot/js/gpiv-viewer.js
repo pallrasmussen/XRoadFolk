@@ -9,7 +9,7 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
   var H = window.gpivHelpers || {};
-  function iconClassFor(title){ return (H.iconClassFor || function(t){ t=String(t||'').toLowerCase(); if (t==='summary') return 'bi-list-check'; if (t==='person'|| t==='names'|| t==='name') return 'bi-person-lines-fill'; if (t==='biologicalparents'|| t==='parents'|| t.includes('parent')|| t.includes('guardian')|| t.includes('family')) return 'bi-people-fill'; if (t.includes('basic')|| t.includes('personal')|| t==='basics'|| t.includes('overview')|| t.includes('core')) return 'bi-person-vcard'; if (t.includes('address')|| t.includes('resid')|| t.includes('domic')|| t.includes('location')|| t.includes('geo')|| t.includes('place')) return 'bi-geo-alt'; if (t.includes('status')|| t.includes('civilstatus')|| t.includes('marital')) return 'bi-patch-check'; if (t.includes('employment')|| t.includes('job')|| t.includes('work')|| t.includes('occupation')|| t.includes('employer')) return 'bi-briefcase'; if (t.includes('education')|| t.includes('school')|| t.includes('study')|| t.includes('degree')) return 'bi-mortarboard'; if (t.includes('document')|| t.includes('certificate')|| t.includes('doc')|| t.includes('file')|| t.includes('paper')) return 'bi-file-earmark-text'; if (t.includes('bank')|| t.includes('account')|| t.includes('finance')|| t.includes('iban')|| t.includes('bic')|| t.includes('payment')) return 'bi-wallet2'; if (t.includes('email')|| t.includes('mail')) return 'bi-envelope-at'; if (t.includes('contact')|| t.includes('phone')|| t.includes('mobile')|| t.includes('tel')|| t.includes('fax')) return 'bi-telephone'; if (t.includes('id')|| t.includes('ident')|| t.includes('passport')|| t.includes('card')|| t.includes('vcard')) return 'bi-person-vcard'; if (t.includes('date')|| t.includes('period')|| t.includes('valid')) return 'bi-calendar-event'; if (t.includes('nation')|| t.includes('citizen')|| t.includes('nationality')|| t.includes('country')) return 'bi-flag'; return 'bi-list-ul'; })(title); }
+  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
   function prettify(s){ return (H.prettify || function(n){ n=String(n||''); n=n.replace(/[_\-]+/g,' '); n=n.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); n=n.trim().replace(/\s+/g,' '); return n.split(' ').map(function(w){ return w? (w[0].toUpperCase()+w.slice(1)) : w; }).join(' ');} )(s); }
 
   var dropOverlay = null;
@@ -43,10 +43,9 @@
     } catch (e) { console.error('gpiv: syncViewerHeight failed', e); }
   }
 
-  function iconClassForHeader(titleText) { return iconClassFor(titleText); }
   function buildHeaderBtnContent(btn, titleText) {
     btn.textContent = '';
-    var ic = document.createElement('i'); ic.className = 'bi ' + iconClassForHeader(titleText) + ' me-2'; ic.setAttribute('aria-hidden', 'true');
+    var ic = document.createElement('i'); ic.className = 'bi ' + iconClassFor(titleText) + ' me-2'; ic.setAttribute('aria-hidden', 'true');
     btn.appendChild(ic);
     btn.appendChild(document.createTextNode(titleText || ''));
   }
