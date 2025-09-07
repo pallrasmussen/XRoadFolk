@@ -8,7 +8,6 @@
 <body>
   <h1>gpiv-helpers unit tests</h1>
   <pre id="out"></pre>
-  <script src="../js/gpiv-helpers.js"></script>
   <script>
     (function(){
       var out = document.getElementById('out');
@@ -17,6 +16,9 @@
       window.console.error = function(){ log('ERROR: '+[].slice.call(arguments).join(' ')); };
     })();
   </script>
-  <script src="../../tests/XRoadFolkWeb.Tests/wwwroot/js/gpiv-helpers.tests.js"></script>
+  <script type="module">
+    import '../js/gpiv-helpers.js';
+    import '../../tests/XRoadFolkWeb.Tests/wwwroot/js/gpiv-helpers.tests.js';
+  </script>
 </body>
 </html>

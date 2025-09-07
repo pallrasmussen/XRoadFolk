@@ -1,4 +1,7 @@
+// ES module: Logs viewer
 (function(){
+  'use strict';
+
   function getI18n(){
     try { var el=document.getElementById('logs-i18n-json'); return el? JSON.parse(el.textContent||'{}') : {}; } catch { return {}; }
   }

@@ -1,3 +1,5 @@
+import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
+
 (function () {
   'use strict';
 
@@ -8,11 +10,6 @@
   function on(el, ev, fn) { el && el.addEventListener(ev, fn); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
-
-  var H = window.gpivHelpers || {};
-  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
-  var nextUid = H.nextUid || function(prefix){ return 'gpiv-'+(prefix||'acc')+'-'+Date.now()+'-'+Math.floor(Math.random()*1e6); };
-  function prettify(s){ return (H.prettify || function(n){ n=String(n||''); n=n.replace(/[_\-]+/g,' '); n=n.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); n=n.trim().replace(/\s+/g,' '); return n.split(' ').map(function(w){ return w? (w[0].toUpperCase()+w.slice(1)) : w; }).join(' ');} )(s); }
 
   var dropOverlay = null;
   var summaryHost = null;
@@ -268,7 +265,6 @@
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
-        // Make header accessible and clickable to open details
         try { header.setAttribute('role','button'); header.setAttribute('tabindex','0'); } catch(e) {}
 
         wrap.appendChild(header);
@@ -292,7 +288,6 @@
             var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (ix + 1));
             card2.appendChild(title2);
             var t2 = buildLeavesTable(nNode); if (t2) card2.appendChild(t2);
-            // also render any nested children under Name (if present)
             var nestedUnderName = buildNodeContent(nNode);
             if (nestedUnderName && nestedUnderName.childElementCount > (t2 ? 1 : 0)) {
               card2.appendChild(nestedUnderName);
@@ -305,7 +300,6 @@
         var basicsTable = buildLeavesTable(person);
         if (basicsTable) acc.appendChild(accItem(accId, acc.childElementCount, I18N.Basics || 'Basics', basicsTable, false));
 
-        // Render all remaining nested groups recursively (no exclusions)
         var groups = groupChildrenByName(person);
         for (var gName in groups) {
           if (!Object.prototype.hasOwnProperty.call(groups, gName)) continue;
@@ -489,7 +483,7 @@
     }catch{}
   }
 
-  // Public API
+  // Public API (exposed for other modules/pages that may want to interact)
   window.gpiv = {
     setXml: function (raw, pretty) {
       try {

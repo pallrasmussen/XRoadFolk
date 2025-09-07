@@ -71,15 +71,11 @@
   </div>
 </section>
 
-<style type="text/css" nonce="@nonce">
-  .lvl-badge { text-transform: capitalize; }
-  .badge-Error, .badge-Critical { background-color: #dc3545 !important; }
-  .badge-Warning { background-color: #ffc107 !important; color: #111; }
-  .badge-Information { background-color: #0d6efd !important; }
-  .badge-Debug { background-color: #6c757d !important; }
-  .badge-Trace { background-color: #20c997 !important; }
-  .card.log-card { border-left: 4px solid transparent; }
-  .log-card[data-level="Error"], .log-card[data-level="Critical"] { border-left-color: #dc3545; }
+<style nonce="@nonce">
+  .lvl-badge { text-transform: uppercase; }
+  .log-card { border-left: .25rem solid transparent; }
+  .log-card[data-level="Critical"] { border-left-color: #dc3545; }
+  .log-card[data-level="Error"] { border-left-color: #dc3545; }
   .log-card[data-level="Warning"] { border-left-color: #ffc107; }
   .log-card[data-level="Information"] { border-left-color: #0d6efd; }
   .log-card[data-level="Debug"] { border-left-color: #6c757d; }
@@ -94,5 +90,5 @@
 <!-- Provide i18n strings to the external script -->
 <script nonce="@nonce" id="logs-i18n-json" type="application/json">{"Copy":"@SR["Copy"]","Copied":"@SR["Copied"]","Entries":"@SR["Entries"]"}</script>
 
-<!-- Externalized script to comply with CSP: no inline JS -->
-<script src="~/js/logs-viewer.js" asp-append-version="true" defer></script>
+<!-- Externalized ES module script to comply with CSP: no inline JS -->
+<script type="module" src="~/js/logs-viewer.js" asp-append-version="true" defer></script>

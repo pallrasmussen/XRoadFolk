@@ -15,7 +15,7 @@
         NoPeopleFound = SR["NoPeopleFound"].Value,
         PeopleLabel = SR["PeopleLabel"].Value,
         Basics = SR["Basics"].Value,
-        Names = SR["Names"].Value,
+        Names = SR["NoNames"].Value,
         Name = SR["Name"].Value,
         PublicId = SR["PublicId"].Value,
         DOB = SR["DOB"].Value,
@@ -35,7 +35,6 @@
         Loading = SR["Loading"].Value,
         // New placeholders used by person details loader (use SharedResource localizer)
         NoBasics = SR["NoBasics"].Value,
-        NoNames = SR["NoNames"].Value,
         NoAddresses = SR["NoAddresses"].Value,
         NoForeignSsns = SR["NoForeignSsns"].Value,
         NoJuridicalParents = SR["NoJuridicalParents"].Value,
@@ -252,35 +251,7 @@
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 
-<!-- Helpers must be loaded first -->
-<script src="~/js/gpiv-helpers.js" asp-append-version="true" defer></script>
-<!-- Externalized viewer script (cacheable). Uses console.error for surfaced errors. -->
-<script src="~/js/gpiv-viewer.js" asp-append-version="true" defer></script>
-<!-- Externalized person details loader to avoid inline scripts -->
-<script src="~/js/gpiv-person-details-loader.js" asp-append-version="true" defer></script>
-
-<script nonce="@nonce">
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  function text(id){ var el=byId(id); return el? (el.textContent||'') : ''; }
-  function download(name, content){ try{ var blob=new Blob([content||''], { type: 'text/xml;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){ console.error('gpiv: download failed', e);} }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    try{
-      var raw = JSON.parse(text('gpiv-raw-json')) || '';
-      var pretty = JSON.parse(text('gpiv-pretty-json')) || '';
-      var i18n = {};
-      try{ i18n = JSON.parse(text('gpiv-i18n-json')) || {}; }catch{}
-
-      var rawPre = byId('gpiv-raw-pre'); if(rawPre) rawPre.textContent = raw || i18n.NoXmlToDisplay || '';
-      var prettyPre = byId('gpiv-pretty-pre'); if(prettyPre) prettyPre.textContent = pretty || raw || i18n.NoXmlToDisplay || '';
-
-      var copyRaw = byId('gpiv-copy-raw'); if (copyRaw) copyRaw.addEventListener('click', function(){ try{ navigator.clipboard.writeText(raw || ''); copyRaw.textContent = (i18n.Copied||'Copied'); setTimeout(function(){ copyRaw.textContent = (i18n.Copy||'Copy'); }, 1200);}catch{}});
-      var copyPretty = byId('gpiv-copy-pretty'); if (copyPretty) copyPretty.addEventListener('click', function(){ try{ navigator.clipboard.writeText(pretty || raw || ''); copyPretty.textContent = (i18n.Copied||'Copied'); setTimeout(function(){ copyPretty.textContent = (i18n.Copy||'Copy'); }, 1200);}catch{}});
-
-      var dlRaw = byId('gpiv-dl-raw'); if (dlRaw) dlRaw.addEventListener('click', function(){ var name='GetPeoplePublicInfo_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; download(name, raw || ''); });
-      var dlPretty = byId('gpiv-dl-pretty'); if (dlPretty) dlPretty.addEventListener('click', function(){ var name='GetPeoplePublicInfo_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; download(name, pretty || raw || ''); });
-    }catch(e){ console.error('gpiv: tabs init failed', e); }
-  });
-})();
-</script>
+<!-- Load ES modules in order: helpers first, then viewer and details loader -->
+<script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
+<script type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
+<script type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>

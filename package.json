@@ -1,0 +1,11 @@
+{
+  "name": "xroadfolk-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint \"src/**/wwwroot/js/**/*.js\" \"tests/**/*.js\""
+  },
+  "devDependencies": {
+    "eslint": "^9.9.0"
+  }
+}

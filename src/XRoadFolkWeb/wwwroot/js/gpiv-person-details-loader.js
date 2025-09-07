@@ -1,28 +1,13 @@
+import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers.js';
+
 // Restore PublicId click -> load PersonDetails panel behavior
 (function(){
   if (window.__gpivPidHooked) return;
   window.__gpivPidHooked = true;
 
-  var H = window.gpivHelpers || {};
-  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
-  var parseAddressKey = H.parseAddressKey || function(k){
-    var parts = String(k||'').split('.');
-    var pos = -1; var idxVal = null;
-    for (var i=0;i<parts.length;i++){
-      var raw = parts[i]; var seg = raw; var b = seg.indexOf('['); if (b>=0) seg = seg.slice(0,b);
-      if (/^addresses?$/i.test(seg)) { pos = i; var m = raw.match(/\[(\d+)\]/); if (m) idxVal = (parseInt(m[1],10) || 0) + 1; break; }
-    }
-    if (pos < 0) return null;
-    if (idxVal == null) idxVal = 1;
-    var last = parts[parts.length-1] || ''; var lb = last.indexOf('['); if(lb>=0) last = last.slice(0,lb);
-    return { index: idxVal, field: last };
-  };
-  var prettify = H.prettify || function(name){ var s=String(name||''); s=s.replace(/[_\-]+/g,' '); s=s.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); s=s.trim().replace(/\s+/g,' '); return s.split(' ').map(function(w){return w? (w[0].toUpperCase()+w.slice(1)) : w;}).join(' '); };
-  var nextUid = H.nextUid || function(prefix){ return 'gpiv-'+(prefix||'acc')+'-'+Date.now()+'-'+Math.floor(Math.random()*1e6); };
-
   function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
 
-  // --- restored local renderer for addresses using parseAddressKey helper ---
+  // --- local renderer for addresses using parseAddressKey helper ---
   function renderAddressesCardList(items){
     var groups = {};
     (items||[]).forEach(function(it){
@@ -58,7 +43,6 @@
 
   function safeClosest(el, selector){
     try{ if (el && typeof el.closest === 'function') return el.closest(selector); }catch{}
-    // Fallback: manual walk
     try{
       var node = el;
       while (node && node.nodeType === 1){
@@ -143,7 +127,7 @@
     if (lower === 'addresses' || lower === 'address') return 'Addresses';
     if (lower === 'foreignssns' || lower === 'foreignssn' || (lower.includes('foreign') && lower.includes('ssn'))) return 'Foreign SSNs';
     if (lower === 'juridicalparents' || lower === 'juridicalparent') return 'Juridical Parents';
-    if (lower === 'publicid' || lower === 'pid') return i18n.PublicId || 'Public Id';
+    if (lower === 'publicid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
     return prettify(t);
@@ -575,17 +559,6 @@
     }
   }
 
-  function pdToggleAll(open){
-    try{
-      var host = document.getElementById('person-details-section');
-      if (!host) return;
-      var panes = host.querySelectorAll('.accordion-collapse') || [];
-      for (var i=0;i<panes.length;i++){ var p = panes[i]; if (!p) continue; p.classList.toggle('show', !!open); }
-      var btns = host.querySelectorAll('.accordion-button') || [];
-      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); }
-    }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
-  }
-
   document.addEventListener('click', function(e){
     var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
@@ -609,7 +582,7 @@
 
   // Outer PersonDetails tab click -> load
   document.addEventListener('click', function(e){
-    var tabBtn = safeClosest(e.target, '#gpiv-tab-details-btn');
+    var tabBtn = (e.target && e.target.closest) ? e.target.closest('#gpiv-tab-details-btn') : null;
     if (!tabBtn) return;
     setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
@@ -631,7 +604,7 @@
 
   // Inner pd-tab-details sub-tab click -> also load
   document.addEventListener('click', function(e){
-    var innerBtn = safeClosest(e.target, '#pd-tab-details-btn');
+    var innerBtn = (e.target && e.target.closest) ? e.target.closest('#pd-tab-details-btn') : null;
     if (!innerBtn) return;
     setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
@@ -673,7 +646,7 @@
   });
 
   document.addEventListener('click', function(e){
-    var fsBtn = safeClosest(e.target, '#pd-fullscreen');
+    var fsBtn = (e.target && e.target.closest) ? e.target.closest('#pd-fullscreen') : null;
     if (!fsBtn) return;
     var sec = document.getElementById('person-details-section');
     if (!sec) return;
