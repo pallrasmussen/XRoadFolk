@@ -58,6 +58,12 @@ namespace XRoadFolkWeb.Infrastructure
         public int EventId { get; init; }
         public string Message { get; init; } = string.Empty;
         public string? Exception { get; init; }
+        // Enrichment from scopes (if available)
+        public string? TraceId { get; init; }
+        public string? SpanId { get; init; }
+        public string? User { get; init; }
+        public string? SessionId { get; init; }
+        public string? CorrelationId { get; init; }
     }
 
     public interface IHttpLogStore
@@ -450,16 +456,17 @@ namespace XRoadFolkWeb.Infrastructure
             private const int MaxScopes = 16;       // depth bound
             private const int MaxKvpPerScope = 16;  // per-scope kv limit
 
-            private static string? RenderScopes(IExternalScopeProvider? provider)
+            private static (string? traceId, string? spanId, string? user, string? sessionId, string? correlationId, string? rendered) ExtractScopeData(IExternalScopeProvider? provider)
             {
                 if (provider is null)
                 {
-                    return null;
+                    return (null, null, null, null, null, null);
                 }
 
                 StringBuilder sb = new(capacity: 256);
                 bool truncated = false;
                 int scopeCount = 0;
+                string? traceId = null, spanId = null, user = null, sessionId = null, correlationId = null;
 
                 provider.ForEachScope<object?>((scope, _) =>
                 {
@@ -468,81 +475,87 @@ namespace XRoadFolkWeb.Infrastructure
                         return;
                     }
 
-                    AppendScopeSeparator(sb, ref scopeCount);
-                    AppendScopeContent(sb, scope, ref truncated);
-                    TruncateIfNeeded(sb, ref truncated);
+                    if (scope is IEnumerable<KeyValuePair<string, object?>> kvs)
+                    {
+                        ExtractKnownKeys(kvs, ref traceId, ref spanId, ref user, ref sessionId, ref correlationId);
+                    }
+
+                    if (scopeCount > 0)
+                    {
+                        _ = sb.Append(" => ");
+                    }
+                    RenderScope(sb, scope, ref truncated);
                     scopeCount++;
                 }, state: null);
 
-                if (sb.Length == 0)
-                {
-                    return null;
-                }
-                return sb.ToString();
+                string rendered = sb.Length == 0 ? string.Empty : sb.ToString();
+                return (traceId, spanId, user, sessionId, correlationId, rendered);
             }
 
-            private static void AppendScopeSeparator(StringBuilder sb, ref int scopeCount)
+            private static void ExtractKnownKeys(IEnumerable<KeyValuePair<string, object?>> kvs, ref string? traceId, ref string? spanId, ref string? user, ref string? sessionId, ref string? correlationId)
             {
-                if (scopeCount > 0)
+                foreach (var kv in kvs)
                 {
-                    _ = sb.Append(" => ");
-                }
-            }
-
-            private static void AppendScopeContent(StringBuilder sb, object? scope, ref bool truncated)
-            {
-                switch (scope)
-                {
-                    case IEnumerable<KeyValuePair<string, object?>> kvs:
-                        AppendKvpScope(sb, kvs, ref truncated);
-                        break;
-                    default:
-                        _ = sb.Append(scope?.ToString());
-                        break;
-                }
-            }
-
-            private static void AppendKvpScope(StringBuilder sb, IEnumerable<KeyValuePair<string, object?>> kvs, ref bool truncated)
-            {
-                bool firstKv = true;
-                int kvCount = 0;
-                _ = sb.Append('{');
-                foreach (KeyValuePair<string, object?> kv in kvs)
-                {
-                    if (kvCount >= MaxKvpPerScope)
+                    string key = kv.Key;
+                    object? val = kv.Value;
+                    if (traceId is null && string.Equals(key, "TraceId", StringComparison.Ordinal))
                     {
-                        _ = sb.Append(", ...");
-                        break;
+                        traceId = val?.ToString();
                     }
-                    if (!firstKv)
+                    else if (spanId is null && string.Equals(key, "SpanId", StringComparison.Ordinal))
                     {
-                        _ = sb.Append(", ");
+                        spanId = val?.ToString();
                     }
-                    _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
-                    firstKv = false;
-                    kvCount++;
-                    if (sb.Length > MaxScopeChars)
+                    else if (user is null && string.Equals(key, "User", StringComparison.Ordinal))
                     {
-                        TruncateBuilder(sb, ref truncated);
-                        break;
+                        user = val?.ToString();
+                    }
+                    else if (sessionId is null && string.Equals(key, "SessionId", StringComparison.Ordinal))
+                    {
+                        sessionId = val?.ToString();
+                    }
+                    else if (correlationId is null && string.Equals(key, "CorrelationId", StringComparison.Ordinal))
+                    {
+                        correlationId = val?.ToString();
                     }
                 }
-                _ = sb.Append('}');
             }
 
-            private static void TruncateIfNeeded(StringBuilder sb, ref bool truncated)
+            private static void RenderScope(StringBuilder sb, object? scope, ref bool truncated)
             {
-                if (sb.Length > MaxScopeChars)
+                if (scope is IEnumerable<KeyValuePair<string, object?>> kvs2)
                 {
-                    TruncateBuilder(sb, ref truncated);
+                    bool first = true;
+                    int kvCount = 0;
+                    _ = sb.Append('{');
+                    foreach (var kv in kvs2)
+                    {
+                        if (kvCount >= MaxKvpPerScope)
+                        {
+                            _ = sb.Append(", ...");
+                            break;
+                        }
+                        if (!first)
+                        {
+                            _ = sb.Append(", ");
+                        }
+                        _ = sb.Append(kv.Key).Append('=').Append(kv.Value);
+                        first = false;
+                        kvCount++;
+                        if (sb.Length > MaxScopeChars)
+                        {
+                            sb.Length = Math.Max(0, MaxScopeChars - 3);
+                            _ = sb.Append("...");
+                            truncated = true;
+                            break;
+                        }
+                    }
+                    _ = sb.Append('}');
                 }
-            }
-
-            private static void TruncateBuilder(StringBuilder sb, ref bool truncated)
-            {
-                sb.Length = Math.Max(0, MaxScopeChars - 3);
-                _ = sb.Append("...");
-                truncated = true;
+                else
+                {
+                    _ = sb.Append(scope?.ToString());
+                }
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
@@ -555,10 +568,10 @@ namespace XRoadFolkWeb.Infrastructure
                 string msg = formatter(state, exception);
                 string kind = ComputeKind(_category, eventId, msg);
                 IExternalScopeProvider? provider = Volatile.Read(ref _owner._scopes);
-                string? scopeInfo = RenderScopes(provider);
-                if (!string.IsNullOrEmpty(scopeInfo))
+                var (traceId, spanId, user, sessionId, correlationId, scopes) = ExtractScopeData(provider);
+                if (!string.IsNullOrEmpty(scopes))
                 {
-                    msg = $"{msg} | scopes: {scopeInfo}";
+                    msg = $"{msg} | scopes: {scopes}";
                 }
 
                 // Guardrail: cap message length to avoid excessive allocations/IO
@@ -578,6 +591,11 @@ namespace XRoadFolkWeb.Infrastructure
                     Kind = kind,
                     Message = msg,
                     Exception = exception?.ToString(),
+                    TraceId = traceId,
+                    SpanId = spanId,
+                    User = user,
+                    SessionId = sessionId,
+                    CorrelationId = correlationId,
                 });
             }
         }

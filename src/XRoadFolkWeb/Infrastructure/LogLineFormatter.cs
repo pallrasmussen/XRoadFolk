@@ -1,9 +1,17 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace XRoadFolkWeb.Infrastructure
 {
     internal static class LogLineFormatter
     {
+        private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web)
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = false
+        };
+
         public static string Sanitize(string? s)
         {
             if (string.IsNullOrEmpty(s))
@@ -28,7 +36,7 @@ namespace XRoadFolkWeb.Infrastructure
             });
         }
 
-        public static string FormatLine(XRoadFolkWeb.Infrastructure.LogEntry e)
+        public static string FormatLine(LogEntry e)
         {
             // Sanitize PII and secrets prior to formatting
             bool mask = _maskTokens;
@@ -36,7 +44,23 @@ namespace XRoadFolkWeb.Infrastructure
             string ex = PiiSanitizer.Sanitize(e.Exception, mask);
             msg = Sanitize(msg);
             ex = Sanitize(ex);
-            return string.Create(CultureInfo.InvariantCulture, $"{e.Timestamp:O}\t{e.Level}\t{e.Kind}\t{e.Category}\t{e.EventId}\t{msg}\t{ex}");
+
+            var obj = new
+            {
+                timestamp = e.Timestamp.ToString("O", CultureInfo.InvariantCulture),
+                level = e.Level.ToString(),
+                kind = e.Kind,
+                category = e.Category,
+                eventId = e.EventId,
+                message = msg,
+                exception = string.IsNullOrWhiteSpace(ex) ? null : ex,
+                traceId = e.TraceId,
+                spanId = e.SpanId,
+                user = e.User,
+                sessionId = e.SessionId,
+                correlationId = e.CorrelationId,
+            };
+            return JsonSerializer.Serialize(obj, JsonOpts);
         }
 
         // cached flag set via Configure call at startup
