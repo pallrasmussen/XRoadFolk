@@ -5,6 +5,20 @@
 
   var personCache = (window.personCache instanceof Map) ? window.personCache : (window.personCache = new Map());
   var lastPid = window.lastPid || null;
+  var loadSeq = 0; // protects against races when clicking quickly
+
+  function safeClosest(el, selector){
+    try{ if (el && typeof el.closest === 'function') return el.closest(selector); }catch{}
+    // Fallback: manual walk
+    try{
+      var node = el;
+      while (node && node.nodeType === 1){
+        try{ if (node.matches && node.matches(selector)) return node; }catch{}
+        node = node.parentElement;
+      }
+    }catch{}
+    return null;
+  }
 
   function getPanelEls() {
     return {
@@ -134,13 +148,10 @@
       var btn = document.getElementById('gpiv-tab-details-btn');
       var pane = document.getElementById('gpiv-tab-details');
       if (!btn || !pane) return;
-      document.querySelectorAll('#gpiv-tabs button[data-bs-target]').forEach(function(b){
-        b.classList.remove('active');
-        b.setAttribute('aria-selected','false');
-      });
-      document.querySelectorAll('#gpiv-tabs-content .tab-pane').forEach(function(p){
-        p.classList.remove('show','active');
-      });
+      var allBtns = document.querySelectorAll('#gpiv-tabs button[data-bs-target]') || [];
+      for (var i=0;i<allBtns.length;i++){ var b=allBtns[i]; if(!b) continue; b.classList.remove('active'); b.setAttribute('aria-selected','false'); }
+      var panes = document.querySelectorAll('#gpiv-tabs-content .tab-pane') || [];
+      for (var j=0;j<panes.length;j++){ var p=panes[j]; if(!p) continue; p.classList.remove('show','active'); }
       btn.classList.add('active');
       btn.setAttribute('aria-selected','true');
       pane.classList.add('show','active');
@@ -165,8 +176,8 @@
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
-    if(e.body && on){ e.body.innerHTML=''; }
-    if(e.loading){ e.loading.classList.toggle('d-none', !on); }
+    if(e.body && on){ try{ e.body.innerHTML=''; }catch{} }
+    if(e.loading){ try{ e.loading.classList.toggle('d-none', !on); }catch{} }
   }
   function clearPanel(){
     var e=getPanelEls(); if(!e.sec) return;
@@ -174,23 +185,23 @@
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
-    if(e.body){ e.body.innerHTML=''; }
-    if(e.loading){ e.loading.classList.add('d-none'); }
+    if(e.body){ try{ e.body.innerHTML=''; }catch{} }
+    if(e.loading){ try{ e.loading.classList.add('d-none'); }catch{} }
   }
   function showInfo(message){
     var e=getPanelEls(); if(!e.sec) return;
     activateDetailsTab();
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
-    if(e.loading){ e.loading.classList.add('d-none'); }
+    if(e.loading){ try{ e.loading.classList.add('d-none'); }catch{} }
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
     if(e.body){
       var div = document.createElement('div');
       div.className = 'alert alert-info mb-0';
       div.setAttribute('role','status');
       div.textContent = message || 'Select a person to view details.';
-      e.body.innerHTML = '';
-      e.body.appendChild(div);
+      try{ e.body.innerHTML = ''; }catch{}
+      try{ e.body.appendChild(div); }catch{}
     }
   }
   function ensureShownAndFocus(){
@@ -489,10 +500,10 @@
       var els = getPanelEls();
       if (els.rawPre) els.rawPre.textContent = raw || '';
       if (els.prettyPre) els.prettyPre.textContent = pretty || raw || '';
-      if (els.copyRaw) els.copyRaw.onclick = function(){ try{ navigator.clipboard.writeText(raw || ''); els.copyRaw.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyRaw.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
-      if (els.copyPretty) els.copyPretty.onclick = function(){ try{ navigator.clipboard.writeText(pretty || raw || ''); els.copyPretty.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyPretty.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
-      if (els.dlRaw) els.dlRaw.onclick = function(){ try{ var name='GetPerson_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var blob=new Blob([raw||''], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){ console.error('pd: download raw failed', e);} };
-      if (els.dlPretty) els.dlPretty.onclick = function(){ try{ var name='GetPerson_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var content=(pretty||raw||''); var blob=new Blob([content], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){ console.error('pd: download pretty failed', e);} };
+      if (els.copyRaw) els.copyRaw.onclick = function(){ try{ if (navigator && navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(raw || ''); } els.copyRaw.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyRaw.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
+      if (els.copyPretty) els.copyPretty.onclick = function(){ try{ if (navigator && navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(pretty || raw || ''); } els.copyPretty.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyPretty.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
+      if (els.dlRaw) els.dlRaw.onclick = function(){ try{ var name='GetPerson_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var blob=new Blob([raw||''], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('pd: download raw failed', e);}catch{} } };
+      if (els.dlPretty) els.dlPretty.onclick = function(){ try{ var name='GetPerson_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var content=(pretty||raw||''); var blob=new Blob([content], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('pd: download pretty failed', e);}catch{} } };
     }catch(e){ try{ console.debug('GPIV: setPdXml failed', e); }catch{} }
   }
 
@@ -500,7 +511,7 @@
     var url = new URL(window.location.href);
     url.searchParams.set('handler','PersonDetails');
     url.searchParams.set('publicId', publicId);
-    var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json' } });
+    var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json; charset=utf-8' } });
     var ct = (resp.headers.get('content-type') || '').toLowerCase();
     var data = null;
     if (ct.includes('application/json')) data = await resp.json();
@@ -511,6 +522,7 @@
 
   async function loadPerson(publicId, sourceEl){
     window.lastPid = lastPid = publicId;
+    var mySeq = ++loadSeq;
     var els = getPanelEls();
     if(!publicId || !els.body) { showInfo('Select a person to view details.'); return; }
 
@@ -519,7 +531,8 @@
       clearPanel();
       var builder = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
       var accCached = builder(cached.details);
-      if (accCached) els.body.appendChild(accCached);
+      if (mySeq !== loadSeq) return; // abandoned
+      if (accCached && els.body) els.body.appendChild(accCached);
       setPdXml(cached.raw || '', cached.pretty || '');
       ensureShownAndFocus();
     } else {
@@ -528,6 +541,7 @@
 
     try {
       var data = await fetchDetails(publicId);
+      if (mySeq !== loadSeq) return; // stale response, ignore
       showLoading(false);
 
       if (!data || data.ok !== true) {
@@ -535,7 +549,7 @@
           els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
           els.err.classList.remove('d-none');
           var retry = document.getElementById('pd-retry');
-          retry && retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
+          if (retry) retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
           ensureShownAndFocus();
         }
         return;
@@ -547,7 +561,7 @@
       clearPanel();
       var builder2 = (window._renderPairsGroupedForPerson || defaultRenderPairsGrouped);
       var acc = builder2(details);
-      if (acc) els.body.appendChild(acc); else showInfo('No details to display.');
+      if (acc && els.body) els.body.appendChild(acc); else showInfo('No details to display.');
       setPdXml(data.raw || '', data.pretty || '');
       ensureShownAndFocus();
 
@@ -558,15 +572,16 @@
       try{
         var link = new URL(window.location.href);
         link.searchParams.set('gpivPublicId', publicId);
-        history.pushState(null,'',link.toString());
+        if (history && history.pushState) history.pushState(null,'',link.toString());
       }catch(ex){ try{ console.debug('GPIV: history.pushState failed', ex); }catch{} }
     } catch (err) {
+      if (mySeq !== loadSeq) return; // stale error
       showLoading(false);
       if (els.err) {
-        els.err.innerHTML = 'Failed to load details. <button type=\"button\" id=\"pd-retry\" class=\"btn btn-sm btn-outline-secondary ms-2\">Retry</button>';
+        els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
         els.err.classList.remove('d-none');
         var retry2 = document.getElementById('pd-retry');
-        retry2 && retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
+        if (retry2) retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
         ensureShownAndFocus();
       }
       try { console.error('GetPerson fetch failed', err); } catch {}
@@ -574,7 +589,7 @@
   }
 
   document.addEventListener('click', function(e){
-    var header = e.target && e.target.closest && e.target.closest('.gpiv-person-header');
+    var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
     if(e.ctrlKey || e.metaKey) return;
     var wrap = header.parentElement; // .gpiv-person
@@ -585,7 +600,7 @@
 
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    var header = e.target && e.target.closest && e.target.closest('.gpiv-person-header');
+    var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
     e.preventDefault();
     var wrap = header.parentElement;
@@ -596,7 +611,7 @@
 
   // Outer PersonDetails tab click -> load
   document.addEventListener('click', function(e){
-    var tabBtn = e.target && e.target.closest && e.target.closest('#gpiv-tab-details-btn');
+    var tabBtn = safeClosest(e.target, '#gpiv-tab-details-btn');
     if (!tabBtn) return;
     setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
@@ -618,7 +633,7 @@
 
   // Inner pd-tab-details sub-tab click -> also load
   document.addEventListener('click', function(e){
-    var innerBtn = e.target && e.target.closest && e.target.closest('#pd-tab-details-btn');
+    var innerBtn = safeClosest(e.target, '#pd-tab-details-btn');
     if (!innerBtn) return;
     setTimeout(function(){
       var pid = window.lastPid || findFirstPersonId();
@@ -660,7 +675,7 @@
   });
 
   document.addEventListener('click', function(e){
-    var fsBtn = e.target && e.target.closest && e.target.closest('#pd-fullscreen');
+    var fsBtn = safeClosest(e.target, '#pd-fullscreen');
     if (!fsBtn) return;
     var sec = document.getElementById('person-details-section');
     if (!sec) return;
@@ -742,15 +757,15 @@
     try{
       var host = document.getElementById('person-details-section');
       if (!host) return;
-      var panes = host.querySelectorAll('.accordion-collapse');
-      panes.forEach(function(p){ p.classList.toggle('show', !!open); });
-      var btns = host.querySelectorAll('.accordion-button');
-      btns.forEach(function(b){ b.classList.toggle('collapsed', !open); });
+      var panes = host.querySelectorAll('.accordion-collapse') || [];
+      for (var i=0;i<panes.length;i++){ var p = panes[i]; if (!p) continue; p.classList.toggle('show', !!open); }
+      var btns = host.querySelectorAll('.accordion-button') || [];
+      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); }
     }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
   document.addEventListener('click', function(e){
-    var t = e.target && e.target.id || '';
-    if (t === 'pd-expand-all') pdToggleAll(true);
-    if (t === 'pd-collapse-all') pdToggleAll(false);
+    var id = (e.target && e.target.id) || '';
+    if (id === 'pd-expand-all') pdToggleAll(true);
+    if (id === 'pd-collapse-all') pdToggleAll(false);
   });
 })();
