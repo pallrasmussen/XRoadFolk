@@ -571,23 +571,10 @@ namespace XRoadFolkWeb.Extensions
                 var payload = new { ok = true, page = pg, pageSize = size, total, totalPages, items };
                 string json = JsonSerializer.Serialize(payload, CamelJson);
 
-                string etag = ComputeWeakETag(json);
-                if (IfNoneMatchMatches(ctx, etag))
-                {
-                    ctx.Response.StatusCode = StatusCodes.Status304NotModified;
-                    ctx.Response.Headers.ETag = etag;
-                    ctx.Response.Headers.CacheControl = "public, max-age=5";
-                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R", CultureInfo.InvariantCulture);
-                    ctx.Response.Headers.Vary = "Accept-Language";
-                    return;
-                }
-
                 ctx.Response.StatusCode = StatusCodes.Status200OK;
                 ctx.Response.ContentType = "application/json";
-                ctx.Response.Headers.ETag = etag;
-                ctx.Response.Headers.CacheControl = "public, max-age=5";
-                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R", CultureInfo.InvariantCulture);
-                ctx.Response.Headers.Vary = "Accept-Language";
+                ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                ctx.Response.Headers.Pragma = "no-cache";
                 await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
             });
         }
