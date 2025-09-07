@@ -174,16 +174,6 @@
                             }
                         </select>
                     </form>
-
-                    <script nonce="@nonce">
-                        // Avoid inline event handlers (blocked by CSP). Wire up submit programmatically.
-                        document.addEventListener('DOMContentLoaded', function () {
-                            try {
-                                var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
-                                if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
-                            } catch (e) { console.error('Culture switch init failed', e); }
-                        });
-                    </script>
                 </div>
             </div>
         </div>
@@ -208,6 +198,7 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true" defer></script>
     <script src="~/js/antiforgery.js" asp-append-version="true" defer></script>
     <script src="~/js/site.js" asp-append-version="true" defer></script>
+    <script src="~/js/layout-culture-switcher.js" asp-append-version="true" defer></script>
 
     <environment include="Development">
         <script src="/_framework/aspnetcore-browser-refresh.js" defer></script>
