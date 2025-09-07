@@ -172,7 +172,7 @@ namespace XRoadFolkWeb.Extensions
                     if (hasVersion)
                     {
                         headers.CacheControl = "public,max-age=31536000,immutable";
-                        headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
+                        headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R", CultureInfo.InvariantCulture);
                     }
                     else
                     {
@@ -511,7 +511,7 @@ namespace XRoadFolkWeb.Extensions
                     ctx.Response.StatusCode = StatusCodes.Status304NotModified;
                     ctx.Response.Headers.ETag = etag;
                     ctx.Response.Headers.CacheControl = "public, max-age=10";
-                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R");
+                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R", CultureInfo.InvariantCulture);
                     ctx.Response.Headers.Vary = "Accept-Language";
                     return;
                 }
@@ -520,7 +520,7 @@ namespace XRoadFolkWeb.Extensions
                 ctx.Response.ContentType = "application/json";
                 ctx.Response.Headers.ETag = etag;
                 ctx.Response.Headers.CacheControl = "public, max-age=10";
-                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R");
+                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R", CultureInfo.InvariantCulture);
                 ctx.Response.Headers.Vary = "Accept-Language";
                 await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
             });
@@ -577,7 +577,7 @@ namespace XRoadFolkWeb.Extensions
                     ctx.Response.StatusCode = StatusCodes.Status304NotModified;
                     ctx.Response.Headers.ETag = etag;
                     ctx.Response.Headers.CacheControl = "public, max-age=5";
-                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R");
+                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R", CultureInfo.InvariantCulture);
                     ctx.Response.Headers.Vary = "Accept-Language";
                     return;
                 }
@@ -586,7 +586,7 @@ namespace XRoadFolkWeb.Extensions
                 ctx.Response.ContentType = "application/json";
                 ctx.Response.Headers.ETag = etag;
                 ctx.Response.Headers.CacheControl = "public, max-age=5";
-                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R");
+                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R", CultureInfo.InvariantCulture);
                 ctx.Response.Headers.Vary = "Accept-Language";
                 await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
             });
@@ -741,7 +741,7 @@ namespace XRoadFolkWeb.Extensions
             var sb = new StringBuilder(hash.Length * 2);
             foreach (byte b in hash)
             {
-                sb.Append(b.ToString("x2"));
+                sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
             }
             return $"W/\"{sb}\"";
         }
@@ -799,7 +799,7 @@ namespace XRoadFolkWeb.Extensions
                 {
                     var sb = new System.Text.StringBuilder();
                     sb.Append(CookieRequestCultureProvider.DefaultCookieName).Append('=').Append(Uri.EscapeDataString(cookieValue));
-                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R"));
+                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R", CultureInfo.InvariantCulture));
                     sb.Append("; Path=/");
                     sb.Append("; SameSite=Lax");
                     sb.Append("; HttpOnly");
