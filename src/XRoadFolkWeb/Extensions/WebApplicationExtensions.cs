@@ -435,6 +435,10 @@ namespace XRoadFolkWeb.Extensions
 
         private static void ConfigureRequestLoggingOrCompression(WebApplication app, IHostEnvironment env, ILoggerFactory loggerFactory)
         {
+            // Always enable response compression (Brotli/Gzip configured in services)
+            _ = app.UseResponseCompression();
+
+            // In development, also log requests (excluding static assets)
             if (env.IsDevelopment())
             {
                 ILogger reqLog = loggerFactory.CreateLogger("App.Http");
@@ -451,10 +455,6 @@ namespace XRoadFolkWeb.Extensions
 
                     await next().ConfigureAwait(false);
                 });
-            }
-            else
-            {
-                _ = app.UseResponseCompression();
             }
         }
 
