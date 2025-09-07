@@ -2,18 +2,22 @@
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
+@using XRoadFolkWeb.Infrastructure
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
-@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@inject IOptionsSnapshot<FeaturesOptions> Features
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Af
 @{
     Layout = null;
     var currentUi = CultureInfo.CurrentUICulture.Name;
     var supported = LocOpts.Value.SupportedUICultures ?? new List<CultureInfo> { CultureInfo.GetCultureInfo("en-US") };
 
+    // Resolve IConfiguration for additional values
+    var cfg = Context?.RequestServices.GetRequiredService<IConfiguration>();
+
     // Optional: order cultures according to configuration to ensure predictable display order (deduplicated by Name)
     List<CultureInfo> culturesToShow;
-    string[]? order = Config.GetSection("Localization:SupportedCultures").Get<string[]>();
+    string[]? order = cfg?.GetSection("Localization:SupportedCultures").Get<string[]>();
     if (order?.Length > 0)
     {
         var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -50,11 +54,11 @@
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
     // Optional SRI hashes (configure in appsettings under Cdn:Bootswatch:Sri and Cdn:BootstrapIcons:Sri)
-    string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; // e.g., sha384-...
-    string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
+    string? bootswatchSri = cfg?["Cdn:Bootswatch:Sri"]; // e.g., sha384...
+    string? biSri = cfg?["Cdn:BootstrapIcons:Sri"];    // e.g., sha384...
 
     // Feature toggle: Logs button visibility
-    bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
+    bool showLogs = Features.Value.ShowLogs ?? true;
 
     // Antiforgery tokens for AJAX (guard against null HttpContext for analyzers)
     Microsoft.AspNetCore.Antiforgery.AntiforgeryTokenSet? antiTokens = null;
@@ -189,7 +193,7 @@
     <!-- Footer -->
     <footer class="mt-auto border-top py-3">
         <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between small text-muted">
-            <span>&copy; @DateTime.UtcNow.Year @Config["Branding:AuthorName"]</span>
+            <span>&copy; @DateTime.UtcNow.Year @cfg?["Branding:AuthorName"]</span>
             <span>@SR["BuiltWith"]</span>
         </div>
     </footer>

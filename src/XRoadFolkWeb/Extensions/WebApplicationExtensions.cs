@@ -87,11 +87,11 @@ namespace XRoadFolkWeb.Extensions
             ArgumentNullException.ThrowIfNull(app);
 
             IHostEnvironment env = app.Services.GetRequiredService<IHostEnvironment>();
-            IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
+            var features = app.Services.GetRequiredService<IOptionsMonitor<FeaturesOptions>>().CurrentValue;
             ILoggerFactory loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
             ILogger featureLog = loggerFactory.CreateLogger("Features");
             ILogger cultureLog = loggerFactory.CreateLogger("App.Culture");
-            bool showDetailedErrors = configuration.GetBoolOrDefault("Features:DetailedErrors", env.IsDevelopment(), featureLog);
+            bool showDetailedErrors = features.DetailedErrors ?? env.IsDevelopment();
 
             AddCspAndSecurityHeaders(app);
             AddNoCacheHeaders(app);
@@ -115,9 +115,9 @@ namespace XRoadFolkWeb.Extensions
             AddCachingSessionAndAntiforgery(app);
 
             AddCorrelationScope(app, loggerFactory);
-            MapMainRoutes(app, configuration, env, cultureLog, featureLog);
+            MapMainRoutes(app, features, env, cultureLog, featureLog);
             ApplyThreadCultureDefaults(app);
-            MapOptionalPrometheus(app, configuration);
+            MapOptionalPrometheus(app, app.Services.GetRequiredService<IConfiguration>());
 
             return app;
         }
@@ -208,12 +208,12 @@ namespace XRoadFolkWeb.Extensions
             app.UseAntiforgery();
         }
 
-        private static void MapMainRoutes(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger cultureLog, ILogger featureLog)
+        private static void MapMainRoutes(WebApplication app, FeaturesOptions features, IHostEnvironment env, ILogger cultureLog, ILogger featureLog)
         {
             MapCultureSwitch(app, cultureLog);
             app.MapRazorPages();
             app.MapFallbackToPage("/Index");
-            MapLogsEndpoints(app, configuration, env, featureLog);
+            MapLogsEndpoints(app, features, env, featureLog);
         }
 
         private static void ApplyThreadCultureDefaults(WebApplication app)
@@ -526,9 +526,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
-        private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
+        private static void MapLogsEndpoints(WebApplication app, FeaturesOptions features, IHostEnvironment env, ILogger featureLog)
         {
-            bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
+            bool logsEnabled = features.Logs?.Enabled ?? env.IsDevelopment();
             if (!logsEnabled)
             {
                 return;

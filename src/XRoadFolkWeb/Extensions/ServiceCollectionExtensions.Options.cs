@@ -21,6 +21,11 @@ public static partial class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<XRoadSettings>, XRoadSettingsValidator>();
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<XRoadSettings>>().Value);
 
+        // Features options (centralized feature toggles)
+        services.AddOptions<FeaturesOptions>()
+            .Bind(configuration.GetSection("Features"))
+            .ValidateDataAnnotations();
+
         // Http options with environment-aware validation
         services.AddOptions<HttpOptions>()
             .Bind(configuration.GetSection("Http"));
