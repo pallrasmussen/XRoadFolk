@@ -252,6 +252,8 @@
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 
+<!-- Helpers must be loaded first -->
+<script src="~/js/gpiv-helpers.js" asp-append-version="true" defer></script>
 <!-- Externalized viewer script (cacheable). Uses console.error for surfaced errors. -->
 <script src="~/js/gpiv-viewer.js" asp-append-version="true" defer></script>
 <!-- Externalized person details loader to avoid inline scripts -->

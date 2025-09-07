@@ -3,6 +3,74 @@
   if (window.__gpivPidHooked) return;
   window.__gpivPidHooked = true;
 
+  var H = window.gpivHelpers || {};
+  var iconClassFor = H.iconClassFor || function(name){
+    var t = String(name || '').toLowerCase();
+    if (t === 'summary') return 'bi-list-check';
+    if (t === 'person' || t === 'basics') return 'bi-person-vcard';
+    if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
+    if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
+    if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
+    if (t === 'ssns' || t === 'ssn') return 'bi-passport';
+    if (t === 'juridicalparents' || t === 'juridicalparent') return 'bi-people-fill';
+    if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
+    if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
+    if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
+    if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation') || t.includes('employer')) return 'bi-briefcase';
+    if (t.includes('education') || t.includes('school') || t.includes('study') || t.includes('degree')) return 'bi-mortarboard';
+    if (t.includes('document') || t.includes('certificate') || t.includes('doc') || t.includes('file') || t.includes('paper')) return 'bi-file-earmark-text';
+    if (t.includes('bank') || t.includes('account') || t.includes('finance') || t.includes('iban') || t.includes('bic') || t.includes('payment')) return 'bi-wallet2';
+    if (t.includes('email') || t.includes('mail')) return 'bi-envelope-at';
+    if (t.includes('contact') || t.includes('phone') || t.includes('mobile') || t.includes('tel') || t.includes('fax')) return 'bi-telephone';
+    if (t.includes('id') || t.includes('ident') || t.includes('passport') || t.includes('card') || t.includes('vcard')) return 'bi-person-vcard';
+    if (t.includes('date') || t.includes('period') || t.includes('valid')) return 'bi-calendar-event';
+    if (t.includes('nation') || t.includes('citizen') || t.includes('nationality') || t.includes('country')) return 'bi-flag';
+    return 'bi-list-ul';
+  };
+  var parseAddressKey = H.parseAddressKey || function(k){
+    var parts = String(k||'').split('.');
+    var pos = -1; var idxVal = null;
+    for (var i=0;i<parts.length;i++){
+      var raw = parts[i]; var seg = raw; var b = seg.indexOf('['); if (b>=0) seg = seg.slice(0,b);
+      if (/^addresses?$/i.test(seg)) { pos = i; var m = raw.match(/\[(\d+)\]/); if (m) idxVal = (parseInt(m[1],10) || 0) + 1; break; }
+    }
+    if (pos < 0) return null;
+    if (idxVal == null) idxVal = 1;
+    var last = parts[parts.length-1] || ''; var lb = last.indexOf('['); if(lb>=0) last = last.slice(0,lb);
+    return { index: idxVal, field: last };
+  };
+  var prettify = H.prettify || function(name){ var s=String(name||''); s=s.replace(/[_\-]+/g,' '); s=s.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); s=s.trim().replace(/\s+/g,' '); return s.split(' ').map(function(w){return w? (w[0].toUpperCase()+w.slice(1)) : w;}).join(' '); };
+
+  // --- restored local renderer for addresses using parseAddressKey helper ---
+  function renderAddressesCardList(items){
+    var groups = {};
+    (items||[]).forEach(function(it){
+      var parsed = parseAddressKey(it.k || it.key);
+      if (!parsed) return;
+      (groups[parsed.index] = groups[parsed.index] || []).push({ field: parsed.field, value: it.v || it.value });
+    });
+    var ids = Object.keys(groups).map(function(x){ return parseInt(x,10)||0; }).sort(function(a,b){ return a-b; });
+    if (!ids.length) return null;
+    var list = document.createElement('div'); list.className='d-flex flex-column gap-2';
+    ids.forEach(function(idx){
+      var card = document.createElement('div'); card.className='p-2 border rounded';
+      var title = document.createElement('div'); title.className='small text-muted mb-1'; title.textContent = 'Address #' + idx;
+      card.appendChild(title);
+      var respWrap=document.createElement('div'); respWrap.className='table-responsive';
+      var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
+      var tb=document.createElement('tbody');
+      var rows = groups[idx].slice().sort(function(a,b){ return a.field.localeCompare(b.field); });
+      rows.forEach(function(r){
+        var tr=document.createElement('tr');
+        var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=r.field;
+        var td=document.createElement('td'); td.textContent=r.value;
+        tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+      });
+      table.appendChild(tb); respWrap.appendChild(table); card.appendChild(respWrap); list.appendChild(card);
+    });
+    return list;
+  }
+
   var personCache = (window.personCache instanceof Map) ? window.personCache : (window.personCache = new Map());
   var lastPid = window.lastPid || null;
   var loadSeq = 0; // protects against races when clicking quickly
@@ -82,14 +150,6 @@
       var pretty = prettyEl ? JSON.parse(prettyEl.textContent||'""') : '';
       return parseFirstPublicIdFromXmlText(raw || pretty || '');
     }catch{ return ''; }
-  }
-
-  function prettify(name){
-    var s = String(name || '');
-    s = s.replace(/[_\-]+/g,' ');
-    s = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-    s = s.trim().replace(/\s+/g, ' ');
-    return s.split(' ').map(function(w){ return w ? (w[0].toUpperCase() + w.slice(1)) : w; }).join(' ');
   }
 
   function headerLabelForGroup(rawName){
@@ -268,78 +328,11 @@
   }
 
   function defaultRenderPairsGrouped(pairs){
-    function iconClassForPd(name){
-      var t = String(name || '').toLowerCase();
-      if (t === 'summary') return 'bi-list-check';
-      if (t === 'person' || t === 'basics') return 'bi-person-vcard';
-      if (t === 'names' || t === 'name') return 'bi-person-lines-fill';
-      if (t === 'addresses' || t === 'address') return 'bi-geo-alt';
-      if (t === 'foreignssns' || t === 'foreignssn') return 'bi-passport';
-      if (t === 'ssns' || t === 'ssn') return 'bi-passport';
-      if (t === 'juridicalparents' || t === 'juridicalparent') return 'bi-people-fill';
-      if (t === 'biologicalparents' || t === 'parents' || t.includes('parent') || t.includes('guardian') || t.includes('family')) return 'bi-people-fill';
-      if (t.includes('basic') || t.includes('personal') || t === 'basics' || t.includes('overview') || t.includes('core')) return 'bi-person-vcard';
-      if (t.includes('status') || t.includes('civilstatus') || t.includes('marital')) return 'bi-patch-check';
-      if (t.includes('employment') || t.includes('job') || t.includes('work') || t.includes('occupation') || t.includes('employer')) return 'bi-briefcase';
-      if (t.includes('education') || t.includes('school') || t.includes('study') || t.includes('degree')) return 'bi-mortarboard';
-      if (t.includes('document') || t.includes('certificate') || t.includes('doc') || t.includes('file') || t.includes('paper')) return 'bi-file-earmark-text';
-      if (t.includes('bank') || t.includes('account') || t.includes('finance') || t.includes('iban') || t.includes('bic') || t.includes('payment')) return 'bi-wallet2';
-      if (t.includes('email') || t.includes('mail')) return 'bi-envelope-at';
-      if (t.includes('contact') || t.includes('phone') || t.includes('mobile') || t.includes('tel') || t.includes('fax')) return 'bi-telephone';
-      if (t.includes('id') || t.includes('ident') || t.includes('passport') || t.includes('card') || t.includes('vcard')) return 'bi-person-vcard';
-      if (t.includes('date') || t.includes('period') || t.includes('valid')) return 'bi-calendar-event';
-      if (t.includes('nation') || t.includes('citizen') || t.includes('nationality') || t.includes('country')) return 'bi-flag';
-      return 'bi-list-ul';
-    }
-
     function createPlaceholder(text){
       var ph = document.createElement('div');
       ph.className = 'text-muted small p-2';
       ph.textContent = text;
       return ph;
-    }
-
-    function stripIndex(s){ var b = s.indexOf('['); return b>=0 ? s.slice(0,b) : s; }
-    function parseAddressKey(k){
-      var parts = String(k||'').split('.');
-      var pos = -1; var idxVal = null;
-      for (var i=0;i<parts.length;i++){
-        var raw = parts[i]; var seg = stripIndex(raw);
-        if (/^addresses?$/i.test(seg)) { pos = i; var m = raw.match(/\[(\d+)\]/); if (m) idxVal = (parseInt(m[1],10) || 0) + 1; break; }
-      }
-      if (pos < 0) return null;
-      if (idxVal == null) idxVal = 1;
-      var last = stripIndex(parts[parts.length-1] || '');
-      return { index: idxVal, field: last };
-    }
-
-    function renderAddressesCardList(items){
-      var groups = {};
-      (items||[]).forEach(function(it){
-        var parsed = parseAddressKey(it.k);
-        if (!parsed) return;
-        (groups[parsed.index] = groups[parsed.index] || []).push({ field: parsed.field, value: it.v });
-      });
-      var ids = Object.keys(groups).map(function(x){ return parseInt(x,10)||0; }).sort(function(a,b){ return a-b; });
-      if (!ids.length) return null;
-      var list = document.createElement('div'); list.className='d-flex flex-column gap-2';
-      ids.forEach(function(idx){
-        var card = document.createElement('div'); card.className='p-2 border rounded';
-        var title = document.createElement('div'); title.className='small text-muted mb-1'; title.textContent = 'Address #' + idx;
-        card.appendChild(title);
-        var respWrap=document.createElement('div'); respWrap.className='table-responsive';
-        var table=document.createElement('table'); table.className='table table-sm table-striped align-middle mb-0';
-        var tb=document.createElement('tbody');
-        var rows = groups[idx].slice().sort(function(a,b){ return a.field.localeCompare(b.field); });
-        rows.forEach(function(r){
-          var tr=document.createElement('tr');
-          var th=document.createElement('th'); th.className='text-muted fw-normal'; th.style.width='36%'; th.textContent=r.field;
-          var td=document.createElement('td'); td.textContent=r.value;
-          tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
-        });
-        table.appendChild(tb); respWrap.appendChild(table); card.appendChild(respWrap); list.appendChild(card);
-      });
-      return list;
     }
 
     var groups = {};
@@ -380,7 +373,7 @@
       var btn=document.createElement('button'); btn.className='accordion-button' + (open ? '' : ' collapsed');
       btn.type='button'; btn.setAttribute('data-bs-toggle','collapse'); btn.setAttribute('data-bs-target','#'+cid);
       btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.setAttribute('aria-controls', cid);
-      var ic = document.createElement('i'); ic.className='bi '+iconClassForPd(name)+' me-2'; ic.setAttribute('aria-hidden','true');
+      var ic = document.createElement('i'); ic.className='bi '+iconClassFor(name)+' me-2'; ic.setAttribute('aria-hidden','true');
       btn.appendChild(ic); btn.appendChild(document.createTextNode(headerLabelForGroup(name)));
       h2.appendChild(btn);
 

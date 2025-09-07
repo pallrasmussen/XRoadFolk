@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gpiv-helpers tests</title>
+</head>
+<body>
+  <h1>gpiv-helpers unit tests</h1>
+  <pre id="out"></pre>
+  <script src="../js/gpiv-helpers.js"></script>
+  <script>
+    (function(){
+      var out = document.getElementById('out');
+      function log(msg){ out.textContent += msg + "\n"; }
+      window.console.log = function(){ log([].slice.call(arguments).join(' ')); };
+      window.console.error = function(){ log('ERROR: '+[].slice.call(arguments).join(' ')); };
+    })();
+  </script>
+  <script src="../../tests/XRoadFolkWeb.Tests/wwwroot/js/gpiv-helpers.tests.js"></script>
+</body>
+</html>
