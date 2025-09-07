@@ -26,6 +26,12 @@
 
     <!-- Enforce code style diagnostics in build for CI parity -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Icon generation configuration (opt-in) -->
+    <GenerateRasterIcons>false</GenerateRasterIcons>
+    <IconSourceSvg>$(ProjectDir)wwwroot/favicon.svg</IconSourceSvg>
+    <IconOutputDir>$(ProjectDir)wwwroot/icons</IconOutputDir>
+    <IconSizes>16;32;48;64;128;180;192;256;384;512</IconSizes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,24 +55,56 @@
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.12.0-beta.1" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.8.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
     <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.12.0" />
-    <PackageReference Include="Roslynator.Analyzers" Version="4.12.6">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <!-- Add Microsoft code quality analyzers to catch dead/useless code patterns in CI -->
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <!-- Meziantou analyzer for additional rules -->
-    <PackageReference Include="Meziantou.Analyzer" Version="2.0.158">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <!-- Required for IServiceCollection.AddStackExchangeRedisCache -->
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
-    <!-- Required for IServiceCollection.AddDistributedSqlServerCache -->
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.8" />
   </ItemGroup>
+
+  <!-- Generate raster icons from single SVG source if tools are available and opt-in enabled -->
+  <Target Name="GenerateRasterIcons" BeforeTargets="Build" Condition=" '$(GenerateRasterIcons)' == 'true' AND Exists('$(IconSourceSvg)') ">
+    <MakeDir Directories="$(IconOutputDir)" />
+
+    <!-- Define sizes as items -->
+    <ItemGroup>
+      <_IconSize Include="$(IconSizes)" />
+    </ItemGroup>
+
+    <!-- Try ImageMagick 'magick' first (Windows cmd syntax) -->
+    <Exec ContinueOnError="true"
+          Command='for %%s in (@(_IconSize, &quot; &quot;)) do ( magick convert -background none &quot;$(IconSourceSvg)&quot; -resize %%s^x%%s &quot;$(IconOutputDir)/icon-%%s.png&quot; )' 
+          WorkingDirectory="$(ProjectDir)" 
+          StandardOutputImportance="Low" 
+          StandardErrorImportance="Low" />
+
+    <!-- Try legacy ImageMagick 'convert' -->
+    <Exec ContinueOnError="true"
+          Command='for %%s in (@(_IconSize, &quot; &quot;)) do ( convert -background none &quot;$(IconSourceSvg)&quot; -resize %%s^x%%s &quot;$(IconOutputDir)/icon-%%s.png&quot; )' 
+          WorkingDirectory="$(ProjectDir)" 
+          StandardOutputImportance="Low" 
+          StandardErrorImportance="Low" />
+
+    <!-- Try rsvg-convert (librsvg) -->
+    <Exec ContinueOnError="true"
+          Command='for %%s in (@(_IconSize, &quot; &quot;)) do ( rsvg-convert -w %%s -h %%s -a -f png -o &quot;$(IconOutputDir)/icon-%%s.png&quot; &quot;$(IconSourceSvg)&quot; )' 
+          WorkingDirectory="$(ProjectDir)" 
+          StandardOutputImportance="Low" 
+          StandardErrorImportance="Low" />
+
+    <!-- Try Inkscape -->
+    <Exec ContinueOnError="true"
+          Command='for %%s in (@(_IconSize, &quot; &quot;)) do ( inkscape &quot;$(IconSourceSvg)&quot; --export-type=png --export-filename=&quot;$(IconOutputDir)/icon-%%s.png&quot; -w %%s -h %%s )' 
+          WorkingDirectory="$(ProjectDir)" 
+          StandardOutputImportance="Low" 
+          StandardErrorImportance="Low" />
+
+    <!-- Include generated icons as content if they exist -->
+    <ItemGroup>
+      <Content Include="$(IconOutputDir)/**.png" Condition="Exists('$(IconOutputDir)')">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
 </Project>
