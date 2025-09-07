@@ -2,7 +2,10 @@
   function getI18n(){
     try { var el=document.getElementById('logs-i18n-json'); return el? JSON.parse(el.textContent||'{}') : {}; } catch { return {}; }
   }
+
+  var initialized = false;
   function init(){
+    if (initialized) return; initialized = true;
     var SR = getI18n();
     var root = document.getElementById('logs-view');
     var kind = (root && root.getAttribute('data-default-kind')) || 'http';
@@ -127,5 +130,29 @@
     connect();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  function setupVisibilityGate(){
+    var target = document.getElementById('logs-section') || document.getElementById('logs-view') || document.getElementById('logs-table');
+    if (!('IntersectionObserver' in window) || !target){
+      // Fallback: init on DOM ready
+      init();
+      return;
+    }
+    try{
+      var io = new IntersectionObserver(function(entries){
+        for (var i=0;i<entries.length;i++){
+          var e = entries[i];
+          if (e.isIntersecting && e.intersectionRatio > 0){
+            io.disconnect();
+            init();
+            break;
+          }
+        }
+      }, { root: null, rootMargin: '0px 0px -25% 0px', threshold: [0, 0.01, 0.1] });
+      io.observe(target);
+    }catch{
+      init();
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupVisibilityGate); else setupVisibilityGate();
 })();
