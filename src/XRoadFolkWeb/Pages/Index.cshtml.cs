@@ -12,6 +12,7 @@ using PersonRow = XRoadFolkWeb.Features.People.PersonRow;
 using XRoadFolkWeb.Extensions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
+using Polly.Timeout;
 
 namespace XRoadFolkWeb.Pages
 {
@@ -214,7 +215,24 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                LogPersonDetailsError(_logger, ex, publicId);
+                // Treat Polly timeout and cancellation as expected timeouts (log at Debug)
+                Exception innermost = ex;
+                while (innermost.InnerException != null)
+                {
+                    innermost = innermost.InnerException;
+                }
+                bool isTimeout = ex is TimeoutException
+                                 || ex is TaskCanceledException
+                                 || ex is OperationCanceledException
+                                 || innermost is TimeoutRejectedException;
+                if (isTimeout)
+                {
+                    LogPersonDetailsTimeout(_logger, publicId);
+                }
+                else
+                {
+                    LogPersonDetailsError(_logger, ex, publicId);
+                }
                 _errors.Add(BuildUserError(ex));
             }
         }
@@ -390,8 +408,23 @@ namespace XRoadFolkWeb.Pages
             }
             catch (Exception ex)
             {
-                LogPersonDetailsError(_logger, ex, publicId!);
-                // Reuse shared error builder for consistency and to avoid duplication
+                Exception innermost = ex;
+                while (innermost.InnerException != null)
+                {
+                    innermost = innermost.InnerException;
+                }
+                bool isTimeout = ex is TimeoutException
+                                 || ex is TaskCanceledException
+                                 || ex is OperationCanceledException
+                                 || innermost is Polly.Timeout.TimeoutRejectedException;
+                if (isTimeout)
+                {
+                    LogPersonDetailsTimeout(_logger, publicId!);
+                }
+                else
+                {
+                    LogPersonDetailsError(_logger, ex, publicId!);
+                }
                 return new JsonResult(new { ok = false, error = BuildUserError(ex) });
             }
         }
@@ -404,5 +437,8 @@ namespace XRoadFolkWeb.Pages
 
         [LoggerMessage(EventId = 2003, Level = LogLevel.Warning, Message = "Index: Input validation failed with {ErrorCount} errors")]
         private static partial void LogValidationFailed(ILogger logger, int ErrorCount);
+
+        [LoggerMessage(EventId = 2004, Level = LogLevel.Debug, Message = "Index: Person details timed out for PublicId '{PublicId}'")]
+        private static partial void LogPersonDetailsTimeout(ILogger logger, string PublicId);
     }
 }

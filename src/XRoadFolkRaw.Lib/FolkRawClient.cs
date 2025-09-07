@@ -56,7 +56,7 @@ namespace XRoadFolkRaw.Lib
             HttpClient httpClient,
             ILogger? logger = null,
             bool verbose = false,
-            int retryAttempts = 3,
+            int retryAttempts = 0,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250)
             : this(httpClient, disposeHttpClient: false, logger, verbose, retryAttempts, retryBaseDelayMs, retryJitterMs)
@@ -71,7 +71,7 @@ namespace XRoadFolkRaw.Lib
             TimeSpan? timeout = null,
             ILogger? logger = null,
             bool verbose = false,
-            int retryAttempts = 3,
+            int retryAttempts = 0,
             int retryBaseDelayMs = 200,
             int retryJitterMs = 250,
             bool bypassServerCertificateValidation = false)
@@ -123,8 +123,14 @@ namespace XRoadFolkRaw.Lib
 
         private Polly.Retry.AsyncRetryPolicy BuildRetryPolicy()
         {
+            if (_retryAttempts <= 0)
+            {
+                // Execute once; no on-retry logging
+                return Policy.Handle<Exception>().RetryAsync(0);
+            }
+
             return Policy.Handle<HttpRequestException>()
-                         .Or<TaskCanceledException>()
+                         // Intentionally do NOT retry on TaskCanceledException; outer pipeline controls timeouts
                          .WaitAndRetryAsync(
                              _retryAttempts,
                              attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
@@ -132,7 +138,7 @@ namespace XRoadFolkRaw.Lib
                              {
                                  if (_log is not null)
                                  {
-                                     LogHttpRetryWarning(_log, ex, attempt, ts.TotalMilliseconds);
+                                     LogHttpRetryDebug(_log, ex, attempt, ts.TotalMilliseconds);
                                  }
                                  string op = ctx.ContainsKey("op") ? (ctx["op"]?.ToString() ?? "unknown") : "unknown";
                                  XRoadRawMetrics.HttpRetries.Add(1, new KeyValuePair<string, object?>("op", op));
@@ -870,17 +876,17 @@ namespace XRoadFolkRaw.Lib
             else { el.Value = value; }
         }
 
-        [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = 1, Level = LogLevel.Debug,
                        Message = "HTTP retry {Attempt} after {Delay}ms")]
-        static partial void LogHttpRetryWarning(ILogger logger, Exception ex, int attempt, double delay);
+        static partial void LogHttpRetryDebug(ILogger logger, Exception ex, int Attempt, double Delay);
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Information,
                        Message = "[SOAP request] {Xml}")]
-        static partial void LogSoapRequest(ILogger logger, string xml);
+        static partial void LogSoapRequest(ILogger logger, string Xml);
 
         [LoggerMessage(EventId = 3, Level = LogLevel.Information,
                        Message = "[SOAP response] {Xml}")]
-        static partial void LogSoapResponse(ILogger logger, string xml);
+        static partial void LogSoapResponse(ILogger logger, string Xml);
 
         [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "SOAP template not found: '{Path}'. Skipping preload.")]
         static partial void LogTemplatePreloadMissing(ILogger logger, string Path);

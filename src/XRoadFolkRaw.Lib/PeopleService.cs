@@ -6,6 +6,7 @@ using XRoadFolkRaw.Lib.Options;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Cryptography;
 using System.Text;
+using Polly.Timeout;
 
 namespace XRoadFolkRaw.Lib
 {
@@ -13,14 +14,20 @@ namespace XRoadFolkRaw.Lib
     {
         private static string EscapePart(string? s)
         {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
+            if (string.IsNullOrEmpty(s))
+            {
+                return string.Empty;
+            }
 
             ReadOnlySpan<char> src = s.AsSpan();
             int extra = 0;
             for (int i = 0; i < src.Length; i++)
             {
                 char c = src[i];
-                if (c == '\\' || c == '|') extra++;
+                if (c == '\\' || c == '|')
+                {
+                    extra++;
+                }
             }
 
             if (extra == 0)
@@ -46,7 +53,10 @@ namespace XRoadFolkRaw.Lib
 
         private static string HashSegment(string? s)
         {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
+            if (string.IsNullOrEmpty(s))
+            {
+                return string.Empty;
+            }
             byte[] data = Encoding.UTF8.GetBytes(s);
             byte[] hash = SHA256.HashData(data);
             return Convert.ToHexString(hash); // uppercase hex, safe in keys
