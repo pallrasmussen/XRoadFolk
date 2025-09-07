@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Hosting;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -23,6 +24,16 @@ namespace XRoadFolkWeb.Extensions
             {
                 o.Level = CompressionLevel.Fastest;
             });
+
+            // In Development, exclude text/html to avoid interfering with Browser Link script injection
+            _ = services.AddOptions<ResponseCompressionOptions>()
+                .PostConfigure<IHostEnvironment>((opts, env) =>
+                {
+                    if (env.IsDevelopment() && opts.MimeTypes is not null)
+                    {
+                        opts.MimeTypes = opts.MimeTypes.Where(m => !string.Equals(m, "text/html", StringComparison.OrdinalIgnoreCase)).ToArray();
+                    }
+                });
 
             return services;
         }

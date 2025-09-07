@@ -11,10 +11,10 @@ namespace XRoadFolkWeb.Tests
         [Fact]
         public void SharedResource_Has_Expected_Keys()
         {
-            var asm = typeof(XRoadFolkWeb.Shared.SharedResource).Assembly;
+            using var loggerFactory = new Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory();
             var factory = new ResourceManagerStringLocalizerFactory(
                 Microsoft.Extensions.Options.Options.Create(new LocalizationOptions()),
-                new Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory());
+                loggerFactory);
             var loc = factory.Create(typeof(XRoadFolkWeb.Shared.SharedResource));
 
             string[] keys = new[]

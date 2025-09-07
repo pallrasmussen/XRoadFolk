@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
@@ -15,11 +16,18 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
 
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class WebApplicationExtensions
     {
+        private static readonly JsonSerializerOptions CamelJson = new(JsonSerializerDefaults.Web)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DictionaryKeyPolicy = JsonNamingPolicy.CamelCase
+        };
+
         private const string CorrelationHeader = "X-Correlation-Id";
         private static readonly Meter StartupMeter = new("XRoadFolkWeb.Startup");
         private static readonly Histogram<double> ColdStartSeconds = StartupMeter.CreateHistogram<double>("cold_start_seconds");
@@ -475,12 +483,12 @@ namespace XRoadFolkWeb.Extensions
                 return;
             }
 
-            _ = app.MapGet("/__culture", (HttpContext ctx,
+            _ = app.MapGet("/__culture", async (HttpContext ctx,
                                           IOptions<RequestLocalizationOptions> locOpts2,
                                           IOptions<LocalizationConfig> cfg) =>
             {
                 IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
-                return Results.Json(new
+                var payload = new
                 {
                     FromConfig = new
                     {
@@ -490,71 +498,31 @@ namespace XRoadFolkWeb.Extensions
                     Applied = new
                     {
                         Default = locOpts2.Value.DefaultRequestCulture.Culture.Name,
-                        Supported = (locOpts2.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
+                        Supported = (locOpts2.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? Array.Empty<string>(),
                         Current = feature?.RequestCulture.Culture.Name,
                         CurrentUI = feature?.RequestCulture.UICulture.Name,
                     },
-                });
-            });
-        }
+                };
 
-        private static void MapCultureSwitch(WebApplication app, ILogger cultureLog)
-        {
-            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
-
-            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, IAntiforgery af) =>
-            {
-                try
+                string json = JsonSerializer.Serialize(payload);
+                string etag = ComputeWeakETag(json);
+                if (IfNoneMatchMatches(ctx, etag))
                 {
-                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
-                }
-                catch (AntiforgeryValidationException)
-                {
-                    return Results.BadRequest();
+                    ctx.Response.StatusCode = StatusCodes.Status304NotModified;
+                    ctx.Response.Headers.ETag = etag;
+                    ctx.Response.Headers.CacheControl = "public, max-age=10";
+                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R");
+                    ctx.Response.Headers.Vary = "Accept-Language";
+                    return;
                 }
 
-                bool supportedOk = locOpts.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
-                if (!supportedOk)
-                {
-                    return Results.BadRequest();
-                }
-
-                string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
-                if (!ctx.Request.IsHttps)
-                {
-                    var sb = new System.Text.StringBuilder();
-                    sb.Append(CookieRequestCultureProvider.DefaultCookieName).Append('=').Append(Uri.EscapeDataString(cookieValue));
-                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R"));
-                    sb.Append("; Path=/");
-                    sb.Append("; SameSite=Lax");
-                    sb.Append("; HttpOnly");
-                    ctx.Response.Headers.Append(HeaderNames.SetCookie, sb.ToString());
-                }
-                else
-                {
-                    ctx.Response.Cookies.Append(
-                        CookieRequestCultureProvider.DefaultCookieName,
-                        cookieValue,
-                        new CookieOptions
-                        {
-                            Expires = DateTimeOffset.UtcNow.AddYears(1),
-                            IsEssential = true,
-                            Secure = true,
-                            HttpOnly = true,
-                            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
-                            Path = "/",
-                        });
-                }
-
-                if (!string.IsNullOrEmpty(returnUrl))
-                {
-                    try { return Results.LocalRedirect(returnUrl); }
-                    catch (Exception ex)
-                    {
-                        cultureLog.LogWarning(ex, "set-culture: Invalid returnUrl '{ReturnUrl}'. Falling back to '/'.", returnUrl);
-                    }
-                }
-                return Results.LocalRedirect("/");
+                ctx.Response.StatusCode = StatusCodes.Status200OK;
+                ctx.Response.ContentType = "application/json";
+                ctx.Response.Headers.ETag = etag;
+                ctx.Response.Headers.CacheControl = "public, max-age=10";
+                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R");
+                ctx.Response.Headers.Vary = "Accept-Language";
+                await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
             });
         }
 
@@ -574,12 +542,15 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapLogsList(WebApplication app)
         {
-            _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
+            _ = app.MapGet("/logs", async (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
             {
                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                 if (store is null)
                 {
-                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                    ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                    ctx.Response.ContentType = "application/json";
+                    await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { ok = false, error = "Log store not available" }, CamelJson), ctx.RequestAborted).ConfigureAwait(false);
+                    return;
                 }
 
                 IEnumerable<LogEntry> query = store.GetAll();
@@ -597,7 +568,27 @@ namespace XRoadFolkWeb.Extensions
                 int skip = (pg - 1) * size;
                 LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
 
-                return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
+                var payload = new { ok = true, page = pg, pageSize = size, total, totalPages, items };
+                string json = JsonSerializer.Serialize(payload, CamelJson);
+
+                string etag = ComputeWeakETag(json);
+                if (IfNoneMatchMatches(ctx, etag))
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status304NotModified;
+                    ctx.Response.Headers.ETag = etag;
+                    ctx.Response.Headers.CacheControl = "public, max-age=5";
+                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R");
+                    ctx.Response.Headers.Vary = "Accept-Language";
+                    return;
+                }
+
+                ctx.Response.StatusCode = StatusCodes.Status200OK;
+                ctx.Response.ContentType = "application/json";
+                ctx.Response.Headers.ETag = etag;
+                ctx.Response.Headers.CacheControl = "public, max-age=5";
+                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(5).ToString("R");
+                ctx.Response.Headers.Vary = "Accept-Language";
+                await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
             });
         }
 
@@ -688,7 +679,7 @@ namespace XRoadFolkWeb.Extensions
                         {
                             continue;
                         }
-                        string json = System.Text.Json.JsonSerializer.Serialize(entry);
+                        string json = System.Text.Json.JsonSerializer.Serialize(entry, CamelJson);
                         await ctx.Response.WriteAsync($"data: {json}\n\n", ct).ConfigureAwait(false);
                         await ctx.Response.Body.FlushAsync(ct).ConfigureAwait(false);
                     }
@@ -739,6 +730,106 @@ namespace XRoadFolkWeb.Extensions
                 {
                     await next().ConfigureAwait(false);
                 }
+            });
+        }
+
+        private static string ComputeWeakETag(string content)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(content);
+            using var sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(bytes);
+            var sb = new StringBuilder(hash.Length * 2);
+            foreach (byte b in hash)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+            return $"W/\"{sb}\"";
+        }
+
+        private static bool IfNoneMatchMatches(HttpContext ctx, string etag)
+        {
+            var inm = ctx.Request.Headers.IfNoneMatch;
+            if (string.IsNullOrEmpty(inm))
+            {
+                return false;
+            }
+            // Multiple ETags can be provided, comma-separated
+            foreach (var part in inm.ToString().Split(','))
+            {
+                string token = part.Trim();
+                if (string.Equals(token, etag, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                // Strong/weak mismatch tolerance
+                if (token.StartsWith("W/\"", StringComparison.Ordinal) && etag.StartsWith("W/\"", StringComparison.Ordinal))
+                {
+                    if (string.Equals(token[3..^1], etag[3..^1], StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static void MapCultureSwitch(WebApplication app, ILogger cultureLog)
+        {
+            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+
+            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, IAntiforgery af) =>
+            {
+                try
+                {
+                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    return Results.BadRequest();
+                }
+
+                bool supportedOk = locOpts.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
+                if (!supportedOk)
+                {
+                    return Results.BadRequest();
+                }
+
+                string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
+                if (!ctx.Request.IsHttps)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append(CookieRequestCultureProvider.DefaultCookieName).Append('=').Append(Uri.EscapeDataString(cookieValue));
+                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R"));
+                    sb.Append("; Path=/");
+                    sb.Append("; SameSite=Lax");
+                    sb.Append("; HttpOnly");
+                    ctx.Response.Headers.Append(HeaderNames.SetCookie, sb.ToString());
+                }
+                else
+                {
+                    ctx.Response.Cookies.Append(
+                        CookieRequestCultureProvider.DefaultCookieName,
+                        cookieValue,
+                        new CookieOptions
+                        {
+                            Expires = DateTimeOffset.UtcNow.AddYears(1),
+                            IsEssential = true,
+                            Secure = true,
+                            HttpOnly = true,
+                            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+                            Path = "/",
+                        });
+                }
+
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    try { return Results.LocalRedirect(returnUrl); }
+                    catch (Exception ex)
+                    {
+                        cultureLog.LogWarning(ex, "set-culture: Invalid returnUrl '{ReturnUrl}'. Falling back to '/'.", returnUrl);
+                    }
+                }
+                return Results.LocalRedirect("/");
             });
         }
     }
