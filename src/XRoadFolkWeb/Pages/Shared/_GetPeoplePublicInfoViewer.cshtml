@@ -1,7 +1,5 @@
 @using System.Text.Json
-@using XRoadFolkWeb.Extensions
 @using XRoadFolkWeb.Shared
-@inject Microsoft.AspNetCore.Mvc.Localization.IViewLocalizer L
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject XRoadFolkWeb.Infrastructure.ResponseViewerOptions RespOpts
 @{
@@ -11,30 +9,30 @@
     bool showPretty = RespOpts?.ShowPrettyXml ?? true;
 
     var gpivI18n = new {
-        NoXmlToDisplay = L["NoXmlToDisplay"].Value,
-        NoXmlRoot = L["NoXmlRoot"].Value,
-        FailedToRenderTreePrefix = L["FailedToRenderTreePrefix"].Value,
-        NoPeopleFound = L["NoPeopleFound"].Value,
-        PeopleLabel = L["PeopleLabel"].Value,
-        Basics = L["Basics"].Value,
-        Names = L["Names"].Value,
-        Name = L["Name"].Value,
-        PublicId = L["PublicId"].Value,
-        DOB = L["DOB"].Value,
-        Status = L["Status"].Value,
-        Expand = L["Expand"].Value,
-        Collapse = L["Collapse"].Value,
-        ExtendedSearch = L["ExtendedSearch"].Value,
-        Fullscreen = L["Fullscreen"].Value,
-        ToggleFullscreen = L["ToggleFullscreen"].Value,
-        Summary = L["Summary"].Value,
-        RawXml = L["RawXml"].Value,
-        PrettyXml = L["PrettyXml"].Value,
-        Copy = L["Copy"].Value,
-        Copied = L["Copied"].Value,
-        Download = L["Download"].Value,
-        PersonDetails = L["PersonDetails"].Value,
-        Loading = L["Loading"].Value,
+        NoXmlToDisplay = SR["NoXmlToDisplay"].Value,
+        NoXmlRoot = SR["NoXmlRoot"].Value,
+        FailedToRenderTreePrefix = SR["FailedToRenderTreePrefix"].Value,
+        NoPeopleFound = SR["NoPeopleFound"].Value,
+        PeopleLabel = SR["PeopleLabel"].Value,
+        Basics = SR["Basics"].Value,
+        Names = SR["Names"].Value,
+        Name = SR["Name"].Value,
+        PublicId = SR["PublicId"].Value,
+        DOB = SR["DOB"].Value,
+        Status = SR["Status"].Value,
+        Expand = SR["Expand"].Value,
+        Collapse = SR["Collapse"].Value,
+        ExtendedSearch = SR["ExtendedSearch"].Value,
+        Fullscreen = SR["Fullscreen"].Value,
+        ToggleFullscreen = SR["ToggleFullscreen"].Value,
+        Summary = SR["Summary"].Value,
+        RawXml = SR["RawXml"].Value,
+        PrettyXml = SR["PrettyXml"].Value,
+        Copy = SR["Copy"].Value,
+        Copied = SR["Copied"].Value,
+        Download = SR["Download"].Value,
+        PersonDetails = SR["PersonDetails"].Value,
+        Loading = SR["Loading"].Value,
         // New placeholders used by person details loader (use SharedResource localizer)
         NoBasics = SR["NoBasics"].Value,
         NoNames = SR["NoNames"].Value,
@@ -99,39 +97,39 @@
 
 <div class="card shadow-sm mb-4 gpiv-card">
     <div class="gpiv-drop" id="gpiv-drop">
-        <div class="msg"><div class="mb-1">@L["DropXmlHint"]</div></div>
+        <div class="msg"><div class="mb-1">@SR["DropXmlHint"]</div></div>
     </div>
 
     <div class="card-body">
         <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-          <h5 class="card-title mb-0">@L["GetPeoplePublicInfo"]</h5>
+          <h5 class="card-title mb-0">@SR["GetPeoplePublicInfo"]</h5>
           <div class="d-flex flex-wrap gap-2 align-items-center"><!-- reserved for future --></div>
         </div>
 
         <ul class="nav nav-tabs small" id="gpiv-tabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@L["Summary"]</button>
+            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@SR["Summary"]</button>
           </li>
           @if (showRaw)
           {
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="gpiv-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-raw" type="button" role="tab" aria-controls="gpiv-tab-raw" aria-selected="false">@L["RawXml"]</button>
+            <button class="nav-link" id="gpiv-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-raw" type="button" role="tab" aria-controls="gpiv-tab-raw" aria-selected="false">@SR["RawXml"]</button>
           </li>
           }
           @if (showPretty)
           {
           <li class="nav-item" role="presentation">
-            <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@L["PrettyXml"]</button>
+            <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
           </li>
           }
           <li class="nav-item ms-auto" role="presentation">
-            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@L["PersonDetails"]</button>
+            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
           </li>
         </ul>
 
         <div class="tab-content border-start border-end border-bottom rounded-bottom p-2 small" id="gpiv-tabs-content" style="min-height:12rem;">
           <div class="tab-pane fade show active" id="gpiv-tab-summary" role="tabpanel" aria-labelledby="gpiv-tab-summary-btn" tabindex="0">
-            <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@L["EmptyState"]</div>
+            <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@SR["EmptyState"]</div>
             <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 p-3 rounded"></div>
           </div>
 
@@ -139,8 +137,8 @@
           {
           <div class="tab-pane fade" id="gpiv-tab-raw" role="tabpanel" aria-labelledby="gpiv-tab-raw-btn" tabindex="0">
             <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-raw">@L["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-raw">@L["Download"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-raw">@SR["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-raw">@SR["Download"]</button>
             </div>
             <pre class="gpiv-pre" id="gpiv-raw-pre"></pre>
           </div>
@@ -150,8 +148,8 @@
           {
           <div class="tab-pane fade" id="gpiv-tab-pretty" role="tabpanel" aria-labelledby="gpiv-tab-pretty-btn" tabindex="0">
             <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@L["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@L["Download"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@SR["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@SR["Download"]</button>
             </div>
             <pre class="gpiv-pre" id="gpiv-pretty-pre"></pre>
           </div>
@@ -161,28 +159,28 @@
             <div id="person-details-section" class="card shadow-sm mb-0 person-details d-none" role="region" aria-labelledby="pd-title">
               <div class="card-body">
                 <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-                  <h5 id="pd-title" class="card-title mb-0">@L["PersonDetails"]</h5>
+                  <h5 id="pd-title" class="card-title mb-0">@SR["PersonDetails"]</h5>
                   <div class="d-flex flex-wrap gap-2">
-                    <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@L["Expand"]</button>
-                    <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@L["Collapse"]</button>
-                    <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@L["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@L["Fullscreen"]</button>
+                    <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@SR["Expand"]</button>
+                    <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@SR["Collapse"]</button>
+                    <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@SR["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@SR["Fullscreen"]</button>
                   </div>
                 </div>
 
                 <ul class="nav nav-tabs small" id="pd-tabs" role="tablist">
                   <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@L["PersonDetails"]</button>
+                    <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@SR["PersonDetails"]</button>
                   </li>
                   @if (showRaw)
                   {
                   <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@L["RawXml"]</button>
+                    <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
                   </li>
                   }
                   @if (showPretty)
                   {
                   <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@L["PrettyXml"]</button>
+                    <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
                   </li>
                   }
                 </ul>
@@ -200,8 +198,8 @@
                   {
                   <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
                     <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@L["Copy"]</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@L["Download"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
                     </div>
                     <pre class="gpiv-pre" id="pd-raw-pre"></pre>
                   </div>
@@ -211,8 +209,8 @@
                   {
                   <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
                     <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@L["Copy"]</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@L["Download"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
                     </div>
                     <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
                   </div>

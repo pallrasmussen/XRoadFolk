@@ -88,7 +88,7 @@
   <data name="Culture_fo-FO" xml:space="preserve">
     <value>F&#230;r&#248;sk</value>
   </data>
-  <!-- New empty-state placeholders (Danish) -->
+  <!-- Empty-state placeholders (Danish) -->
   <data name="NoBasics" xml:space="preserve">
     <value>Ingen grundlæggende oplysninger.</value>
   </data>
@@ -106,5 +106,87 @@
   </data>
   <data name="NoData" xml:space="preserve">
     <value>Ingen data.</value>
+  </data>
+  <!-- Consolidated keys for viewer (Danish) -->
+  <data name="NoXmlToDisplay" xml:space="preserve">
+    <value>Ingen XML at vise.</value>
+  </data>
+  <data name="NoXmlRoot" xml:space="preserve">
+    <value>Rod-element blev ikke fundet.</value>
+  </data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve">
+    <value>Kunne ikke opbygge oversigt:</value>
+  </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>Ingen personer fundet.</value>
+  </data>
+  <data name="PeopleLabel" xml:space="preserve">
+    <value>Personer</value>
+  </data>
+  <data name="Basics" xml:space="preserve">
+    <value>Grundlæggende</value>
+  </data>
+  <data name="Names" xml:space="preserve">
+    <value>Navne</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="PublicId" xml:space="preserve">
+    <value>Offentligt ID</value>
+  </data>
+  <data name="DOB" xml:space="preserve">
+    <value>Fødselsdato</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Expand" xml:space="preserve">
+    <value>Udvid</value>
+  </data>
+  <data name="Collapse" xml:space="preserve">
+    <value>Skjul</value>
+  </data>
+  <data name="ExtendedSearch" xml:space="preserve">
+    <value>Udvidet søgning</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fuld skærm</value>
+  </data>
+  <data name="ToggleFullscreen" xml:space="preserve">
+    <value>Skift fuld skærm</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>Oversigt</value>
+  </data>
+  <data name="RawXml" xml:space="preserve">
+    <value>Rå XML</value>
+  </data>
+  <data name="PrettyXml" xml:space="preserve">
+    <value>Formateret XML</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Kopiér</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>Kopieret</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="PersonDetails" xml:space="preserve">
+    <value>Persondetaljer</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Henter...</value>
+  </data>
+  <data name="EmptyState" xml:space="preserve">
+    <value>Indsæt eller slip XML for at se oversigten.</value>
+  </data>
+  <data name="GetPeoplePublicInfo" xml:space="preserve">
+    <value>Hent offentlige personoplysninger</value>
+  </data>
+  <data name="DropXmlHint" xml:space="preserve">
+    <value>Slip XML her for at vise.</value>
   </data>
 </root>

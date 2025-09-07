@@ -107,4 +107,86 @@
   <data name="NoData" xml:space="preserve">
     <value>No data.</value>
   </data>
+  <!-- Consolidated keys used in GetPeoplePublicInfo viewer -->
+  <data name="NoXmlToDisplay" xml:space="preserve">
+    <value>No XML to display.</value>
+  </data>
+  <data name="NoXmlRoot" xml:space="preserve">
+    <value>Root element not found.</value>
+  </data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve">
+    <value>Failed to build summary:</value>
+  </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>No persons found.</value>
+  </data>
+  <data name="PeopleLabel" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="Basics" xml:space="preserve">
+    <value>Basics</value>
+  </data>
+  <data name="Names" xml:space="preserve">
+    <value>Names</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PublicId" xml:space="preserve">
+    <value>Public ID</value>
+  </data>
+  <data name="DOB" xml:space="preserve">
+    <value>Date of birth</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Expand" xml:space="preserve">
+    <value>Expand</value>
+  </data>
+  <data name="Collapse" xml:space="preserve">
+    <value>Collapse</value>
+  </data>
+  <data name="ExtendedSearch" xml:space="preserve">
+    <value>Extended search</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fullscreen</value>
+  </data>
+  <data name="ToggleFullscreen" xml:space="preserve">
+    <value>Toggle fullscreen</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>Summary</value>
+  </data>
+  <data name="RawXml" xml:space="preserve">
+    <value>Raw XML</value>
+  </data>
+  <data name="PrettyXml" xml:space="preserve">
+    <value>Pretty XML</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="PersonDetails" xml:space="preserve">
+    <value>Person details</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="EmptyState" xml:space="preserve">
+    <value>Paste or drop XML to view the summary.</value>
+  </data>
+  <data name="GetPeoplePublicInfo" xml:space="preserve">
+    <value>Get People Public Info</value>
+  </data>
+  <data name="DropXmlHint" xml:space="preserve">
+    <value>Drop XML here to view.</value>
+  </data>
 </root>

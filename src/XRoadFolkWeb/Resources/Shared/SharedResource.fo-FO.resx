@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3ф.org/XML/1998/namespace" />
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
@@ -88,7 +88,7 @@
   <data name="Culture_fo-FO" xml:space="preserve">
     <value>F&#248;royskt</value>
   </data>
-  <!-- New empty-state placeholders (Faroese) -->
+  <!-- Empty-state placeholders (Faroese) -->
   <data name="NoBasics" xml:space="preserve">
     <value>Eingin grundleggjandi kunning.</value>
   </data>
@@ -106,5 +106,87 @@
   </data>
   <data name="NoData" xml:space="preserve">
     <value>Eingi dáta.</value>
+  </data>
+  <!-- Consolidated keys for viewer (Faroese) -->
+  <data name="NoXmlToDisplay" xml:space="preserve">
+    <value>Eingi XML at vísa.</value>
+  </data>
+  <data name="NoXmlRoot" xml:space="preserve">
+    <value>Rót-element ikki funnið.</value>
+  </data>
+  <data name="FailedToRenderTreePrefix" xml:space="preserve">
+    <value>Megi ikki byggja samandrátt:</value>
+  </data>
+  <data name="NoPeopleFound" xml:space="preserve">
+    <value>Ongir persónar funnir.</value>
+  </data>
+  <data name="PeopleLabel" xml:space="preserve">
+    <value>Fólk</value>
+  </data>
+  <data name="Basics" xml:space="preserve">
+    <value>Grundkunning</value>
+  </data>
+  <data name="Names" xml:space="preserve">
+    <value>Nøvn</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Navn</value>
+  </data>
+  <data name="PublicId" xml:space="preserve">
+    <value>Alment ID</value>
+  </data>
+  <data name="DOB" xml:space="preserve">
+    <value>Føðingardagur</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Støða</value>
+  </data>
+  <data name="Expand" xml:space="preserve">
+    <value>Víðka</value>
+  </data>
+  <data name="Collapse" xml:space="preserve">
+    <value>Fella saman</value>
+  </data>
+  <data name="ExtendedSearch" xml:space="preserve">
+    <value>Ítarilig leiting</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fullan skerm</value>
+  </data>
+  <data name="ToggleFullscreen" xml:space="preserve">
+    <value>Skift fullan skerm</value>
+  </data>
+  <data name="Summary" xml:space="preserve">
+    <value>Samandráttur</value>
+  </data>
+  <data name="RawXml" xml:space="preserve">
+    <value>Rá XML</value>
+  </data>
+  <data name="PrettyXml" xml:space="preserve">
+    <value>Sniðgivin XML</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Avrita</value>
+  </data>
+  <data name="Copied" xml:space="preserve">
+    <value>Avritað</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Tak niður</value>
+  </data>
+  <data name="PersonDetails" xml:space="preserve">
+    <value>Persónsupplýsingar</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Lesi...</value>
+  </data>
+  <data name="EmptyState" xml:space="preserve">
+    <value>Set inn ella slepp XML her fyri at síggja samandrátt.</value>
+  </data>
+  <data name="GetPeoplePublicInfo" xml:space="preserve">
+    <value>Heinta almennar persónsupplýsingar</value>
+  </data>
+  <data name="DropXmlHint" xml:space="preserve">
+    <value>Slepp XML her fyri at vísa.</value>
   </data>
 </root>
