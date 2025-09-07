@@ -47,9 +47,18 @@
     return 'bi-list-ul';
   }
 
+  // Unique id generator for dynamic accordions/widgets
+  var __uidCounter = 0;
+  function nextUid(prefix){
+    __uidCounter = (__uidCounter + 1) | 0;
+    var p = prefix ? String(prefix).replace(/[^a-z0-9_-]/gi,'').toLowerCase() : 'id';
+    return 'gpiv-' + p + '-' + Date.now().toString(36) + '-' + __uidCounter.toString(36);
+  }
+
   window.gpivHelpers = {
     parseAddressKey: parseAddressKey,
     iconClassFor: iconClassFor,
-    prettify: prettify
+    prettify: prettify,
+    nextUid: nextUid
   };
 })();

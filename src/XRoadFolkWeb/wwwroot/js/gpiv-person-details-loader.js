@@ -18,6 +18,7 @@
     return { index: idxVal, field: last };
   };
   var prettify = H.prettify || function(name){ var s=String(name||''); s=s.replace(/[_\-]+/g,' '); s=s.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); s=s.trim().replace(/\s+/g,' '); return s.split(' ').map(function(w){return w? (w[0].toUpperCase()+w.slice(1)) : w;}).join(' '); };
+  var nextUid = H.nextUid || function(prefix){ return 'gpiv-'+(prefix||'acc')+'-'+Date.now()+'-'+Math.floor(Math.random()*1e6); };
 
   function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
 
@@ -142,7 +143,7 @@
     if (lower === 'addresses' || lower === 'address') return 'Addresses';
     if (lower === 'foreignssns' || lower === 'foreignssn' || (lower.includes('foreign') && lower.includes('ssn'))) return 'Foreign SSNs';
     if (lower === 'juridicalparents' || lower === 'juridicalparent') return 'Juridical Parents';
-    if (lower === 'publicid') return i18n.PublicId || 'Public Id';
+    if (lower === 'publicid' || lower === 'pid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
     return prettify(t);
@@ -339,7 +340,7 @@
       var bi=bl==='summary'?0:(bl==='person'?1:2);
       return (ai-bi)||a.localeCompare(b);
     });
-    var accId='pd-acc-'+Date.now();
+    var accId=nextUid('pdacc');
     var acc=document.createElement('div'); acc.className='accordion'; acc.id=accId;
 
     keys.forEach(function(name, gi){
@@ -468,6 +469,15 @@
     return acc;
   }
 
+  function focusFirstAccordionHeader(){
+    try{
+      var els = getPanelEls();
+      if (!els || !els.body) return;
+      var btn = els.body.querySelector('.accordion .accordion-header .accordion-button');
+      if (btn && btn.focus) btn.focus();
+    }catch{}
+  }
+
   function setPdXml(raw, pretty){
     try{
       var els = getPanelEls();
@@ -520,6 +530,7 @@
       if (accCached && els.body) els.body.appendChild(accCached);
       setPdXml(cached.raw || '', cached.pretty || '');
       ensureShownAndFocus();
+      focusFirstAccordionHeader();
     } else {
       showLoading(true);
     }
@@ -544,6 +555,7 @@
       if (acc && els.body) els.body.appendChild(acc); else showInfo('No details to display.');
       setPdXml(data.raw || '', data.pretty || '');
       ensureShownAndFocus();
+      focusFirstAccordionHeader();
 
       activatePdDetailsSubTab();
 
@@ -561,6 +573,17 @@
       ensureShownAndFocus();
       try { console.error('GetPerson fetch failed', err); } catch {}
     }
+  }
+
+  function pdToggleAll(open){
+    try{
+      var host = document.getElementById('person-details-section');
+      if (!host) return;
+      var panes = host.querySelectorAll('.accordion-collapse') || [];
+      for (var i=0;i<panes.length;i++){ var p = panes[i]; if (!p) continue; p.classList.toggle('show', !!open); }
+      var btns = host.querySelectorAll('.accordion-button') || [];
+      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); }
+    }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
 
   document.addEventListener('click', function(e){
@@ -735,7 +758,7 @@
       var panes = host.querySelectorAll('.accordion-collapse') || [];
       for (var i=0;i<panes.length;i++){ var p = panes[i]; if (!p) continue; p.classList.toggle('show', !!open); }
       var btns = host.querySelectorAll('.accordion-button') || [];
-      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); }
+      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); }
     }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
   document.addEventListener('click', function(e){

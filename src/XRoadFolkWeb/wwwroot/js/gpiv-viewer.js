@@ -11,6 +11,7 @@
 
   var H = window.gpivHelpers || {};
   var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
+  var nextUid = H.nextUid || function(prefix){ return 'gpiv-'+(prefix||'acc')+'-'+Date.now()+'-'+Math.floor(Math.random()*1e6); };
   function prettify(s){ return (H.prettify || function(n){ n=String(n||''); n=n.replace(/[_\-]+/g,' '); n=n.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); n=n.trim().replace(/\s+/g,' '); return n.split(' ').map(function(w){ return w? (w[0].toUpperCase()+w.slice(1)) : w; }).join(' ');} )(s); }
 
   var dropOverlay = null;
@@ -272,7 +273,7 @@
 
         wrap.appendChild(header);
 
-        var accId = 'gpiv-acc-' + p + '-' + Date.now();
+        var accId = nextUid('acc');
         var acc = document.createElement('div'); acc.className = 'accordion'; acc.id = accId;
 
         if (nameRoot) {
@@ -331,6 +332,12 @@
         wrap.appendChild(acc);
         summaryHost.appendChild(wrap);
       }
+
+      // Focus first accordion header for keyboard users
+      try {
+        var firstAccBtn = summaryHost.querySelector('.accordion .accordion-header .accordion-button');
+        if (firstAccBtn) firstAccBtn.focus();
+      } catch {}
 
       syncViewerHeight();
     } catch (e) {
