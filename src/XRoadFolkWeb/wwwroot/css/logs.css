@@ -1,0 +1,14 @@
+/* Logs viewer styles moved from inline */
+.lvl-badge { text-transform: uppercase; }
+.log-card { border-left: .25rem solid transparent; }
+.log-card[data-level="Critical"] { border-left-color: #dc3545; }
+.log-card[data-level="Error"] { border-left-color: #dc3545; }
+.log-card[data-level="Warning"] { border-left-color: #ffc107; }
+.log-card[data-level="Information"] { border-left-color: #0d6efd; }
+.log-card[data-level="Debug"] { border-left-color: #6c757d; }
+.log-card[data-level="Trace"] { border-left-color: #20c997; }
+.log-message { white-space: pre-wrap; word-break: break-word; }
+@media (prefers-color-scheme: dark) {
+  .card.shadow-sm { box-shadow: 0 .25rem .5rem rgba(255,255,255,.05) !important; }
+  .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255,255,255,.015); }
+}

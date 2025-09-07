@@ -1,4 +1,4 @@
-import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers.js';
+import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydown, copyToClipboard, downloadBlob, toggleFullscreenWithCssFallback } from './gpiv-helpers.js';
 
 // Restore PublicId click -> load PersonDetails panel behavior
 (function(){
@@ -40,6 +40,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
   var personCache = (window.personCache instanceof Map) ? window.personCache : (window.personCache = new Map());
   var lastPid = window.lastPid || null;
   var loadSeq = 0; // protects against races when clicking quickly
+  var currentAbort = null; // AbortController for in-flight fetch
 
   function safeClosest(el, selector){
     try{ if (el && typeof el.closest === 'function') return el.closest(selector); }catch{}
@@ -113,6 +114,18 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
       var prettyEl = document.getElementById('gpiv-pretty-json');
       var raw = rawEl ? JSON.parse(rawEl.textContent||'""') : '';
       var pretty = prettyEl ? JSON.parse(prettyEl.textContent||'""') : '';
+      if ((!raw || raw.length === 0) && (!pretty || pretty.length === 0)){
+        var host = document.getElementById('gpiv-data');
+        if (host){
+          var rb = host.getAttribute('data-raw-b64') || '';
+          var pb = host.getAttribute('data-pretty-b64') || '';
+          try{
+            var rawText = rb ? decodeURIComponent(escape(window.atob(rb))) : '';
+            var prettyText = pb ? decodeURIComponent(escape(window.atob(pb))) : '';
+            return parseFirstPublicIdFromXmlText(rawText || prettyText || '');
+          }catch{}
+        }
+      }
       return parseFirstPublicIdFromXmlText(raw || pretty || '');
     }catch{ return ''; }
   }
@@ -467,10 +480,10 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
       var els = getPanelEls();
       if (els.rawPre) els.rawPre.textContent = raw || '';
       if (els.prettyPre) els.prettyPre.textContent = pretty || raw || '';
-      if (els.copyRaw) els.copyRaw.onclick = function(){ try{ if (navigator && navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(raw || ''); } els.copyRaw.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyRaw.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
-      if (els.copyPretty) els.copyPretty.onclick = function(){ try{ if (navigator && navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(pretty || raw || ''); } els.copyPretty.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyPretty.textContent = (readI18n().Copy||'Copy'); }, 1200);}catch{}};
-      if (els.dlRaw) els.dlRaw.onclick = function(){ try{ var name='GetPerson_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var blob=new Blob([raw||''], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('pd: download raw failed', e);}catch{} } };
-      if (els.dlPretty) els.dlPretty.onclick = function(){ try{ var name='GetPerson_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var content=(pretty||raw||''); var blob=new Blob([content], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('pd: download pretty failed', e);}catch{} } };
+      if (els.copyRaw) els.copyRaw.onclick = function(){ copyToClipboard(raw || '').then(function(){ els.copyRaw.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyRaw.textContent = (readI18n().Copy||'Copy'); }, 1200); }); };
+      if (els.copyPretty) els.copyPretty.onclick = function(){ copyToClipboard(pretty || raw || '').then(function(){ els.copyPretty.textContent = (readI18n().Copied||'Copied'); setTimeout(function(){ els.copyPretty.textContent = (readI18n().Copy||'Copy'); }, 1200); }); };
+      if (els.dlRaw) els.dlRaw.onclick = function(){ downloadBlob('GetPerson_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml', raw||'', 'text/xml;charset=utf-8'); };
+      if (els.dlPretty) els.dlPretty.onclick = function(){ var content=(pretty||raw||''); downloadBlob('GetPerson_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml', content, 'text/xml;charset=utf-8'); };
     }catch(e){ try{ console.debug('GPIV: setPdXml failed', e); }catch{} }
   }
 
@@ -478,7 +491,12 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
     var url = new URL(window.location.href);
     url.searchParams.set('handler','PersonDetails');
     url.searchParams.set('publicId', publicId);
-    var resp = await fetch(url.toString(), { headers: { 'Accept':'application/json; charset=utf-8' } });
+    // cancel previous
+    try { if (currentAbort) { currentAbort.abort(); } } catch {}
+    currentAbort = (window.AbortController ? new AbortController() : null);
+    var init = { headers: { 'Accept':'application/json; charset=utf-8' } };
+    if (currentAbort) init.signal = currentAbort.signal;
+    var resp = await fetch(url.toString(), init);
     var ct = (resp.headers.get('content-type') || '').toLowerCase();
     var data = null;
     if (ct.includes('application/json')) data = await resp.json();
@@ -492,11 +510,13 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
     if (!els.err) return;
     clearChildren(els.err);
     els.err.classList.remove('d-none');
+    els.err.setAttribute('aria-live','assertive');
     var span = document.createElement('span'); span.textContent = message || 'Failed to load details.';
     var btn = document.createElement('button'); btn.type='button'; btn.id='pd-retry'; btn.className='btn btn-sm btn-outline-secondary ms-2'; btn.textContent='Retry';
     btn.addEventListener('click', function(){ try{ onRetry && onRetry(); }catch{} });
     els.err.appendChild(span);
     els.err.appendChild(btn);
+    try { btn.focus(); } catch {}
   }
 
   async function loadPerson(publicId, sourceEl){
@@ -553,6 +573,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
     } catch (err) {
       if (mySeq !== loadSeq) return; // stale error
       showLoading(false);
+      if (err && err.name === 'AbortError') { return; }
       buildErrorWithRetry('Failed to load details.', function(){ loadPerson(publicId, sourceEl); });
       ensureShownAndFocus();
       try { console.error('GetPerson fetch failed', err); } catch {}
@@ -651,40 +672,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
     var sec = document.getElementById('person-details-section');
     if (!sec) return;
     try { var viewer = document.querySelector('.gpiv-card'); if (viewer) viewer.classList.remove('gpiv-fullscreen'); } catch {}
-    try {
-      var isApiFull = document.fullscreenElement === sec;
-      var hasCssFull = sec.classList.contains('pd-fullscreen');
-      if (isApiFull) {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().catch(function(){ sec.classList.remove('pd-fullscreen'); });
-        } else {
-          sec.classList.remove('pd-fullscreen');
-        }
-        return;
-      }
-      if (hasCssFull) {
-        sec.classList.remove('pd-fullscreen');
-        return;
-      }
-      function enterFs(){
-        if (sec.requestFullscreen) {
-          sec.requestFullscreen({ navigationUI: 'hide' }).catch(function(){ sec.classList.add('pd-fullscreen'); });
-        } else {
-          sec.classList.add('pd-fullscreen');
-        }
-      }
-      if (document.fullscreenElement && document.fullscreenElement !== sec) {
-        if (document.exitFullscreen) {
-          document.exitFullscreen().then(function(){ enterFs(); }).catch(function(){ sec.classList.add('pd-fullscreen'); });
-        } else {
-          sec.classList.add('pd-fullscreen');
-        }
-      } else {
-        enterFs();
-      }
-    } catch (err) {
-      sec.classList.toggle('pd-fullscreen');
-    }
+    try { toggleFullscreenWithCssFallback(sec, 'pd-fullscreen'); } catch { sec.classList.toggle('pd-fullscreen'); }
   });
 
   document.addEventListener('fullscreenchange', function(){
@@ -738,5 +726,12 @@ import { iconClassFor, prettify, parseAddressKey, nextUid } from './gpiv-helpers
     var id = (e.target && e.target.id) || '';
     if (id === 'pd-expand-all') pdToggleAll(true);
     if (id === 'pd-collapse-all') pdToggleAll(false);
+  });
+
+  // Keyboard navigation within the person-details accordion
+  document.addEventListener('keydown', function(e){
+    var scope = document.getElementById('person-details-section');
+    if (!scope) return;
+    handleAccordionKeydown(e, scope);
   });
 })();

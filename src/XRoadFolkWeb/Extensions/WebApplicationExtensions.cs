@@ -46,7 +46,7 @@ namespace XRoadFolkWeb.Extensions
 
         private static readonly Action<ILogger, string, string, Exception?> _logHttpRequest =
             LoggerMessage.Define<string, string>(
-                LogLevel.Debug, // lowered verbosity
+                LogLevel.Information, // bumped to Information so it appears in logs
                 new EventId(1001, "HttpRequest"),
                 "HTTP {Method} {Path}");
 
@@ -446,24 +446,21 @@ namespace XRoadFolkWeb.Extensions
             // Always enable response compression (Brotli/Gzip configured in services)
             _ = app.UseResponseCompression();
 
-            // In development, also log requests (excluding static assets)
-            if (env.IsDevelopment())
+            // Log requests (excluding static assets)
+            ILogger reqLog = loggerFactory.CreateLogger("App.Http");
+            _ = app.Use(async (ctx, next) =>
             {
-                ILogger reqLog = loggerFactory.CreateLogger("App.Http");
-                _ = app.Use(async (ctx, next) =>
+                string method = ctx.Request?.Method ?? string.Empty;
+                string rawPath = ctx.Request?.Path.Value ?? string.Empty;
+
+                if (!IsStaticAssetPath(rawPath))
                 {
-                    string method = ctx.Request?.Method ?? string.Empty;
-                    string rawPath = ctx.Request?.Path.Value ?? string.Empty;
+                    string safePath = RedactPath(rawPath);
+                    _logHttpRequest(reqLog, method, safePath, arg4: null);
+                }
 
-                    if (!IsStaticAssetPath(rawPath))
-                    {
-                        string safePath = RedactPath(rawPath);
-                        _logHttpRequest(reqLog, method, safePath, arg4: null);
-                    }
-
-                    await next().ConfigureAwait(false);
-                });
-            }
+                await next().ConfigureAwait(false);
+            });
         }
 
         private static void LogLocalization(WebApplication app, ILoggerFactory loggerFactory)
@@ -528,7 +525,7 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapLogsEndpoints(WebApplication app, FeaturesOptions features, IHostEnvironment env, ILogger featureLog)
         {
-            bool logsEnabled = features.Logs?.Enabled ?? env.IsDevelopment();
+            bool logsEnabled = features.Logs?.Enabled ?? true; // enable by default unless explicitly disabled
             if (!logsEnabled)
             {
                 return;

@@ -397,14 +397,15 @@ namespace XRoadFolkWeb.Infrastructure
         }
     }
 
-    public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store) : ILoggerProvider, ISupportExternalScope
+    public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store, ILogFeed feed) : ILoggerProvider, ISupportExternalScope
     {
         private readonly IHttpLogStore _store = store ?? throw new ArgumentNullException(nameof(store));
+        private readonly ILogFeed _feed = feed ?? throw new ArgumentNullException(nameof(feed));
         private IExternalScopeProvider? _scopes;
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new SinkLogger(categoryName, _store, this);
+            return new SinkLogger(categoryName, _store, _feed, this);
         }
 
         public void Dispose() { }
@@ -414,10 +415,11 @@ namespace XRoadFolkWeb.Infrastructure
             Volatile.Write(ref _scopes, scopeProvider);
         }
 
-        private sealed class SinkLogger(string category, IHttpLogStore store, InMemoryHttpLogLoggerProvider owner) : ILogger
+        private sealed class SinkLogger(string category, IHttpLogStore store, ILogFeed feed, InMemoryHttpLogLoggerProvider owner) : ILogger
         {
             private readonly string _category = category;
             private readonly IHttpLogStore _store = store;
+            private readonly ILogFeed _feed = feed;
             private readonly InMemoryHttpLogLoggerProvider _owner = owner;
 
             private sealed class NoopScope : IDisposable { public static readonly NoopScope Instance = new(); public void Dispose() { } }
@@ -582,7 +584,7 @@ namespace XRoadFolkWeb.Infrastructure
                     msg = msg[..MaxMessageChars] + $"... (+{trimmed} chars)";
                 }
 
-                _store.Add(new LogEntry
+                var entry = new LogEntry
                 {
                     Timestamp = DateTimeOffset.Now,
                     Level = logLevel,
@@ -596,7 +598,10 @@ namespace XRoadFolkWeb.Infrastructure
                     User = user,
                     SessionId = sessionId,
                     CorrelationId = correlationId,
-                });
+                };
+
+                _store.Add(entry);
+                try { _feed.Publish(entry); } catch { }
             }
         }
     }

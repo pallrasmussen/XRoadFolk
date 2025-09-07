@@ -53,3 +53,75 @@ export function nextUid(prefix){
   const p = prefix ? String(prefix).replace(/[^a-z0-9_-]/gi,'').toLowerCase() : 'id';
   return 'gpiv-' + p + '-' + Date.now().toString(36) + '-' + __uidCounter.toString(36);
 }
+
+// Shared UI utilities
+export function clearChildren(node){ try { while (node && node.firstChild) { node.removeChild(node.firstChild); } } catch { /* noop */ } }
+
+export function handleAccordionKeydown(e, scopeRoot){
+  try{
+    const t = e.target;
+    if (!t || !t.classList || !t.classList.contains('accordion-button')) return;
+    if (!scopeRoot || !scopeRoot.contains(t)) return;
+    const key = e.key;
+    if (key!== 'ArrowDown' && key!== 'ArrowUp' && key!== 'ArrowLeft' && key!== 'ArrowRight' && key!== 'Home' && key!== 'End') return;
+    const acc = t.closest('.accordion'); if (!acc) return;
+    const btns = Array.prototype.slice.call(acc.querySelectorAll('.accordion-header .accordion-button'));
+    const idx = btns.indexOf(t); if (idx < 0) return;
+    e.preventDefault();
+    let nextIdx = idx;
+    if (key==='ArrowDown' || key==='ArrowRight') nextIdx = (idx+1) % btns.length;
+    else if (key==='ArrowUp' || key==='ArrowLeft') nextIdx = (idx-1+btns.length) % btns.length;
+    else if (key==='Home') nextIdx = 0;
+    else if (key==='End') nextIdx = btns.length-1;
+    const next = btns[nextIdx]; if (next && next.focus) next.focus();
+  } catch { /* noop */ }
+}
+
+export async function copyToClipboard(text){
+  try { if (navigator && navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(String(text||'')); return true; } } catch { }
+  return false;
+}
+
+export function downloadBlob(filename, content, mime){
+  try{
+    const blob = new Blob([content || ''], { type: mime || 'application/octet-stream' });
+    const a = document.createElement('a');
+    if (URL && URL.createObjectURL) { a.href = URL.createObjectURL(blob); a.download = filename || 'download'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }
+  } catch(e){ try{ console.error('gpiv: download failed', e); }catch{} }
+}
+
+export function toggleFullscreenWithCssFallback(el, cssClass){
+  try{
+    if (!el) return;
+    const isApiFull = document.fullscreenElement === el;
+    const hasCssFull = el.classList.contains(cssClass);
+    if (isApiFull) {
+      if (document.exitFullscreen) { document.exitFullscreen().catch(() => { el.classList.remove(cssClass); }); } else { el.classList.remove(cssClass); }
+      return;
+    }
+    if (hasCssFull) { el.classList.remove(cssClass); return; }
+    function enter(){ if (el.requestFullscreen) { el.requestFullscreen({ navigationUI:'hide' }).catch(() => { el.classList.add(cssClass); }); } else { el.classList.add(cssClass); } }
+    if (document.fullscreenElement && document.fullscreenElement !== el) {
+      if (document.exitFullscreen) { document.exitFullscreen().then(() => enter()).catch(() => { el.classList.add(cssClass); }); } else { el.classList.add(cssClass); }
+    } else { enter(); }
+  } catch { el && el.classList && el.classList.toggle(cssClass); }
+}
+
+export function isFullscreenFor(el){ try{ return document.fullscreenElement === el; } catch { return false; } }
+
+// UMD-style bridge for non-module tests and simple pages
+try {
+  if (typeof window !== 'undefined') {
+    window.gpivHelpers = window.gpivHelpers || { };
+    window.gpivHelpers.prettify = prettify;
+    window.gpivHelpers.parseAddressKey = parseAddressKey;
+    window.gpivHelpers.iconClassFor = iconClassFor;
+    window.gpivHelpers.nextUid = nextUid;
+    window.gpivHelpers.clearChildren = clearChildren;
+    window.gpivHelpers.handleAccordionKeydown = handleAccordionKeydown;
+    window.gpivHelpers.copyToClipboard = copyToClipboard;
+    window.gpivHelpers.downloadBlob = downloadBlob;
+    window.gpivHelpers.toggleFullscreenWithCssFallback = toggleFullscreenWithCssFallback;
+    window.gpivHelpers.isFullscreenFor = isFullscreenFor;
+  }
+} catch {}

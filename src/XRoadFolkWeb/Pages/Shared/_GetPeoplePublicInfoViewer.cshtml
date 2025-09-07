@@ -41,82 +41,15 @@
         NoData = SR["NoData"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
+
+    // Base64 fallback for XML payload to avoid any HTML/script parsing edge-cases
+    string rawB64 = string.IsNullOrEmpty(raw) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(raw));
+    string prettyB64 = string.IsNullOrEmpty(pretty) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pretty));
 }
-<style nonce="@nonce">
-    .gpiv-card { position: relative; }
-    .gpiv-toolbar { position: sticky; top: -1px; z-index: 2; background: var(--bs-body-bg); padding-top: .25rem; }
-    .gpiv-card.gpiv-fullscreen { position: fixed; inset: 0; z-index: 1050; margin: 0; border-radius: 0; background: var(--bs-body-bg); height: auto !important; }
-    .gpiv-card .card-body { display: flex; flex-direction: column; min-height: 0; }
 
-    /* Make tab content fill remaining height and allow inner panes to layout */
-    .gpiv-card #gpiv-tabs-content { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-    .gpiv-card #gpiv-tab-summary { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-
-    .gpiv-card .gpiv-viewport, /* class-based */
-    #gpiv-xml-summary { /* id fallback */
-        flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
-    }
-
-    .gpiv-card.gpiv-fullscreen .card-body { height: 100vh; height: 100dvh; }
-    .gpiv-card.gpiv-fullscreen .gpiv-viewport { max-height: none; }
-
-    /* PersonDetails fullscreen fallback (CSS class toggled when Fullscreen API is unavailable or denied) */
-    #person-details-section.pd-fullscreen { position: fixed; inset: 0; z-index: 1060; margin: 0; border-radius: 0; background: var(--bs-body-bg); }
-    #person-details-section.pd-fullscreen .card-body { display: flex; flex-direction: column; min-height: 0; height: 100vh; height: 100dvh; }
-    #person-details-section.pd-fullscreen #pd-tabs-content { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-
-    /* PersonDetails API fullscreen (pseudo-class) */
-    #person-details-section:fullscreen { z-index: 1060; background: var(--bs-body-bg); }
-    #person-details-section:fullscreen .card-body { display: flex; flex-direction: column; min-height: 0; height: 100vh; height: 100dvh; }
-    #person-details-section:fullscreen #pd-tabs-content { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-    /* Safari/WebKit variant */
-    #person-details-section:-webkit-full-screen { z-index: 1060; background: var(--bs-body-bg); }
-    #person-details-section:-webkit-full-screen .card-body { display: flex; flex-direction: column; min-height: 0; height: 100vh; height: 100dvh; }
-    #person-details-section:-webkit-full-screen #pd-tabs-content { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-
-    .gpiv-drop { display: none; position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary); align-items: center; justify-content: center; text-align: center; padding: 2rem; border-radius: .375rem; }
-    .gpiv-drop .msg { font-size: .95rem; color: var(--bs-secondary); }
-    @@keyframes gpivFlash { 0% { background: rgba(255, 243, 205, .9); } 100% { background: transparent; } }
-    .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
-
-    /* SUMMARY: match person-details accordion exactly */
-    #gpiv-xml-summary .accordion-button { padding: .5rem .75rem; font-weight: 600; }
-    #gpiv-xml-summary .accordion-item + .accordion-item { border-top: 1px solid var(--bs-border-color); }
-    #gpiv-xml-summary .accordion-body { padding: 0; }
-
-    /* Table readability tweaks to match person-details */
-    #gpiv-xml-summary .table { margin: 0; }
-    #gpiv-xml-summary .table th {
-        width: 35%;
-        background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle));
-        color: var(--bs-secondary-color);
-    }
-    #gpiv-xml-summary .table th,
-    #gpiv-xml-summary .table td {
-        vertical-align: top;
-        word-break: break-word;
-    }
-    #gpiv-xml-summary .table tbody tr:hover th,
-    #gpiv-xml-summary .table tbody tr:hover td {
-        background: var(--bs-secondary-bg-subtle);
-    }
-
-    /* Person header inside the scrolling summary viewport (non-sticky) */
-    #gpiv-xml-summary .gpiv-person { position: static; }
-    #gpiv-xml-summary .gpiv-person-header {
-        position: static;
-        background: transparent;
-        border-bottom: none;
-        padding-block: .25rem;
-    }
-
-    /* Tabs */
-    .gpiv-tab-actions { gap: .5rem; }
-    .gpiv-pre { white-space: pre; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: .85rem; padding: .75rem; border-radius: .25rem; background: var(--bs-tertiary-bg, #f8f9fa); }
-    @@media (prefers-color-scheme: dark) {
-      .gpiv-pre { background: rgba(255,255,255,.05); color: inherit; }
-    }
-</style>
+@if (!string.IsNullOrWhiteSpace(raw) || !string.IsNullOrWhiteSpace(pretty))
+{
+<link rel="stylesheet" href="~/css/gpiv.css" asp-append-version="true" />
 
 <div class="card shadow-sm mb-4 gpiv-card">
     <div class="gpiv-drop" id="gpiv-drop">
@@ -179,7 +112,8 @@
           }
 
           <div class="tab-pane fade" id="gpiv-tab-details" role="tabpanel" aria-labelledby="gpiv-tab-details-btn" tabindex="0">
-            <div id="person-details-section" class="card shadow-sm mb-0 person-details d-none" role="region" aria-labelledby="pd-title">
+            <!-- Make Person Details visible by default (no JS required) -->
+            <div id="person-details-section" class="card shadow-sm mb-0 person-details" role="region" aria-labelledby="pd-title">
               <div class="card-body">
                 <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
                   <h5 id="pd-title" class="card-title mb-0">@SR["PersonDetails"]</h5>
@@ -214,7 +148,7 @@
                       @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
                     </div>
                     <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
-                    <div id="person-details-body"><!-- accordion injected here --></div>
+                    <div id="person-details-body"><div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div></div>
                   </div>
 
                   @if (showRaw)
@@ -247,6 +181,9 @@
     </div>
 </div>
 
+<!-- Fallback data attributes (base64) for robustness -->
+<div id="gpiv-data" data-raw-b64="@rawB64" data-pretty-b64="@prettyB64" hidden></div>
+
 <script nonce="@nonce" type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
@@ -255,3 +192,4 @@
 <script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
 <script type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
 <script type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>
+}

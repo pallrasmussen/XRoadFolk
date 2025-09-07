@@ -3,6 +3,7 @@
 @{
   var nonce = Context?.Items?["CSP_NONCE"] as string;
 }
+<link rel="stylesheet" href="~/css/logs.css" asp-append-version="true" />
 <section class="card shadow-sm" id="logs-section" aria-labelledby="logs-heading">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-2 position-sticky sticky-top bg-body" style="top: -1px; z-index: 2; padding-top:.25rem; padding-bottom:.25rem;" role="toolbar" aria-label="@SR["LogsToolbar"]">
@@ -70,22 +71,6 @@
     </div>
   </div>
 </section>
-
-<style nonce="@nonce">
-  .lvl-badge { text-transform: uppercase; }
-  .log-card { border-left: .25rem solid transparent; }
-  .log-card[data-level="Critical"] { border-left-color: #dc3545; }
-  .log-card[data-level="Error"] { border-left-color: #dc3545; }
-  .log-card[data-level="Warning"] { border-left-color: #ffc107; }
-  .log-card[data-level="Information"] { border-left-color: #0d6efd; }
-  .log-card[data-level="Debug"] { border-left-color: #6c757d; }
-  .log-card[data-level="Trace"] { border-left-color: #20c997; }
-  .log-message { white-space: pre-wrap; word-break: break-word; }
-  @@media (prefers-color-scheme: dark) {
-    .card.shadow-sm { box-shadow: 0 .25rem .5rem rgba(255,255,255,.05) !important; }
-    .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255,255,255,.015); }
-  }
-</style>
 
 <!-- Provide i18n strings to the external script -->
 <script nonce="@nonce" id="logs-i18n-json" type="application/json">{"Copy":"@SR["Copy"]","Copied":"@SR["Copied"]","Entries":"@SR["Entries"]"}</script>

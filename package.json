@@ -6,6 +6,7 @@
     "lint": "eslint \"src/**/wwwroot/js/**/*.js\" \"tests/**/*.js\""
   },
   "devDependencies": {
-    "eslint": "^9.9.0"
+    "eslint": "^9.9.0",
+    "globals": "^15.8.0"
   }
 }

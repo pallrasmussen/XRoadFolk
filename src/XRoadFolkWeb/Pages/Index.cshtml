@@ -84,17 +84,15 @@
 
     <!-- GetPeoplePublicInfo viewer & Person Details combined -->
     <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
-        @if ((Model?.Results?.Count ?? 0) > 0)
+        <partial name="_GetPeoplePublicInfoViewer"
+                 view-data='new ViewDataDictionary(ViewData) {
+                     ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
+                     ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
+                 }' />
+
+        @if (Model?.HasSearched == true && Model?.Results?.Count == 0)
         {
-            <partial name="_GetPeoplePublicInfoViewer"
-                     view-data='new ViewDataDictionary(ViewData) {
-                         ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
-                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
-                     }' />
-        }
-        else if (Model?.NoPeopleFound == true)
-        {
-            <div class="alert alert-info" role="status">@L["NoPeopleFound"]</div>
+            <div class="alert alert-info mt-3" role="status">@L["NoPeopleFound"]</div>
         }
     </div>
 </div>

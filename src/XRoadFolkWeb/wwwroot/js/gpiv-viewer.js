@@ -1,4 +1,4 @@
-import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
+import { iconClassFor, prettify, nextUid, clearChildren, handleAccordionKeydown, copyToClipboard, downloadBlob, toggleFullscreenWithCssFallback } from './gpiv-helpers.js';
 
 (function () {
   'use strict';
@@ -9,7 +9,6 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
   function qsa(sel, root) { return (root || document).querySelectorAll(sel); }
   function on(el, ev, fn) { el && el.addEventListener(ev, fn); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
 
   var dropOverlay = null;
   var summaryHost = null;
@@ -163,6 +162,29 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
     return map;
   }
 
+  function findPeopleNodes(xml) {
+    var nodes = [];
+    var all = xml.getElementsByTagName('*');
+    for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') nodes.push(all[i]);
+    if (nodes.length > 0) return nodes;
+    for (var j = 0; j < all.length; j++) if (all[j].localName === 'Person') nodes.push(all[j]);
+    if (nodes.length > 0) return nodes;
+    for (var k = 0; k < all.length; k++) {
+      var e = all[k];
+      var ln = e.localName;
+      if (!e.children || ln === 'Names' || ln === 'Name' || ln === 'ListOfPersonPublicInfo' || ln === 'ListOfPersonPublicInfoCriteria') continue;
+      var hasId = false, hasNames = false;
+      for (var m = 0; m < e.children.length; m++) {
+        var ch = e.children[m];
+        var cl = ch.localName;
+        if (cl === 'PublicId' || cl === 'PersonId') hasId = true;
+        if (cl === 'Names') hasNames = true;
+      }
+      if (hasId || hasNames) nodes.push(e);
+    }
+    return nodes;
+  }
+
   function buildNodeContent(node) {
     var container = document.createElement('div'); container.className = 'd-flex flex-column gap-2';
 
@@ -204,9 +226,8 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
       if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; syncViewerHeight(); return; }
       var xml = parseXml(xmlText);
-      var people = []; var all = xml.getElementsByTagName('*');
-      for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') people.push(all[i]);
-      if (people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No PersonPublicInfo elements found.')); syncViewerHeight(); return; }
+      var people = findPeopleNodes(xml);
+      if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
 
       var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
       var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
@@ -359,10 +380,10 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       var copyPretty = byId('gpiv-copy-pretty');
       var dlRaw = byId('gpiv-dl-raw');
       var dlPretty = byId('gpiv-dl-pretty');
-      if (copyRaw) copyRaw.onclick = function(){ try{ if(navigator && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(raw || ''); copyRaw.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyRaw.textContent = (I18N.Copy||'Copy'); }, 1200);}catch{}};
-      if (copyPretty) copyPretty.onclick = function(){ try{ if(navigator && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText((pretty||raw||'')); copyPretty.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyPretty.textContent = (I18N.Copy||'Copy'); }, 1200);}catch{}};
-      if (dlRaw) dlRaw.onclick = function(){ try{ var name='GetPeoplePublicInfo_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var blob=new Blob([raw||''], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('gpiv: download raw failed', e);}catch{} } };
-      if (dlPretty) dlPretty.onclick = function(){ try{ var name='GetPeoplePublicInfo_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var content=(pretty||raw||''); var blob=new Blob([content], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('gpiv: download pretty failed', e);}catch{} } };
+      if (copyRaw) copyRaw.onclick = function(){ copyToClipboard(raw || '').then(function(){ copyRaw.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyRaw.textContent = (I18N.Copy||'Copy'); }, 1200); }); };
+      if (copyPretty) copyPretty.onclick = function(){ copyToClipboard((pretty||raw||'')).then(function(){ copyPretty.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyPretty.textContent = (I18N.Copy||'Copy'); }, 1200); }); };
+      if (dlRaw) dlRaw.onclick = function(){ downloadBlob('GetPeoplePublicInfo_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml', raw||'', 'text/xml;charset=utf-8'); };
+      if (dlPretty) dlPretty.onclick = function(){ var content=(pretty||raw||''); downloadBlob('GetPeoplePublicInfo_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml', content, 'text/xml;charset=utf-8'); };
     }catch(e){ try{ console.debug('gpiv: setRawPrettyUi failed', e); }catch{} }
   }
 
@@ -408,41 +429,8 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       if (!card) return;
       try { var pdSec = byId('person-details-section'); if (pdSec) pdSec.classList.remove('pd-fullscreen'); } catch (_) {}
       try {
-        var isApiFull = document.fullscreenElement === card;
-        var hasCssFull = card.classList.contains('gpiv-fullscreen');
-        if (isApiFull) {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().catch(function(){ card.classList.remove('gpiv-fullscreen'); });
-          } else {
-            card.classList.remove('gpiv-fullscreen');
-          }
-          return;
-        }
-        if (hasCssFull) {
-          card.classList.remove('gpiv-fullscreen');
-          syncViewerHeight();
-          return;
-        }
-        function enterFs(){
-          if (card.requestFullscreen) {
-            card.requestFullscreen({ navigationUI: 'hide' })
-              .then(function(){ card.style.height=''; })
-              .catch(function(){ card.classList.add('gpiv-fullscreen'); card.style.height=''; });
-          } else {
-            card.classList.add('gpiv-fullscreen');
-            card.style.height='';
-          }
-        }
-        if (document.fullscreenElement && document.fullscreenElement !== card) {
-          if (document.exitFullscreen) {
-            document.exitFullscreen().then(function(){ enterFs(); }).catch(function(){ card.classList.add('gpiv-fullscreen'); card.style.height=''; });
-          } else {
-            card.classList.add('gpiv-fullscreen');
-            card.style.height='';
-          }
-        } else {
-          enterFs();
-        }
+        toggleFullscreenWithCssFallback(card, 'gpiv-fullscreen');
+        if (!document.fullscreenElement && !card.classList.contains('gpiv-fullscreen')) syncViewerHeight();
       } catch (err) {
         card.classList.toggle('gpiv-fullscreen');
         card.style.height = '';
@@ -472,6 +460,21 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       if (typeof rawInit === 'string' || typeof prettyInit === 'string') {
         window.gpiv.setXml(String(rawInit || ''), String(prettyInit || ''));
       }
+      // Fallback to data attributes if JSON tags are empty
+      if ((!rawInit || rawInit.length === 0) && (!prettyInit || prettyInit.length === 0)){
+        var dataHost = byId('gpiv-data');
+        if (dataHost){
+          var rb = dataHost.getAttribute('data-raw-b64') || '';
+          var pb = dataHost.getAttribute('data-pretty-b64') || '';
+          try{
+            var rawFromB64 = rb ? decodeURIComponent(escape(window.atob(rb))) : '';
+            var prettyFromB64 = pb ? decodeURIComponent(escape(window.atob(pb))) : '';
+            if (rawFromB64 || prettyFromB64){
+              window.gpiv.setXml(rawFromB64, prettyFromB64);
+            }
+          }catch(e){ console.error('gpiv: base64 decode failed', e); }
+        }
+      }
     } catch (e) { console.error('gpiv: failed to parse initial xml json', e); }
   }
 
@@ -481,27 +484,6 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       var linkPid = qs.get('gpivPublicId');
       if (linkPid) { setTimeout(function () { window.gpiv.focusPerson(linkPid); }, 50); }
     } catch (e) { console.error('gpiv: focusPerson failed', e); }
-  }
-
-  // Accordion keyboard navigation (ArrowUp/Down/Left/Right, Home/End)
-  function handleAccordionKeydown(e, scopeRoot){
-    try{
-      var t = e.target;
-      if (!t || !t.classList || !t.classList.contains('accordion-button')) return;
-      if (!scopeRoot || !scopeRoot.contains(t)) return;
-      var key = e.key;
-      if (key!=='ArrowDown' && key!=='ArrowUp' && key!=='ArrowLeft' && key!=='ArrowRight' && key!=='Home' && key!=='End') return;
-      var acc = t.closest('.accordion'); if (!acc) return;
-      var btns = Array.prototype.slice.call(acc.querySelectorAll('.accordion-header .accordion-button'));
-      var idx = btns.indexOf(t); if (idx < 0) return;
-      e.preventDefault();
-      var nextIdx = idx;
-      if (key==='ArrowDown' || key==='ArrowRight') nextIdx = (idx+1) % btns.length;
-      else if (key==='ArrowUp' || key==='ArrowLeft') nextIdx = (idx-1+btns.length) % btns.length;
-      else if (key==='Home') nextIdx = 0;
-      else if (key==='End') nextIdx = btns.length-1;
-      var next = btns[nextIdx]; if (next && next.focus) next.focus();
-    }catch{}
   }
 
   // Public API (exposed for other modules/pages that may want to interact)

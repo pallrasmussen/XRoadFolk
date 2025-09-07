@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using XRoadFolkWeb.Infrastructure;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -231,7 +232,8 @@ namespace XRoadFolkWeb.Extensions
 
         private static void RegisterHttpLogServices(IServiceCollection services)
         {
-            _ = services.AddSingleton<ILogFeed, LogStreamBroadcaster>();
+            // IMPORTANT: Avoid resolving ILogger while configuring the logging provider to prevent cycles
+            _ = services.AddSingleton<ILogFeed>(sp => new LogStreamBroadcaster(new NullLogger<LogStreamBroadcaster>()));
             _ = services.AddSingleton<FileBackedHttpLogStore>();
 
             _ = services.AddSingleton<IHttpLogStore>(sp =>
@@ -262,7 +264,9 @@ namespace XRoadFolkWeb.Extensions
 
         private static void RegisterLogProvider(IServiceCollection services)
         {
-            _ = services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(sp.GetRequiredService<IHttpLogStore>()));
+            _ = services.AddSingleton<ILoggerProvider>(sp => new InMemoryHttpLogLoggerProvider(
+                sp.GetRequiredService<IHttpLogStore>(),
+                sp.GetRequiredService<ILogFeed>()));
         }
 
         private sealed class NoopHostedService : IHostedService

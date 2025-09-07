@@ -13,11 +13,12 @@ namespace XRoadFolkRaw.Lib
         [GeneratedRegex("<(?:\\w+:)?token>(.*?)</(?:\\w+:)?token>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsTokenRegex();
 
-        [GeneratedRegex("<(?<tag>(?:\\w+:)?userId)>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+        // Avoid backreference; capture opening tag name and match a compatible closing tag explicitly
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?userId)>(?<v>.*?)</(?:\\w+:)?userId>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsUserIdRegex();
 
-        // Common token aliases in payloads and WS-Security
-        [GeneratedRegex("<(?<tag>(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken))>(?<v>.*?)</\\k<tag>>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+        // Common token aliases in payloads and WS-Security (avoid backreference)
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken))>(?<v>.*?)</(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken)>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex TokenAliasesRegex();
 
         [GeneratedRegex("<username>(.*?)</username>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
