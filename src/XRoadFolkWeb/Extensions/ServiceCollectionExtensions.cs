@@ -30,6 +30,18 @@ namespace XRoadFolkWeb.Extensions
                 .AddDataProtectionDefaults(configuration)
                 .AddSessionServices(configuration);
 
+            // Security: configure HSTS options (header emitted by UseHsts in non-Development)
+            services.AddHsts(opts =>
+            {
+                opts.Preload = true;
+                opts.IncludeSubDomains = true;
+                opts.MaxAge = TimeSpan.FromDays(365);
+                // Exclude development hosts to avoid browser HSTS caching during local testing
+                opts.ExcludedHosts.Add("localhost");
+                opts.ExcludedHosts.Add("127.0.0.1");
+                opts.ExcludedHosts.Add("[::1]");
+            });
+
             if (hasXRoad)
             {
                 services
