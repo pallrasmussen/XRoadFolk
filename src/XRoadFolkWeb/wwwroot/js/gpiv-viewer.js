@@ -349,11 +349,30 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
     if (hasAny) { renderSummary(); } else { clearChildren(summaryHost); syncViewerHeight(); }
   }
 
+  function setRawPrettyUi(raw, pretty){
+    try{
+      var rawPre = byId('gpiv-raw-pre');
+      var prettyPre = byId('gpiv-pretty-pre');
+      if (rawPre) rawPre.textContent = raw || '';
+      if (prettyPre) prettyPre.textContent = (pretty || raw || '');
+      var copyRaw = byId('gpiv-copy-raw');
+      var copyPretty = byId('gpiv-copy-pretty');
+      var dlRaw = byId('gpiv-dl-raw');
+      var dlPretty = byId('gpiv-dl-pretty');
+      if (copyRaw) copyRaw.onclick = function(){ try{ if(navigator && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(raw || ''); copyRaw.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyRaw.textContent = (I18N.Copy||'Copy'); }, 1200);}catch{}};
+      if (copyPretty) copyPretty.onclick = function(){ try{ if(navigator && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText((pretty||raw||'')); copyPretty.textContent = (I18N.Copied||'Copied'); setTimeout(function(){ copyPretty.textContent = (I18N.Copy||'Copy'); }, 1200);}catch{}};
+      if (dlRaw) dlRaw.onclick = function(){ try{ var name='GetPeoplePublicInfo_raw_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var blob=new Blob([raw||''], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('gpiv: download raw failed', e);}catch{} } };
+      if (dlPretty) dlPretty.onclick = function(){ try{ var name='GetPeoplePublicInfo_pretty_'+new Date().toISOString().replace(/[:.]/g,'-')+'.xml'; var content=(pretty||raw||''); var blob=new Blob([content], {type:'text/xml;charset=utf-8'}); var a=document.createElement('a'); if (URL && URL.createObjectURL) { a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); } }catch(e){ try{ console.error('gpiv: download pretty failed', e);}catch{} } };
+    }catch(e){ try{ console.debug('gpiv: setRawPrettyUi failed', e); }catch{} }
+  }
+
   function setXmlFromText(text) {
     if (!text || !text.trim()) return;
     sourceRaw = text; sourcePretty = text;
+    setRawPrettyUi(sourceRaw, sourcePretty);
     updateView();
   }
+
   function showDrop(v) { if (dropOverlay) dropOverlay.style.display = v ? 'flex' : 'none'; }
 
   function initDragDrop() {
@@ -450,7 +469,9 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       var prettyEl = byId('gpiv-pretty-json');
       var rawInit = rawEl ? JSON.parse(rawEl.textContent || '""') : "";
       var prettyInit = prettyEl ? JSON.parse(prettyEl.textContent || '""') : "";
-      if (rawInit || prettyInit) window.gpiv.setXml(rawInit, prettyInit);
+      if (typeof rawInit === 'string' || typeof prettyInit === 'string') {
+        window.gpiv.setXml(String(rawInit || ''), String(prettyInit || ''));
+      }
     } catch (e) { console.error('gpiv: failed to parse initial xml json', e); }
   }
 
@@ -489,6 +510,7 @@ import { iconClassFor, prettify, nextUid } from './gpiv-helpers.js';
       try {
         if (typeof raw === 'string') sourceRaw = raw;
         if (typeof pretty === 'string') sourcePretty = pretty; else if (typeof raw === 'string') sourcePretty = raw;
+        setRawPrettyUi(sourceRaw, sourcePretty);
         updateView();
       } catch (e) { console.error('gpiv: setXml failed', e); }
     },
