@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotenv@v4
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
@@ -34,6 +34,15 @@ jobs:
 
       - name: Restore
         run: dotnet restore
+
+      - name: Install dotnet-format
+        run: dotnet tool install -g dotnet-format --version 8.*
+
+      - name: Add .NET tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Verify code format
+        run: dotnet format --verify-no-changes
 
       - name: Build with analyzers (treat warnings as errors)
         run: dotnet build --configuration Release -warnaserror --no-restore
