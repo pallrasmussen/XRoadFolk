@@ -19,6 +19,8 @@
   };
   var prettify = H.prettify || function(name){ var s=String(name||''); s=s.replace(/[_\-]+/g,' '); s=s.replace(/([a-z0-9])([A-Z])/g,'$1 $2'); s=s.trim().replace(/\s+/g,' '); return s.split(' ').map(function(w){return w? (w[0].toUpperCase()+w.slice(1)) : w;}).join(' '); };
 
+  function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
+
   // --- restored local renderer for addresses using parseAddressKey helper ---
   function renderAddressesCardList(items){
     var groups = {};
@@ -214,7 +216,7 @@
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
-    if(e.body && on){ try{ e.body.innerHTML=''; }catch{} }
+    if(e.body && on){ try{ clearChildren(e.body); }catch{} }
     if(e.loading){ try{ e.loading.classList.toggle('d-none', !on); }catch{} }
   }
   function clearPanel(){
@@ -223,7 +225,7 @@
     activatePdDetailsSubTab();
     e.sec.classList.remove('d-none');
     if(e.err){ e.err.classList.add('d-none'); e.err.textContent=''; }
-    if(e.body){ try{ e.body.innerHTML=''; }catch{} }
+    if(e.body){ try{ clearChildren(e.body); }catch{} }
     if(e.loading){ try{ e.loading.classList.add('d-none'); }catch{} }
   }
   function showInfo(message){
@@ -238,7 +240,7 @@
       div.className = 'alert alert-info mb-0';
       div.setAttribute('role','status');
       div.textContent = message || 'Select a person to view details.';
-      try{ e.body.innerHTML = ''; }catch{}
+      try{ clearChildren(e.body); }catch{}
       try{ e.body.appendChild(div); }catch{}
     }
   }
@@ -491,6 +493,18 @@
     return data;
   }
 
+  function buildErrorWithRetry(message, onRetry){
+    var els = getPanelEls();
+    if (!els.err) return;
+    clearChildren(els.err);
+    els.err.classList.remove('d-none');
+    var span = document.createElement('span'); span.textContent = message || 'Failed to load details.';
+    var btn = document.createElement('button'); btn.type='button'; btn.id='pd-retry'; btn.className='btn btn-sm btn-outline-secondary ms-2'; btn.textContent='Retry';
+    btn.addEventListener('click', function(){ try{ onRetry && onRetry(); }catch{} });
+    els.err.appendChild(span);
+    els.err.appendChild(btn);
+  }
+
   async function loadPerson(publicId, sourceEl){
     window.lastPid = lastPid = publicId;
     var mySeq = ++loadSeq;
@@ -516,13 +530,8 @@
       showLoading(false);
 
       if (!data || data.ok !== true) {
-        if (els.err) {
-          els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
-          els.err.classList.remove('d-none');
-          var retry = document.getElementById('pd-retry');
-          if (retry) retry.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
-          ensureShownAndFocus();
-        }
+        buildErrorWithRetry('Failed to load details.', function(){ loadPerson(publicId, sourceEl); });
+        ensureShownAndFocus();
         return;
       }
 
@@ -548,13 +557,8 @@
     } catch (err) {
       if (mySeq !== loadSeq) return; // stale error
       showLoading(false);
-      if (els.err) {
-        els.err.innerHTML = 'Failed to load details. <button type="button" id="pd-retry" class="btn btn-sm btn-outline-secondary ms-2">Retry</button>';
-        els.err.classList.remove('d-none');
-        var retry2 = document.getElementById('pd-retry');
-        if (retry2) retry2.addEventListener('click', function(){ loadPerson(publicId, sourceEl); });
-        ensureShownAndFocus();
-      }
+      buildErrorWithRetry('Failed to load details.', function(){ loadPerson(publicId, sourceEl); });
+      ensureShownAndFocus();
       try { console.error('GetPerson fetch failed', err); } catch {}
     }
   }

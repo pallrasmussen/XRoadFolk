@@ -7,6 +7,7 @@
   function qsa(sel, root) { return (root || document).querySelectorAll(sel); }
   function on(el, ev, fn) { el && el.addEventListener(ev, fn); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
 
   var H = window.gpivHelpers || {};
   var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
@@ -200,7 +201,7 @@
   }
 
   function renderSummary() {
-    summaryHost.innerHTML = '';
+    clearChildren(summaryHost);
     try {
       var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
       if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; syncViewerHeight(); return; }
@@ -344,7 +345,7 @@
     var hasAny = combined.length > 0;
 
     if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-    if (hasAny) { renderSummary(); } else { summaryHost.innerHTML = ''; syncViewerHeight(); }
+    if (hasAny) { renderSummary(); } else { clearChildren(summaryHost); syncViewerHeight(); }
   }
 
   function setXmlFromText(text) {
