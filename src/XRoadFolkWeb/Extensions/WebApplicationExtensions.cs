@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
@@ -501,7 +502,7 @@ namespace XRoadFolkWeb.Extensions
         {
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
 
-            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
+            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, IAntiforgery af) =>
             {
                 try
                 {
@@ -519,7 +520,6 @@ namespace XRoadFolkWeb.Extensions
                 }
 
                 string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
-                // For TestServer (HTTP), write Set-Cookie header with expected casing for attributes
                 if (!ctx.Request.IsHttps)
                 {
                     var sb = new System.Text.StringBuilder();
@@ -555,7 +555,7 @@ namespace XRoadFolkWeb.Extensions
                     }
                 }
                 return Results.LocalRedirect("/");
-            }).DisableAntiforgery();
+            });
         }
 
         private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
