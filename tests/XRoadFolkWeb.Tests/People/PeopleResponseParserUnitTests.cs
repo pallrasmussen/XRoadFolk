@@ -16,8 +16,14 @@ namespace XRoadFolkWeb.Tests.People
             var open = new string('<', 0);
             var sb = new System.Text.StringBuilder();
             sb.Append("<root>");
-            for (int i = 0; i < depth; i++) sb.Append("<a>");
-            for (int i = 0; i < depth; i++) sb.Append("</a>");
+            for (int i = 0; i < depth; i++)
+            {
+                sb.Append("<a>");
+            }
+            for (int i = 0; i < depth; i++)
+            {
+                sb.Append("</a>");
+            }
             sb.Append("</root>");
             string xml = sb.ToString();
             var rows = Parser().ParsePeopleList(xml);
