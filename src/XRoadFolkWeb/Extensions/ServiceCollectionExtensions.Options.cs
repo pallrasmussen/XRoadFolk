@@ -62,7 +62,7 @@ public static partial class ServiceCollectionExtensions
             .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
             .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.");
 
-        // Response viewer options (override to hide XML in Production)
+        // Response viewer options: bind + validate + fail fast; then apply Production overrides
         AddResponseViewerOptions(services, configuration);
 
         return services;
@@ -71,13 +71,16 @@ public static partial class ServiceCollectionExtensions
     private static void AddResponseViewerOptions(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<ResponseViewerOptions>()
-            .Bind(configuration.GetSection("Features:ResponseViewer"));
+            .Bind(configuration.GetSection("Features:ResponseViewer"))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<ResponseViewerOptions>, ResponseViewerOptionsValidator>();
         services.AddSingleton(sp =>
         {
             var env = sp.GetRequiredService<IHostEnvironment>();
             var opts = sp.GetRequiredService<IOptions<ResponseViewerOptions>>().Value;
             if (env.IsProduction())
             {
+                // Force off in production regardless of config
                 opts.ShowRawXml = false;
                 opts.ShowPrettyXml = false;
             }

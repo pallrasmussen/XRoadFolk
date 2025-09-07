@@ -68,10 +68,5 @@
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
     <!-- Required for IServiceCollection.AddDistributedSqlServerCache -->
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.8" />
-    <!-- Localization analyzer to detect issues with IStringLocalizer usage at compile-time -->
-    <PackageReference Include="Microsoft.Extensions.Localization.Analyzers" Version="9.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 </Project>
