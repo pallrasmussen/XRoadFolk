@@ -1,36 +1,11 @@
 (function(){
   var form = document.getElementById('gpip-search-form');
   if (!form) return;
-  var KEY='index:formState';
-  var FLAG='restoreIndexOnBack';
+  var KEY='index-form-state-v1';
 
-  function qs(name){ return form.querySelector('[name="'+name+'"]'); }
-  function getState(){
-    return {
-      Ssn: (qs('Ssn') && qs('Ssn').value) || '',
-      FirstName: (qs('FirstName') && qs('FirstName').value) || '',
-      LastName: (qs('LastName') && qs('LastName').value) || '',
-      DateOfBirth: (qs('DateOfBirth') && qs('DateOfBirth').value) || ''
-    };
-  }
-  function setState(s){ if(!s) return; try{
-    if (qs('Ssn')) qs('Ssn').value = s.Ssn || '';
-    if (qs('FirstName')) qs('FirstName').value = s.FirstName || '';
-    if (qs('LastName')) qs('LastName').value = s.LastName || '';
-    if (qs('DateOfBirth')) qs('DateOfBirth').value = s.DateOfBirth || '';
-  }catch(e){ console.debug('Index: setState failed', e); } }
-
-  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(getState())); }catch(e){ console.debug('Index: sessionStorage.setItem failed', e); } }
-
-  try{
-    if (sessionStorage.getItem(FLAG) === '1'){
-      var raw = sessionStorage.getItem(KEY) || '{}';
-      var st = {};
-      try{ st = JSON.parse(raw); }catch(e){}
-      setState(st);
-      sessionStorage.removeItem(FLAG);
-    }
-  }catch(e){ console.debug('Index: restore from sessionStorage failed', e); }
+  function save(){ try{ sessionStorage.setItem(KEY, JSON.stringify(Object.fromEntries(new FormData(form)))); }catch(e){} }
+  function load(){ try{ var raw=sessionStorage.getItem(KEY); if(!raw) return; var data=JSON.parse(raw)||{}; Object.keys(data).forEach(function(k){ var el=form.querySelector('[name="'+k+'"]'); if(!el) return; if(el.type==='checkbox') el.checked=!!data[k]; else el.value=data[k]; }); }catch(e){} }
+  load();
 
   form.addEventListener('input', save);
   form.addEventListener('change', save);
@@ -38,7 +13,8 @@
     try{
       var sub = ev.submitter;
       var fa = sub && sub.getAttribute && sub.getAttribute('formaction');
-      var isClear = !!(fa && fa.toLowerCase().indexOf('handler=clear')>=0);
+      var isClear = false;
+      if (fa){ var u=fa.toLowerCase(); isClear = u.indexOf('handler=clear')>=0 || u.indexOf('handler='+ encodeURIComponent('Clear').toLowerCase())>=0; }
       if (isClear) sessionStorage.removeItem(KEY); else save();
     }catch(e){ console.debug('Index: submit handler failed', e); }
   });
