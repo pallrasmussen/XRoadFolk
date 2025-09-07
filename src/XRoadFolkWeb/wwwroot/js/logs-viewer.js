@@ -51,6 +51,7 @@
 
     function cardFor(entry){
       var col=document.createElement('div'); col.className='col';
+      col.setAttribute('role','article');
       col.innerHTML='<div class="card log-card" data-level="'+escapeHtml(entry.level)+'">\
         <div class="card-body">\
           <div class="d-flex justify-content-between align-items-start">\
@@ -83,11 +84,16 @@
         cards.classList.add('d-none');
         cards.setAttribute('aria-hidden','true');
       }
+      // Ensure any queued entries render into the now-visible pane
+      flush();
     }
 
     var MAX_ROWS=3000, TRIM_TO_ROWS=2000, BATCH_FLUSH_MS=50;
     var pending=[], pendingCards=[], flushTimer=0;
     var visible=[];
+
+    function cancelFlush(){ if (flushTimer){ try{ clearTimeout(flushTimer);}catch{} flushTimer=0; } }
+    function resetBuffers(){ cancelFlush(); pending=[]; pendingCards=[]; visible=[]; }
 
     function scheduleFlush(){ if (flushTimer) return; flushTimer=setTimeout(flush,BATCH_FLUSH_MS); }
     function flush(){
@@ -109,16 +115,54 @@
     function connect(){ if(es) try{ es.close(); }catch(e){} es=new EventSource('/logs/stream?kind='+encodeURIComponent(kind)); es.onmessage=function(ev){ if(paused) return; try{ var entry=JSON.parse(ev.data); append(entry);}catch(e){ console.warn('LogsViewer: JSON parse failed', e);} }; es.onerror=function(){ try{ es.close(); }catch(e){} setTimeout(connect,1000); }; }
     function reloadHistory(){ tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if(countEl) countEl.textContent='0'; if(statusEl) statusEl.textContent=''; fetch('/logs?kind='+encodeURIComponent(kind)).then(function(r){return r.json();}).then(function(d){ if(!d||d.ok!==true) return; var items=d.items||[]; if(items.length>MAX_ROWS) items=items.slice(items.length-MAX_ROWS); for(var i=0;i<items.length;i++) append(items[i]); flush(); }); }
 
+    function setupToolbarRoving(containerSelector){
+      var container = document.querySelector(containerSelector);
+      if (!container) return;
+      var items = Array.prototype.slice.call(container.querySelectorAll('[data-kind], [data-view]'));
+      items.forEach(function(btn, i){ btn.setAttribute('tabindex', i===0 ? '0' : '-1'); btn.setAttribute('role','button'); });
+      container.addEventListener('keydown', function(e){
+        var current = e.target && e.target.closest && e.target.closest('[data-kind], [data-view]');
+        if (!current) return;
+        var idx = items.indexOf(current);
+        if (idx < 0) return;
+        var key = e.key;
+        if (key==='ArrowRight' || key==='ArrowDown'){
+          e.preventDefault(); var n=(idx+1)%items.length; items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[n].setAttribute('tabindex','0'); items[n].focus();
+        } else if (key==='ArrowLeft' || key==='ArrowUp'){
+          e.preventDefault(); var p=(idx-1+items.length)%items.length; items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[p].setAttribute('tabindex','0'); items[p].focus();
+        } else if (key==='Home'){
+          e.preventDefault(); items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[0].setAttribute('tabindex','0'); items[0].focus();
+        } else if (key==='End'){
+          e.preventDefault(); items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[items.length-1].setAttribute('tabindex','0'); items[items.length-1].focus();
+        } else if (key===' ' || key==='Enter'){
+          e.preventDefault(); current.click();
+        }
+      });
+    }
+
     document.querySelectorAll('[data-kind]').forEach(function(btn){
-      btn.addEventListener('click', function(){ document.querySelectorAll('[data-kind]').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); }); btn.classList.add('active'); btn.setAttribute('aria-pressed','true'); kind=btn.getAttribute('data-kind')||'http'; reloadHistory(); connect(); });
-      btn.addEventListener('keydown', function(e){ if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault(); var arr=Array.prototype.slice.call(document.querySelectorAll('[data-kind]')); var idx=arr.indexOf(btn); var next=e.key==='ArrowRight'?(idx+1)%arr.length:(idx-1+arr.length)%arr.length; arr[next].focus(); } });
+      btn.addEventListener('click', function(){
+        // Update UI state
+        document.querySelectorAll('[data-kind]').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+        btn.classList.add('active'); btn.setAttribute('aria-pressed','true');
+        // Close existing stream and clear buffers to avoid race with pending flush
+        if (es) { try{ es.close(); }catch{} }
+        resetBuffers();
+        kind=btn.getAttribute('data-kind')||'http';
+        reloadHistory();
+        connect();
+      });
+      btn.addEventListener('keydown', function(e){ if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault(); var arr=Array.prototype.slice.call(document.querySelectorAll('[data-kind]')); var idx=arr.indexOf(btn); var next=e.key==='ArrowRight'?(idx+1)%arr.length:(idx-1+arr.length)%arr.length; arr[next].focus(); } if(e.key==='Enter' || e.key===' '){ e.preventDefault(); btn.click(); } });
     });
 
     document.querySelectorAll('[data-view]').forEach(function(btn){ btn.addEventListener('click', function(){ document.querySelectorAll('[data-view]').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); }); btn.classList.add('active'); btn.setAttribute('aria-pressed','true'); view=btn.getAttribute('data-view')||'table'; syncViewVisibility(); }); });
 
-    filter && filter.addEventListener('input', function(){ filterTxt=(filter.value||'').trim().toLowerCase(); reloadHistory(); });
-    level && level.addEventListener('change', function(){ filterLevel=(level.value||'').trim().toLowerCase(); reloadHistory(); });
-    clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if(countEl) countEl.textContent='0'; if(statusEl) statusEl.textContent=''; });
+    setupToolbarRoving('#logs-kind-toolbar');
+    setupToolbarRoving('#logs-view-toolbar');
+
+    filter && filter.addEventListener('input', function(){ filterTxt=(filter.value||'').trim().toLowerCase(); resetBuffers(); reloadHistory(); });
+    level && level.addEventListener('change', function(){ filterLevel=(level.value||'').trim().toLowerCase(); resetBuffers(); reloadHistory(); });
+    clearBtn && clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }); cancelFlush(); tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if(countEl) countEl.textContent='0'; if(statusEl) statusEl.textContent=''; });
     pauseBtn && pauseBtn.addEventListener('click', function(){ paused=!paused; pauseBtn.classList.toggle('active', paused); pauseBtn.textContent=paused?pauseTextResume:pauseTextPause; pauseBtn.setAttribute('aria-pressed', paused?'true':'false'); });
     downloadBtn && downloadBtn.addEventListener('click', function(){ try{ var blob=new Blob([JSON.stringify(visible,null,2)], { type:'application/json;charset=utf-8' }); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='logs_'+kind+'_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(a.href); a.remove(); }catch(e){ console.warn('LogsViewer: download failed', e); } });
 
@@ -130,29 +174,5 @@
     connect();
   }
 
-  function setupVisibilityGate(){
-    var target = document.getElementById('logs-section') || document.getElementById('logs-view') || document.getElementById('logs-table');
-    if (!('IntersectionObserver' in window) || !target){
-      // Fallback: init on DOM ready
-      init();
-      return;
-    }
-    try{
-      var io = new IntersectionObserver(function(entries){
-        for (var i=0;i<entries.length;i++){
-          var e = entries[i];
-          if (e.isIntersecting && e.intersectionRatio > 0){
-            io.disconnect();
-            init();
-            break;
-          }
-        }
-      }, { root: null, rootMargin: '0px 0px -25% 0px', threshold: [0, 0.01, 0.1] });
-      io.observe(target);
-    }catch{
-      init();
-    }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupVisibilityGate); else setupVisibilityGate();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

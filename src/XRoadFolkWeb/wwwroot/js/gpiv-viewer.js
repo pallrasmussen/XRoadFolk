@@ -147,7 +147,7 @@
   function expandSummaryAll(open) {
     if (!summaryHost) return;
     qsa('.accordion-collapse', summaryHost).forEach(function (p) { p.classList.toggle('show', !!open); });
-    qsa('.accordion-button', summaryHost).forEach(function (b) { b.classList.toggle('collapsed', !open); });
+    qsa('.accordion-button', summaryHost).forEach(function (b) { b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); });
   }
 
   function groupChildrenByName(node) {
@@ -461,6 +461,27 @@
     } catch (e) { console.error('gpiv: focusPerson failed', e); }
   }
 
+  // Accordion keyboard navigation (ArrowUp/Down/Left/Right, Home/End)
+  function handleAccordionKeydown(e, scopeRoot){
+    try{
+      var t = e.target;
+      if (!t || !t.classList || !t.classList.contains('accordion-button')) return;
+      if (!scopeRoot || !scopeRoot.contains(t)) return;
+      var key = e.key;
+      if (key!=='ArrowDown' && key!=='ArrowUp' && key!=='ArrowLeft' && key!=='ArrowRight' && key!=='Home' && key!=='End') return;
+      var acc = t.closest('.accordion'); if (!acc) return;
+      var btns = Array.prototype.slice.call(acc.querySelectorAll('.accordion-header .accordion-button'));
+      var idx = btns.indexOf(t); if (idx < 0) return;
+      e.preventDefault();
+      var nextIdx = idx;
+      if (key==='ArrowDown' || key==='ArrowRight') nextIdx = (idx+1) % btns.length;
+      else if (key==='ArrowUp' || key==='ArrowLeft') nextIdx = (idx-1+btns.length) % btns.length;
+      else if (key==='Home') nextIdx = 0;
+      else if (key==='End') nextIdx = btns.length-1;
+      var next = btns[nextIdx]; if (next && next.focus) next.focus();
+    }catch{}
+  }
+
   // Public API
   window.gpiv = {
     setXml: function (raw, pretty) {
@@ -507,6 +528,9 @@
 
       initDragDrop();
       initFullscreen();
+
+      // ARIA keyboard within summary accordions
+      document.addEventListener('keydown', function(e){ handleAccordionKeydown(e, summaryHost); });
 
       loadInitialDataFromJsonTags();
       initPublicIdLink();
