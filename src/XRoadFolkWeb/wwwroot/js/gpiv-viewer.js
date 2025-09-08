@@ -240,7 +240,7 @@
       var people = findPeopleNodes(xml);
       if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
 
-      // Render people list directly; toolbar at top provides controls like Person details
+      // Render people list directly (removed sticky count bar)
       for (var p = 0; p < people.length; p++) {
         var person = people[p];
         var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
