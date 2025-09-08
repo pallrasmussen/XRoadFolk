@@ -54,6 +54,7 @@ public static partial class ServiceCollectionExtensions
                 b.Expire(TimeSpan.FromSeconds(60));
                 b.SetVaryByRouteValue("page");
                 b.SetVaryByHeader("Accept-Language");
+                b.SetVaryByHeader("Accept-Encoding");
                 b.SetVaryByQuery("v");
             });
             o.AddPolicy("NoCache", b => b.NoCache());
