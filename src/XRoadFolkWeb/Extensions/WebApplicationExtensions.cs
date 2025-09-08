@@ -1,4 +1,3 @@
-#pragma warning disable IDE0011
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Localization;
@@ -731,4 +730,3 @@ namespace XRoadFolkWeb.Extensions
         }
     }
 }
-#pragma warning restore IDE0011
