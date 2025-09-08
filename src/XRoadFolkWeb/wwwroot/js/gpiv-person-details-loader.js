@@ -578,35 +578,18 @@
     }
   }
 
-  function isClickOnNameOrBadge(target){
-    try{
-      return !!(safeClosest(target, '.gpiv-person-header .badge') || safeClosest(target, '.gpiv-person-header strong'));
-    }catch{ return false; }
-  }
-
+  // Remove header click/key navigation; only the dedicated buttons should trigger loading
   document.addEventListener('click', function(e){
     var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
-    // Ignore clicks on the badge or person name; they should not act as a link to details
-    if (isClickOnNameOrBadge(e.target)) return;
-    if(e.ctrlKey || e.metaKey) return;
-    var wrap = header.parentElement; // .gpiv-person
-    if(!wrap) return;
-    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? wrap.dataset.publicId : '') || '';
-    if(pid) loadPerson(pid, header); else showInfo('Select a person with a valid ID to view details.');
+    // Do nothing; header is not a link anymore
   });
 
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
-    // Ignore keyboard activation from the badge or person name
-    if (isClickOnNameOrBadge(e.target)) return;
-    e.preventDefault();
-    var wrap = header.parentElement;
-    if(!wrap) return;
-    var pid = wrap.getAttribute('data-public-id') || (wrap.dataset ? (wrap.dataset.PublicId || wrap.dataset.publicId) : '') || '';
-    if(pid) loadPerson(pid, header); else showInfo('Select a person with a valid ID to view details.');
+    // Do nothing; header is not interactive
   });
 
   // Outer PersonDetails tab click -> load

@@ -308,8 +308,7 @@
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
-        try { header.setAttribute('role','button'); header.setAttribute('tabindex','0'); } catch(e) {}
-
+        // Header is not interactive; only the dedicated button triggers details
         wrap.appendChild(header);
 
         var accId = nextUid('acc');

@@ -46,13 +46,17 @@
 
 /* Person header inside the scrolling summary viewport -> sticky */
 #gpiv-xml-summary .gpiv-person { position: static; }
-#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 1; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem;}
+#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 1; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem; }
 
 /* Disable pointer/hover on badge and name to make them non-interactive */
 #gpiv-xml-summary .gpiv-person-header .badge,
 #gpiv-xml-summary .gpiv-person-header strong { cursor: default; }
 #gpiv-xml-summary .gpiv-person-header .badge:hover,
 #gpiv-xml-summary .gpiv-person-header strong:hover { text-decoration: none; filter: none; opacity: 1; }
+
+/* Only the "More info" button should look/behave like a link */
+.gpiv-more-info-btn { cursor: pointer; transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out; }
+.gpiv-more-info-btn:hover, .gpiv-more-info-btn:focus-visible { text-decoration: underline; }
 
 /* Add active card state like person details focus */
 #gpiv-xml-summary .gpiv-active-card { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
