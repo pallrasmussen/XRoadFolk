@@ -80,7 +80,8 @@
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
     <link rel="icon" type="image/png" href="~/favicon.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="~/favicon.png" />
-    <meta name="theme-color" content="#0d6efd" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0d6efd" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0f1a" />
 
     <!-- Resource Hints for external CDNs -->
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
@@ -90,19 +91,7 @@
     <link rel="dns-prefetch" href="//fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <script nonce="@nonce">
-        // Force light theme before paint; single catch for robustness
-        (function () {
-            try {
-                localStorage.removeItem('theme');
-                document.documentElement.setAttribute('data-bs-theme', 'brand');
-            } catch (e) {
-                console.error('Theme init failed', e);
-            }
-        })();
-    </script>
-
-    <!-- Bootswatch "Flatly" theme -->
+    <!-- Bootswatch "Flatly" theme (light). Dark mode overrides provided in site.css via prefers-color-scheme. -->
     @if (string.IsNullOrWhiteSpace(bootswatchSri))
     {
         <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet">
@@ -176,16 +165,6 @@
                             <button type="submit" class="btn btn-sm btn-outline-light ms-2">@applyText</button>
                         </noscript>
                     </form>
-
-                    <script nonce="@nonce">
-                        // Avoid inline event handlers (blocked by CSP). Wire up submit programmatically.
-                        document.addEventListener('DOMContentLoaded', function () {
-                            try {
-                                var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
-                                if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
-                            } catch (e) { console.error('Culture switch init failed', e); }
-                        });
-                    </script>
                 </div>
             </div>
         </div>
