@@ -255,4 +255,13 @@
   <data name="PreviewNoSave" xml:space="preserve">
     <value>Preview (no save)</value>
   </data>
+  <data name="ClientCertificateMissing" xml:space="preserve">
+    <value>Client certificate is not configured.</value>
+  </data>
+  <data name="ClientCertificateExpired" xml:space="preserve">
+    <value>Client certificate has expired.</value>
+  </data>
+  <data name="ClientCertificateExpiringSoon" xml:space="preserve">
+    <value>Client certificate will expire soon</value>
+  </data>
 </root>

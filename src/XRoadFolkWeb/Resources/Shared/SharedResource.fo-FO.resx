@@ -255,4 +255,13 @@
   <data name="PreviewNoSave" xml:space="preserve">
     <value>Preview (ikki goymt)</value>
   </data>
+  <data name="ClientCertificateMissing" xml:space="preserve">
+    <value>Viðskiftacertifikat er ikki sett upp.</value>
+  </data>
+  <data name="ClientCertificateExpired" xml:space="preserve">
+    <value>Viðskiftacertifikat er úti.</value>
+  </data>
+  <data name="ClientCertificateExpiringSoon" xml:space="preserve">
+    <value>Viðskiftacertifikat gongur út skjótt</value>
+  </data>
 </root>

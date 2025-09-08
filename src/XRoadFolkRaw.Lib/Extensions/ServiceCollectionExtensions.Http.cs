@@ -35,6 +35,9 @@ namespace XRoadFolkRaw.Lib.Extensions
         {
             ArgumentNullException.ThrowIfNull(services);
 
+            // Register expiry info container (singleton) if not already added
+            services.TryAddCertificateExpiryInfo();
+
             RegisterHttpClient(services);
             return services;
         }
@@ -93,6 +96,7 @@ namespace XRoadFolkRaw.Lib.Extensions
         {
             ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
             IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+            var info = sp.GetService<ICertificateExpiryInfo>() as MutableCertificateExpiryInfo; // may be null in tests
 
             try
             {
@@ -110,15 +114,12 @@ namespace XRoadFolkRaw.Lib.Extensions
                         warnDays = parsed;
                     }
                 }
-                catch
-                {
-                    // ignore parse errors
-                }
+                catch { }
 
                 DateTime nowLocal = DateTime.UtcNow;
                 DateTime notAfterUtc = cert.NotAfter.ToUniversalTime();
                 double daysRemaining = (notAfterUtc - nowLocal).TotalDays;
-#pragma warning disable MA0003 // LoggerMessage delegate optional parameter naming not required
+#pragma warning disable MA0003
                 if (daysRemaining < 0)
                 {
                     _logCertExpired(log, cert.Subject, null);
@@ -128,10 +129,16 @@ namespace XRoadFolkRaw.Lib.Extensions
                     _logCertExpiringSoon(log, cert.Subject, daysRemaining, null);
                 }
 #pragma warning restore MA0003
+
+                if (info is not null)
+                {
+                    info.Set(cert.Subject, notAfterUtc, daysRemaining, warnDays);
+                }
             }
             catch (Exception ex)
             {
                 _logCertWarning(log, ex);
+                info?.Clear();
             }
         }
 
@@ -278,6 +285,73 @@ namespace XRoadFolkRaw.Lib.Extensions
             {
                 toDisposeChain?.Dispose();
                 toDisposeCert?.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Public interface for exposing certificate expiry info to UI.</summary>
+    public interface ICertificateExpiryInfo
+    {
+        bool HasCertificate { get; }
+        string? Subject { get; }
+        DateTime? NotAfterUtc { get; }
+        double? DaysRemaining { get; }
+        int WarnThresholdDays { get; }
+        bool IsExpired { get; }
+        bool IsExpiringSoon { get; }
+    }
+
+    internal sealed class MutableCertificateExpiryInfo : ICertificateExpiryInfo
+    {
+        private readonly object _gate = new();
+        private bool _hasCert;
+        private string? _subject;
+        private DateTime? _notAfterUtc;
+        private double? _daysRemaining;
+        private int _warnThreshold;
+
+        public bool HasCertificate => Volatile.Read(ref _hasCert);
+        public string? Subject => _subject;
+        public DateTime? NotAfterUtc => _notAfterUtc;
+        public double? DaysRemaining => _daysRemaining;
+        public int WarnThresholdDays => _warnThreshold;
+        public bool IsExpired => _daysRemaining.HasValue && _daysRemaining.Value < 0;
+        public bool IsExpiringSoon => _daysRemaining.HasValue && _daysRemaining.Value >= 0 && _daysRemaining.Value <= _warnThreshold;
+
+        public void Set(string subject, DateTime notAfterUtc, double daysRemaining, int warnThreshold)
+        {
+            lock (_gate)
+            {
+                _subject = subject;
+                _notAfterUtc = notAfterUtc;
+                _daysRemaining = daysRemaining;
+                _warnThreshold = warnThreshold;
+                _hasCert = true;
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_gate)
+            {
+                _hasCert = false;
+                _subject = null;
+                _notAfterUtc = null;
+                _daysRemaining = null;
+                _warnThreshold = 0;
+            }
+        }
+    }
+
+    internal static class CertificateExpiryInfoRegistration
+    {
+        public static void TryAddCertificateExpiryInfo(this IServiceCollection services)
+        {
+            bool already = services.Any(d => d.ServiceType == typeof(ICertificateExpiryInfo));
+            if (!already)
+            {
+                services.AddSingleton<MutableCertificateExpiryInfo>();
+                services.AddSingleton<ICertificateExpiryInfo>(sp => sp.GetRequiredService<MutableCertificateExpiryInfo>());
             }
         }
     }

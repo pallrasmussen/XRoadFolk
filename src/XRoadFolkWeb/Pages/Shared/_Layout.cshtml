@@ -6,6 +6,7 @@
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Af
+@inject XRoadFolkRaw.Lib.Extensions.ICertificateExpiryInfo CertInfo
 @{
     Layout = null;
     var currentUi = CultureInfo.CurrentUICulture.Name;
@@ -200,6 +201,28 @@
 </head>
 <body class="d-flex flex-column min-vh-100">
     <a class="skip-to-content" href="#main-content">@skipText</a>
+    <!-- Certificate expiry banner (shows only when relevant) -->
+    @if (CertInfo is not null && (CertInfo.IsExpired || CertInfo.IsExpiringSoon || !CertInfo.HasCertificate))
+    {
+        var cls = CertInfo.IsExpired ? "alert-danger" : (CertInfo.IsExpiringSoon ? "alert-warning" : "alert-secondary");
+        string msg;
+        if (!CertInfo.HasCertificate)
+        {
+            msg = SR["ClientCertificateMissing"].ResourceNotFound ? "Client certificate is not configured." : SR["ClientCertificateMissing"].Value;
+        }
+        else if (CertInfo.IsExpired)
+        {
+            msg = (SR["ClientCertificateExpired"].ResourceNotFound ? "Client certificate has expired." : SR["ClientCertificateExpired"].Value) + (CertInfo.Subject is null ? string.Empty : $" ({CertInfo.Subject})");
+        }
+        else
+        {
+            var daysText = CertInfo.DaysRemaining?.ToString("F1", CultureInfo.InvariantCulture) ?? "?";
+            msg = (SR["ClientCertificateExpiringSoon"].ResourceNotFound ? "Client certificate will expire soon" : SR["ClientCertificateExpiringSoon"].Value) + $" ({daysText} days remaining)" + (CertInfo.Subject is null ? string.Empty : $" ({CertInfo.Subject})");
+        }
+        <div class="alert @cls rounded-0 mb-0 py-2 small text-center" role="alert">
+            <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>@msg
+        </div>
+    }
     <!-- Branded navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container">
