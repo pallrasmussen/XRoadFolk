@@ -189,7 +189,7 @@
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 
 <!-- Load ES modules in order: helpers first, then viewer and details loader -->
-<script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
-<script type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
-<script type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>
+<script nonce="@nonce" type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
+<script nonce="@nonce" type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
+<script nonce="@nonce" type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>
 }
