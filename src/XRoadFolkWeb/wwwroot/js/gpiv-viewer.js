@@ -196,6 +196,19 @@
     return nodes;
   }
 
+  function moveDetailsBtnToHeader(){
+    try{
+      var btn = byId('gpiv-tab-details-btn');
+      if (!btn) return;
+      var header = qs('.gpiv-person-header', summaryHost);
+      if (!header) return;
+      // Ensure it looks like a small button when placed into header
+      try { btn.classList.add('btn','btn-sm','btn-outline-secondary','ms-auto'); } catch {}
+      // Move the element under the first person header
+      header.appendChild(btn);
+    }catch(e){ try{ console.debug('gpiv: moveDetailsBtnToHeader failed', e); }catch{} }
+  }
+
   function buildNodeContent(node) {
     var container = document.createElement('div'); container.className = 'd-flex flex-column gap-2';
 
@@ -343,6 +356,9 @@
       try {
         focusFirstAccordionButton(summaryHost);
       } catch {}
+
+      // Move the outer Person Details tab trigger into the first person header
+      moveDetailsBtnToHeader();
 
       syncViewerHeight();
     } catch (e) {

@@ -80,12 +80,12 @@
             <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
           </li>
           }
-          <li class="nav-item ms-auto" role="presentation">
-            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
-          </li>
         </ul>
 
         <div class="tab-content border-start border-end border-bottom rounded-bottom p-2 small" id="gpiv-tabs-content" style="min-height:12rem;">
+          <div class="d-flex justify-content-end mb-2">
+            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
+          </div>
           <div class="tab-pane fade show active" id="gpiv-tab-summary" role="tabpanel" aria-labelledby="gpiv-tab-summary-btn" tabindex="0">
             <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@SR["EmptyState"]</div>
             <div id="gpiv-xml-summary" class="gpiv-viewport mb-0"></div>
