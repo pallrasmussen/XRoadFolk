@@ -246,4 +246,10 @@
   <data name="DropXmlHint" xml:space="preserve">
     <value>Slip XML her for at vise.</value>
   </data>
+  <data name="Preview" xml:space="preserve">
+    <value>preview</value>
+  </data>
+  <data name="PreviewNoSave" xml:space="preserve">
+    <value>Preview (gemmer ikke)</value>
+  </data>
 </root>

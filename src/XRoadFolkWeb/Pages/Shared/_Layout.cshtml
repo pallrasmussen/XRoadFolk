@@ -77,12 +77,15 @@
     string currentPathAndQuery = "/";
     try { if (ViewContext?.HttpContext?.Request is { } req1) { currentPathAndQuery = (req1.Path.HasValue ? req1.Path.Value : "/") + req1.QueryString.ToUriComponent(); } } catch {}
 
-    // Theme preview via querystring (?theme=<name>), no persistence, no JS forcing
+    // Theme: restrict to 4 and read from query (preview) -> cookie fallback
     string[] themeOptions = new [] { "flatly", "cerulean", "sandstone", "yeti" };
-    string themeQuery = (ViewContext?.HttpContext?.Request?.Query["theme"].ToString() ?? string.Empty).Trim();
-    string chosenTheme = themeOptions.FirstOrDefault(t => string.Equals(t, themeQuery, StringComparison.OrdinalIgnoreCase)) ?? "flatly";
+    string cookieTheme = ViewContext?.HttpContext?.Request?.Cookies["site-theme"] ?? string.Empty;
+    string qsTheme = (ViewContext?.HttpContext?.Request?.Query["theme"].ToString() ?? string.Empty).Trim();
+    string chosenTheme = themeOptions.FirstOrDefault(t => string.Equals(t, qsTheme, StringComparison.OrdinalIgnoreCase))
+                      ?? themeOptions.FirstOrDefault(t => string.Equals(t, cookieTheme, StringComparison.OrdinalIgnoreCase))
+                      ?? "flatly";
 
-    // Helper to build href for theme keeping other query params
+    // Helper to build href for theme keeping other query params (preview only)
     Func<string, string> BuildThemeHref = t => {
         var req = ViewContext?.HttpContext?.Request;
         if (req is null) return "/?theme=" + Uri.EscapeDataString(t ?? "flatly");
@@ -102,6 +105,33 @@
         sb.Append(first ? '?' : '&');
         sb.Append("theme=").Append(Uri.EscapeDataString(t ?? "flatly"));
         return sb.ToString();
+    };
+
+    // Return current URL without any theme query param
+    Func<string> BuildReturnUrlSansTheme = () => {
+        var req = ViewContext?.HttpContext?.Request;
+        if (req is null) return "/";
+        var sb = new System.Text.StringBuilder();
+        sb.Append(req.Path.HasValue ? req.Path.Value : "/");
+        bool first = true;
+        foreach (var kv in req.Query)
+        {
+            if (string.Equals(kv.Key, "theme", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var v in kv.Value)
+            {
+                if (v is null) continue;
+                sb.Append(first ? '?' : '&'); first = false;
+                sb.Append(Uri.EscapeDataString(kv.Key ?? string.Empty)).Append('=').Append(Uri.EscapeDataString(v));
+            }
+        }
+        return sb.ToString();
+    };
+
+    // Persistent theme href uses set-theme endpoint and returns without preview param
+    Func<string, string> BuildSetThemeHref = t => {
+        string ret = "/";
+        try { ret = BuildReturnUrlSansTheme(); } catch {}
+        return "/set-theme?theme=" + Uri.EscapeDataString(t ?? "flatly") + "&returnUrl=" + Uri.EscapeDataString(ret);
     };
 }
 <!DOCTYPE html>
@@ -194,11 +224,17 @@
                 <div class="d-flex align-items-center gap-2">
                     <!-- Theme preview dropdown (no JS persistence) -->
                     <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="themeMenu" data-bs-toggle="dropdown" aria-expanded="false">Theme</button>
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="themeMenu" data-bs-toggle="dropdown" aria-expanded="false">@SR["Theme"]</button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeMenu">
                             @foreach (var t in themeOptions)
                             {
-                                <li><a class="dropdown-item @(string.Equals(t, chosenTheme, StringComparison.OrdinalIgnoreCase) ? "active" : null)" href="@BuildThemeHref(t)">@t</a></li>
+                                <li><a class="dropdown-item @(string.Equals(t, chosenTheme, StringComparison.OrdinalIgnoreCase) ? "active" : null)" href="@BuildSetThemeHref(t)">@t</a></li>
+                            }
+                            <li><hr class="dropdown-divider" /></li>
+                            <li class="dropdown-header">@SR["PreviewNoSave"]</li>
+                            @foreach (var t in themeOptions)
+                            {
+                                <li><a class="dropdown-item" href="@BuildThemeHref(t)">@t @SR["Preview"]</a></li>
                             }
                         </ul>
                     </div>

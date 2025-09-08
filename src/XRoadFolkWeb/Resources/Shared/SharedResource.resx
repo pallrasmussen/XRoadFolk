@@ -246,4 +246,10 @@
   <data name="DropXmlHint" xml:space="preserve">
     <value>Drop XML here to view.</value>
   </data>
+  <data name="Preview" xml:space="preserve">
+    <value>preview</value>
+  </data>
+  <data name="PreviewNoSave" xml:space="preserve">
+    <value>Preview (no save)</value>
+  </data>
 </root>

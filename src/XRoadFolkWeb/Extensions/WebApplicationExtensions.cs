@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Diagnostics.Metrics;
+using HeaderSameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
 
 namespace XRoadFolkWeb.Extensions
 {
@@ -27,6 +28,9 @@ namespace XRoadFolkWeb.Extensions
         private static readonly Histogram<double> FirstRequestSeconds = StartupMeter.CreateHistogram<double>("first_request_seconds");
         private static readonly long ProcessStartTicks = Stopwatch.GetTimestamp();
         private static bool _firstRequestRecorded;
+
+        private static readonly string[] AllowedThemes = new[] { "flatly", "cerulean", "sandstone", "yeti" };
+        private const string ThemeCookieName = "site-theme";
 
         /// <summary>
         /// LoggerMessage delegates for performance
@@ -220,6 +224,7 @@ namespace XRoadFolkWeb.Extensions
             AddCorrelationScope(app, loggerFactory);
 
             MapCultureSwitch(app, cultureLog);
+            MapThemeSwitch(app); // theme cookie setter
             app.MapRazorPages();
             app.MapFallbackToPage("/Index");
             MapLogsEndpoints(app, configuration, env, featureLog);
@@ -505,6 +510,55 @@ namespace XRoadFolkWeb.Extensions
                 }
                 return Results.LocalRedirect("/");
             }).DisableAntiforgery();
+        }
+
+        private static void MapThemeSwitch(WebApplication app)
+        {
+            _ = app.MapGet("/set-theme", ([FromQuery] string theme, [FromQuery] string? returnUrl, HttpContext ctx) =>
+            {
+                if (string.IsNullOrWhiteSpace(theme))
+                {
+                    return Results.BadRequest();
+                }
+                string? match = AllowedThemes.FirstOrDefault(t => string.Equals(t, theme, StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrEmpty(match))
+                {
+                    return Results.BadRequest();
+                }
+
+                if (!ctx.Request.IsHttps)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append(ThemeCookieName).Append('=').Append(Uri.EscapeDataString(match));
+                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R"));
+                    sb.Append("; Path=/");
+                    sb.Append("; SameSite=Lax");
+                    sb.Append("; HttpOnly");
+                    ctx.Response.Headers.Append(HeaderNames.SetCookie, sb.ToString());
+                }
+                else
+                {
+                    ctx.Response.Cookies.Append(
+                        ThemeCookieName,
+                        match,
+                        new CookieOptions
+                        {
+                            Expires = DateTimeOffset.UtcNow.AddYears(1),
+                            IsEssential = true,
+                            Secure = true,
+                            HttpOnly = true,
+                            SameSite = HeaderSameSiteMode.Lax,
+                            Path = "/",
+                        });
+                }
+
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    try { return Results.LocalRedirect(returnUrl); }
+                    catch { /* ignore and fall back */ }
+                }
+                return Results.LocalRedirect("/");
+            });
         }
 
         private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)

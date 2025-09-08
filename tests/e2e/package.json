@@ -4,7 +4,8 @@
   "type": "module",
   "devDependencies": {
     "@axe-core/playwright": "^4.9.1",
-    "@playwright/test": "^1.46.0"
+    "@playwright/test": "^1.46.0",
+    "@types/node": "^20.14.9"
   },
   "scripts": {
     "test": "playwright test"
