@@ -1,3 +1,4 @@
+/* eslint-disable no-var */
 (function () {
   'use strict';
 
@@ -239,27 +240,7 @@
       var people = findPeopleNodes(xml);
       if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
 
-      var hdr = el('div', 'mb-2 d-flex align-items-center gap-2', null);
-      var cnt = el('strong', null, (I18N.PeopleLabel || 'People') + ': ' + people.length); cnt.id = 'gpiv-people-count';
-      hdr.appendChild(cnt);
-
-      var grp = el('div', 'd-flex flex-wrap gap-2 ms-auto', null);
-      var bExpand = el('button', 'btn btn-sm btn-outline-secondary', null); bExpand.id = 'gpiv-summary-expand';
-      bExpand.appendChild(el('i', 'bi bi-chevron-double-down me-1', ''));
-      bExpand.appendChild(document.createTextNode(I18N.Expand || 'Expand'));
-      var bFs = el('button', 'btn btn-sm btn-outline-secondary', null); bFs.id = 'gpiv-fullscreen'; bFs.title = I18N.ToggleFullscreen || 'Toggle fullscreen';
-      bFs.appendChild(el('i', 'bi bi-arrows-fullscreen me-1', ''));
-      bFs.appendChild(document.createTextNode(I18N.Fullscreen || 'Fullscreen'));
-      var bCollapse = el('button', 'btn btn-sm btn-outline-secondary', null); bCollapse.id = 'gpiv-summary-collapse';
-      bCollapse.appendChild(el('i', 'bi bi-chevron-double-up me-1', ''));
-      bCollapse.appendChild(document.createTextNode(I18N.Collapse || 'Collapse'));
-      grp.appendChild(bExpand); grp.appendChild(bCollapse); grp.appendChild(bFs);
-      hdr.appendChild(grp);
-      summaryHost.appendChild(hdr);
-
-      on(bExpand, 'click', function () { expandSummaryAll(true); });
-      on(bCollapse, 'click', function () { expandSummaryAll(false); });
-
+      // Render people list directly; toolbar at top provides controls like Person details
       for (var p = 0; p < people.length; p++) {
         var person = people[p];
         var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
@@ -545,6 +526,14 @@
 
       // ARIA keyboard within summary accordions
       document.addEventListener('keydown', function(e){ handleAccordionKeydown(e, summaryHost); });
+
+      // Toolbar expand/collapse handlers to match Person details
+      document.addEventListener('click', function(e){
+        var ex = e.target && e.target.closest ? e.target.closest('#gpiv-expand-all') : null;
+        if (ex) { expandSummaryAll(true); }
+        var col = e.target && e.target.closest ? e.target.closest('#gpiv-collapse-all') : null;
+        if (col) { expandSummaryAll(false); }
+      });
 
       loadInitialDataFromJsonTags();
       initPublicIdLink();

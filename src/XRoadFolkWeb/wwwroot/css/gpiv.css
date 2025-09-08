@@ -48,6 +48,9 @@
 #gpiv-xml-summary .gpiv-person { position: static; }
 #gpiv-xml-summary .gpiv-person-header { position: static; background: transparent; border-bottom: none; padding-block: .25rem; }
 
+/* Add active card state like person details focus */
+#gpiv-xml-summary .gpiv-active-card { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+
 /* Tabs */
 .gpiv-tab-actions { gap: .5rem; }
 .gpiv-pre { white-space: pre; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: .85rem; padding: .75rem; border-radius: .25rem; background: var(--bs-tertiary-bg, #f8f9fa); }
