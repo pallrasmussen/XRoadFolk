@@ -25,8 +25,16 @@ namespace XRoadFolkWeb.Extensions
                 o.Level = CompressionLevel.Fastest;
             });
 
-            // In Development, exclude text/html to avoid interfering with Browser Link script injection
+            // Always exclude Server-Sent Events from compression
             _ = services.AddOptions<ResponseCompressionOptions>()
+                .PostConfigure((ResponseCompressionOptions opts) =>
+                {
+                    if (opts.MimeTypes is not null)
+                    {
+                        opts.MimeTypes = opts.MimeTypes.Where(m => !string.Equals(m, "text/event-stream", StringComparison.OrdinalIgnoreCase)).ToArray();
+                    }
+                })
+                // In Development, exclude text/html to avoid interfering with Browser Link script injection
                 .PostConfigure<IHostEnvironment>((opts, env) =>
                 {
                     if (env.IsDevelopment() && opts.MimeTypes is not null)

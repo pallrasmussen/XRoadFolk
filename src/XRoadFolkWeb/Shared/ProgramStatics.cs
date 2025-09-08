@@ -2,6 +2,7 @@ namespace XRoadFolkWeb.Shared
 {
     public static class ProgramStatics
     {
+        // Compressible MIME types; do NOT include already-compressed formats or streaming types (e.g., text/event-stream)
         internal static readonly string[] ResponseCompressionMimeTypes =
         [
             // Textual content
@@ -20,10 +21,10 @@ namespace XRoadFolkWeb.Shared
             "application/soap+xml",
             // Vector images
             "image/svg+xml",
-            // WebAssembly text formats (do not include application/wasm as it's already compressed)
-            // Fonts (woff2 is already compressed; avoid double compression)
+            // Fonts (avoid woff2)
             "font/ttf",
-            "font/otf"
+            "font/otf",
+            // NOTE: text/event-stream is intentionally excluded
         ];
     }
 }
