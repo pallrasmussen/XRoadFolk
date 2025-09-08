@@ -126,7 +126,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
           }catch{}
         }
       }
-      return parseFirstPublicIdFromXmlText(raw || pretty || '');
+      return parseFirstPublicIdFromEmbeddedXml(raw || pretty || '');
     }catch{ return ''; }
   }
 
@@ -722,10 +722,13 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
       for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); }
     }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
+
+  // Use closest() so clicks on inner icon elements also trigger
   document.addEventListener('click', function(e){
-    var id = (e.target && e.target.id) || '';
-    if (id === 'pd-expand-all') pdToggleAll(true);
-    if (id === 'pd-collapse-all') pdToggleAll(false);
+    var expandBtn = (e.target && e.target.closest) ? e.target.closest('#pd-expand-all') : null;
+    if (expandBtn) { pdToggleAll(true); return; }
+    var collapseBtn = (e.target && e.target.closest) ? e.target.closest('#pd-collapse-all') : null;
+    if (collapseBtn) { pdToggleAll(false); return; }
   });
 
   // Keyboard navigation within the person-details accordion
