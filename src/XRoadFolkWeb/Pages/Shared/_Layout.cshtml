@@ -63,6 +63,7 @@
     // Accessible labels with localized fallback
     var langRes = SR["Language"]; var langText = langRes.ResourceNotFound ? "Language" : langRes.Value;
     var applyRes = SR["Apply"]; var applyText = applyRes.ResourceNotFound ? "Apply" : applyRes.Value;
+    var skipRes = SR["SkipToContent"]; var skipText = skipRes.ResourceNotFound ? "Skip to main content" : skipRes.Value;
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -127,6 +128,7 @@
     @RenderSection("Styles", required: false)
 </head>
 <body class="d-flex flex-column min-vh-100">
+    <a class="skip-to-content" href="#main-content">@skipText</a>
     <!-- Branded navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container">
@@ -190,7 +192,7 @@
     </nav>
 
     <!-- Main content -->
-    <main role="main" class="flex-grow-1">
+    <main id="main-content" role="main" class="flex-grow-1">
         <div class="container my-4">
             @RenderBody()
         </div>

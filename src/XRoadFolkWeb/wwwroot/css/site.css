@@ -8,6 +8,13 @@ html {
   }
 }
 
+/* Strong, accessible focus-visible outline */
+:where(a, button, [role="button"], input, select, textarea, summary, .btn, .form-control, .form-select, .nav-link):focus-visible {
+  outline: 3px solid #ffbf47; /* GOV.UK yellow */
+  outline-offset: 2px;
+  box-shadow: none !important; /* avoid double glow */
+}
+
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
   box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
 }
@@ -20,6 +27,27 @@ html {
 body {
   margin-bottom: 60px;
   transition: background-color .2s ease, color .2s ease;
+}
+
+/* Skip to content link styles */
+.skip-to-content {
+  position: absolute;
+  left: -999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.skip-to-content:focus-visible {
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+  padding: .5rem .75rem;
+  z-index: 1050; /* above navbar */
 }
 
 /* Brand tokens (Bootstrap 5.3+ honors these custom properties) */
