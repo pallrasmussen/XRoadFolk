@@ -72,6 +72,37 @@
     string metaDescription = descRes.ResourceNotFound ? $"{appName}: People lookup and details viewer." : descRes.Value;
     string? currentUrl = null;
     try { if (Context?.Request is { } req) { currentUrl = $"{req.Scheme}://{req.Host}{req.PathBase}{req.Path}"; } } catch {}
+
+    // Also compute current path+query for returnUrl and nav active checks
+    string currentPathAndQuery = "/";
+    try { if (ViewContext?.HttpContext?.Request is { } req1) { currentPathAndQuery = (req1.Path.HasValue ? req1.Path.Value : "/") + req1.QueryString.ToUriComponent(); } } catch {}
+
+    // Theme preview via querystring (?theme=<name>), no persistence, no JS forcing
+    string[] themeOptions = new [] { "flatly", "cerulean", "sandstone", "yeti" };
+    string themeQuery = (ViewContext?.HttpContext?.Request?.Query["theme"].ToString() ?? string.Empty).Trim();
+    string chosenTheme = themeOptions.FirstOrDefault(t => string.Equals(t, themeQuery, StringComparison.OrdinalIgnoreCase)) ?? "flatly";
+
+    // Helper to build href for theme keeping other query params
+    Func<string, string> BuildThemeHref = t => {
+        var req = ViewContext?.HttpContext?.Request;
+        if (req is null) return "/?theme=" + Uri.EscapeDataString(t ?? "flatly");
+        var sb = new System.Text.StringBuilder();
+        sb.Append(req.Path.HasValue ? req.Path.Value : "/");
+        bool first = true;
+        foreach (var kv in req.Query)
+        {
+            if (string.Equals(kv.Key, "theme", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var v in kv.Value)
+            {
+                if (v is null) continue;
+                sb.Append(first ? '?' : '&'); first = false;
+                sb.Append(Uri.EscapeDataString(kv.Key ?? string.Empty)).Append('=').Append(Uri.EscapeDataString(v));
+            }
+        }
+        sb.Append(first ? '?' : '&');
+        sb.Append("theme=").Append(Uri.EscapeDataString(t ?? "flatly"));
+        return sb.ToString();
+    };
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -109,14 +140,17 @@
     <link rel="dns-prefetch" href="//fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Bootswatch "Flatly" theme (light). Dark mode overrides provided in site.css via prefers-color-scheme. -->
-    @if (string.IsNullOrWhiteSpace(bootswatchSri))
-    {
-        <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet">
-    }
-    else
-    {
-        <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/flatly/bootstrap.min.css" rel="stylesheet" integrity="@bootswatchSri" crossorigin="anonymous">
+    <!-- Bootswatch theme (default: flatly). Dark overrides in site.css via prefers-color-scheme. -->
+    @{
+        var themeHref = $"https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/{chosenTheme}/bootstrap.min.css";
+        if (string.Equals(chosenTheme, "flatly", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(bootswatchSri))
+        {
+            <link href="@themeHref" rel="stylesheet" integrity="@bootswatchSri" crossorigin="anonymous" />
+        }
+        else
+        {
+            <link href="@themeHref" rel="stylesheet" />
+        }
     }
 
     <!-- Bootstrap Icons -->
@@ -148,20 +182,30 @@
 
             <div id="mainNav" class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
-                    <!-- About option removed -->
                     @if (showLogs)
                     {
+                        var isLogs = ViewContext?.HttpContext?.Request?.Path.StartsWithSegments("/Logs") == true;
                         <li class="nav-item">
-                            <a class="btn btn-sm btn-outline-light @(ViewContext.HttpContext.Request.Path.StartsWithSegments("/Logs") ? "active" : null)" asp-page="/Logs/Http">@SR["Nav_Logs"]</a>
+                            <a class="btn btn-sm btn-outline-light @(isLogs ? "active" : null)" asp-page="/Logs/Http">@SR["Nav_Logs"]</a>
                         </li>
                     }
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
+                    <!-- Theme preview dropdown (no JS persistence) -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="themeMenu" data-bs-toggle="dropdown" aria-expanded="false">Theme</button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeMenu">
+                            @foreach (var t in themeOptions)
+                            {
+                                <li><a class="dropdown-item @(string.Equals(t, chosenTheme, StringComparison.OrdinalIgnoreCase) ? "active" : null)" href="@BuildThemeHref(t)">@t</a></li>
+                            }
+                        </ul>
+                    </div>
 
                     <!-- Culture switcher -->
                     <form class="d-flex align-items-center" method="post" action="/set-culture" asp-antiforgery="true">
-                        <input type="hidden" name="returnUrl" value="@(ViewContext.HttpContext.Request.Path + ViewContext.HttpContext.Request.QueryString)" />
+                        <input type="hidden" name="returnUrl" value="@currentPathAndQuery" />
                         <label id="culture-select-label" for="culture-select" class="visually-hidden">@langText</label>
                         <select id="culture-select" class="form-select form-select-sm me-2" name="culture" aria-labelledby="culture-select-label" aria-label="@langText">
                             @foreach (var c in culturesToShow)
