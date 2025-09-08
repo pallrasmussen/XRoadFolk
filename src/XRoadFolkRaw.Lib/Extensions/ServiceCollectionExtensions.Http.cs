@@ -19,18 +19,6 @@ namespace XRoadFolkRaw.Lib.Extensions
                 new EventId(1, "ClientCertNotConfigured"),
                 "Client certificate not configured. Proceeding without certificate.");
 
-        private static readonly Action<ILogger, string, double, Exception?> _logCertExpiringSoon =
-            LoggerMessage.Define<string, double>(
-                LogLevel.Warning,
-                new EventId(2, "ClientCertExpiringSoon"),
-                "Client certificate '{Subject}' expires in {DaysRemaining:F1} days. Renew soon to avoid outages.");
-
-        private static readonly Action<ILogger, string, Exception?> _logCertExpired =
-            LoggerMessage.Define<string>(
-                LogLevel.Error,
-                new EventId(3, "ClientCertExpired"),
-                "Client certificate '{Subject}' is expired.");
-
         public static IServiceCollection AddXRoadHttpClient(this IServiceCollection services)
         {
             ArgumentNullException.ThrowIfNull(services);
@@ -119,16 +107,14 @@ namespace XRoadFolkRaw.Lib.Extensions
                 DateTime nowLocal = DateTime.UtcNow;
                 DateTime notAfterUtc = cert.NotAfter.ToUniversalTime();
                 double daysRemaining = (notAfterUtc - nowLocal).TotalDays;
-#pragma warning disable MA0003
                 if (daysRemaining < 0)
                 {
-                    _logCertExpired(log, cert.Subject, null);
+                    log.LogError("Client certificate '{Subject}' is expired.", cert.Subject);
                 }
                 else if (daysRemaining <= warnDays)
                 {
-                    _logCertExpiringSoon(log, cert.Subject, daysRemaining, null);
+                    log.LogWarning("Client certificate '{Subject}' expires in {DaysRemaining:F1} days. Renew soon to avoid outages.", cert.Subject, daysRemaining);
                 }
-#pragma warning restore MA0003
 
                 if (info is not null)
                 {
