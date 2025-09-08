@@ -90,7 +90,7 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly Task _ingestTask;
         private readonly CancellationTokenSource _ingestCts = new();
 
-        // Async file writer (enabled only if _filePath is provided)
+        // Async file writer (enabled only if _filePath is provided and persistence enabled)
         private readonly Channel<string>? _fileChannel;
         private readonly Task? _fileWriterTask;
         private readonly CancellationTokenSource? _writerCts;
@@ -105,7 +105,6 @@ namespace XRoadFolkWeb.Infrastructure
             _capacity = Math.Max(50, cfg.Capacity);
             _maxFileBytes = Math.Max(1024L * 1024, cfg.MaxFileBytes);
             _maxRolls = Math.Max(1, cfg.MaxRolls);
-            _filePath = cfg.FilePath;
             _rateLimiter = new HttpLogRateLimiter(cfg.MaxWritesPerSecond, cfg.AlwaysAllowWarningsAndErrors);
             _logger = logger;
 
@@ -122,7 +121,11 @@ namespace XRoadFolkWeb.Infrastructure
             // Register per-instance queue length provider
             _metricsHandle = InMemoryLogMetrics.RegisterProvider(() => Volatile.Read(ref _size));
 
-            if (!string.IsNullOrWhiteSpace(_filePath))
+            // Enable file persistence only when explicitly configured
+            bool persist = cfg.PersistToFile && !string.IsNullOrWhiteSpace(cfg.FilePath);
+            _filePath = persist ? cfg.FilePath : null;
+
+            if (persist)
             {
                 // Ensure directory exists once during initialization
                 string? dir = Path.GetDirectoryName(_filePath);

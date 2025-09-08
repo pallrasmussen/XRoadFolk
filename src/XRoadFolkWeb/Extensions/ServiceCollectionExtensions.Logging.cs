@@ -29,7 +29,6 @@ namespace XRoadFolkWeb.Extensions
             _ = services.AddHealthChecks();
             ConfigureHttpLogOptions(services);
             RegisterHttpLogServices(services);
-            RegisterHostedWriters(services);
             RegisterLogProvider(services);
             // Validate file persistence path on startup (no-op if not enabled)
             _ = services.AddHostedService<HttpLogStartupValidator>();
@@ -234,31 +233,13 @@ namespace XRoadFolkWeb.Extensions
         {
             // IMPORTANT: Avoid resolving ILogger while configuring the logging provider to prevent cycles
             _ = services.AddSingleton<ILogFeed>(sp => new LogStreamBroadcaster(new NullLogger<LogStreamBroadcaster>()));
-            _ = services.AddSingleton<FileBackedHttpLogStore>();
 
             _ = services.AddSingleton<IHttpLogStore>(sp =>
             {
-                HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
+                // Use the InMemory store for both in-memory and file persistence (it writes to file when FilePath is set)
+                var inner = new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
                 IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
-                // Important: do not resolve ILogger here to avoid circular dependency with our provider
-                IHttpLogStore inner = (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
-                    ? sp.GetRequiredService<FileBackedHttpLogStore>()
-                    : new InMemoryHttpLog(sp.GetRequiredService<IOptions<HttpLogOptions>>());
-
                 return new MaskingHttpLogStore(inner, sp.GetRequiredService<IOptions<LoggingOptions>>(), env);
-            });
-        }
-
-        private static void RegisterHostedWriters(IServiceCollection services)
-        {
-            _ = services.AddSingleton<IHostedService>(sp =>
-            {
-                HttpLogOptions opts = sp.GetRequiredService<IOptions<HttpLogOptions>>().Value;
-                if (opts.PersistToFile && !string.IsNullOrWhiteSpace(opts.FilePath))
-                {
-                    return new FileBackedLogWriter(sp.GetRequiredService<FileBackedHttpLogStore>(), sp.GetRequiredService<IOptions<HttpLogOptions>>());
-                }
-                return new NoopHostedService();
             });
         }
 
