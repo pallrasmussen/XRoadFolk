@@ -216,6 +216,9 @@
   <data name="Summary" xml:space="preserve">
     <value>Oversigt</value>
   </data>
+  <data name="Public" xml:space="preserve">
+    <value>Offentligt</value>
+  </data>
   <data name="RawXml" xml:space="preserve">
     <value>Rå XML</value>
   </data>
@@ -241,7 +244,7 @@
     <value>Indsæt eller slip XML for at se oversigten.</value>
   </data>
   <data name="GetPeoplePublicInfo" xml:space="preserve">
-    <value>Offentlige personoplysninger</value>
+    <value>Personoplysninger</value>
   </data>
   <data name="DropXmlHint" xml:space="preserve">
     <value>Slip XML her for at vise.</value>
@@ -251,8 +254,5 @@
   </data>
   <data name="PreviewNoSave" xml:space="preserve">
     <value>Preview (gemmer ikke)</value>
-  </data>
-  <data name="Public" xml:space="preserve">
-    <value>Offentligt</value>
   </data>
 </root>

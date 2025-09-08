@@ -244,7 +244,7 @@
     <value>Paste or drop XML to view the summary.</value>
   </data>
   <data name="GetPeoplePublicInfo" xml:space="preserve">
-    <value>People Public Info</value>
+    <value>People Info</value>
   </data>
   <data name="DropXmlHint" xml:space="preserve">
     <value>Drop XML here to view.</value>
