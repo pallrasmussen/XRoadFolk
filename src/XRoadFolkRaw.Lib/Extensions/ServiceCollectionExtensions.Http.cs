@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 
 namespace XRoadFolkRaw.Lib.Extensions
 {
@@ -17,6 +18,18 @@ namespace XRoadFolkRaw.Lib.Extensions
                 LogLevel.Warning,
                 new EventId(1, "ClientCertNotConfigured"),
                 "Client certificate not configured. Proceeding without certificate.");
+
+        private static readonly Action<ILogger, string, double, Exception?> _logCertExpiringSoon =
+            LoggerMessage.Define<string, double>(
+                LogLevel.Warning,
+                new EventId(2, "ClientCertExpiringSoon"),
+                "Client certificate '{Subject}' expires in {DaysRemaining:F1} days. Renew soon to avoid outages.");
+
+        private static readonly Action<ILogger, string, Exception?> _logCertExpired =
+            LoggerMessage.Define<string>(
+                LogLevel.Error,
+                new EventId(3, "ClientCertExpired"),
+                "Client certificate '{Subject}' is expired.");
 
         public static IServiceCollection AddXRoadHttpClient(this IServiceCollection services)
         {
@@ -78,16 +91,46 @@ namespace XRoadFolkRaw.Lib.Extensions
 
         private static void TryAttachClientCertificate(IServiceProvider sp, XRoadSettings xr, SocketsHttpHandler handler)
         {
+            ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
+            IConfiguration cfg = sp.GetRequiredService<IConfiguration>();
+
             try
             {
                 X509Certificate2 cert = CertLoader.LoadFromConfig(xr.Certificate);
                 handler.SslOptions.ClientCertificates ??= [];
                 _ = handler.SslOptions.ClientCertificates.Add(cert);
-                // Handler owns the certificate lifetime; it will be disposed with handler.
+
+                // Expiry precheck
+                int warnDays = 30;
+                try
+                {
+                    string? raw = cfg["XRoad:Certificate:WarnIfExpiresInDays"]; // optional
+                    if (!string.IsNullOrWhiteSpace(raw) && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed >= 0 && parsed <= 3650)
+                    {
+                        warnDays = parsed;
+                    }
+                }
+                catch
+                {
+                    // ignore parse errors
+                }
+
+                DateTime nowLocal = DateTime.UtcNow;
+                DateTime notAfterUtc = cert.NotAfter.ToUniversalTime();
+                double daysRemaining = (notAfterUtc - nowLocal).TotalDays;
+#pragma warning disable MA0003 // LoggerMessage delegate optional parameter naming not required
+                if (daysRemaining < 0)
+                {
+                    _logCertExpired(log, cert.Subject, null);
+                }
+                else if (daysRemaining <= warnDays)
+                {
+                    _logCertExpiringSoon(log, cert.Subject, daysRemaining, null);
+                }
+#pragma warning restore MA0003
             }
             catch (Exception ex)
             {
-                ILogger log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadCert");
                 _logCertWarning(log, ex);
             }
         }
@@ -98,8 +141,7 @@ namespace XRoadFolkRaw.Lib.Extensions
             IHostEnvironment env = sp.GetRequiredService<IHostEnvironment>();
             ILogger serverCertLog = sp.GetRequiredService<ILoggerFactory>().CreateLogger("XRoadServerCert");
 
-            string? cerPath = cfg["XRoad:ServerCertificate:Path"] ?? cfg["Http:ServerCertificate:Path"];
-            using X509Certificate2? serverCer = LoadServerCertificate(cerPath, serverCertLog);
+            string? cerPath = cfg["XRoad:ServerCertificate:Path"] ?? cfg["Http:ServerCertificate:Path"];            using X509Certificate2? serverCer = LoadServerCertificate(cerPath, serverCertLog);
 
             if (serverCer is not null)
             {
