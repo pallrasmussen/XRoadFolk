@@ -1,3 +1,4 @@
+#pragma warning disable IDE0011
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Localization;
@@ -7,7 +8,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using XRoadFolkWeb.Infrastructure;
 using XRoadFolkWeb.Shared;
@@ -16,18 +16,11 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.OutputCaching;
 using System.Diagnostics.Metrics;
-using System.Text.Json;
 
 namespace XRoadFolkWeb.Extensions
 {
     public static partial class WebApplicationExtensions
     {
-        private static readonly JsonSerializerOptions CamelJson = new(JsonSerializerDefaults.Web)
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DictionaryKeyPolicy = JsonNamingPolicy.CamelCase
-        };
-
         private const string CorrelationHeader = "X-Correlation-Id";
         private static readonly Meter StartupMeter = new("XRoadFolkWeb.Startup");
         private static readonly Histogram<double> ColdStartSeconds = StartupMeter.CreateHistogram<double>("cold_start_seconds");
@@ -46,7 +39,7 @@ namespace XRoadFolkWeb.Extensions
 
         private static readonly Action<ILogger, string, string, Exception?> _logHttpRequest =
             LoggerMessage.Define<string, string>(
-                LogLevel.Information, // bumped to Information so it appears in logs
+                LogLevel.Debug, // lowered verbosity
                 new EventId(1001, "HttpRequest"),
                 "HTTP {Method} {Path}");
 
@@ -62,15 +55,12 @@ namespace XRoadFolkWeb.Extensions
                 new EventId(1003, "UnhandledException"),
                 "Unhandled exception at {Path}. TraceId={TraceId}");
 
-        [GeneratedRegex("\\b\\d{6,}\\b", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+        [GeneratedRegex(@"\b\d{6,}\b")]
         private static partial Regex LongDigitsRegex();
 
-        [GeneratedRegex("\\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\b", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+        [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")]
         private static partial Regex GuidRegex();
 
-        /// <summary>
-        /// Central sets to keep static asset detection efficient and maintainable
-        /// </summary>
         private static readonly HashSet<string> StaticTopLevelFolders = new(StringComparer.OrdinalIgnoreCase)
         {
             "css", "js", "lib", "images", "img", "bootstrap", "bootswatch", "bootstrap-icons", "_framework"
@@ -81,156 +71,6 @@ namespace XRoadFolkWeb.Extensions
             ".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
             ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json",
         };
-
-        public static WebApplication ConfigureRequestPipeline(this WebApplication app)
-        {
-            ArgumentNullException.ThrowIfNull(app);
-
-            IHostEnvironment env = app.Services.GetRequiredService<IHostEnvironment>();
-            var features = app.Services.GetRequiredService<IOptionsMonitor<FeaturesOptions>>().CurrentValue;
-            ILoggerFactory loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
-            ILogger featureLog = loggerFactory.CreateLogger("Features");
-            ILogger cultureLog = loggerFactory.CreateLogger("App.Culture");
-            bool showDetailedErrors = features.DetailedErrors ?? env.IsDevelopment();
-
-            AddCspAndSecurityHeaders(app);
-            AddNoCacheHeaders(app);
-            AddCorrelationHeaderMiddleware(app);
-            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
-            app.UseStatusCodePagesWithReExecute("/Error/{0}");
-
-            ConfigureTransport(app, env);
-            ConfigureLocalization(app);
-
-            ILogger startupLogger = loggerFactory.CreateLogger("App.Startup");
-            _logAppStarted(startupLogger, DateTimeOffset.UtcNow, arg3: null);
-
-            ConfigureRequestLoggingOrCompression(app, env, loggerFactory);
-            LogLocalization(app, loggerFactory);
-            MapDiagnostics(app, env);
-
-            MapHealthCheckEndpoints(app);
-            AddStaticFilesAndRouting(app);
-            AddFirstRequestTiming(app);
-            AddCachingSessionAndAntiforgery(app);
-
-            AddCorrelationScope(app, loggerFactory);
-            MapMainRoutes(app, features, env, cultureLog, featureLog);
-            ApplyThreadCultureDefaults(app);
-            MapOptionalPrometheus(app, app.Services.GetRequiredService<IConfiguration>());
-
-            return app;
-        }
-
-        private static void AddCorrelationHeaderMiddleware(WebApplication app)
-        {
-            app.Use(async (ctx, next) =>
-            {
-                string id = ctx.TraceIdentifier;
-                if (string.IsNullOrWhiteSpace(id))
-                {
-                    id = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
-                }
-                if (!ctx.Request.Headers.ContainsKey(CorrelationHeader))
-                {
-                    ctx.Request.Headers[CorrelationHeader] = id;
-                }
-                ctx.Response.OnStarting(() =>
-                {
-                    if (!ctx.Response.Headers.ContainsKey(CorrelationHeader))
-                    {
-                        ctx.Response.Headers[CorrelationHeader] = id;
-                    }
-                    return Task.CompletedTask;
-                });
-                await next().ConfigureAwait(false);
-            });
-        }
-
-        private static void MapHealthCheckEndpoints(WebApplication app)
-        {
-            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live"),
-            });
-            app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("ready"),
-            });
-            app.MapGet("/health", () => Results.Text("ok", "text/plain"));
-        }
-
-        private static void AddStaticFilesAndRouting(WebApplication app)
-        {
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                OnPrepareResponse = ctx =>
-                {
-                    var headers = ctx.Context.Response.Headers;
-                    var req = ctx.Context.Request;
-                    bool hasVersion = req.Query.ContainsKey("v");
-                    if (hasVersion)
-                    {
-                        headers.CacheControl = "public,max-age=31536000,immutable";
-                        headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R", CultureInfo.InvariantCulture);
-                    }
-                    else
-                    {
-                        headers.CacheControl = "public,max-age=3600";
-                    }
-                }
-            });
-            app.UseRouting();
-        }
-
-        private static void AddFirstRequestTiming(WebApplication app)
-        {
-            app.Use(async (ctx, next) =>
-            {
-                bool record = !_firstRequestRecorded && HttpMethods.IsGet(ctx.Request.Method);
-                long start = record ? Stopwatch.GetTimestamp() : 0;
-                await next().ConfigureAwait(false);
-                if (record)
-                {
-                    _firstRequestRecorded = true;
-                    double sec = (Stopwatch.GetTimestamp() - start) / (double)Stopwatch.Frequency;
-                    FirstRequestSeconds.Record(sec);
-                }
-            });
-        }
-
-        private static void AddCachingSessionAndAntiforgery(WebApplication app)
-        {
-            app.UseResponseCaching();
-            app.UseOutputCache();
-            app.UseCookiePolicy();
-            app.UseSession();
-            app.UseAntiforgery();
-        }
-
-        private static void MapMainRoutes(WebApplication app, FeaturesOptions features, IHostEnvironment env, ILogger cultureLog, ILogger featureLog)
-        {
-            MapCultureSwitch(app, cultureLog);
-            app.MapRazorPages();
-            app.MapFallbackToPage("/Index");
-            MapLogsEndpoints(app, features, env, featureLog);
-        }
-
-        private static void ApplyThreadCultureDefaults(WebApplication app)
-        {
-            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
-            RequestCulture defaultReqCulture = locOpts.DefaultRequestCulture;
-            CultureInfo.DefaultThreadCurrentCulture = defaultReqCulture.Culture;
-            CultureInfo.DefaultThreadCurrentUICulture = defaultReqCulture.UICulture;
-        }
-
-        private static void MapOptionalPrometheus(WebApplication app, IConfiguration configuration)
-        {
-            if (configuration.GetValue<bool>(key: "OpenTelemetry:Exporters:Prometheus:Enabled", defaultValue: false))
-            {
-                app.MapPrometheusScrapingEndpoint();
-            }
-        }
 
         private static bool IsStaticAssetPath(string? path)
         {
@@ -275,6 +115,128 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
+        public static WebApplication ConfigureRequestPipeline(this WebApplication app)
+        {
+            ArgumentNullException.ThrowIfNull(app);
+
+            IHostEnvironment env = app.Services.GetRequiredService<IHostEnvironment>();
+            IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
+            ILoggerFactory loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+            ILogger featureLog = loggerFactory.CreateLogger("Features");
+            ILogger cultureLog = loggerFactory.CreateLogger("App.Culture");
+            bool showDetailedErrors = configuration.GetBoolOrDefault("Features:DetailedErrors", env.IsDevelopment(), featureLog);
+
+            AddCspAndSecurityHeaders(app);
+            AddNoCacheHeaders(app);
+
+            // CorrelationId emission & response header
+            app.Use(async (ctx, next) =>
+            {
+                string id = ctx.TraceIdentifier;
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    id = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
+                }
+                if (!ctx.Request.Headers.ContainsKey(CorrelationHeader))
+                {
+                    ctx.Request.Headers[CorrelationHeader] = id;
+                }
+                ctx.Response.OnStarting(() =>
+                {
+                    if (!ctx.Response.Headers.ContainsKey(CorrelationHeader))
+                    {
+                        ctx.Response.Headers[CorrelationHeader] = id;
+                    }
+                    return Task.CompletedTask;
+                });
+                await next();
+            });
+
+            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
+
+            app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
+            ConfigureTransport(app, env);
+            ConfigureLocalization(app);
+
+            ILogger startupLogger = loggerFactory.CreateLogger("App.Startup");
+            _logAppStarted(startupLogger, DateTimeOffset.UtcNow, arg3: null);
+
+            ConfigureRequestLoggingOrCompression(app, env, loggerFactory);
+            LogLocalization(app, loggerFactory);
+            MapDiagnostics(app, env);
+
+            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = r => r.Tags.Contains("live"),
+            });
+            app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = r => r.Tags.Contains("ready"),
+            });
+            app.MapGet("/health", () => Results.Text("ok", "text/plain"));
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = ctx =>
+                {
+                    var headers = ctx.Context.Response.Headers;
+                    var req = ctx.Context.Request;
+                    bool hasVersion = req.Query.ContainsKey("v");
+                    if (hasVersion)
+                    {
+                        headers.CacheControl = "public,max-age=31536000,immutable";
+                        headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
+                    }
+                    else
+                    {
+                        headers.CacheControl = "public,max-age=3600";
+                    }
+                }
+            });
+            app.UseRouting();
+
+            app.Use(async (ctx, next) =>
+            {
+                bool record = !_firstRequestRecorded && HttpMethods.IsGet(ctx.Request.Method);
+                long start = record ? Stopwatch.GetTimestamp() : 0;
+                await next();
+                if (record)
+                {
+                    _firstRequestRecorded = true;
+                    double sec = (Stopwatch.GetTimestamp() - start) / (double)Stopwatch.Frequency;
+                    FirstRequestSeconds.Record(sec);
+                }
+            });
+
+            app.UseResponseCaching();
+            app.UseOutputCache();
+
+            app.UseCookiePolicy();
+            // Removed global UseSession to reduce overhead; enable only on specific endpoints if needed
+
+            app.UseAntiforgery();
+
+            AddCorrelationScope(app, loggerFactory);
+
+            MapCultureSwitch(app, cultureLog);
+            app.MapRazorPages();
+            app.MapFallbackToPage("/Index");
+            MapLogsEndpoints(app, configuration, env, featureLog);
+
+            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+            RequestCulture defaultReqCulture = locOpts.DefaultRequestCulture;
+            CultureInfo.DefaultThreadCurrentCulture = defaultReqCulture.Culture;
+            CultureInfo.DefaultThreadCurrentUICulture = defaultReqCulture.UICulture;
+
+            if (configuration.GetValue<bool>("OpenTelemetry:Exporters:Prometheus:Enabled", false))
+            {
+                app.MapPrometheusScrapingEndpoint();
+            }
+
+            return app;
+        }
+
         private static void AddCspAndSecurityHeaders(WebApplication app)
         {
             _ = app.Use(async (ctx, next) =>
@@ -295,36 +257,18 @@ namespace XRoadFolkWeb.Extensions
                     return Task.CompletedTask;
                 });
 
-                await next().ConfigureAwait(false);
+                await next();
             });
         }
 
         private static void AddStandardSecurityHeaders(IHeaderDictionary headers)
         {
-            if (!headers.ContainsKey("X-Content-Type-Options"))
-            {
-                headers.XContentTypeOptions = "nosniff";
-            }
-            if (!headers.ContainsKey("Referrer-Policy"))
-            {
-                headers["Referrer-Policy"] = "no-referrer";
-            }
-            if (!headers.ContainsKey("X-Frame-Options"))
-            {
-                headers.XFrameOptions = "DENY";
-            }
-            if (!headers.ContainsKey("Permissions-Policy"))
-            {
-                headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()";
-            }
-            if (!headers.ContainsKey("Cross-Origin-Opener-Policy"))
-            {
-                headers["Cross-Origin-Opener-Policy"] = "same-origin";
-            }
-            if (!headers.ContainsKey("Cross-Origin-Resource-Policy"))
-            {
-                headers["Cross-Origin-Resource-Policy"] = "same-origin";
-            }
+            if (!headers.ContainsKey("X-Content-Type-Options")) { headers.XContentTypeOptions = "nosniff"; }
+            if (!headers.ContainsKey("Referrer-Policy")) { headers["Referrer-Policy"] = "no-referrer"; }
+            if (!headers.ContainsKey("X-Frame-Options")) { headers.XFrameOptions = "DENY"; }
+            if (!headers.ContainsKey("Permissions-Policy")) { headers["Permissions-Policy"] = "accelerometer=(), autoplay=(), camera=(), clipboard-read=(), clipboard-write=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=(), fullscreen=(), xr-spatial-tracking=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), browsing-topics=()"; }
+            if (!headers.ContainsKey("Cross-Origin-Opener-Policy")) { headers["Cross-Origin-Opener-Policy"] = "same-origin"; }
+            if (!headers.ContainsKey("Cross-Origin-Resource-Policy")) { headers["Cross-Origin-Resource-Policy"] = "same-origin"; }
         }
 
         private static string BuildCsp(string nonce)
@@ -363,7 +307,7 @@ namespace XRoadFolkWeb.Extensions
                     ctx.Response.Headers.Expires = "0";
                 }
 
-                await next().ConfigureAwait(false);
+                await next();
             });
         }
 
@@ -393,11 +337,11 @@ namespace XRoadFolkWeb.Extensions
                             string type = WebUtility.HtmlEncode(ex.GetType().FullName ?? ex.GetType().Name);
                             string stack = WebUtility.HtmlEncode(ex.StackTrace ?? "");
                             string html = $"<!doctype html><html><head><title>Error</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>{msg}</h1><p><strong>Type:</strong> {type}</p><p><strong>Trace Id:</strong> {traceId}</p><pre style=\"white-space:pre-wrap;\">{stack}</pre></body></html>";
-                            await context.Response.WriteAsync(html, context.RequestAborted).ConfigureAwait(false);
+                            await context.Response.WriteAsync(html);
                         }
                         else
                         {
-                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>", context.RequestAborted).ConfigureAwait(false);
+                            await context.Response.WriteAsync("<!doctype html><html><head><title>Error</title></head><body><h1>An unexpected error occurred.</h1><p>Trace Id: " + traceId + "</p></body></html>");
                         }
                     }
                     else
@@ -420,7 +364,7 @@ namespace XRoadFolkWeb.Extensions
                                 inner = ex.InnerException is null ? null : new { type = ex.InnerException.GetType().FullName ?? ex.InnerException.GetType().Name, message = ex.InnerException.Message },
                             };
                         }
-                        await context.Response.WriteAsJsonAsync(problem, cancellationToken: context.RequestAborted).ConfigureAwait(false);
+                        await context.Response.WriteAsJsonAsync(problem);
                     }
                 });
             });
@@ -443,24 +387,27 @@ namespace XRoadFolkWeb.Extensions
 
         private static void ConfigureRequestLoggingOrCompression(WebApplication app, IHostEnvironment env, ILoggerFactory loggerFactory)
         {
-            // Always enable response compression (Brotli/Gzip configured in services)
-            _ = app.UseResponseCompression();
-
-            // Log requests (excluding static assets)
-            ILogger reqLog = loggerFactory.CreateLogger("App.Http");
-            _ = app.Use(async (ctx, next) =>
+            if (env.IsDevelopment())
             {
-                string method = ctx.Request?.Method ?? string.Empty;
-                string rawPath = ctx.Request?.Path.Value ?? string.Empty;
-
-                if (!IsStaticAssetPath(rawPath))
+                ILogger reqLog = loggerFactory.CreateLogger("App.Http");
+                _ = app.Use(async (ctx, next) =>
                 {
-                    string safePath = RedactPath(rawPath);
-                    _logHttpRequest(reqLog, method, safePath, arg4: null);
-                }
+                    string method = ctx.Request?.Method ?? string.Empty;
+                    string rawPath = ctx.Request?.Path.Value ?? string.Empty;
 
-                await next().ConfigureAwait(false);
-            });
+                    if (!IsStaticAssetPath(rawPath))
+                    {
+                        string safePath = RedactPath(rawPath);
+                        _logHttpRequest(reqLog, method, safePath, arg4: null);
+                    }
+
+                    await next();
+                });
+            }
+            else
+            {
+                _ = app.UseResponseCompression();
+            }
         }
 
         private static void LogLocalization(WebApplication app, ILoggerFactory loggerFactory)
@@ -475,17 +422,14 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapDiagnostics(WebApplication app, IHostEnvironment env)
         {
-            if (!env.IsDevelopment())
-            {
-                return;
-            }
+            if (!env.IsDevelopment()) { return; }
 
-            _ = app.MapGet("/__culture", async (HttpContext ctx,
+            _ = app.MapGet("/__culture", (HttpContext ctx,
                                           IOptions<RequestLocalizationOptions> locOpts2,
                                           IOptions<LocalizationConfig> cfg) =>
             {
                 IRequestCultureFeature? feature = ctx.Features.Get<IRequestCultureFeature>();
-                var payload = new
+                return Results.Json(new
                 {
                     FromConfig = new
                     {
@@ -495,41 +439,78 @@ namespace XRoadFolkWeb.Extensions
                     Applied = new
                     {
                         Default = locOpts2.Value.DefaultRequestCulture.Culture.Name,
-                        Supported = (locOpts2.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? Array.Empty<string>(),
+                        Supported = (locOpts2.Value.SupportedCultures?.Select(c => c.Name).ToArray()) ?? [],
                         Current = feature?.RequestCulture.Culture.Name,
                         CurrentUI = feature?.RequestCulture.UICulture.Name,
                     },
-                };
-
-                string json = JsonSerializer.Serialize(payload);
-                string etag = ComputeWeakETag(json);
-                if (IfNoneMatchMatches(ctx, etag))
-                {
-                    ctx.Response.StatusCode = StatusCodes.Status304NotModified;
-                    ctx.Response.Headers.ETag = etag;
-                    ctx.Response.Headers.CacheControl = "public, max-age=10";
-                    ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R", CultureInfo.InvariantCulture);
-                    ctx.Response.Headers.Vary = "Accept-Language";
-                    return;
-                }
-
-                ctx.Response.StatusCode = StatusCodes.Status200OK;
-                ctx.Response.ContentType = "application/json";
-                ctx.Response.Headers.ETag = etag;
-                ctx.Response.Headers.CacheControl = "public, max-age=10";
-                ctx.Response.Headers.Expires = DateTime.UtcNow.AddSeconds(10).ToString("R", CultureInfo.InvariantCulture);
-                ctx.Response.Headers.Vary = "Accept-Language";
-                await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
+                });
             });
         }
 
-        private static void MapLogsEndpoints(WebApplication app, FeaturesOptions features, IHostEnvironment env, ILogger featureLog)
+        private static void MapCultureSwitch(WebApplication app, ILogger cultureLog)
         {
-            bool logsEnabled = features.Logs?.Enabled ?? true; // enable by default unless explicitly disabled
-            if (!logsEnabled)
+            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+
+            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, Microsoft.AspNetCore.Antiforgery.IAntiforgery af) =>
             {
-                return;
-            }
+                try
+                {
+                    await af.ValidateRequestAsync(ctx);
+                }
+                catch (AntiforgeryValidationException)
+                {
+                    return Results.BadRequest();
+                }
+
+                bool supportedOk = locOpts.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
+                if (!supportedOk)
+                {
+                    return Results.BadRequest();
+                }
+
+                string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
+                if (!ctx.Request.IsHttps)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append(CookieRequestCultureProvider.DefaultCookieName).Append('=').Append(Uri.EscapeDataString(cookieValue));
+                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R"));
+                    sb.Append("; Path=/");
+                    sb.Append("; SameSite=Lax");
+                    sb.Append("; HttpOnly");
+                    ctx.Response.Headers.Append(HeaderNames.SetCookie, sb.ToString());
+                }
+                else
+                {
+                    ctx.Response.Cookies.Append(
+                        CookieRequestCultureProvider.DefaultCookieName,
+                        cookieValue,
+                        new CookieOptions
+                        {
+                            Expires = DateTimeOffset.UtcNow.AddYears(1),
+                            IsEssential = true,
+                            Secure = true,
+                            HttpOnly = true,
+                            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+                            Path = "/",
+                        });
+                }
+
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    try { return Results.LocalRedirect(returnUrl); }
+                    catch (Exception ex)
+                    {
+                        cultureLog.LogWarning(ex, "set-culture: Invalid returnUrl '{ReturnUrl}'. Falling back to '/'.", returnUrl);
+                    }
+                }
+                return Results.LocalRedirect("/");
+            }).DisableAntiforgery();
+        }
+
+        private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
+        {
+            bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
+            if (!logsEnabled) { return; }
 
             MapLogsList(app);
             MapLogsClear(app);
@@ -539,15 +520,12 @@ namespace XRoadFolkWeb.Extensions
 
         private static void MapLogsList(WebApplication app)
         {
-            _ = app.MapGet("/logs", async (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
+            _ = app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
             {
                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
                 if (store is null)
                 {
-                    ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-                    ctx.Response.ContentType = "application/json";
-                    await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { ok = false, error = "Log store not available" }, CamelJson), ctx.RequestAborted).ConfigureAwait(false);
-                    return;
+                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
                 }
 
                 IEnumerable<LogEntry> query = store.GetAll();
@@ -565,14 +543,7 @@ namespace XRoadFolkWeb.Extensions
                 int skip = (pg - 1) * size;
                 LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
 
-                var payload = new { ok = true, page = pg, pageSize = size, total, totalPages, items };
-                string json = JsonSerializer.Serialize(payload, CamelJson);
-
-                ctx.Response.StatusCode = StatusCodes.Status200OK;
-                ctx.Response.ContentType = "application/json";
-                ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
-                ctx.Response.Headers.Pragma = "no-cache";
-                await ctx.Response.WriteAsync(json, ctx.RequestAborted).ConfigureAwait(false);
+                return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
             });
         }
 
@@ -582,7 +553,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 try
                 {
-                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
+                    await af.ValidateRequestAsync(ctx);
                 }
                 catch (AntiforgeryValidationException)
                 {
@@ -605,7 +576,7 @@ namespace XRoadFolkWeb.Extensions
             {
                 try
                 {
-                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
+                    await af.ValidateRequestAsync(ctx);
                 }
                 catch (AntiforgeryValidationException)
                 {
@@ -657,15 +628,15 @@ namespace XRoadFolkWeb.Extensions
                 (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
                 try
                 {
-                    await foreach (LogEntry entry in reader.ReadAllAsync(ct).ConfigureAwait(false))
+                    await foreach (LogEntry entry in reader.ReadAllAsync(ct))
                     {
                         if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
-                        string json = System.Text.Json.JsonSerializer.Serialize(entry, CamelJson);
-                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct).ConfigureAwait(false);
-                        await ctx.Response.Body.FlushAsync(ct).ConfigureAwait(false);
+                        string json = System.Text.Json.JsonSerializer.Serialize(entry);
+                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+                        await ctx.Response.Body.FlushAsync(ct);
                     }
                 }
                 catch (OperationCanceledException)
@@ -692,129 +663,18 @@ namespace XRoadFolkWeb.Extensions
                 string? sessionId = null;
                 try { sessionId = ctx.Session?.Id; } catch { }
 
-                var scope = new Dictionary<string, object?>(StringComparer.Ordinal);
-                if (!string.IsNullOrEmpty(traceId))
-                {
-                    scope["TraceId"] = traceId;
-                }
-                if (!string.IsNullOrEmpty(spanId))
-                {
-                    scope["SpanId"] = spanId;
-                }
-                if (!string.IsNullOrEmpty(user))
-                {
-                    scope["User"] = user;
-                }
-                if (!string.IsNullOrEmpty(sessionId))
-                {
-                    scope["SessionId"] = sessionId;
-                }
+                var scope = new Dictionary<string, object?>();
+                if (!string.IsNullOrEmpty(traceId)) { scope["TraceId"] = traceId; }
+                if (!string.IsNullOrEmpty(spanId)) { scope["SpanId"] = spanId; }
+                if (!string.IsNullOrEmpty(user)) { scope["User"] = user; }
+                if (!string.IsNullOrEmpty(sessionId)) { scope["SessionId"] = sessionId; }
 
                 using (scopeLogger.BeginScope(scope))
                 {
-                    await next().ConfigureAwait(false);
+                    await next();
                 }
-            });
-        }
-
-        private static string ComputeWeakETag(string content)
-        {
-            byte[] bytes = Encoding.UTF8.GetBytes(content);
-            using var sha = SHA256.Create();
-            byte[] hash = sha.ComputeHash(bytes);
-            var sb = new StringBuilder(hash.Length * 2);
-            foreach (byte b in hash)
-            {
-                sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-            }
-            return $"W/\"{sb}\"";
-        }
-
-        private static bool IfNoneMatchMatches(HttpContext ctx, string etag)
-        {
-            var inm = ctx.Request.Headers.IfNoneMatch;
-            if (string.IsNullOrEmpty(inm))
-            {
-                return false;
-            }
-            // Multiple ETags can be provided, comma-separated
-            foreach (var part in inm.ToString().Split(','))
-            {
-                string token = part.Trim();
-                if (string.Equals(token, etag, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-                // Strong/weak mismatch tolerance
-                if (token.StartsWith("W/\"", StringComparison.Ordinal) && etag.StartsWith("W/\"", StringComparison.Ordinal))
-                {
-                    if (string.Equals(token[3..^1], etag[3..^1], StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        private static void MapCultureSwitch(WebApplication app, ILogger cultureLog)
-        {
-            RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
-
-            _ = app.MapPost("/set-culture", async ([FromForm] string culture, [FromForm] string? returnUrl, HttpContext ctx, IAntiforgery af) =>
-            {
-                try
-                {
-                    await af.ValidateRequestAsync(ctx).ConfigureAwait(false);
-                }
-                catch (AntiforgeryValidationException)
-                {
-                    return Results.BadRequest();
-                }
-
-                bool supportedOk = locOpts.SupportedUICultures?.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)) == true;
-                if (!supportedOk)
-                {
-                    return Results.BadRequest();
-                }
-
-                string cookieValue = CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture));
-                if (!ctx.Request.IsHttps)
-                {
-                    var sb = new System.Text.StringBuilder();
-                    sb.Append(CookieRequestCultureProvider.DefaultCookieName).Append('=').Append(Uri.EscapeDataString(cookieValue));
-                    sb.Append("; Expires=").Append(DateTime.UtcNow.AddYears(1).ToString("R", CultureInfo.InvariantCulture));
-                    sb.Append("; Path=/");
-                    sb.Append("; SameSite=Lax");
-                    sb.Append("; HttpOnly");
-                    ctx.Response.Headers.Append(HeaderNames.SetCookie, sb.ToString());
-                }
-                else
-                {
-                    ctx.Response.Cookies.Append(
-                        CookieRequestCultureProvider.DefaultCookieName,
-                        cookieValue,
-                        new CookieOptions
-                        {
-                            Expires = DateTimeOffset.UtcNow.AddYears(1),
-                            IsEssential = true,
-                            Secure = true,
-                            HttpOnly = true,
-                            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
-                            Path = "/",
-                        });
-                }
-
-                if (!string.IsNullOrEmpty(returnUrl))
-                {
-                    try { return Results.LocalRedirect(returnUrl); }
-                    catch (Exception ex)
-                    {
-                        cultureLog.LogWarning(ex, "set-culture: Invalid returnUrl '{ReturnUrl}'. Falling back to '/'.", returnUrl);
-                    }
-                }
-                return Results.LocalRedirect("/");
             });
         }
     }
 }
+#pragma warning restore IDE0011
