@@ -578,9 +578,17 @@
     }
   }
 
+  function isClickOnNameOrBadge(target){
+    try{
+      return !!(safeClosest(target, '.gpiv-person-header .badge') || safeClosest(target, '.gpiv-person-header strong'));
+    }catch{ return false; }
+  }
+
   document.addEventListener('click', function(e){
     var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
+    // Ignore clicks on the badge or person name; they should not act as a link to details
+    if (isClickOnNameOrBadge(e.target)) return;
     if(e.ctrlKey || e.metaKey) return;
     var wrap = header.parentElement; // .gpiv-person
     if(!wrap) return;
@@ -592,6 +600,8 @@
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var header = safeClosest(e.target, '.gpiv-person-header');
     if(!header) return;
+    // Ignore keyboard activation from the badge or person name
+    if (isClickOnNameOrBadge(e.target)) return;
     e.preventDefault();
     var wrap = header.parentElement;
     if(!wrap) return;

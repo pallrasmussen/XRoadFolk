@@ -202,10 +202,28 @@
       if (!btn) return;
       var header = qs('.gpiv-person-header', summaryHost);
       if (!header) return;
-      // Ensure it looks like a small button when placed into header
-      try { btn.classList.add('btn','btn-sm','btn-outline-secondary','ms-auto'); } catch {}
-      // Move the element under the first person header
+
+      // Style as a small "More info" button
+      try {
+        btn.type = 'button';
+        btn.classList.remove('nav-link');
+        btn.classList.add('btn','btn-sm','btn-outline-primary','ms-auto','gpiv-more-info-btn');
+        var label = (I18N && I18N.PersonDetails) ? I18N.PersonDetails : 'More info';
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
+        btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>' + label;
+      } catch {}
+
+      // Move into the first person header
+      var oldParent = btn.parentElement;
       header.appendChild(btn);
+
+      // Remove empty placeholder container if it was a flex strip
+      try {
+        if (oldParent && oldParent.tagName === 'DIV' && oldParent.classList.contains('d-flex')) {
+          oldParent.remove();
+        }
+      } catch {}
     }catch(e){ try{ console.debug('gpiv: moveDetailsBtnToHeader failed', e); }catch{} }
   }
 
@@ -357,7 +375,7 @@
         focusFirstAccordionButton(summaryHost);
       } catch {}
 
-      // Move the outer Person Details tab trigger into the first person header
+      // Move the outer Person Details tab trigger into the first person header (and restyle it)
       moveDetailsBtnToHeader();
 
       syncViewerHeight();
