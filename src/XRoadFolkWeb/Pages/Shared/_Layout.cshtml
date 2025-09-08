@@ -2,22 +2,18 @@
 @using Microsoft.AspNetCore.Localization
 @using Microsoft.Extensions.Options
 @using XRoadFolkWeb.Shared
-@using XRoadFolkWeb.Infrastructure
 @inject IOptions<RequestLocalizationOptions> LocOpts
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
-@inject IOptionsSnapshot<FeaturesOptions> Features
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Af
 @{
     Layout = null;
     var currentUi = CultureInfo.CurrentUICulture.Name;
     var supported = LocOpts.Value.SupportedUICultures ?? new List<CultureInfo> { CultureInfo.GetCultureInfo("en-US") };
 
-    // Resolve IConfiguration for additional values
-    var cfg = Context?.RequestServices.GetRequiredService<IConfiguration>();
-
     // Optional: order cultures according to configuration to ensure predictable display order (deduplicated by Name)
     List<CultureInfo> culturesToShow;
-    string[]? order = cfg?.GetSection("Localization:SupportedCultures").Get<string[]>();
+    string[]? order = Config.GetSection("Localization:SupportedCultures").Get<string[]>();
     if (order?.Length > 0)
     {
         var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -54,19 +50,19 @@
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
     // Optional SRI hashes (configure in appsettings under Cdn:Bootswatch:Sri and Cdn:BootstrapIcons:Sri)
-    string? bootswatchSri = cfg?["Cdn:Bootswatch:Sri"]; // e.g., sha384...
-    string? biSri = cfg?["Cdn:BootstrapIcons:Sri"];    // e.g., sha384...
+    string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; // e.g., sha384-...
+    string? biSri = Config["Cdn:BootstrapIcons:Sri"];    // e.g., sha384-...
 
     // Feature toggle: Logs button visibility
-    bool showLogs = Features.Value.ShowLogs ?? true;
+    bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
 
-    // Antiforgery tokens for AJAX (guard against null HttpContext for analyzers)
-    Microsoft.AspNetCore.Antiforgery.AntiforgeryTokenSet? antiTokens = null;
-    if (Context is not null)
-    {
-        antiTokens = Af.GetAndStoreTokens(Context);
-    }
+    // Antiforgery tokens for AJAX
+    var antiTokens = Context is not null ? Af.GetAndStoreTokens(Context) : null;
     var antiReq = antiTokens?.RequestToken;
+
+    // Accessible labels with localized fallback
+    var langRes = SR["Language"]; var langText = langRes.ResourceNotFound ? "Language" : langRes.Value;
+    var applyRes = SR["Apply"]; var applyText = applyRes.ResourceNotFound ? "Apply" : applyRes.Value;
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -80,15 +76,10 @@
         <meta name="request-verification-token" content="@antiReq" />
     }
 
-    <link rel="manifest" href="~/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+    <link rel="icon" type="image/png" href="~/favicon.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="~/favicon.png" />
     <meta name="theme-color" content="#0d6efd" />
-
-    <link rel="icon" type="image/svg+xml" sizes="any" href="~/favicon.svg" asp-append-version="true" />
-    <link rel="icon" type="image/png" sizes="192x192" href="~/favicon.png" asp-append-version="true" />
-    <link rel="icon" type="image/png" sizes="32x32" href="~/favicon.png" asp-append-version="true" />
-    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon.png" asp-append-version="true" />
-    <link rel="apple-touch-icon" href="~/favicon.png" asp-append-version="true" />
-    <link rel="mask-icon" href="~/favicon.svg" color="#0d6efd" />
 
     <!-- Resource Hints for external CDNs -->
     <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
@@ -162,7 +153,8 @@
                     <!-- Culture switcher -->
                     <form class="d-flex align-items-center" method="post" action="/set-culture" asp-antiforgery="true">
                         <input type="hidden" name="returnUrl" value="@(ViewContext.HttpContext.Request.Path + ViewContext.HttpContext.Request.QueryString)" />
-                        <select class="form-select form-select-sm me-2" name="culture">
+                        <label id="culture-select-label" for="culture-select" class="visually-hidden">@langText</label>
+                        <select id="culture-select" class="form-select form-select-sm me-2" name="culture" aria-labelledby="culture-select-label" aria-label="@langText">
                             @foreach (var c in culturesToShow)
                             {
                                 var loc = SR[$"Culture_{c!.Name}"];
@@ -178,7 +170,20 @@
                                 }
                             }
                         </select>
+                        <noscript>
+                            <button type="submit" class="btn btn-sm btn-outline-light ms-2">@applyText</button>
+                        </noscript>
                     </form>
+
+                    <script nonce="@nonce">
+                        // Avoid inline event handlers (blocked by CSP). Wire up submit programmatically.
+                        document.addEventListener('DOMContentLoaded', function () {
+                            try {
+                                var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
+                                if (sel) sel.addEventListener('change', function () { sel.form && sel.form.submit(); });
+                            } catch (e) { console.error('Culture switch init failed', e); }
+                        });
+                    </script>
                 </div>
             </div>
         </div>
@@ -194,7 +199,7 @@
     <!-- Footer -->
     <footer class="mt-auto border-top py-3">
         <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between small text-muted">
-            <span>&copy; @DateTime.UtcNow.Year @cfg?["Branding:AuthorName"]</span>
+            <span>&copy; @DateTime.UtcNow.Year @Config["Branding:AuthorName"]</span>
             <span>@SR["BuiltWith"]</span>
         </div>
     </footer>
@@ -203,7 +208,6 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true" defer></script>
     <script src="~/js/antiforgery.js" asp-append-version="true" defer></script>
     <script src="~/js/site.js" asp-append-version="true" defer></script>
-    <script src="~/js/layout-culture-switcher.js" asp-append-version="true" defer></script>
 
     <environment include="Development">
         <script src="/_framework/aspnetcore-browser-refresh.js" defer></script>
