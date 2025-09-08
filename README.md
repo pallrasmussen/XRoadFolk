@@ -1,340 +1,63 @@
 # XRoadFolk (Razor Pages)
 
-## Overview
-XRoadFolk is a .NET 8 web application built with ASP.NET Core Razor Pages. It provides a UI for querying people data via X-Road SOAP services using a shared library.
-
-- Web UI: src/XRoadFolkWeb
-- Shared client library: src/XRoadFolkRaw.Lib (SOAP client, options, logging)
-
-The older console UI referenced in prior versions has been removed. Use the Razor Pages app.
-
-## Prerequisites
-- .NET 8 SDK
-- Access to an X-Road endpoint and client certificate (PFX or PEM) if required
-
-## Quick start
-From the repository root:
-
-```bash
-# run the web app
-dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj
-```
-
-Open http://localhost:5000 or https://localhost:7000 (default Kestrel ports).
-
-## Configuration
-The web app loads default X‑Road settings from the library at startup, then applies appsettings and environment overrides.
-
-- Appsettings: src/XRoadFolkWeb/appsettings.json (+ appsettings.Development.json)
-- Important sections:
-  - XRoad: base URL, client/service identifiers, headers, auth, certificate
-  - Operations:GetPeoplePublicInfo:XmlPath (template path)
-  - Operations:GetPerson:XmlPath (template path)
-  - Operations:GetPerson:Request
-    - Include (boolean switches) or Include flags via GetPersonRequestOptions.Include
-  - Localization (DefaultCulture, SupportedCultures, optional FallbackMap)
-  - Logging (MaskTokens, Verbose)
-  - Health (ReadinessDelaySeconds)
-
-Environment variable overrides (examples):
-- XR_BASE_URL, XR_USER, XR_PASSWORD
-- XR_PFX_PATH / XR_PFX_PASSWORD or XR_PEM_CERT_PATH / XR_PEM_KEY_PATH
-- DOTNET_ENVIRONMENT=Development
-- Health__ReadinessDelaySeconds=20
-
-## Features
-- People search (SSN or First/Last + Date of Birth)
-- Detail panel via GetPerson with pretty-printed XML
-- Centralized include configuration helper merges boolean Include keys and flags
-- Request logging (Development) with static-asset filtering and PII redaction
-- SOAP logging sanitizer (SafeSoapLogger) masks secrets/tokens/SSN-like values
-- Localization with culture switch endpoint
-
-## Diagnostics (Development only)
-- GET /__culture – shows configured and applied cultures
-- Logs endpoints (require IHttpLogStore):
-  - GET /logs?kind=http|soap|app
-  - POST /logs/clear
-  - POST /logs/write
-  - GET /logs/stream (Server-Sent Events)
-
-## Dependency Injection
-- PeopleService encapsulates X‑Road calls and token handling
-- PeopleResponseParser (singleton) parses/pretty-prints XML responses
-
-## Certificates
-Configure under XRoad:Certificate in appsettings (PFX or PEM). In Development, server certificate validation can be bypassed when enabled in configuration.
-
-## Build and test
-```bash
-# build all
-dotnet build
-
-# run web app
-dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj
-
-# run tests (if present)
-dotnet test
-```
-
-## Repository layout
-- src/XRoadFolkWeb – Razor Pages app (Pages, Extensions, Features, Infrastructure)
-- src/XRoadFolkRaw.Lib – SOAP client, options, logging, configuration helpers
-
-## Notes
-The console application previously located under src/XRoadFolkRaw is no longer part of this solution. All usage is via the Razor Pages app.
-
-# XRoadFolk
-
-Razor Pages app with X-Road SOAP client integration.
-
-This document summarizes key operational configuration and expectations.
-
-## Session, Cookies, and Consent
-
-Session is enabled with consent-friendly defaults. By default, `Session:Cookie:IsEssential` is `false` and must be explicitly set to `true` when you have a legal basis or obtained consent.
-
-- Configure in `appsettings.json` (or environment):
-  ```json
-  "Session": {
-    "Cookie": {
-      "IsEssential": false,
-      "HttpOnly": true,
-      "SameSite": "Strict",
-      "SecurePolicy": "Always",
-      "Name": ".XRoadFolk.Session"
-    },
-    "IdleTimeoutMinutes": 30,
-    "Store": "InMemory" // or "Redis" or "SqlServer"
-  }
-  ```
-- Stores:
-  - InMemory: simple, not shared across instances. Recommended only for single-node or dev.
-  - Redis: set `Session:Redis:Configuration` and optional `Session:Redis:InstanceName`.
-  - SqlServer: set `Session:SqlServer:ConnectionString` and optional `SchemaName`/`TableName`.
-- Cookie policy defaults:
-  - HttpOnly enforced on all cookies
-  - SameSite=Lax by default
-  - Secure=Always outside Development; SameAsRequest in Development (supports HTTP TestServer)
-- Culture cookie: set for 1 year, Path=/, SameSite=Lax, HttpOnly; Secure only when HTTPS.
-- Anti-forgery: Razor Pages validation is globally ignored for regular page posts; the `/set-culture` endpoint is explicitly validated and returns 400 without a token.
-
-## Localization fallback maps and best-match
-
-Localization is driven by the `Localization` section and a best-match culture provider.
-
-- Required keys:
-  ```json
-  "Localization": {
-    "DefaultCulture": "fo-FO",
-    "SupportedCultures": ["fo-FO", "da-DK", "en-US"],
-    "FallbackMap": { "en": "en-US", "fo": "fo-FO" }
-  }
-  ```
-- Best-match rules in order:
-  1. Culture cookie (`.AspNetCore.Culture`) if valid
-  2. Accept-Language header (strict parsing, q-values honored, size/entry caps, invalid tags skipped)
-  3. Exact supported match
-  4. Explicit `FallbackMap` (e.g., neutral `en` → `en-US`)
-  5. Parent cultures
-  6. Same-language match (e.g., `en-GB` → `en-US`)
-
-## Logging expectations and safety
-
-- Verbosity is controlled under `Logging`. Keep `Default` at `Information` in production.
-- SOAP/XML is always sanitized before logging via `SafeSoapLogger`.
-  - Masks: username, password, token, userId, common token aliases (sessionId/sessionToken/authToken/accessToken), and WS-Security `BinarySecurityToken`.
-- HTTP and app logs feed an in-memory or file-backed store:
-  - Messages capped (~8KB) and scope info truncated (~2KB) with depth/kv limits
-  - Back-pressure with drop counters and reasons
-  - Live Logs UI caps rows; batches updates; auto-scrolls when at bottom
-
-## Health and Metrics
-
-- Liveness endpoint: `GET /health/live` – should return 200 quickly; **not** gated by readiness delay.
-- Readiness endpoint: `GET /health/ready` – includes a startup delay health check if configured.
-  - Configure a warmup delay with `Health:ReadinessDelaySeconds` (0 = disabled).
-  - During the delay window `/health/ready` returns 503 (Unhealthy) to allow JIT/cold-start warmup before the orchestrator sends traffic.
-- Combined simple endpoint: `GET /health` returns plaintext `ok` (no detailed checks).
-- Metrics (System.Diagnostics.Metrics) – scrape with OpenTelemetry by subscribing to meters below.
-  - Meter `XRoadFolkRaw`:
-    - `xroad.http.retries` (counter) tags: `op`
-    - `xroad.http.duration` (histogram, ms) tags: `op`
-  - Meter `XRoadFolkWeb`:
-    - `logs.queue.length` (observable gauge) tags: `store` (memory|file)
-    - `logs.dropped` (counter)
-    - `logs.dropped.reason` (counter) tags: `reason` (rate|backpressure|capacity), `store` (memory|file)
-    - `logs.dropped.level` (counter) tags: `level`, `store`
-
-### OpenTelemetry wiring (Prometheus/OTLP)
-
-The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and an optional OTLP exporter. Enable them via configuration:
-
-```json
-"OpenTelemetry": {
-  "Metrics": {
-    "AspNetCore": true,
-    "Runtime": false
-  },
-  "Exporters": {
-    "Prometheus": { "Enabled": true },
-    "Otlp": {
-      "Enabled": true,
-      "Endpoint": "http://otel-collector:4318",
-      "Protocol": "http/protobuf" // or "grpc"
-    }
-  }
-}
-```
-
-- Prometheus scrape endpoint: GET /metrics (enabled when Exporters:Prometheus:Enabled=true)
-- OTLP: set Endpoint to your collector. Supported Protocol values: grpc, http/protobuf.
-- Meters included: XRoadFolkRaw, XRoadFolkWeb. You can add ASP.NET Core or runtime metrics via flags above.
-
-## CI/CD
-
-- GitHub Actions workflow builds with analyzers, runs tests with coverage, and publishes the web artifact on `main`/`master`.
-
-## Security headers and CSP
-
-- App sets standard security headers (X-Frame-Options, Referrer-Policy, etc.) and a Content Security Policy with per-request nonce for scripts/styles.
-
-## Notes
-
-- Template/resource loading uses positive/negative caching to avoid repeated IO and noisy logs.
-- Accept-Language and XML parsing are hardened against DoS-like inputs.
-
-# XRoadFolk
-
-## Configuration notes
-
-- JSON configuration files (appsettings*.json) do not support comments. Keep comments in this README or separate docs.
-- HttpLogs.PersistToFile: Do not enable in production unless there is a strong operational need and storage/retention is controlled.
-  - Use environment-specific overrides (e.g., appsettings.Production.json) instead of editing appsettings.json.
-- Features.ShowLogs: Should be disabled in production to reduce exposure of log data in the UI.
-- Health.ReadinessDelaySeconds: Set only when orchestrator probes the readiness endpoint aggressively (e.g., Kubernetes initialDelaySeconds can also be used; do not duplicate excessively).
-
-## Environment-specific configuration
-
-- appsettings.json: Baseline settings shared across all environments.
-- appsettings.Development.json: Development-time tweaks.
-- appsettings.Production.json: Production overrides. See example committed in this repo.
-
-## How to override locally
-
-- Use dotnet user-secrets for secrets and local-only overrides.
-- Environment variables can override any setting using the colon-delimited form, e.g.:
-  - ASPNETCORE_ENVIRONMENT=Production
-  - HttpLogs__PersistToFile=false
-  - Features__ShowLogs=false
-  - Health__ReadinessDelaySeconds=15
-
-# XRoadFolk
+> Concise overview of the application. Detailed logging & configuration docs moved to /docs.
 
 ## Overview
-XRoadFolk is an ASP.NET Core (.NET 8) Razor Pages application that integrates with X-Road services and provides:
-- SOAP request/response handling with safe (sanitized) logging
-- Unified in‑memory log viewer (HTTP / SOAP / App) with optional rolling file persistence
-- SSE (/logs/stream) real‑time log feed
-- OpenTelemetry instrumentation (configurable exporters)
+XRoadFolk is a .NET 8 ASP.NET Core Razor Pages application providing a UI over X-Road SOAP services (people lookup & details). It uses a shared library (XRoadFolkRaw.Lib) for SOAP request construction, sanitization, retry logic, and token handling.
 
-## Logging Architecture
-A single custom logger provider (InMemoryHttpLogLoggerProvider) captures application, SOAP and HTTP client events and stores them in an in‑memory ring buffer (capacity configurable). Each log entry is tagged with a `kind`:
-- `soap`  – Classified via SafeSoapLogger EventIds (41000–41002)
-- `http`  – Classified when the category suggests HttpClient / System.Net.Http OR message starts with `HTTP`
-- `app`   – Everything else
+## Key Features
+- People search & detailed person viewer (sanitized XML display)
+- In-memory tri-kind logging (http | soap | app) with optional rolling file persistence
+- Live logs viewer (SSE stream) + filtering / pagination
+- Localization (culture fallback & mapping) and theme switching
+- Certificate expiry pre-check with UI banner and warning logs
+- Configurable readiness delay for health probes
+- OpenTelemetry metrics & tracing (optional exporters: Prometheus, OTLP, Console)
+- Hardened security headers + CSP with nonces; PII/token masking outside Development
 
-Live subscribers receive log events through an in‑process broadcast feed (`ILogFeed`) which powers the browser stream endpoint `/logs/stream`.
-
-### Masking / Sanitization
-Outside Development (or if `Logging:MaskTokens` is true) potentially sensitive values are masked. SOAP payloads are sanitized through `SafeSoapLogger` helpers; general messages use `PiiSanitizer` (see infrastructure code) before being persisted or streamed.
-
-## HTTP Log Visibility in Production
-If you see SOAP and App logs but **no HTTP logs** in Production, the most common cause is category filtering. By default broad `System` / `Microsoft` categories are raised to `Warning` to reduce noise. Typical `HttpClient` diagnostics are `Information` or `Debug`, so they get filtered.
-
-Production `appsettings.Production.json` now includes explicit overrides:
-```jsonc
-"Logging": {
-  "LogLevel": {
-    "Default": "Information",
-    "Microsoft.AspNetCore": "Warning",
-    "System": "Warning",
-    "System.Net.Http": "Information",
-    "System.Net.Http.HttpClient": "Information"
-  }
-}
+## Quick Start
+```bash
+dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj
 ```
-These two more specific keys allow HTTP logs through while keeping the broader `System` namespace at `Warning`.
+Open http://localhost:5000 (HTTP) or https://localhost:7000 (HTTPS).
 
-If you need only a *specific* named client, you can narrow further (example):
-```jsonc
-"Logging": {
-  "LogLevel": {
-    "System.Net.Http.HttpClient.MyNamedClient": "Information"
-  }
-}
+## Architecture (Logging Path)
 ```
-
-## HttpLogs Options (appsettings `HttpLogs` section)
-| Key | Purpose | Notes |
-|-----|---------|-------|
-| Capacity | Max entries retained in memory | Ring buffer; oldest evicted first |
-| MaxWritesPerSecond | Optional rate limit (0 = off) | Over limit => low level logs dropped (Warnings/Errors can still pass if `AlwaysAllowWarningsAndErrors` true) |
-| AlwaysAllowWarningsAndErrors | Preserve higher severity when throttling | Default true |
-| PersistToFile | Enable rolling file persistence | Requires `FilePath` |
-| FilePath | Target log file (e.g. `logs/http-logs.log`) | Directory auto-created |
-| MaxFileBytes | Size threshold before roll | Default 5 MB |
-| MaxRolls | Number of rolled files retained | Default 3 |
-| MaxQueue | Back‑pressure channel size for writer + ingestion | >= 100 recommended (5000 default) |
-| FlushIntervalMs | File flush cadence | 200–500ms typical |
-
-### Enabling File Persistence
-```jsonc
-"HttpLogs": {
-  "PersistToFile": true,
-  "FilePath": "logs/http-logs.log",
-  "MaxFileBytes": 10485760,
-  "MaxRolls": 5
-}
++-------------------+       +-------------------------+       +------------------+
+| ILogger calls     |  -->  | InMemoryHttpLogLogger   |  -->  | IHttpLogStore     |
+|  (app / http /    |       |  (classification +      |       |  (ring buffer +   |
+|   soap events)    |       |   scope enrichment)     |       |   optional file)  |
++-------------------+       +-------------------------+       +---------+--------+
+                                                                       |
+                                                                       v
+                                                             +---------------------+
+                                                             | ILogFeed / SSE      |
+                                                             |  (LogStreamBroad-   |
+                                                             |   caster -> /logs/  |
+                                                             |   stream clients)   |
+                                                             +----------+----------+
+                                                                        |
+                                                                        v
+                                                            +----------------------+
+                                                            | Browser Logs Viewer  |
+                                                            |  (filter, paginate,  |
+                                                            |   cards/table views) |
+                                                            +----------------------+
 ```
-A startup validator attempts to create/append to the path so misconfiguration fails fast.
+Kinds: soap (SOAP EventIds), http (HttpClient/System.Net.Http or message starts with HTTP), else app.
 
-## Log Endpoints
-| Endpoint | Method | Description | Query Params |
-|----------|--------|-------------|--------------|
-| `/logs` | GET | Paged JSON listing | `kind` (`http|soap|app`), `page`, `pageSize` |
-| `/logs/clear` | POST | Clears in‑memory buffer | none |
-| `/logs/write` | POST | Append a synthetic (app) test log | body/json (optional) |
-| `/logs/stream` | GET (SSE) | Server‑sent events stream (live) | `kind` (optional filter) |
+## Health Endpoints
+- /health/live – liveness (quick)
+- /health/ready – readiness (includes optional startup delay & log file writable check)
 
-Availability gated by feature flags:
-```jsonc
-"Features": {
-  "Logs": { "Enabled": true },
-  "ShowLogs": true
-}
-```
-If `Logs.Enabled` is null it defaults to Development=true, Production=false.
+## Certificate Expiry Banner
+Displays warning when missing, expired, or within XRoad:Certificate:WarnIfExpiresInDays (default 30 days).
 
-## Verbose Mode
-`Logging:Verbose` (guarded by `AllowVerboseInProduction`) can enable more detailed internal SOAP logging (`_verbose` flag in client) and additional diagnostic noise. In Production keep this off unless actively investigating.
+## Configuration & Logging Docs
+- Detailed configuration: [docs/configuration.md](docs/configuration.md)
+- Logging architecture & tuning: [docs/logging.md](docs/logging.md)
 
-## Troubleshooting Checklist for Missing HTTP Logs
-1. Categories filtered? Ensure `System.Net.Http` (or narrower) is >= Information.
-2. Rate limiter engaged? Watch counters: `logs.dropped.reason{reason=rate}` via OpenTelemetry metrics (if exported).
-3. Capacity eviction? Large burst may cycle old entries; check `logs.dropped.reason{reason=capacity}`.
-4. Backpressure drops? See `logs.dropped.reason{reason=backpressure}`; consider increasing `MaxQueue`.
-5. Persist disabled? (Does not affect in‑memory visibility, only file output.)
-
-## OpenTelemetry (Optional)
-Enable exporters via `OpenTelemetry:Exporters` keys (`Console`, `Prometheus`, `Otlp`). Service resource name: `XRoadFolkWeb`.
-
-## Contributing Notes
-- Avoid injecting `ILogger` into the InMemory log provider registration to prevent cycles.
-- Add new log kinds by extending `ComputeKind` in `InMemoryHttpLogLoggerProvider`.
-- Prefer structured logging (LoggerMessage / source‑generated) for hot paths.
-
-## Quick Reference: Minimal Production Overrides to See HTTP Logs
+## Minimal Production Tips
 ```jsonc
 "Logging": {
   "LogLevel": {
@@ -343,8 +66,29 @@ Enable exporters via `OpenTelemetry:Exporters` keys (`Console`, `Prometheus`, `O
     "System": "Warning",
     "System.Net.Http": "Information"
   }
-}
+},
+"Features": { "ShowLogs": false },
+"Health": { "ReadinessDelaySeconds": 15 }
 ```
+Add System.Net.Http to surface HTTP diagnostics; disable ShowLogs if exposing logs externally is not desired.
+
+## Localization
+Fallback order: Cookie -> Accept-Language (q) -> Exact -> FallbackMap -> Parent -> Same-language.
+
+## Security Highlights
+- CSP with per-request nonce (scripts & styles)
+- Referrer-Policy: no-referrer; X-Frame-Options: DENY
+- Permissions-Policy hardened allowlist
+- Token & PII masking outside Development
+
+## Repository Layout
+- src/XRoadFolkWeb – Razor Pages UI (Pages, Infrastructure, Extensions)
+- src/XRoadFolkRaw.Lib – SOAP client, sanitizers, retry, configuration helpers
+- tests/XRoadFolkWeb.Tests – integration & unit tests (logging, culture fallback, sanitizer, health, classification)
+- docs/ – extended documentation
+
+## License / Author
+See repository metadata for license. Author: @pallrasmussen (Branding:AuthorName configurable).
 
 ---
-For deeper adjustments create a custom DelegatingHandler that logs under `XRoadFolkWeb.Http` (already permitted at Information) if you want to keep `System.Net.Http` at Warning.
+For deeper details consult the docs above. Contributions welcome; prefer PRs with tests for new logging or configuration behaviors.
