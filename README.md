@@ -220,3 +220,123 @@ The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and 
   - ASPNETCORE_ENVIRONMENT=Production
   - HttpLogs__PersistToFile=false
   - Features__ShowLogs=false
+
+# XRoadFolk
+
+## Overview
+XRoadFolk is an ASP.NET Core (.NET 8) Razor Pages application that integrates with X-Road services and provides:
+- SOAP request/response handling with safe (sanitized) logging
+- Unified in‑memory log viewer (HTTP / SOAP / App) with optional rolling file persistence
+- SSE (/logs/stream) real‑time log feed
+- OpenTelemetry instrumentation (configurable exporters)
+
+## Logging Architecture
+A single custom logger provider (InMemoryHttpLogLoggerProvider) captures application, SOAP and HTTP client events and stores them in an in‑memory ring buffer (capacity configurable). Each log entry is tagged with a `kind`:
+- `soap`  – Classified via SafeSoapLogger EventIds (41000–41002)
+- `http`  – Classified when the category suggests HttpClient / System.Net.Http OR message starts with `HTTP`
+- `app`   – Everything else
+
+Live subscribers receive log events through an in‑process broadcast feed (`ILogFeed`) which powers the browser stream endpoint `/logs/stream`.
+
+### Masking / Sanitization
+Outside Development (or if `Logging:MaskTokens` is true) potentially sensitive values are masked. SOAP payloads are sanitized through `SafeSoapLogger` helpers; general messages use `PiiSanitizer` (see infrastructure code) before being persisted or streamed.
+
+## HTTP Log Visibility in Production
+If you see SOAP and App logs but **no HTTP logs** in Production, the most common cause is category filtering. By default broad `System` / `Microsoft` categories are raised to `Warning` to reduce noise. Typical `HttpClient` diagnostics are `Information` or `Debug`, so they get filtered.
+
+Production `appsettings.Production.json` now includes explicit overrides:
+```jsonc
+"Logging": {
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft.AspNetCore": "Warning",
+    "System": "Warning",
+    "System.Net.Http": "Information",
+    "System.Net.Http.HttpClient": "Information"
+  }
+}
+```
+These two more specific keys allow HTTP logs through while keeping the broader `System` namespace at `Warning`.
+
+If you need only a *specific* named client, you can narrow further (example):
+```jsonc
+"Logging": {
+  "LogLevel": {
+    "System.Net.Http.HttpClient.MyNamedClient": "Information"
+  }
+}
+```
+
+## HttpLogs Options (appsettings `HttpLogs` section)
+| Key | Purpose | Notes |
+|-----|---------|-------|
+| Capacity | Max entries retained in memory | Ring buffer; oldest evicted first |
+| MaxWritesPerSecond | Optional rate limit (0 = off) | Over limit => low level logs dropped (Warnings/Errors can still pass if `AlwaysAllowWarningsAndErrors` true) |
+| AlwaysAllowWarningsAndErrors | Preserve higher severity when throttling | Default true |
+| PersistToFile | Enable rolling file persistence | Requires `FilePath` |
+| FilePath | Target log file (e.g. `logs/http-logs.log`) | Directory auto-created |
+| MaxFileBytes | Size threshold before roll | Default 5 MB |
+| MaxRolls | Number of rolled files retained | Default 3 |
+| MaxQueue | Back‑pressure channel size for writer + ingestion | >= 100 recommended (5000 default) |
+| FlushIntervalMs | File flush cadence | 200–500ms typical |
+
+### Enabling File Persistence
+```jsonc
+"HttpLogs": {
+  "PersistToFile": true,
+  "FilePath": "logs/http-logs.log",
+  "MaxFileBytes": 10485760,
+  "MaxRolls": 5
+}
+```
+A startup validator attempts to create/append to the path so misconfiguration fails fast.
+
+## Log Endpoints
+| Endpoint | Method | Description | Query Params |
+|----------|--------|-------------|--------------|
+| `/logs` | GET | Paged JSON listing | `kind` (`http|soap|app`), `page`, `pageSize` |
+| `/logs/clear` | POST | Clears in‑memory buffer | none |
+| `/logs/write` | POST | Append a synthetic (app) test log | body/json (optional) |
+| `/logs/stream` | GET (SSE) | Server‑sent events stream (live) | `kind` (optional filter) |
+
+Availability gated by feature flags:
+```jsonc
+"Features": {
+  "Logs": { "Enabled": true },
+  "ShowLogs": true
+}
+```
+If `Logs.Enabled` is null it defaults to Development=true, Production=false.
+
+## Verbose Mode
+`Logging:Verbose` (guarded by `AllowVerboseInProduction`) can enable more detailed internal SOAP logging (`_verbose` flag in client) and additional diagnostic noise. In Production keep this off unless actively investigating.
+
+## Troubleshooting Checklist for Missing HTTP Logs
+1. Categories filtered? Ensure `System.Net.Http` (or narrower) is >= Information.
+2. Rate limiter engaged? Watch counters: `logs.dropped.reason{reason=rate}` via OpenTelemetry metrics (if exported).
+3. Capacity eviction? Large burst may cycle old entries; check `logs.dropped.reason{reason=capacity}`.
+4. Backpressure drops? See `logs.dropped.reason{reason=backpressure}`; consider increasing `MaxQueue`.
+5. Persist disabled? (Does not affect in‑memory visibility, only file output.)
+
+## OpenTelemetry (Optional)
+Enable exporters via `OpenTelemetry:Exporters` keys (`Console`, `Prometheus`, `Otlp`). Service resource name: `XRoadFolkWeb`.
+
+## Contributing Notes
+- Avoid injecting `ILogger` into the InMemory log provider registration to prevent cycles.
+- Add new log kinds by extending `ComputeKind` in `InMemoryHttpLogLoggerProvider`.
+- Prefer structured logging (LoggerMessage / source‑generated) for hot paths.
+
+## Quick Reference: Minimal Production Overrides to See HTTP Logs
+```jsonc
+"Logging": {
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft.AspNetCore": "Warning",
+    "System": "Warning",
+    "System.Net.Http": "Information"
+  }
+}
+```
+
+---
+For deeper adjustments create a custom DelegatingHandler that logs under `XRoadFolkWeb.Http` (already permitted at Information) if you want to keep `System.Net.Http` at Warning.
