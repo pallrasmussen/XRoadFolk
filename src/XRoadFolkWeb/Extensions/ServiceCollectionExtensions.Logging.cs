@@ -23,10 +23,18 @@ namespace XRoadFolkWeb.Extensions
                         .Bind(configuration.GetSection("Logging"))
                         .ValidateOnStart();
 
+            // Bind health options (readiness delay)
+            _ = services.AddOptions<HealthOptions>()
+                        .Bind(configuration.GetSection("Health"))
+                        .Validate(o => o.ReadinessDelaySeconds >= 0 && o.ReadinessDelaySeconds <= 3600, "Health:ReadinessDelaySeconds must be between 0 and 3600")
+                        .ValidateOnStart();
+
             ConfigureBuiltInLogging(services, configuration);
             AddOpenTelemetryPipelines(services, configuration);
             PostConfigureLoggerFilters(services, configuration);
-            _ = services.AddHealthChecks();
+            _ = services.AddHealthChecks()
+                        .AddCheck<HttpLogsWritableHealthCheck>(name: "http_logs_writable", tags: new[] { "ready" })
+                        .AddCheck<ReadinessDelayedHealthCheck>(name: "startup_delay", tags: new[] { "ready" });
             ConfigureHttpLogOptions(services);
             RegisterHttpLogServices(services);
             RegisterLogProvider(services);

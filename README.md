@@ -34,11 +34,13 @@ The web app loads default X‑Road settings from the library at startup, then ap
     - Include (boolean switches) or Include flags via GetPersonRequestOptions.Include
   - Localization (DefaultCulture, SupportedCultures, optional FallbackMap)
   - Logging (MaskTokens, Verbose)
+  - Health (ReadinessDelaySeconds)
 
 Environment variable overrides (examples):
 - XR_BASE_URL, XR_USER, XR_PASSWORD
 - XR_PFX_PATH / XR_PFX_PASSWORD or XR_PEM_CERT_PATH / XR_PEM_KEY_PATH
 - DOTNET_ENVIRONMENT=Development
+- Health__ReadinessDelaySeconds=20
 
 ## Features
 - People search (SSN or First/Last + Date of Birth)
@@ -149,7 +151,11 @@ Localization is driven by the `Localization` section and a best-match culture pr
 
 ## Health and Metrics
 
-- Health check endpoints: `GET /health/live`, `GET /health/ready`.
+- Liveness endpoint: `GET /health/live` – should return 200 quickly; **not** gated by readiness delay.
+- Readiness endpoint: `GET /health/ready` – includes a startup delay health check if configured.
+  - Configure a warmup delay with `Health:ReadinessDelaySeconds` (0 = disabled).
+  - During the delay window `/health/ready` returns 503 (Unhealthy) to allow JIT/cold-start warmup before the orchestrator sends traffic.
+- Combined simple endpoint: `GET /health` returns plaintext `ok` (no detailed checks).
 - Metrics (System.Diagnostics.Metrics) – scrape with OpenTelemetry by subscribing to meters below.
   - Meter `XRoadFolkRaw`:
     - `xroad.http.retries` (counter) tags: `op`
@@ -157,7 +163,7 @@ Localization is driven by the `Localization` section and a best-match culture pr
   - Meter `XRoadFolkWeb`:
     - `logs.queue.length` (observable gauge) tags: `store` (memory|file)
     - `logs.dropped` (counter)
-    - `logs.dropped.reason` (counter) tags: `reason` (rate|backpressure), `store` (memory|file)
+    - `logs.dropped.reason` (counter) tags: `reason` (rate|backpressure|capacity), `store` (memory|file)
     - `logs.dropped.level` (counter) tags: `level`, `store`
 
 ### OpenTelemetry wiring (Prometheus/OTLP)
@@ -206,6 +212,7 @@ The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and 
 - HttpLogs.PersistToFile: Do not enable in production unless there is a strong operational need and storage/retention is controlled.
   - Use environment-specific overrides (e.g., appsettings.Production.json) instead of editing appsettings.json.
 - Features.ShowLogs: Should be disabled in production to reduce exposure of log data in the UI.
+- Health.ReadinessDelaySeconds: Set only when orchestrator probes the readiness endpoint aggressively (e.g., Kubernetes initialDelaySeconds can also be used; do not duplicate excessively).
 
 ## Environment-specific configuration
 
@@ -220,6 +227,7 @@ The app wires a MeterProvider and exposes both a Prometheus scrape endpoint and 
   - ASPNETCORE_ENVIRONMENT=Production
   - HttpLogs__PersistToFile=false
   - Features__ShowLogs=false
+  - Health__ReadinessDelaySeconds=15
 
 # XRoadFolk
 
