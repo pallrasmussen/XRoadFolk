@@ -85,6 +85,46 @@ jobs:
           name: coverage
           path: coverage/**
 
+      - name: Start web app
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://localhost:5000
+        run: |
+          nohup dotnet run --project src/XRoadFolkWeb/XRoadFolkWeb.csproj --no-build -c Release > app.log 2>&1 &
+          echo $! > app.pid
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000/ >/dev/null 2>&1; then echo "App is up"; break; fi; sleep 1; done
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright deps
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run Playwright a11y tests (axe)
+        working-directory: tests/e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5000
+        run: npx playwright test --reporter=dot
+
+      - name: Tear down web app
+        if: always()
+        run: |
+          if [ -f app.pid ]; then kill $(cat app.pid) || true; fi
+          pkill -f XRoadFolkWeb || true
+
+      - name: Upload app.log (if failed)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: app.log
+
   publish:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     needs: build-test
