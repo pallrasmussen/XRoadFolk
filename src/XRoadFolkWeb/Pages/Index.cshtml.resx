@@ -3,6 +3,9 @@
   <data name="DateFormatPlaceholder" xml:space="preserve">
     <value>YYYY-MM-DD</value>
   </data>
+  <data name="DateFormatHint" xml:space="preserve">
+    <value>Use date format: YYYY-MM-DD</value>
+  </data>
   <data name="NoPeopleFound" xml:space="preserve">
     <value>No people found.</value>
   </data>

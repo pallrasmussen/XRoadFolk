@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <data name="DateFormatPlaceholder" xml:space="preserve">
-    <value>YYYY-MM-DD</value>
+    <value>dd-mm-áááá</value>
+  </data>
+  <data name="DateFormatHint" xml:space="preserve">
+    <value>Nýt snið: dd-mm-áááá</value>
   </data>
 </root>

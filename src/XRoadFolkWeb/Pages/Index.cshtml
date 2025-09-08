@@ -13,6 +13,9 @@
     var infoVersion = appAsm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                       ?? appAsm.GetName().Version?.ToString();
     ViewData["AppVersion"] = infoVersion;
+
+    // Date bounds for HTML5 date picker (progressive enhancement) - not used in custom mask
+    string todayIso = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <h1 class="mb-4">@L["Title"]</h1>
@@ -56,7 +59,8 @@
                     </div>
                     <div class="col-12">
                         <label asp-for="DateOfBirth" class="form-label"></label>
-                        <input asp-for="DateOfBirth" class="form-control" placeholder="@L["DateFormatPlaceholder"]" autocomplete="off" autocapitalize="off" spellcheck="false" />
+                        <input asp-for="DateOfBirth" type="text" class="form-control" placeholder="@L["DateFormatPlaceholder"]"
+                               autocomplete="off" autocapitalize="off" spellcheck="false" />
                         <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                     </div>
 
@@ -84,11 +88,14 @@
 
     <!-- GetPeoplePublicInfo viewer & Person Details combined -->
     <div class="col-12 col-lg-7 col-xxl-8 min-w-0">
-        <partial name="_GetPeoplePublicInfoViewer"
-                 view-data='new ViewDataDictionary(ViewData) {
-                     ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
-                     ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
-                 }' />
+        @if (Model?.HasSearched == true && Model?.Results?.Count > 0)
+        {
+            <partial name="_GetPeoplePublicInfoViewer"
+                     view-data='new ViewDataDictionary(ViewData) {
+                         ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
+                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
+                     }' />
+        }
 
         @if (Model?.HasSearched == true && Model?.Results?.Count == 0)
         {
@@ -110,4 +117,5 @@
     <script src="~/js/validation-letters-only.js"></script>
     <script src="~/js/index-clear-details.js" asp-append-version="true" defer></script>
     <script src="~/js/index-form-state.js" asp-append-version="true" defer></script>
+    <script src="~/js/date-mask.js" asp-append-version="true" defer></script>
 }

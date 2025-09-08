@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <data name="DateFormatPlaceholder" xml:space="preserve">
-    <value>ÅÅÅÅ-MM-DD</value>
+    <value>dd-mm-åååå</value>
+  </data>
+  <data name="DateFormatHint" xml:space="preserve">
+    <value>Brug format: dd-mm-åååå</value>
   </data>
 </root>
