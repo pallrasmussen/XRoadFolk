@@ -64,6 +64,14 @@
     var langRes = SR["Language"]; var langText = langRes.ResourceNotFound ? "Language" : langRes.Value;
     var applyRes = SR["Apply"]; var applyText = applyRes.ResourceNotFound ? "Apply" : applyRes.Value;
     var skipRes = SR["SkipToContent"]; var skipText = skipRes.ResourceNotFound ? "Skip to main content" : skipRes.Value;
+
+    // Meta description + OG/Twitter fallbacks
+    string appName = (SR["AppName"].ResourceNotFound ? "App" : SR["AppName"].Value);
+    string pageTitle = $"{ViewData["Title"]} - {appName}";
+    var descRes = SR["MetaDescription"]; // optional resource key
+    string metaDescription = descRes.ResourceNotFound ? $"{appName}: People lookup and details viewer." : descRes.Value;
+    string? currentUrl = null;
+    try { if (Context?.Request is { } req) { currentUrl = $"{req.Scheme}://{req.Host}{req.PathBase}{req.Path}"; } } catch {}
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -71,6 +79,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - @SR["AppName"]</title>
+
+    <meta name="description" content="@metaDescription" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="@currentUi" />
+    <meta property="og:title" content="@pageTitle" />
+    <meta property="og:description" content="@metaDescription" />
+    @if (!string.IsNullOrEmpty(currentUrl)) { <meta property="og:url" content="@currentUrl" /> }
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="@pageTitle" />
+    <meta name="twitter:description" content="@metaDescription" />
 
     @if (!string.IsNullOrEmpty(antiReq))
     {
