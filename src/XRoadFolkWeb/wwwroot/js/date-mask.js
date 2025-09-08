@@ -13,7 +13,7 @@
 
   function getFormatFor(culture){
     switch (culture){
-      case 'fo-FO': return { pattern: 'dd-mm-yyyy', placeholder: 'dd-mm-áááá' };
+      case 'fo-FO': return { pattern: 'dd-mm-yyyy', placeholder: 'dd-mm-åååå' };
       case 'da-DK': return { pattern: 'dd-mm-yyyy', placeholder: 'dd-mm-åååå' };
       default:      return { pattern: 'yyyy-mm-dd', placeholder: 'yyyy-mm-dd' };
     }
@@ -27,10 +27,11 @@
     // Disable native picker hinting
     input.setAttribute('type','text');
     input.setAttribute('inputmode','numeric');
-    input.setAttribute('placeholder', input.getAttribute('placeholder') || fmt.placeholder);
+    if (!input.getAttribute('placeholder')) input.setAttribute('placeholder', fmt.placeholder);
     input.autocomplete = 'off';
     input.spellcheck = false;
 
+    function isDigit(ch){ return ch >= '0' && ch <= '9'; }
     function digitsOnly(s){ return (s||'').replace(/\D+/g,''); }
 
     function formatFromDigits(d){
@@ -50,30 +51,57 @@
 
     function clampDigits(d){ return d.slice(0,8); }
 
-    function onInput(ev){
+    function caretIndexForDigits(formatted, count){
+      if (count <= 0) return 0;
+      var seen = 0;
+      for (var i=0;i<formatted.length;i++){
+        if (isDigit(formatted.charAt(i))){
+          seen++;
+          if (seen >= count) return i+1; // caret just after that digit
+        }
+      }
+      return formatted.length;
+    }
+
+    function onInput(){
+      // Preserve caret relative to digits
       var before = input.value;
+      var caret = input.selectionStart || 0;
+      var digitsBeforeCaret = digitsOnly(before.slice(0, caret)).length;
+
       var d = digitsOnly(before);
       d = clampDigits(d);
       var formatted = formatFromDigits(d);
       input.value = formatted;
-      // Move caret to end after reformat to avoid jumps
-      try { input.setSelectionRange(formatted.length, formatted.length); } catch {}
+
+      // Restore caret at equivalent digit position
+      try {
+        var newCaret = caretIndexForDigits(formatted, digitsBeforeCaret);
+        input.setSelectionRange(newCaret, newCaret);
+      } catch {}
     }
 
     function onKeyDown(ev){
       var k = ev.key;
       // Allow control/navigation and submission keys
       if (k === 'Enter' || k === 'Backspace' || k === 'Delete' || k === 'Tab' || k === 'ArrowLeft' || k === 'ArrowRight' || k === 'Home' || k === 'End' || ev.ctrlKey || ev.metaKey){
-        return; // do not block; Enter should submit the form
+        return; // let browser handle
       }
       // Block non-digits
       if (!/\d/.test(k)){
         ev.preventDefault();
         return;
       }
-      // If max length reached (8 digits), stop additional digits
-      var d = input.value.replace(/\D+/g,'');
-      if (d.length >= 8){ ev.preventDefault(); }
+      // Respect max 8 digits, but allow replacement when selection contains at least one digit
+      var raw = input.value;
+      var totalDigits = digitsOnly(raw).length;
+      var selStart = input.selectionStart || 0;
+      var selEnd = input.selectionEnd || selStart;
+      var selectedDigits = digitsOnly(raw.slice(selStart, selEnd)).length;
+      var replacingSome = selectedDigits > 0;
+      if (totalDigits >= 8 && !replacingSome){
+        ev.preventDefault();
+      }
     }
 
     function onBlur(){
