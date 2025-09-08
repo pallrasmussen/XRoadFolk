@@ -1,7 +1,18 @@
-import { iconClassFor, prettify, nextUid, clearChildren, handleAccordionKeydown, copyToClipboard, downloadBlob, toggleFullscreenWithCssFallback } from './gpiv-helpers.js';
-
 (function () {
   'use strict';
+
+  // Pull helpers from global UMD bridge to avoid import resolution issues
+  var H = (typeof window !== 'undefined' && window.gpivHelpers) ? window.gpivHelpers : {};
+  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
+  var prettify = H.prettify || (s => String(s||''));
+  var nextUid = H.nextUid || (p => (p||'id')+'-'+Date.now());
+  var clearChildren = H.clearChildren || function(n){ try{ while(n && n.firstChild){ n.removeChild(n.firstChild);} }catch{} };
+  var handleAccordionKeydown = H.handleAccordionKeydown || function(){};
+  var copyToClipboard = H.copyToClipboard || (async function(){ return false; });
+  var downloadBlob = H.downloadBlob || function(){};
+  var toggleFullscreenWithCssFallback = H.toggleFullscreenWithCssFallback || function(el, cls){ if (el && el.classList) el.classList.toggle(cls); };
+  var focusFirstAccordionButton = H.focusFirstAccordionButton || function(scope){ try{ var btn=(scope||document).querySelector('.accordion .accordion-header .accordion-button'); if(btn&&btn.focus) btn.focus(); }catch{} };
+  var toggleAllAccordions = H.toggleAllAccordions || function(scope, open){ try{ var panes=(scope||document).querySelectorAll('.accordion-collapse')||[]; for(var i=0;i<panes.length;i++){ var p=panes[i]; if(p) p.classList.toggle('show', !!open);} var btns=(scope||document).querySelectorAll('.accordion-button')||[]; for(var j=0;j<btns.length;j++){ var b=btns[j]; if(b){ b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open?'true':'false'); } } }catch{} };
 
   // Utilities
   function byId(id) { return document.getElementById(id); }
@@ -143,8 +154,7 @@ import { iconClassFor, prettify, nextUid, clearChildren, handleAccordionKeydown,
 
   function expandSummaryAll(open) {
     if (!summaryHost) return;
-    qsa('.accordion-collapse', summaryHost).forEach(function (p) { p.classList.toggle('show', !!open); });
-    qsa('.accordion-button', summaryHost).forEach(function (b) { b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); });
+    toggleAllAccordions(summaryHost, open);
   }
 
   function groupChildrenByName(node) {
@@ -350,8 +360,7 @@ import { iconClassFor, prettify, nextUid, clearChildren, handleAccordionKeydown,
 
       // Focus first accordion header for keyboard users
       try {
-        var firstAccBtn = summaryHost.querySelector('.accordion .accordion-header .accordion-button');
-        if (firstAccBtn) firstAccBtn.focus();
+        focusFirstAccordionButton(summaryHost);
       } catch {}
 
       syncViewerHeight();

@@ -1,11 +1,22 @@
-import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydown, copyToClipboard, downloadBlob, toggleFullscreenWithCssFallback } from './gpiv-helpers.js';
-
 // Restore PublicId click -> load PersonDetails panel behavior
 (function(){
   if (window.__gpivPidHooked) return;
   window.__gpivPidHooked = true;
 
-  function clearChildren(node){ try{ while(node && node.firstChild){ node.removeChild(node.firstChild); } }catch{} }
+  // Use global helpers from UMD bridge
+  var H = (typeof window !== 'undefined' && window.gpivHelpers) ? window.gpivHelpers : {};
+  var iconClassFor = H.iconClassFor || function(){ return 'bi-list-ul'; };
+  var prettify = H.prettify || (s => String(s||''));
+  var parseAddressKey = H.parseAddressKey || function(){ return null; };
+  var nextUid = H.nextUid || (p => (p||'id')+'-'+Date.now());
+  var handleAccordionKeydown = H.handleAccordionKeydown || function(){};
+  var copyToClipboard = H.copyToClipboard || (async function(){ return false; });
+  var downloadBlob = H.downloadBlob || function(){};
+  var toggleFullscreenWithCssFallback = H.toggleFullscreenWithCssFallback || function(el, cls){ if (el && el.classList) el.classList.toggle(cls); };
+  var clearChildren = H.clearChildren || function(n){ try{ while(n && n.firstChild){ n.removeChild(n.firstChild);} }catch{} };
+  var safeClosest = H.safeClosest || function(el, sel){ try{ if(el&&el.closest) return el.closest(sel);}catch{} try{ var node=el; while(node && node.nodeType===1){ try{ if(node.matches && node.matches(sel)) return node; }catch{} node=node.parentElement; } }catch{} return null; };
+  var toggleAllAccordions = H.toggleAllAccordions || function(scope, open){ try{ var panes=(scope||document).querySelectorAll('.accordion-collapse')||[]; for(var i=0;i<panes.length;i++){ var p=panes[i]; if(p) p.classList.toggle('show', !!open);} var btns=(scope||document).querySelectorAll('.accordion-button')||[]; for(var j=0;j<btns.length;j++){ var b=btns[j]; if(b){ b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open?'true':'false'); } } }catch{} };
+  var focusFirstAccordionButton = H.focusFirstAccordionButton || function(scope){ try{ var btn=(scope||document).querySelector('.accordion .accordion-header .accordion-button'); if(btn&&btn.focus) btn.focus(); }catch{} };
 
   // --- local renderer for addresses using parseAddressKey helper ---
   function renderAddressesCardList(items){
@@ -41,18 +52,6 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
   var lastPid = window.lastPid || null;
   var loadSeq = 0; // protects against races when clicking quickly
   var currentAbort = null; // AbortController for in-flight fetch
-
-  function safeClosest(el, selector){
-    try{ if (el && typeof el.closest === 'function') return el.closest(selector); }catch{}
-    try{
-      var node = el;
-      while (node && node.nodeType === 1){
-        try{ if (node.matches && node.matches(selector)) return node; }catch{}
-        node = node.parentElement;
-      }
-    }catch{}
-    return null;
-  }
 
   function getPanelEls() {
     return {
@@ -126,7 +125,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
           }catch{}
         }
       }
-      return parseFirstPublicIdFromEmbeddedXml(raw || pretty || '');
+      return parseFirstPersonIdFromEmbeddedXml(raw || pretty || '');
     }catch{ return ''; }
   }
 
@@ -140,7 +139,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
     if (lower === 'addresses' || lower === 'address') return 'Addresses';
     if (lower === 'foreignssns' || lower === 'foreignssn' || (lower.includes('foreign') && lower.includes('ssn'))) return 'Foreign SSNs';
     if (lower === 'juridicalparents' || lower === 'juridicalparent') return 'Juridical Parents';
-    if (lower === 'publicid') return i18n.PublicId || 'Public Id';
+    if (lower === 'publicid' || lower === 'pid') return i18n.PublicId || 'Public Id';
     if (lower === 'dob' || lower === 'dateofbirth') return i18n.DOB || 'Date of Birth';
     if (lower.includes('status')) return i18n.Status || 'Status';
     return prettify(t);
@@ -470,8 +469,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
     try{
       var els = getPanelEls();
       if (!els || !els.body) return;
-      var btn = els.body.querySelector('.accordion .accordion-header .accordion-button');
-      if (btn && btn.focus) btn.focus();
+      focusFirstAccordionButton(els.body);
     }catch{}
   }
 
@@ -716,10 +714,7 @@ import { iconClassFor, prettify, parseAddressKey, nextUid, handleAccordionKeydow
     try{
       var host = document.getElementById('person-details-section');
       if (!host) return;
-      var panes = host.querySelectorAll('.accordion-collapse') || [];
-      for (var i=0;i<panes.length;i++){ var p = panes[i]; if (!p) continue; p.classList.toggle('show', !!open); }
-      var btns = host.querySelectorAll('.accordion-button') || [];
-      for (var j=0;j<btns.length;j++){ var b = btns[j]; if (!b) continue; b.classList.toggle('collapsed', !open); b.setAttribute('aria-expanded', open ? 'true':'false'); }
+      toggleAllAccordions(host, open);
     }catch(e){ try{ console.debug('GPIV: pdToggleAll failed', e); }catch{} }
   }
 
