@@ -216,6 +216,9 @@
   <data name="Summary" xml:space="preserve">
     <value>Summary</value>
   </data>
+  <data name="Public" xml:space="preserve">
+    <value>Public</value>
+  </data>
   <data name="RawXml" xml:space="preserve">
     <value>Raw XML</value>
   </data>

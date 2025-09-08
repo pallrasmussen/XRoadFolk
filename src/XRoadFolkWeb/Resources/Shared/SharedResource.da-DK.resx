@@ -252,4 +252,7 @@
   <data name="PreviewNoSave" xml:space="preserve">
     <value>Preview (gemmer ikke)</value>
   </data>
+  <data name="Public" xml:space="preserve">
+    <value>Offentligt</value>
+  </data>
 </root>

@@ -252,4 +252,7 @@
   <data name="PreviewNoSave" xml:space="preserve">
     <value>Preview (ikki goymt)</value>
   </data>
+  <data name="Public" xml:space="preserve">
+    <value>Alment</value>
+  </data>
 </root>
