@@ -13,19 +13,11 @@ namespace XRoadFolkRaw.Lib.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        private static readonly Action<ILogger, Exception?> _logCertWarning =
-            LoggerMessage.Define(
-                LogLevel.Warning,
-                new EventId(1, "ClientCertNotConfigured"),
-                "Client certificate not configured. Proceeding without certificate.");
-
         public static IServiceCollection AddXRoadHttpClient(this IServiceCollection services)
         {
-            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(services, nameof(services));
 
-            // Register expiry info container (singleton) if not already added
             services.TryAddCertificateExpiryInfo();
-
             RegisterHttpClient(services);
             return services;
         }
@@ -92,7 +84,6 @@ namespace XRoadFolkRaw.Lib.Extensions
                 handler.SslOptions.ClientCertificates ??= [];
                 _ = handler.SslOptions.ClientCertificates.Add(cert);
 
-                // Expiry precheck
                 int warnDays = 30;
                 try
                 {
@@ -109,11 +100,11 @@ namespace XRoadFolkRaw.Lib.Extensions
                 double daysRemaining = (notAfterUtc - nowLocal).TotalDays;
                 if (daysRemaining < 0)
                 {
-                    log.LogError("Client certificate '{Subject}' is expired.", cert.Subject);
+                    log.LogClientCertExpired(cert.Subject);
                 }
                 else if (daysRemaining <= warnDays)
                 {
-                    log.LogWarning("Client certificate '{Subject}' expires in {DaysRemaining:F1} days. Renew soon to avoid outages.", cert.Subject, daysRemaining);
+                    log.LogClientCertExpiringSoon(cert.Subject, daysRemaining);
                 }
 
                 if (info is not null)
@@ -123,7 +114,7 @@ namespace XRoadFolkRaw.Lib.Extensions
             }
             catch (Exception ex)
             {
-                _logCertWarning(log, ex);
+                log.LogClientCertNotConfigured(ex);
                 info?.Clear();
             }
         }
@@ -273,6 +264,19 @@ namespace XRoadFolkRaw.Lib.Extensions
                 toDisposeCert?.Dispose();
             }
         }
+    }
+
+    // Source-generated high-performance logging extensions
+    internal static partial class CertificateLogging
+    {
+        [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "Client certificate not configured. Proceeding without certificate.")]
+        public static partial void LogClientCertNotConfigured(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Client certificate '{Subject}' expires in {DaysRemaining:F1} days. Renew soon to avoid outages.")]
+        public static partial void LogClientCertExpiringSoon(this ILogger logger, string Subject, double DaysRemaining);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Client certificate '{Subject}' is expired.")]
+        public static partial void LogClientCertExpired(this ILogger logger, string Subject);
     }
 
     /// <summary>Public interface for exposing certificate expiry info to UI.</summary>
