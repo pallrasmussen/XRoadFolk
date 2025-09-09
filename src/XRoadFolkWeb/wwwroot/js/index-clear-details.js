@@ -7,17 +7,13 @@
       var body = document.getElementById('person-details-body');
       var err = document.getElementById('person-details-error');
       var loading = document.getElementById('person-details-loading');
-      if (sec) sec.classList.add('d-none');
-      if (body) body.innerHTML='';
       if (err) { err.classList.add('d-none'); err.textContent=''; }
-      if (loading) loading.classList.add('d-none');
+      if (loading) loading.classList.remove('d-none');
+      if (body) { body.innerHTML=''; }
+      if (sec) { sec.classList.remove('d-none'); }
       window.lastPid = null;
       if (window.personCache && window.personCache.clear) window.personCache.clear();
-      try{
-        var url = new URL(window.location.href);
-        url.searchParams.delete('gpivPublicId');
-        history.replaceState(null,'',url.toString());
-      }catch{}
+      try{ var url = new URL(window.location.href); url.searchParams.delete('publicId'); url.searchParams.delete('gpivPublicId'); history.replaceState(null,'',url.toString()); }catch{}
     }catch{}
   });
 })();

@@ -40,6 +40,7 @@
     string rawB64 = string.IsNullOrEmpty(raw) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(raw));
     string prettyB64 = string.IsNullOrEmpty(pretty) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pretty));
 }
+<div id="gpiv-initial-publicid" data-initial-publicid="@initialPublicId" hidden></div>
 <link rel="stylesheet" href="~/css/gpiv.css" asp-append-version="true" />
 
 <div id="person-details-wrapper" class="mb-4">
@@ -78,7 +79,12 @@
             @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
           </div>
           <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
-          <div id="person-details-body"><div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div></div>
+          <div id="person-details-body" data-initial-placeholder="@(string.IsNullOrEmpty(initialPublicId) ? "1" : "0")">
+            @if (string.IsNullOrEmpty(initialPublicId))
+            {
+              <div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div>
+            }
+          </div>
         </div>
 
         @if (showRaw)
@@ -112,7 +118,6 @@
 <div id="gpiv-tab-details" class="d-none"></div>
 
 <div id="gpiv-data" data-raw-b64="@rawB64" data-pretty-b64="@prettyB64" hidden></div>
-<div id="gpiv-initial-publicid" data-initial-publicid="@initialPublicId" hidden></div>
 <script nonce="@nonce" type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
