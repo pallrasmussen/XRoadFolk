@@ -285,6 +285,22 @@ namespace XRoadFolkWeb.Features.People
 
         private static void FlattenElements(XElement el, string path, List<(string, string)> pairs)
         {
+            // NEW: capture attributes (e.g. OfficialName on Person) as individual key/value pairs
+            try
+            {
+                foreach (var attr in el.Attributes())
+                {
+                    string? aval = attr.Value?.Trim();
+                    if (string.IsNullOrEmpty(aval)) { continue; }
+                    string attrKeyBase = string.IsNullOrEmpty(path) ? el.Name.LocalName : path; // keep consistent path root
+                    string key = string.IsNullOrEmpty(attrKeyBase)
+                        ? attr.Name.LocalName
+                        : attrKeyBase + "." + attr.Name.LocalName; // results in e.g. Person.OfficialName or Person[0].OfficialName
+                    pairs.Add((key, aval));
+                }
+            }
+            catch { /* ignore attribute processing issues */ }
+
             XElement? firstChild = el.Elements().FirstOrDefault();
             if (firstChild is null)
             {

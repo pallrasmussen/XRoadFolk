@@ -93,7 +93,8 @@
             <partial name="_GetPeoplePublicInfoViewer"
                      view-data='new ViewDataDictionary(ViewData) {
                          ["RawXml"] = Model?.PeoplePublicInfoResponseXml ?? string.Empty,
-                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty
+                         ["PrettyXml"] = Model?.PeoplePublicInfoResponseXmlPretty ?? string.Empty,
+                         ["InitialPublicId"] = Model?.Results?.FirstOrDefault()?.PublicId ?? string.Empty
                      }' />
         }
 

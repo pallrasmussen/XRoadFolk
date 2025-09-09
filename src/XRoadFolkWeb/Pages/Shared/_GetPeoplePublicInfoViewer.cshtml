@@ -6,32 +6,19 @@
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
+    var initialPublicId = (string?)(ViewData["InitialPublicId"]) ?? string.Empty;
     bool showRaw = RespOpts?.ShowRawXml ?? true;
     bool showPretty = RespOpts?.ShowPrettyXml ?? true;
 
     var gpivI18n = new {
-        NoXmlToDisplay = SR["NoXmlToDisplay"].Value,
-        NoXmlRoot = SR["NoXmlRoot"].Value,
-        FailedToRenderTreePrefix = SR["FailedToRenderTreePrefix"].Value,
-        NoPeopleFound = SR["NoPeopleFound"].Value,
-        PeopleLabel = SR["PeopleLabel"].Value,
         Basics = SR["Basics"].Value,
         Names = SR["Names"].Value,
         Name = SR["Name"].Value,
         PublicId = SR["PublicId"].Value,
         DOB = SR["DOB"].Value,
         Status = SR["Status"].Value,
-        Expand = SR["Expand"].Value,
-        Collapse = SR["Collapse"].Value,
-        ExtendedSearch = SR["ExtendedSearch"].Value,
-        Fullscreen = SR["Fullscreen"].Value,
-        ToggleFullscreen = SR["ToggleFullscreen"].Value,
-        Summary = SR["Summary"].Value,
-        RawXml = SR["RawXml"].Value,
-        PrettyXml = SR["PrettyXml"].Value,
         Copy = SR["Copy"].Value,
         Copied = SR["Copied"].Value,
-        Download = SR["Download"].Value,
         PersonDetails = SR["PersonDetails"].Value,
         Loading = SR["Loading"].Value,
         NoBasics = SR["NoBasics"].Value,
@@ -42,7 +29,6 @@
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
-    // Collect Include flags (true) for GetPerson request to guarantee placeholder accordions
     var includeSection = Config.GetSection("Operations:GetPerson:Request:Include");
     var includeGroups = includeSection.GetChildren()
         .Where(c => bool.TryParse(c.Value, out var bv) && bv)
@@ -51,155 +37,86 @@
         .OrderBy(k => k)
         .ToArray();
 
-    // Base64 fallback for XML payload to avoid any HTML/script parsing edge-cases
     string rawB64 = string.IsNullOrEmpty(raw) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(raw));
     string prettyB64 = string.IsNullOrEmpty(pretty) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pretty));
 }
-
 <link rel="stylesheet" href="~/css/gpiv.css" asp-append-version="true" />
 
-<div class="card shadow-sm mb-4 gpiv-card">
-    <div class="gpiv-drop" id="gpiv-drop">
-        <div class="msg"><div class="mb-1">@SR["DropXmlHint"]</div></div>
-    </div>
-
+<div id="person-details-wrapper" class="mb-4">
+  <div id="person-details-section" class="card shadow-sm person-details" role="region" aria-labelledby="pd-title">
     <div class="card-body">
-        <div class="gpiv-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-          <h5 class="card-title mb-0">@SR["GetPeoplePublicInfo"]</h5>
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" id="gpiv-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@SR["Expand"]</button>
-            <button type="button" id="gpiv-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@SR["Collapse"]</button>
-            <button type="button" id="gpiv-fullscreen" class="btn btn-sm btn-outline-secondary" title="@SR["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@SR["Fullscreen"]</button>
+      <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
+        <h5 id="pd-title" class="card-title mb-0">@SR["PersonDetails"]</h5>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@SR["Expand"]</button>
+          <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@SR["Collapse"]</button>
+          <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@SR["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@SR["Fullscreen"]</button>
+        </div>
+      </div>
+
+      <ul class="nav nav-tabs small" id="pd-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@SR["PersonDetails"]</button>
+        </li>
+        @if (showRaw)
+        {
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
+          </li>
+        }
+        @if (showPretty)
+        {
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
+          </li>
+        }
+      </ul>
+
+      <div class="tab-content border-start border-end border-bottom rounded-bottom p-2" id="pd-tabs-content" style="min-height:10rem;">
+        <div class="tab-pane fade show active" id="pd-tab-details" role="tabpanel" aria-labelledby="pd-tab-details-btn" tabindex="0">
+          <div id="person-details-loading" class="d-none" aria-live="polite">
+            @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
           </div>
+          <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+          <div id="person-details-body"><div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div></div>
         </div>
 
-        <ul class="nav nav-tabs small" id="gpiv-tabs" role="tablist">
-          <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@SR["Summary"]</button>
-          </li>
-          @if (showRaw)
-          {
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" id="gpiv-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-raw" type="button" role="tab" aria-controls="gpiv-tab-raw" aria-selected="false">@SR["RawXml"]</button>
-          </li>
-          }
-          @if (showPretty)
-          {
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
-          </li>
-          }
-          <li class="nav-item ms-auto" role="presentation">
-            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
-          </li>
-        </ul>
-
-        <div class="tab-content border-start border-end border-bottom rounded-bottom p-2 small" id="gpiv-tabs-content" style="min-height:12rem;">
-          <div class="tab-pane fade show active" id="gpiv-tab-summary" role="tabpanel" aria-labelledby="gpiv-tab-summary-btn" tabindex="0">
-            <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@SR["EmptyState"]</div>
-            <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 p-3 rounded"></div>
-          </div>
-
-          @if (showRaw)
-          {
-          <div class="tab-pane fade" id="gpiv-tab-raw" role="tabpanel" aria-labelledby="gpiv-tab-raw-btn" tabindex="0">
+        @if (showRaw)
+        {
+          <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
             <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-raw">@SR["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-raw">@SR["Download"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
             </div>
-            <pre class="gpiv-pre" id="gpiv-raw-pre"></pre>
+            <pre class="gpiv-pre" id="pd-raw-pre"></pre>
           </div>
-          }
+        }
 
-          @if (showPretty)
-          {
-          <div class="tab-pane fade" id="gpiv-tab-pretty" role="tabpanel" aria-labelledby="gpiv-tab-pretty-btn" tabindex="0">
+        @if (showPretty)
+        {
+          <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
             <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@SR["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@SR["Download"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
             </div>
-            <pre class="gpiv-pre" id="gpiv-pretty-pre"></pre>
+            <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
           </div>
-          }
-
-          <div class="tab-pane fade" id="gpiv-tab-details" role="tabpanel" aria-labelledby="gpiv-tab-details-btn" tabindex="0">
-            <div id="person-details-section" class="card shadow-sm mb-0 person-details" role="region" aria-labelledby="pd-title">
-              <div class="card-body">
-                <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
-                  <h5 id="pd-title" class="card-title mb-0">@SR["PersonDetails"]</h5>
-                  <div class="d-flex flex-wrap gap-2">
-                    <button type="button" id="pd-expand-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-down me-1" aria-hidden="true"></i>@SR["Expand"]</button>
-                    <button type="button" id="pd-collapse-all" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-double-up me-1" aria-hidden="true"></i>@SR["Collapse"]</button>
-                    <button type="button" id="pd-fullscreen" class="btn btn-sm btn-outline-secondary" title="@SR["ToggleFullscreen"]"><i class="bi bi-arrows-fullscreen me-1" aria-hidden="true"></i>@SR["Fullscreen"]</button>
-                  </div>
-                </div>
-
-                <ul class="nav nav-tabs small" id="pd-tabs" role="tablist">
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@SR["PersonDetails"]</button>
-                  </li>
-                  @if (showRaw)
-                  {
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
-                  </li>
-                  }
-                  @if (showPretty)
-                  {
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
-                  </li>
-                  }
-                </ul>
-
-                <div class="tab-content border-start border-end border-bottom rounded-bottom p-2" id="pd-tabs-content" style="min-height:10rem;">
-                  <div class="tab-pane fade show active" id="pd-tab-details" role="tabpanel" aria-labelledby="pd-tab-details-btn" tabindex="0">
-                    <div id="person-details-loading" class="d-none" aria-live="polite">
-                      @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
-                    </div>
-                    <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
-                    <div id="person-details-body"><div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div></div>
-                  </div>
-
-                  @if (showRaw)
-                  {
-                  <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
-                    <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
-                    </div>
-                    <pre class="gpiv-pre" id="pd-raw-pre"></pre>
-                  </div>
-                  }
-
-                  @if (showPretty)
-                  {
-                  <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
-                    <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
-                    </div>
-                    <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
-                  </div>
-                  }
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>
+        }
+      </div>
     </div>
+  </div>
 </div>
 
-<!-- Fallback data attributes (base64) for robustness -->
-<div id="gpiv-data" data-raw-b64="@rawB64" data-pretty-b64="@prettyB64" hidden></div>
+<!-- Hidden compatibility button for existing loader logic (acts like outer tab) -->
+<button id="gpiv-tab-details-btn" type="button" class="d-none" data-bs-target="#gpiv-tab-details"></button>
+<div id="gpiv-tab-details" class="d-none"></div>
 
+<div id="gpiv-data" data-raw-b64="@rawB64" data-pretty-b64="@prettyB64" hidden></div>
+<div id="gpiv-initial-publicid" data-initial-publicid="@initialPublicId" hidden></div>
 <script nonce="@nonce" type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-includes-json">@Html.Raw(JsonSerializer.Serialize(includeGroups))</script>
 
-<!-- Load ES modules in order: helpers first, then viewer and details loader -->
 <script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
-<script type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
 <script type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>
