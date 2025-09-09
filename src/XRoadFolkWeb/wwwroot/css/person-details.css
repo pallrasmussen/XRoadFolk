@@ -17,6 +17,9 @@
 .person-details #person-details-body { font-size: .875rem; }
 .person-details .accordion-button { font-size: .875rem; }
 .person-details .table { font-size: .875rem; }
+/* Official name styling (slightly smaller, no monospace, no bold, no italics) */
+.person-details .pd-official-name { font-family: inherit; font-weight: 400; font-style: normal; font-size: .9em; letter-spacing:.25px; color: var(--bs-primary-text-emphasis, var(--bs-primary)); }
+html[data-bs-theme='dark'] .person-details .pd-official-name { color: #93c5fd; }
 /* Dark mode improvements */
 html[data-bs-theme='dark'] .person-details .table th { background-color: #0b1220; color: #cbd5e1; }
 html[data-bs-theme='dark'] .person-details .table td { color: #e5e7eb; }

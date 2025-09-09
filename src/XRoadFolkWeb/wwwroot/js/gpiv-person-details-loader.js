@@ -46,8 +46,9 @@
     }catch{ return ''; }
   }
   function updateHeaderWithOfficialName(pairs){
-    try{ var hdr=document.getElementById('pd-title'); if(!hdr) return; if(!hdr.dataset.baseTitle){ hdr.dataset.baseTitle = hdr.textContent || 'Person Details'; } var off=extractOfficialName(pairs); hdr.textContent = off ? (hdr.dataset.baseTitle + ' – ' + off) : hdr.dataset.baseTitle; }catch{}
+    try{ var hdr=document.getElementById('pd-title'); if(!hdr) return; if(!hdr.dataset.baseTitle){ hdr.dataset.baseTitle = hdr.textContent || 'Person Details'; } var off=extractOfficialName(pairs); hdr.innerHTML = off ? (hdr.dataset.baseTitle + ' – <span class="pd-official-name">'+escapeHtml(off)+'</span>') : hdr.dataset.baseTitle; }catch{}
   }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])||c;}); }
 
   // Specific icon mapping (Bootstrap Icons)
   var ICON_MAP = {
