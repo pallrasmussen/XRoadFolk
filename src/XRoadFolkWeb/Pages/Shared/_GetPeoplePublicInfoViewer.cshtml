@@ -2,6 +2,7 @@
 @using XRoadFolkWeb.Shared
 @inject Microsoft.Extensions.Localization.IStringLocalizer<SharedResource> SR
 @inject XRoadFolkWeb.Infrastructure.ResponseViewerOptions RespOpts
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
 @{
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
@@ -25,7 +26,7 @@
         ExtendedSearch = SR["ExtendedSearch"].Value,
         Fullscreen = SR["Fullscreen"].Value,
         ToggleFullscreen = SR["ToggleFullscreen"].Value,
-        Summary = SR["Public"].Value,
+        Summary = SR["Summary"].Value,
         RawXml = SR["RawXml"].Value,
         PrettyXml = SR["PrettyXml"].Value,
         Copy = SR["Copy"].Value,
@@ -33,7 +34,6 @@
         Download = SR["Download"].Value,
         PersonDetails = SR["PersonDetails"].Value,
         Loading = SR["Loading"].Value,
-        // New placeholders used by person details loader (use SharedResource localizer)
         NoBasics = SR["NoBasics"].Value,
         NoAddresses = SR["NoAddresses"].Value,
         NoForeignSsns = SR["NoForeignSsns"].Value,
@@ -41,6 +41,15 @@
         NoData = SR["NoData"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
+
+    // Collect Include flags (true) for GetPerson request to guarantee placeholder accordions
+    var includeSection = Config.GetSection("Operations:GetPerson:Request:Include");
+    var includeGroups = includeSection.GetChildren()
+        .Where(c => bool.TryParse(c.Value, out var bv) && bv)
+        .Select(c => c.Key)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(k => k)
+        .ToArray();
 
     // Base64 fallback for XML payload to avoid any HTML/script parsing edge-cases
     string rawB64 = string.IsNullOrEmpty(raw) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(raw));
@@ -66,7 +75,7 @@
 
         <ul class="nav nav-tabs small" id="gpiv-tabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@SR["Public"]</button>
+            <button class="nav-link active" id="gpiv-tab-summary-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-summary" type="button" role="tab" aria-controls="gpiv-tab-summary" aria-selected="true">@SR["Summary"]</button>
           </li>
           @if (showRaw)
           {
@@ -80,15 +89,15 @@
             <button class="nav-link" id="gpiv-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-pretty" type="button" role="tab" aria-controls="gpiv-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
           </li>
           }
+          <li class="nav-item ms-auto" role="presentation">
+            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
+          </li>
         </ul>
 
         <div class="tab-content border-start border-end border-bottom rounded-bottom p-2 small" id="gpiv-tabs-content" style="min-height:12rem;">
-          <div class="d-flex justify-content-end mb-2">
-            <button class="nav-link" id="gpiv-tab-details-btn" data-bs-toggle="tab" data-bs-target="#gpiv-tab-details" type="button" role="tab" aria-controls="gpiv-tab-details" aria-selected="false">@SR["PersonDetails"]</button>
-          </div>
           <div class="tab-pane fade show active" id="gpiv-tab-summary" role="tabpanel" aria-labelledby="gpiv-tab-summary-btn" tabindex="0">
             <div id="gpiv-empty" class="text-muted small mb-2" style="display:none;">@SR["EmptyState"]</div>
-            <div id="gpiv-xml-summary" class="gpiv-viewport mb-0"></div>
+            <div id="gpiv-xml-summary" class="gpiv-viewport mb-0 p-3 rounded"></div>
           </div>
 
           @if (showRaw)
@@ -114,7 +123,6 @@
           }
 
           <div class="tab-pane fade" id="gpiv-tab-details" role="tabpanel" aria-labelledby="gpiv-tab-details-btn" tabindex="0">
-            <!-- Make Person Details visible by default (no JS required) -->
             <div id="person-details-section" class="card shadow-sm mb-0 person-details" role="region" aria-labelledby="pd-title">
               <div class="card-body">
                 <div class="pd-toolbar d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2 border-bottom pb-2">
@@ -189,6 +197,7 @@
 <script nonce="@nonce" type="application/json" id="gpiv-i18n-json">@Html.Raw(JsonSerializer.Serialize(gpivI18n))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-raw-json">@Html.Raw(JsonSerializer.Serialize(raw))</script>
 <script nonce="@nonce" type="application/json" id="gpiv-pretty-json">@Html.Raw(JsonSerializer.Serialize(pretty))</script>
+<script nonce="@nonce" type="application/json" id="gpiv-includes-json">@Html.Raw(JsonSerializer.Serialize(includeGroups))</script>
 
 <!-- Load ES modules in order: helpers first, then viewer and details loader -->
 <script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
