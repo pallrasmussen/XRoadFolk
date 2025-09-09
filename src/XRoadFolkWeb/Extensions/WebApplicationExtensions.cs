@@ -58,6 +58,9 @@ namespace XRoadFolkWeb.Extensions
                 new EventId(1003, "UnhandledException"),
                 "Unhandled exception at {Path}. TraceId={TraceId}");
 
+        [LoggerMessage(EventId = 1100, Level = LogLevel.Warning, Message = "Access denied for user {User} Path={Path} TraceId={TraceId}")]
+        private static partial void LogAccessDenied(ILogger logger, string? User, string Path, string TraceId);
+
         [GeneratedRegex(@"\b\d{6,}\b")]
         private static partial Regex LongDigitsRegex();
 
@@ -157,7 +160,27 @@ namespace XRoadFolkWeb.Extensions
 
             ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
 
-            app.UseStatusCodePagesWithReExecute("/Error/{0}");
+            app.UseStatusCodePages(context =>
+            {
+                var resp = context.HttpContext.Response;
+                if (resp.StatusCode == StatusCodes.Status403Forbidden)
+                {
+                    var logger = loggerFactory.CreateLogger("Auth.Denied");
+                    string? userName = context.HttpContext.User?.Identity?.IsAuthenticated == true ? context.HttpContext.User.Identity?.Name : null;
+                    string path = context.HttpContext.Request?.Path.Value ?? string.Empty;
+                    string traceId = context.HttpContext.TraceIdentifier;
+                    LogAccessDenied(logger, userName, path, traceId);
+                    try
+                    {
+                        var loc = context.HttpContext.RequestServices.GetService<Microsoft.Extensions.Localization.IStringLocalizer<XRoadFolkWeb.Shared.SharedResource>>();
+                        string msg = loc?["AccessDeniedLead"].ResourceNotFound == false ? loc["AccessDeniedLead"].Value : "Access denied";
+                        context.HttpContext.Response.Headers["X-Access-Denied-Message"] = msg;
+                    }
+                    catch { }
+                    context.HttpContext.Response.Redirect("/Error/403");
+                }
+                return Task.CompletedTask;
+            });
 
             ConfigureTransport(app, env);
             ConfigureLocalization(app);
@@ -186,18 +209,18 @@ namespace XRoadFolkWeb.Extensions
                     var headers = ctx.Context.Response.Headers;
                     var req = ctx.Context.Request;
                     bool hasVersion = req.Query.ContainsKey("v");
+                    headers.CacheControl = hasVersion ? "public,max-age=31536000,immutable" : "public,max-age=3600";
                     if (hasVersion)
                     {
-                        headers.CacheControl = "public,max-age=31536000,immutable";
                         headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
-                    }
-                    else
-                    {
-                        headers.CacheControl = "public,max-age=3600";
                     }
                 }
             });
             app.UseRouting();
+
+            // Authentication / Authorization MUST come after UseRouting and before endpoints for role-based UI (Admin menu)
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.Use(async (ctx, next) =>
             {
@@ -216,8 +239,6 @@ namespace XRoadFolkWeb.Extensions
             app.UseOutputCache();
 
             app.UseCookiePolicy();
-            // Removed global UseSession to reduce overhead; enable only on specific endpoints if needed
-
             app.UseAntiforgery();
 
             AddCorrelationScope(app, loggerFactory);

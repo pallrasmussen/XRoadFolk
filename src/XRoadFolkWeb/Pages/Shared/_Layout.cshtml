@@ -17,6 +17,8 @@
     var descRes = SR["MetaDescription"]; string metaDescription = descRes.ResourceNotFound ? $"{appName}: People lookup and details viewer." : descRes.Value;
     string? currentUrl = null; try { if (Context?.Request is { } req) { currentUrl = $"{req.Scheme}://{req.Host}{req.PathBase}{req.Path}"; } } catch { }
     bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
+    // Robust admin detection: directly check role claims (avoids edge cases where IsInRole fails under IIS Express)
+    bool isAdmin = User?.Claims.Any(c => c.Type == System.Security.Claims.ClaimTypes.Role && string.Equals(c.Value, "Admin", StringComparison.OrdinalIgnoreCase)) == true;
     // Theme selection performed inside partial => compute chosen theme for stylesheet only
     string[] themeOptions = new [] { "flatly", "cerulean", "sandstone", "yeti" };
     string cookieTheme = ViewContext?.HttpContext?.Request?.Cookies["site-theme"] ?? string.Empty;
@@ -25,6 +27,7 @@
                       ?? themeOptions.FirstOrDefault(t => string.Equals(t, cookieTheme, StringComparison.OrdinalIgnoreCase))
                       ?? "flatly";
     string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; string? biSri = Config["Cdn:BootstrapIcons:Sri"];    
+    bool showDebugUser = Config.GetValue<bool>("Debug:ShowUser", true); // toggle if needed
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -78,7 +81,24 @@
                         var isLogs = ViewContext?.HttpContext?.Request?.Path.StartsWithSegments("/Logs") == true;
                         <li class="nav-item"><a class="btn btn-sm btn-outline-light @(isLogs ? "active" : null)" asp-page="/Logs/Http">@SR["Nav_Logs"]</a></li>
                     }
+                    @if (isAdmin)
+                    {
+                        <admin-only>
+                            @{ var reqPath = ViewContext?.HttpContext?.Request?.Path ?? Microsoft.AspNetCore.Http.PathString.Empty; var isUsers = reqPath.StartsWithSegments("/Admin/Users"); var isAudit = reqPath.StartsWithSegments("/Admin/RoleAudit"); }
+                            <li class="nav-item"><a class="btn btn-sm btn-outline-warning @(isUsers ? "active" : null)" asp-page="/Admin/Users">Admin</a></li>
+                            <li class="nav-item"><a class="btn btn-sm btn-outline-warning @(isAudit ? "active" : null)" asp-page="/Admin/RoleAudit">Audit</a></li>
+                        </admin-only>
+                    }
                 </ul>
+                @if (showDebugUser)
+                {
+                    var isAuth = User?.Identity?.IsAuthenticated == true;
+                    var nameDisplay = isAuth ? (User?.Identity?.Name ?? "(no name)") : "(anonymous)";
+                    var roleClaims = User?.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? Array.Empty<string>();
+                    var rolesDisplay = roleClaims.Length > 0 ? " [" + string.Join(',', roleClaims) + "]" : (isAuth ? " [no roles]" : string.Empty);
+                    var authState = isAuth ? "AUTH" : "NO-AUTH";
+                    <span class="navbar-text small text-light me-3" title="Temp debug (remove in production)">@authState: @nameDisplay@rolesDisplay</span>
+                }
                 <theme-culture-switcher />
             </div>
         </div>

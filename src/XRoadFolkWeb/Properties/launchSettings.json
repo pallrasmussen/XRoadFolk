@@ -1,8 +1,8 @@
 {
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
+    "windowsAuthentication": true, // automated: enable Windows Auth so IIS Express performs integrated auth
+    "anonymousAuthentication": false, // automated: disable anonymous to force negotiation
     "iisExpress": {
       "applicationUrl": "http://localhost:24356",
       "sslPort": 44353

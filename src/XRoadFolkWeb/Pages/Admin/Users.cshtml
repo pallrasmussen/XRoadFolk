@@ -1,0 +1,219 @@
+@page
+@using XRoadFolkWeb.Infrastructure
+@model XRoadFolkWeb.Pages.Admin.UsersModel
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy="AdminOnly")]
+@{
+    ViewData["Title"] = "User Role Administration";
+    string sortUser = Model.Sort == "user_asc" ? "user_desc" : "user_asc";
+    string sortRoles = Model.Sort == "roles_desc" ? "roles_asc" : "roles_desc";
+}
+<h1 class="h4 mb-3">User Role Administration</h1>
+@if (Model.Message is not null)
+{
+    <div class="alert alert-info">@Model.Message</div>
+}
+<form method="post" class="row gy-2 align-items-end" asp-page-handler="Add">
+    @Html.AntiForgeryToken()
+    <div class="col-sm-3 col-md-2">
+        <label class="form-label" for="sam">SAM / User</label>
+        <input asp-for="Sam" class="form-control form-control-sm" />
+    </div>
+    <div class="col-sm-3 col-md-2">
+        <label class="form-label" for="role">Role</label>
+        <select asp-for="Role" class="form-select form-select-sm">
+            <option value="@AppRoles.Admin">Admin</option>
+            <option value="@AppRoles.User">User</option>
+        </select>
+    </div>
+    <div class="col-sm-3 col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary w-100">Add / Restore</button>
+    </div>
+</form>
+<hr />
+<form method="get" class="row g-2 mb-3">
+    <div class="col-sm-3 col-md-2">
+        <input name="SearchUser" value="@Model.SearchUser" class="form-control form-control-sm" placeholder="Search user" />
+    </div>
+    <div class="col-sm-3 col-md-2">
+        <input name="SearchRole" value="@Model.SearchRole" class="form-control form-control-sm" placeholder="Search role" />
+    </div>
+    <div class="col-sm-2 col-md-1">
+        <input type="number" name="PageSize" value="@Model.PageSize" min="1" max="500" class="form-control form-control-sm" title="Page size" />
+    </div>
+    <div class="col-sm-2 col-md-1">
+        <input type="number" name="PageNumber" value="@Model.PageNumber" min="1" max="@Model.TotalPages" class="form-control form-control-sm" title="Page" />
+    </div>
+    <div class="col-sm-2 col-md-1 form-check d-flex align-items-center ps-3">
+        <input class="form-check-input" type="checkbox" id="showDeleted" name="ShowDeleted" value="true" @(Model.ShowDeleted?"checked":null) />
+        <label class="form-check-label small ms-1" for="showDeleted">Deleted</label>
+    </div>
+    <div class="col-sm-3 col-md-2">
+        <select name="Sort" class="form-select form-select-sm">
+            <option value="user_asc" selected="@(Model.Sort=="user_asc"||string.IsNullOrEmpty(Model.Sort))">User A→Z</option>
+            <option value="user_desc" selected="@(Model.Sort=="user_desc")">User Z→A</option>
+            <option value="roles_desc" selected="@(Model.Sort=="roles_desc")">Roles High→Low</option>
+            <option value="roles_asc" selected="@(Model.Sort=="roles_asc")">Roles Low→High</option>
+        </select>
+    </div>
+    <div class="col-sm-3 col-md-2 d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary flex-grow-1" type="submit">Apply</button>
+        <a class="btn btn-sm btn-outline-secondary" href="@Url.Page("/Admin/Users")">Reset</a>
+    </div>
+</form>
+<div class="d-flex flex-wrap gap-2 mb-2">
+    <a class="btn btn-sm btn-outline-success" href="@Url.Page("/Admin/Users", "Export", new { format="csv" })">Export CSV</a>
+    <a class="btn btn-sm btn-outline-success" href="@Url.Page("/Admin/Users", "Export", new { format="json" })">Export JSON</a>
+</div>
+<div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+    <div>Total Users: @Model.TotalUsers | Page @Model.PageNumber / @Model.TotalPages</div>
+</div>
+<table class="table table-sm table-striped align-middle mb-4">
+    <thead>
+        <tr>
+            <th>
+                <a asp-page="/Admin/Users" asp-route-sort="@(Model.Sort=="user_asc"?"user_desc":"user_asc")" class="text-decoration-none text-reset">
+                    User
+                    @if (Model.Sort == "user_asc") {
+                        <i class="bi bi-arrow-up-short"></i>
+                    } else if (Model.Sort == "user_desc") {
+                        <i class="bi bi-arrow-down-short"></i>
+                    }
+                </a>
+            </th>
+            <th>
+                <a asp-page="/Admin/Users" asp-route-sort="@(Model.Sort=="roles_asc"?"roles_desc":"roles_asc")" class="text-decoration-none text-reset">
+                    Roles (@Model.PageSize per page)
+                    @if (Model.Sort == "roles_asc") {
+                        <i class="bi bi-arrow-up-short"></i>
+                    } else if (Model.Sort == "roles_desc") {
+                        <i class="bi bi-arrow-down-short"></i>
+                    }
+                </a>
+            </th>
+            <th style="width:320px;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (!Model.Users.Any())
+    {
+        <tr><td colspan="3" class="small text-muted">No users match criteria.</td></tr>
+    }
+    else
+    {
+        foreach (var kv in Model.Users)
+        {
+            var rolesCsv = string.Join(", ", kv.Value.OrderBy(v=>v));
+            bool isAdminUser = kv.Value.Any(r => string.Equals(r, AppRoles.Admin, StringComparison.OrdinalIgnoreCase));
+            <tr>
+                <td class="text-monospace">@kv.Key</td>
+                <td>@rolesCsv</td>
+                <td>
+                    <div class="d-flex flex-wrap gap-1">
+                        <form method="post" asp-page-handler="RemoveUser" class="d-inline remove-user-form" data-user="@kv.Key" data-roles="@rolesCsv" data-is-admin="@(isAdminUser.ToString().ToLowerInvariant())">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="sam" value="@kv.Key" />
+                            <input type="hidden" name="showDeleted" value="@Model.ShowDeleted" />
+                            <button class="btn btn-outline-danger btn-sm" title="Soft delete all roles for user @kv.Key">Soft Delete User</button>
+                        </form>
+                        @foreach (var r in kv.Value.OrderBy(v=>v))
+                        {
+                            <form method="post" asp-page-handler="RemoveRole" class="d-inline remove-role-form" data-user="@kv.Key" data-role="@r">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sam" value="@kv.Key" />
+                                <input type="hidden" name="role" value="@r" />
+                                <input type="hidden" name="showDeleted" value="@Model.ShowDeleted" />
+                                <button class="btn btn-outline-secondary btn-sm" title="Soft delete role @r from @kv.Key">@r ✕</button>
+                            </form>
+                        }
+                    </div>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+<nav aria-label="User pagination" class="mb-4">
+    <ul class="pagination pagination-sm flex-wrap mb-0">
+        @{ int prev = Model.PageNumber - 1; int next = Model.PageNumber + 1; }
+        <li class="page-item @(Model.PageNumber==1?"disabled":null)">
+            <a class="page-link" href="@Url.Page("/Admin/Users", new { Model.SearchUser, Model.SearchRole, Model.PageSize, PageNumber=1, Model.ShowDeleted, Model.Sort })">First</a>
+        </li>
+        <li class="page-item @(Model.PageNumber==1?"disabled":null)">
+            <a class="page-link" href="@Url.Page("/Admin/Users", new { Model.SearchUser, Model.SearchRole, Model.PageSize, PageNumber=prev<1?1:prev, Model.ShowDeleted, Model.Sort })">Prev</a>
+        </li>
+        <li class="page-item active"><span class="page-link">@Model.PageNumber</span></li>
+        <li class="page-item @(Model.PageNumber>=Model.TotalPages?"disabled":null)">
+            <a class="page-link" href="@Url.Page("/Admin/Users", new { Model.SearchUser, Model.SearchRole, Model.PageSize, PageNumber=next>Model.TotalPages?Model.TotalPages:next, Model.ShowDeleted, Model.Sort })">Next</a>
+        </li>
+        <li class="page-item @(Model.PageNumber>=Model.TotalPages?"disabled":null)">
+            <a class="page-link" href="@Url.Page("/Admin/Users", new { Model.SearchUser, Model.SearchRole, Model.PageSize, PageNumber=Model.TotalPages, Model.ShowDeleted, Model.Sort })">Last</a>
+        </li>
+    </ul>
+</nav>
+@if (Model.ShowDeleted && Model.DeletedRoles.Any(k => k.Value.Any()))
+{
+    <div class="d-flex align-items-center mb-2">
+        <h2 class="h6 mb-0 me-3">Deleted Roles</h2>
+        <form method="post" asp-page-handler="Purge" class="d-flex align-items-end gap-2 mb-0">
+            @Html.AntiForgeryToken()
+            <label class="form-label mb-0 small" for="purgeDays">Purge older than (days)</label>
+            <input type="number" min="0" max="3650" value="30" class="form-control form-control-sm" style="width:90px" id="purgeDays" name="days" />
+            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Permanently delete soft-deleted roles older than specified days?');">Purge</button>
+        </form>
+    </div>
+    <table class="table table-sm table-bordered align-middle">
+        <thead><tr><th>User</th><th>Deleted Roles</th><th style="width:220px;">Actions</th></tr></thead>
+        <tbody>
+        @foreach (var kv in Model.DeletedRoles.OrderBy(k=>k.Key))
+        {
+            if (!kv.Value.Any()) { continue; }
+            <tr>
+                <td class="text-monospace">@kv.Key</td>
+                <td>@string.Join(", ", kv.Value.OrderBy(v=>v))</td>
+                <td>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var r in kv.Value.OrderBy(v=>v))
+                        {
+                            <form method="post" asp-page-handler="RestoreRole" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sam" value="@kv.Key" />
+                                <input type="hidden" name="role" value="@r" />
+                                <button class="btn btn-outline-success btn-sm" title="Restore role @r to @kv.Key">Restore @r</button>
+                            </form>
+                        }
+                    </div>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+@section Scripts {
+    <script nonce="@(ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string)">
+        (function(){
+            function confirmUser(form){
+                const user = form.getAttribute('data-user') || 'user';
+                const roles = (form.getAttribute('data-roles')||'').trim();
+                const isAdmin = form.getAttribute('data-is-admin') === 'true';
+                const rolesList = roles.length ? `\nRoles: ${roles}` : '\n(No active roles)';
+                const adminWarn = isAdmin ? '\n\nWARNING: This user currently has ADMIN access. Removing will revoke administrative privileges.' : '';
+                const msg = `Soft delete ALL roles for ${user}?${rolesList}${adminWarn}\n\nYou can restore individual roles later if needed.`;
+                return window.confirm(msg);
+            }
+            function confirmRole(form){
+                const user = form.getAttribute('data-user') || 'user';
+                const role = form.getAttribute('data-role') || 'role';
+                const msg = `Soft delete role '${role}' for user '${user}'?\n\nYou can restore it later while deleted roles are shown.`;
+                return window.confirm(msg);
+            }
+            document.addEventListener('submit', function(e){
+                const t = e.target;
+                if(t.classList && t.classList.contains('remove-user-form')){
+                    if(!confirmUser(t)) e.preventDefault();
+                } else if(t.classList && t.classList.contains('remove-role-form')){
+                    if(!confirmRole(t)) e.preventDefault();
+                }
+            });
+        })();
+    </script>
+}

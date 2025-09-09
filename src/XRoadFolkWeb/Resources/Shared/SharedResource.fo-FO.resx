@@ -264,4 +264,12 @@
   <data name="ClientCertificateExpiringSoon" xml:space="preserve">
     <value>Viðskiftacertifikat gongur út skjótt</value>
   </data>
+  <data name="AccessDeniedTitle" xml:space="preserve"><value>Atgongd noktað</value></data>
+  <data name="AccessDeniedLead" xml:space="preserve"><value>Tú ert innritað/ur men hevur ikki loyvi at nýta hesa skipan.</value></data>
+  <data name="AccessDeniedAsk" xml:space="preserve"><value>Vinarliga set teg í samband við ein fyrisitingara fyri at fáa atgongd.</value></data>
+  <data name="UserLabel" xml:space="preserve"><value>Brúkari</value></data>
+  <data name="TraceId" xml:space="preserve"><value>Sporings-Id</value></data>
+  <data name="TimeUtc" xml:space="preserve"><value>Tíð (UTC)</value></data>
+  <data name="Home" xml:space="preserve"><value>Heim</value></data>
+  <data name="Back" xml:space="preserve"><value>Aftur</value></data>
 </root>

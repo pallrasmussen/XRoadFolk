@@ -264,4 +264,12 @@
   <data name="ClientCertificateExpiringSoon" xml:space="preserve">
     <value>Klientcertifikat udløber snart</value>
   </data>
+  <data name="AccessDeniedTitle" xml:space="preserve"><value>Adgang nægtet</value></data>
+  <data name="AccessDeniedLead" xml:space="preserve"><value>Du er logget ind men har ikke rettigheder til at bruge applikationen.</value></data>
+  <data name="AccessDeniedAsk" xml:space="preserve"><value>Kontakt en administrator for at anmode om adgang.</value></data>
+  <data name="UserLabel" xml:space="preserve"><value>Bruger</value></data>
+  <data name="TraceId" xml:space="preserve"><value>Sporings-Id</value></data>
+  <data name="TimeUtc" xml:space="preserve"><value>Tid (UTC)</value></data>
+  <data name="Home" xml:space="preserve"><value>Hjem</value></data>
+  <data name="Back" xml:space="preserve"><value>Tilbage</value></data>
 </root>
