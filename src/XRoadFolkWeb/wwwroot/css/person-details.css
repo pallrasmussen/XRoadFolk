@@ -24,6 +24,11 @@
 .person-details .table { font-size: .875rem; }
 /* Official name styling (slightly smaller, no monospace, no bold, no italics) */
 .person-details .pd-official-name { font-family: inherit; font-weight: 400; font-style: normal; font-size: .9em; letter-spacing:.25px; color: var(--bs-primary-text-emphasis, var(--bs-primary)); }
+/* Truncation for official name inside tab button */
+#pd-tab-details-btn { max-width: 100%; }
+#pd-tab-details-btn .pd-official-name { display:inline-block; max-width: 18ch; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+@media (min-width: 576px){ #pd-tab-details-btn .pd-official-name { max-width: 28ch; } }
+@media (min-width: 992px){ #pd-tab-details-btn .pd-official-name { max-width: 40ch; } }
 html[data-bs-theme='dark'] .person-details .pd-official-name { color: #93c5fd; }
 /* Dark mode improvements */
 html[data-bs-theme='dark'] .person-details .table th { background-color: #0b1220; color: #cbd5e1; }
