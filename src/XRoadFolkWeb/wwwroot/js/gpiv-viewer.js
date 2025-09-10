@@ -19,10 +19,8 @@
   function byId(id) { return document.getElementById(id); }
   function qs(sel, root) { return (root || document).querySelector(sel); }
   function qsa(sel, root) { return (root || document).querySelectorAll(sel); }
-  function on(el, ev, fn) { el && el.addEventListener(ev, fn); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-  var dropOverlay = null;
   var summaryHost = null;
   var emptyMsg = null;
   var card = null;
@@ -74,7 +72,6 @@
     for (var i = 0; i < node.children.length; i++) if (!isNil(node.children[i])) return true;
     return false;
   }
-  // Hide exact field names: Id, PersonAddressId (case-insensitive)
   function isNoiseKey(name) {
     if (!name) return false;
     var n = String(name).toLowerCase();
@@ -153,10 +150,7 @@
     return item;
   }
 
-  function expandSummaryAll(open) {
-    if (!summaryHost) return;
-    toggleAllAccordions(summaryHost, open);
-  }
+  function expandSummaryAll(open) { if (!summaryHost) return; toggleAllAccordions(summaryHost, open); }
 
   function groupChildrenByName(node) {
     var map = Object.create(null);
@@ -164,9 +158,9 @@
     for (var i = 0; i < node.children.length; i++) {
       var c = node.children[i];
       if (!c || c.nodeType !== 1) continue;
-      if (c.localName === 'Names') continue; // handled separately at top-level
-      if (isNil(c)) continue; // nil nodes rendered as empty leaf rows in table
-      if (!hasElementChildren(c)) continue; // leaves handled in table
+      if (c.localName === 'Names') continue;
+      if (isNil(c)) continue;
+      if (!hasElementChildren(c)) continue;
       var nm = c.localName;
       (map[nm] || (map[nm] = [])).push(c);
     }
@@ -202,8 +196,6 @@
       if (!btn) return;
       var header = qs('.gpiv-person-header', summaryHost);
       if (!header) return;
-
-      // Style as a small "More info" button
       try {
         btn.type = 'button';
         btn.classList.remove('nav-link');
@@ -213,26 +205,16 @@
         btn.setAttribute('title', label);
         btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>' + label;
       } catch {}
-
-      // Move into the first person header
       var oldParent = btn.parentElement;
       header.appendChild(btn);
-
-      // Remove empty placeholder container if it was a flex strip
-      try {
-        if (oldParent && oldParent.tagName === 'DIV' && oldParent.classList.contains('d-flex')) {
-          oldParent.remove();
-        }
-      } catch {}
+      try { if (oldParent && oldParent.tagName === 'DIV' && oldParent.classList.contains('d-flex')) { oldParent.remove(); } } catch {}
     }catch(e){ try{ console.debug('gpiv: moveDetailsBtnToHeader failed', e); }catch{} }
   }
 
   function buildNodeContent(node) {
     var container = document.createElement('div'); container.className = 'd-flex flex-column gap-2';
-
     var leaves = buildLeavesTable(node);
     if (leaves) container.appendChild(leaves);
-
     var groups = groupChildrenByName(node);
     for (var key in groups) {
       if (!Object.prototype.hasOwnProperty.call(groups, key)) continue;
@@ -241,15 +223,14 @@
         var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
         for (var i = 0; i < arr.length; i++) {
           var card3 = el('div', 'p-2 border rounded', null);
-          var title3 = el('div', 'small text-muted mb-1', key + ' #' + (i + 1));
-          card3.appendChild(title3);
-          var inner = buildNodeContent(arr[i]);
-          if (inner) card3.appendChild(inner);
-          listWrap.appendChild(card3);
+            var title3 = el('div', 'small text-muted mb-1', key + ' #' + (i + 1));
+            card3.appendChild(title3);
+            var inner = buildNodeContent(arr[i]);
+            if (inner) card3.appendChild(inner);
+            listWrap.appendChild(card3);
         }
         container.appendChild(listWrap);
       } else {
-        // Single child: render inline
         var inner2 = buildNodeContent(arr[0]);
         var headline = el('div', 'small text-muted mb-1', key);
         var wrap = document.createElement('div'); wrap.className = 'p-2 border rounded';
@@ -258,7 +239,6 @@
         container.appendChild(wrap);
       }
     }
-
     return container;
   }
 
@@ -270,8 +250,6 @@
       var xml = parseXml(xmlText);
       var people = findPeopleNodes(xml);
       if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
-
-      // Render people list directly (removed sticky count bar)
       for (var p = 0; p < people.length; p++) {
         var person = people[p];
         var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
@@ -308,7 +286,6 @@
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
-        // Header is not interactive; only the dedicated button triggers details
         wrap.appendChild(header);
 
         var accId = nextUid('acc');
@@ -369,14 +346,8 @@
         summaryHost.appendChild(wrap);
       }
 
-      // Focus first accordion header for keyboard users
-      try {
-        focusFirstAccordionButton(summaryHost);
-      } catch {}
-
-      // Move the outer Person Details tab trigger into the first person header (and restyle it)
+      try { focusFirstAccordionButton(summaryHost); } catch {}
       moveDetailsBtnToHeader();
-
       syncViewerHeight();
     } catch (e) {
       console.error('gpiv: failed to build summary', e);
@@ -388,7 +359,6 @@
   function updateView() {
     var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
     var hasAny = combined.length > 0;
-
     if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
     if (hasAny) { renderSummary(); } else { clearChildren(summaryHost); syncViewerHeight(); }
   }
@@ -410,40 +380,9 @@
     }catch(e){ try{ console.debug('gpiv: setRawPrettyUi failed', e); }catch{} }
   }
 
-  function setXmlFromText(text) {
-    if (!text || !text.trim()) return;
-    sourceRaw = text; sourcePretty = text;
-    setRawPrettyUi(sourceRaw, sourcePretty);
-    updateView();
-  }
-
-  function showDrop(v) { if (dropOverlay) dropOverlay.style.display = v ? 'flex' : 'none'; }
-
-  function initDragDrop() {
-    if (!card) return;
-    on(card, 'dragenter', function (e) { e.preventDefault(); showDrop(true); });
-    on(card, 'dragover', function (e) { e.preventDefault(); showDrop(true); });
-    on(card, 'dragleave', function (e) { e.preventDefault(); showDrop(false); });
-    on(card, 'drop', function (e) {
-      e.preventDefault(); showDrop(false);
-      try {
-        var dt = e.dataTransfer; if (!dt) return;
-        if (dt.files && dt.files.length) {
-          var f = dt.files[0]; var reader = new FileReader();
-          reader.onload = function () { setXmlFromText(String(reader.result || '')); };
-          reader.readAsText(f);
-        } else {
-          var txt = dt.getData('text') || '';
-          setXmlFromText(txt);
-        }
-      } catch (err) {
-        console.error('gpiv: drop failed', err);
-      }
-    });
-  }
+  function setXmlFromText(text) { if (!text || !text.trim()) return; sourceRaw = text; sourcePretty = text; setRawPrettyUi(sourceRaw, sourcePretty); updateView(); }
 
   function initFullscreen() {
-    // Align People Public fullscreen behavior with Person detail
     document.addEventListener('click', function (e) {
       var t = e && e.target ? e.target : null;
       if (!t) return;
@@ -470,20 +409,13 @@
   }
 
   function loadInitialDataFromJsonTags() {
-    try {
-      var i18nEl = byId('gpiv-i18n-json');
-      if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}');
-    } catch (e) { console.error('gpiv: failed to parse i18n json', e); }
-
+    try { var i18nEl = byId('gpiv-i18n-json'); if (i18nEl) I18N = JSON.parse(i18nEl.textContent || '{}'); } catch (e) { console.error('gpiv: failed to parse i18n json', e); }
     try {
       var rawEl = byId('gpiv-raw-json');
       var prettyEl = byId('gpiv-pretty-json');
       var rawInit = rawEl ? JSON.parse(rawEl.textContent || '""') : "";
       var prettyInit = prettyEl ? JSON.parse(prettyEl.textContent || '""') : "";
-      if (typeof rawInit === 'string' || typeof prettyInit === 'string') {
-        window.gpiv.setXml(String(rawInit || ''), String(prettyInit || ''));
-      }
-      // Fallback to data attributes if JSON tags are empty
+      if (typeof rawInit === 'string' || typeof prettyInit === 'string') { window.gpiv.setXml(String(rawInit || ''), String(prettyInit || '')); }
       if ((!rawInit || rawInit.length === 0) && (!prettyInit || prettyInit.length === 0)){
         var dataHost = byId('gpiv-data');
         if (dataHost){
@@ -492,9 +424,7 @@
           try{
             var rawFromB64 = rb ? decodeURIComponent(escape(window.atob(rb))) : '';
             var prettyFromB64 = pb ? decodeURIComponent(escape(window.atob(pb))) : '';
-            if (rawFromB64 || prettyFromB64){
-              window.gpiv.setXml(rawFromB64, prettyFromB64);
-            }
+            if (rawFromB64 || prettyFromB64){ window.gpiv.setXml(rawFromB64, prettyFromB64); }
           }catch(e){ console.error('gpiv: base64 decode failed', e); }
         }
       }
@@ -509,7 +439,6 @@
     } catch (e) { console.error('gpiv: focusPerson failed', e); }
   }
 
-  // Public API (exposed for other modules/pages that may want to interact)
   window.gpiv = {
     setXml: function (raw, pretty) {
       try {
@@ -523,7 +452,6 @@
       try {
         if (!publicId) return;
         updateView();
-        // Prefer modern cards rendered with data-public-id
         var cards = qsa('.gpiv-person[data-public-id]', summaryHost);
         for (var i = 0; i < cards.length; i++) {
           var pidAttr = cards[i].getAttribute('data-public-id') || (cards[i].dataset ? cards[i].dataset.publicId : '');
@@ -536,48 +464,33 @@
     }
   };
 
-  // Init
   document.addEventListener('DOMContentLoaded', function () {
     try {
-      dropOverlay = byId('gpiv-drop');
       summaryHost = byId('gpiv-xml-summary');
       emptyMsg = byId('gpiv-empty');
       card = qs('.gpiv-card');
-
-      // Resize observers
       try {
         var sc = byId('people-search-card');
         if (window.ResizeObserver && sc) {
           var ro = new ResizeObserver(function () { syncViewerHeight(); });
-          ro.observe(sc);
+            ro.observe(sc);
         }
       } catch (e) { console.error('gpiv: ResizeObserver failed', e); }
       window.addEventListener('resize', syncViewerHeight);
-
-      initDragDrop();
       initFullscreen();
-
-      // ARIA keyboard within summary accordions
       document.addEventListener('keydown', function(e){ handleAccordionKeydown(e, summaryHost); });
-
-      // Toolbar expand/collapse handlers to match Person details
       document.addEventListener('click', function(e){
         var ex = e.target && e.target.closest ? e.target.closest('#gpiv-expand-all') : null;
         if (ex) { expandSummaryAll(true); }
         var col = e.target && e.target.closest ? e.target.closest('#gpiv-collapse-all') : null;
         if (col) { expandSummaryAll(false); }
       });
-
       loadInitialDataFromJsonTags();
       initPublicIdLink();
-
-      // Initial height sync
       syncViewerHeight();
     } catch (e) {
       console.error('gpiv: init failed', e);
-      if (summaryHost) {
-        summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to initialize:') + ' ' + (e && e.message ? e.message : e);
-      }
+      if (summaryHost) { summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to initialize:') + ' ' + (e && e.message ? e.message : e); }
     }
   });
 })();

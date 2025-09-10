@@ -23,13 +23,10 @@
 #person-details-section:fullscreen { z-index: 1060; background: var(--bs-body-bg); }
 #person-details-section:fullscreen .card-body { display: flex; flex-direction: column; min-height: 0; height: 100vh; height: 100dvh; }
 #person-details-section:fullscreen #pd-tabs-content { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-/* Safari/WebKit variant */
 #person-details-section:-webkit-full-screen { z-index: 1060; background: var(--bs-body-bg); }
 #person-details-section:-webkit-full-screen .card-body { display: flex; flex-direction: column; min-height: 0; height: 100vh; height: 100dvh; }
 #person-details-section:-webkit-full-screen #pd-tabs-content { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
 
-.gpiv-drop { display: none; position: absolute; inset: 0; z-index: 3; background: rgba(0,0,0,.05); border: 2px dashed var(--bs-secondary); align-items: center; justify-content: center; text-align: center; padding: 2rem; border-radius: .375rem; }
-.gpiv-drop .msg { font-size: .95rem; color: var(--bs-secondary); }
 @keyframes gpivFlash { 0% { background: rgba(255, 243, 205, .9); } 100% { background: transparent; } }
 .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
 

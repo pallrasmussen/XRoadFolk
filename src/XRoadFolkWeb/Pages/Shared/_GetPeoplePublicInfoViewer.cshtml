@@ -57,7 +57,7 @@
 
       <ul class="nav nav-tabs small" id="pd-tabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@SR["PersonDetails"]</button>
+          <button class="nav-link active" id="pd-tab-people-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-people" type="button" role="tab" aria-controls="pd-tab-people" aria-selected="true">@SR["PeopleLabel"]</button>
         </li>
         @if (showRaw)
         {
@@ -71,50 +71,64 @@
             <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
           </li>
         }
+        <li class="nav-item ms-auto d-flex align-items-center">
+          <button type="button" id="pd-toggle-details" class="btn btn-sm btn-outline-primary collapsed" data-bs-toggle="collapse" data-bs-target="#pd-details-panel" aria-expanded="false" aria-controls="pd-details-panel">
+            <i class="bi bi-card-text me-1" aria-hidden="true"></i><span class="pd-details-label">Details</span>
+          </button>
+        </li>
       </ul>
 
       <div class="tab-content border-start border-end border-bottom rounded-bottom p-2" id="pd-tabs-content" style="min-height:10rem;">
-        <div class="tab-pane fade show active" id="pd-tab-details" role="tabpanel" aria-labelledby="pd-tab-details-btn" tabindex="0">
-          <div id="person-details-loading" class="d-none" aria-live="polite">
-            @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
+        <div class="tab-pane fade show active" id="pd-tab-people" role="tabpanel" aria-labelledby="pd-tab-people-btn" tabindex="0">
+          <div class="gpiv-toolbar d-flex flex-wrap gap-2 align-items-center mb-2">
+            <span class="small text-muted" id="gpiv-summary-status" aria-live="polite"></span>
           </div>
-          <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
-          <div id="person-details-body" data-initial-placeholder="@(string.IsNullOrEmpty(initialPublicId) ? "1" : "0")">
-            @if (string.IsNullOrEmpty(initialPublicId))
-            {
-              <div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div>
-            }
+          <div class="card shadow-sm gpiv-card" id="gpiv-summary-card">
+            <div class="card-body p-2">
+              <div id="gpiv-empty" class="text-muted small">@SR["NoXmlToDisplay"]</div>
+              <div id="gpiv-xml-summary" class="d-flex flex-column gap-3" aria-live="polite"></div>
+            </div>
           </div>
         </div>
 
-        @if (showRaw)
-        {
-          <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
-            <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
-            </div>
-            <pre class="gpiv-pre" id="pd-raw-pre"></pre>
+        <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
+          <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
           </div>
-        }
+          <pre class="gpiv-pre" id="gpiv-raw-pre"></pre>
+        </div>
 
-        @if (showPretty)
-        {
-          <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
-            <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
-            </div>
-            <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
+        <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
+          <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@SR["Copy"]</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@SR["Download"]</button>
           </div>
-        }
+          <pre class="gpiv-pre" id="gpiv-pretty-pre"></pre>
+        </div>
+
+        <!-- Animated collapse Person Details panel -->
+        <div id="pd-details-panel" class="collapse mt-3" aria-labelledby="pd-toggle-details">
+          <div class="border-top pt-3">
+            <div id="person-details-loading" class="d-none" aria-live="polite">
+              @await Html.PartialAsync("_Spinner", null, new ViewDataDictionary(ViewData) { ["Text"] = gpivI18n.Loading, ["Size"] = "sm", ["Color"] = "text-secondary" })
+            </div>
+            <div id="person-details-error" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+            <div id="person-details-body" data-initial-placeholder="@(string.IsNullOrEmpty(initialPublicId) ? "1" : "0")">
+              @if (string.IsNullOrEmpty(initialPublicId))
+              {
+                <div class="alert alert-info mb-0" role="status">@SR["SelectPersonToViewDetails"]</div>
+              }
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Hidden compatibility button for existing loader logic (acts like outer tab) -->
-<button id="gpiv-tab-details-btn" type="button" class="d-none" data-bs-target="#gpiv-tab-details"></button>
+<!-- Hidden compatibility trigger for existing loader logic -->
+<button id="gpiv-tab-details-btn" type="button" class="d-none" data-bs-target="#pd-details-panel"></button>
 <div id="gpiv-tab-details" class="d-none"></div>
 
 <div id="gpiv-data" data-raw-b64="@rawB64" data-pretty-b64="@prettyB64" hidden></div>
@@ -125,3 +139,27 @@
 
 <script type="module" src="~/js/gpiv-helpers.js" asp-append-version="true"></script>
 <script type="module" src="~/js/gpiv-person-details-loader.js" asp-append-version="true"></script>
+<script type="module" src="~/js/gpiv-viewer.js" asp-append-version="true"></script>
+<script nonce="@nonce">(function(){
+  const hiddenTrigger=document.getElementById('gpiv-tab-details-btn');
+  let loaded=false;
+  document.addEventListener('show.bs.collapse', e=>{
+    if(e.target && e.target.id==='pd-details-panel' && !loaded){
+      hiddenTrigger && hiddenTrigger.click();
+      loaded=true;
+    }
+  });
+  document.addEventListener('shown.bs.collapse', e=>{
+    if(e.target && e.target.id==='pd-details-panel'){
+      // Attempt focus on first accordion button after content load
+      setTimeout(()=>{
+        const container=document.getElementById('person-details-body');
+        let focusEl=container && container.querySelector('.accordion .accordion-button');
+        if(!focusEl){
+          focusEl=e.target; if(focusEl && !focusEl.hasAttribute('tabindex')) focusEl.setAttribute('tabindex','-1');
+        }
+        try { focusEl && focusEl.focus({preventScroll:false}); } catch {}
+      }, 30);
+    }
+  });
+})();</script>
