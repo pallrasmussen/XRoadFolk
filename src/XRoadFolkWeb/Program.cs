@@ -16,20 +16,19 @@ builder.Configuration.AddXRoadDefaultSettings();
 // Allow overrides from Web appsettings/UserSecrets/ENV
 builder.Configuration.AddEnvironmentVariables();
 
-// Detect IIS / IIS Express hosting (environment variables set by ANCM)
-bool runningInIis = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_IIS_PHYSICAL_PATH"));
+// Always authenticate as the currently logged-in Windows user via Negotiate (works for Kestrel + IIS)
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = NegotiateDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = NegotiateDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = NegotiateDefaults.AuthenticationScheme;
+}).AddNegotiate();
 
-if (!runningInIis)
+// Ensure IIS auto-auth (has effect only when hosted in IIS)
+builder.Services.Configure<IISServerOptions>(o =>
 {
-    // Self-hosted Kestrel -> use Negotiate handler
-    builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-        .AddNegotiate();
-}
-else
-{
-    // IIS (Express) integrated pipeline already performs Windows auth; just register IISDefaults
-    builder.Services.AddAuthentication(IISDefaults.AuthenticationScheme);
-}
+    o.AutomaticAuthentication = true;
+});
 
 builder.Services.AddAuthorization(options =>
 {
