@@ -149,17 +149,4 @@
       loaded=true;
     }
   });
-  document.addEventListener('shown.bs.collapse', e=>{
-    if(e.target && e.target.id==='pd-details-panel'){
-      // Attempt focus on first accordion button after content load
-      setTimeout(()=>{
-        const container=document.getElementById('person-details-body');
-        let focusEl=container && container.querySelector('.accordion .accordion-button');
-        if(!focusEl){
-          focusEl=e.target; if(focusEl && !focusEl.hasAttribute('tabindex')) focusEl.setAttribute('tabindex','-1');
-        }
-        try { focusEl && focusEl.focus({preventScroll:false}); } catch {}
-      }, 30);
-    }
-  });
 })();</script>
