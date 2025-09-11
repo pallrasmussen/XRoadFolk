@@ -5,16 +5,17 @@
 
 // Global site scripts
 // - Culture switcher: auto-submit on change (progressive; noscript fallback exists)
-
 (function(){
+  'use strict';
+  const dbg=(m,e)=>{ try{ if(e&&console&&console.debug) console.debug(m,e);}catch(_){} };
   try{
-    document.addEventListener('DOMContentLoaded', function(){
+    document.addEventListener('DOMContentLoaded', () => {
       try{
-        var sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
+        const sel = document.querySelector('form[action="/set-culture"] select[name="culture"]');
         if (sel) {
-          sel.addEventListener('change', function(){ if (sel.form) sel.form.submit(); });
+          sel.addEventListener('change', () => { if (sel.form) sel.form.submit(); });
         }
-      } catch(e){ /* no-op */ }
+      } catch(e){ dbg('site:culture-init', e); }
     });
-  }catch{ /* ignore */ }
+  }catch(e){ dbg('site:init-wrapper', e); }
 })();

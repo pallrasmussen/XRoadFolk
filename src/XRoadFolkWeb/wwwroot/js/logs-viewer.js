@@ -2,52 +2,53 @@
 (function(){
   'use strict';
 
+  const dbg=(m,e)=>{ try{ if(e&&console&&console.debug) console.debug(m,e);}catch(_){} };
+
   function getI18n(){
-    try { var el=document.getElementById('logs-i18n-json'); return el? JSON.parse(el.textContent||'{}') : {}; } catch { return {}; }
+    try { const el=document.getElementById('logs-i18n-json'); return el? JSON.parse(el.textContent||'{}') : {}; } catch (e) { dbg('logs:i18n', e); return {}; }
   }
 
-  var initialized = false;
+  let initialized = false;
   function init(){
     if (initialized) return; initialized = true;
-    var SR = getI18n();
-    var root = document.getElementById('logs-view');
-    var kind = (root && root.getAttribute('data-default-kind')) || 'http';
-    var view = 'table';
+    const SR = getI18n();
+    const root = document.getElementById('logs-view');
+    let kind = (root && root.getAttribute('data-default-kind')) || 'http';
+    let view = 'table';
 
-    var paused = false;
-    var filterTxt = '';
-    var filterLevel = '';
-    var es = null;
-    var reconnectDelayMs = 500; // start small
+    let paused = false;
+    let filterTxt = '';
+    let filterLevel = '';
+    let es = null;
+    let reconnectDelayMs = 500; // start small
 
-    var tbody = document.querySelector('#logs-table tbody');
-    var tableContainer = document.querySelector('.logs-table-container');
-    var cards = document.getElementById('logs-cards');
-    var filter = document.getElementById('logs-filter');
-    var level = document.getElementById('logs-level');
-    var clearBtn = document.getElementById('logs-clear');
-    var pauseBtn = document.getElementById('logs-pause');
-    var downloadBtn = document.getElementById('logs-download');
-    var backBtn = document.getElementById('logs-back');
-    var statusEl = document.getElementById('logs-status');
-    var countEl = document.getElementById('logs-count');
+    const tbody = document.querySelector('#logs-table tbody');
+    const tableContainer = document.querySelector('.logs-table-container');
+    const cards = document.getElementById('logs-cards');
+    const filter = document.getElementById('logs-filter');
+    const level = document.getElementById('logs-level');
+    const clearBtn = document.getElementById('logs-clear');
+    const pauseBtn = document.getElementById('logs-pause');
+    const downloadBtn = document.getElementById('logs-download');
+    const statusEl = document.getElementById('logs-status');
+    const countEl = document.getElementById('logs-count');
 
-    var pauseTextPause = (pauseBtn && pauseBtn.getAttribute('data-i18n-pause')) || 'Pause';
-    var pauseTextResume = (pauseBtn && pauseBtn.getAttribute('data-i18n-resume')) || 'Resume';
+    const pauseTextPause = (pauseBtn && pauseBtn.getAttribute('data-i18n-pause')) || 'Pause';
+    const pauseTextResume = (pauseBtn && pauseBtn.getAttribute('data-i18n-resume')) || 'Resume';
 
-    function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=String(text); return e; }
-    function lvlBadgeEl(l){ var span=el('span','badge lvl-badge badge-'+String(l||''), String(l||'')); return span; }
-    function pad(n,l){ n=String(n); l=l||2; return n.length>=l?n:('0'.repeat(l-n.length)+n); }
-    function fmtLocal(ts){ try{ var d=new Date(ts); if(isNaN(d)) return ts; var yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate()), HH=pad(d.getHours()), MM=pad(d.getMinutes()), SS=pad(d.getSeconds()), mmm=pad(d.getMilliseconds(),3); var off=-d.getTimezoneOffset(); var sign=off>=0?'+':'-'; var abs=Math.abs(off); var oh=pad(Math.floor(abs/60)); var om=pad(abs%60); return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MM+':'+SS+'.'+mmm+' '+sign+oh+':'+om; }catch{return ts;} }
+    const el=(tag, cls, text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=String(text); return e; };
+    const lvlBadgeEl=l=>{ const span=el('span','badge lvl-badge badge-'+String(l||''), String(l||'')); return span; };
+    const pad=(n,l=2)=>{ n=String(n); return n.length>=l?n:('0'.repeat(l-n.length)+n); };
+    const fmtLocal=ts=>{ try{ const d=new Date(ts); if(isNaN(d)) return ts; const yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate()), HH=pad(d.getHours()), MM=pad(d.getMinutes()), SS=pad(d.getSeconds()), mmm=pad(d.getMilliseconds(),3); const off=-d.getTimezoneOffset(); const sign=off>=0?'+':'-'; const abs=Math.abs(off); const oh=pad(Math.floor(abs/60)); const om=pad(abs%60); return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}.${mmm} ${sign}${oh}:${om}`; }catch{return ts;} };
 
     function rowFor(entry){
-      var tr=document.createElement('tr');
-      var tdTs=el('td', null, fmtLocal(entry.timestamp)); tr.appendChild(tdTs);
-      var tdLvl=el('td'); tdLvl.appendChild(lvlBadgeEl(entry.level)); tr.appendChild(tdLvl);
-      var tdCat=el('td', null, entry.category||''); tr.appendChild(tdCat);
-      var tdMsg=el('td', null, entry.message||''); tr.appendChild(tdMsg);
-      var tdAct=el('td','text-end');
-      var copyBtn=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
+      const tr=document.createElement('tr');
+      const tdTs=el('td', null, fmtLocal(entry.timestamp)); tr.appendChild(tdTs);
+      const tdLvl=el('td'); tdLvl.appendChild(lvlBadgeEl(entry.level)); tr.appendChild(tdLvl);
+      const tdCat=el('td', null, entry.category||''); tr.appendChild(tdCat);
+      const tdMsg=el('td', null, entry.message||''); tr.appendChild(tdMsg);
+      const tdAct=el('td','text-end');
+      const copyBtn=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
       copyBtn.setAttribute('data-action','copy');
       copyBtn.setAttribute('aria-label','Copy');
       tdAct.appendChild(copyBtn);
@@ -57,12 +58,12 @@
     }
 
     function cardFor(entry){
-      var col=el('div','col'); col.setAttribute('role','article');
-      var card=el('div','card log-card'); card.setAttribute('data-level', String(entry.level||''));
-      var body=el('div','card-body');
+      const col=el('div','col'); col.setAttribute('role','article');
+      const card=el('div','card log-card'); card.setAttribute('data-level', String(entry.level||''));
+      const body=el('div','card-body');
 
-      var top=el('div','d-flex justify-content-between align-items-start');
-      var left=el('div');
+      const top=el('div','d-flex justify-content-between align-items-start');
+      const left=el('div');
       left.appendChild(el('div','small text-muted', entry.category||''));
       left.appendChild(el('div','fw-semibold', fmtLocal(entry.timestamp)));
       top.appendChild(left);
@@ -72,15 +73,15 @@
       body.appendChild(el('div','log-message mt-2', entry.message||''));
 
       if (entry.exception){
-        var details=el('details','mt-2');
+        const details=el('details','mt-2');
         details.appendChild(el('summary', null, 'Exception'));
-        var pre=el('pre','mb-0'); pre.textContent = entry.exception;
+        const pre=el('pre','mb-0'); pre.textContent = entry.exception;
         details.appendChild(pre);
         body.appendChild(details);
       }
 
-      var actions=el('div','d-flex justify-content-end mt-2');
-      var copyBtn2=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
+      const actions=el('div','d-flex justify-content-end mt-2');
+      const copyBtn2=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
       copyBtn2.setAttribute('data-action','copy');
       copyBtn2.setAttribute('aria-label','Copy');
       actions.appendChild(copyBtn2);
@@ -108,129 +109,113 @@
       flush();
     }
 
-    var MAX_ROWS=3000, TRIM_TO_ROWS=2000, BATCH_FLUSH_MS=50;
-    var pending=[], pendingCards=[], flushTimer=0;
-    var visible=[];
+    const MAX_ROWS=3000, TRIM_TO_ROWS=2000, BATCH_FLUSH_MS=50;
+    let pending=[], pendingCards=[], flushTimer=0;
+    let visible=[];
 
-    function cancelFlush(){ if (flushTimer){ try{ clearTimeout(flushTimer);}catch{} flushTimer=0; } }
-    function resetBuffers(){ cancelFlush(); pending=[]; pendingCards=[]; visible=[]; }
-
+    const cancelFlush=()=>{ if (flushTimer){ try{ clearTimeout(flushTimer);}catch(e){ dbg('logs:cancelFlush', e);} flushTimer=0; } };
     function scheduleFlush(){ if (flushTimer) return; flushTimer=setTimeout(flush,BATCH_FLUSH_MS); }
     function flush(){
       flushTimer=0; if(!pending.length && !pendingCards.length) return;
-      var autoscroll=false; try{ if(view==='table' && tableContainer){ var near=(tableContainer.scrollTop+tableContainer.clientHeight)>=(tableContainer.scrollHeight-8); autoscroll=near; } }catch{}
-      if(pending.length){ var frag=document.createDocumentFragment(); for(var i=0;i<pending.length;i++) frag.appendChild(pending[i]); pending=[]; tbody.appendChild(frag); trimIfNeeded(); }
-      if(pendingCards.length){ var frag2=document.createDocumentFragment(); for(var j=0;j<pendingCards.length;j++) frag2.appendChild(pendingCards[j]); pendingCards=[]; cards.appendChild(frag2); trimCardsIfNeeded(); }
-      if(autoscroll && tableContainer){ try{ tableContainer.scrollTop=tableContainer.scrollHeight; }catch{} }
-      if(view==='cards'){ visible=Array.prototype.map.call(cards.children, function(el){ return el.__entry; }).filter(Boolean);} else { visible=Array.prototype.map.call(tbody.children, function(tr){ return tr.__entry; }).filter(Boolean);} 
+      let autoscroll=false; try{ if(view==='table' && tableContainer){ const near=(tableContainer.scrollTop+tableContainer.clientHeight)>=(tableContainer.scrollHeight-8); autoscroll=near; } }catch(e){ dbg('logs:autoscroll', e); }
+      if(pending.length){ const frag=document.createDocumentFragment(); for(let i=0;i<pending.length;i++) frag.appendChild(pending[i]); pending=[]; tbody.appendChild(frag); trimIfNeeded(); }
+      if(pendingCards.length){ const frag2=document.createDocumentFragment(); for(let j=0;j<pendingCards.length;j++) frag2.appendChild(pendingCards[j]); pendingCards=[]; cards.appendChild(frag2); trimCardsIfNeeded(); }
+      if(autoscroll && tableContainer){ try{ tableContainer.scrollTop=tableContainer.scrollHeight; }catch(e){ dbg('logs:scroll', e); } }
+      if(view==='cards'){ visible=Array.prototype.map.call(cards.children, el => el.__entry).filter(Boolean);} else { visible=Array.prototype.map.call(tbody.children, tr => tr.__entry).filter(Boolean);} 
       if(countEl) countEl.textContent=String(visible.length||0);
       if(statusEl) statusEl.textContent=(visible.length||0)+' '+(SR.Entries||'entries');
     }
 
-    function trimIfNeeded(){ try{ var extra=tbody.children.length-MAX_ROWS; if(extra>0){ var toRemove=Math.max(extra, tbody.children.length-TRIM_TO_ROWS); for(var i=0;i<toRemove;i++){ if(!tbody.firstChild) break; tbody.removeChild(tbody.firstChild);} } }catch(e){ console.debug('LogsViewer: trim failed', e); } }
-    function trimCardsIfNeeded(){ try{ var extra=cards.children.length-MAX_ROWS; if(extra>0){ var toRemove=Math.max(extra, cards.children.length-TRIM_TO_ROWS); for(var i=0;i<toRemove;i++){ if(!cards.firstChild) break; cards.removeChild(cards.firstChild);} } }catch(e){ console.debug('LogsViewer: trim cards failed', e); } }
+    function trimIfNeeded(){ try{ const extra=tbody.children.length-MAX_ROWS; if(extra>0){ const toRemove=Math.max(extra, tbody.children.length-TRIM_TO_ROWS); for(let i=0;i<toRemove;i++){ if(!tbody.firstChild) break; tbody.removeChild(tbody.firstChild);} } }catch(e){ dbg('logs:trimRows', e); } }
+    function trimCardsIfNeeded(){ try{ const extra=cards.children.length-MAX_ROWS; if(extra>0){ const toRemove=Math.max(extra, cards.children.length-TRIM_TO_ROWS); for(let i=0;i<toRemove;i++){ if(!cards.firstChild) break; cards.removeChild(cards.firstChild);} } }catch(e){ dbg('logs:trimCards', e); } }
 
-    function match(entry){ if(filterLevel && String(entry.level).toLowerCase()!==filterLevel) return false; if(filterTxt){ var t=(entry.message||'')+' '+(entry.category||''); if(t.toLowerCase().indexOf(filterTxt)<0) return false; } return true; }
-    function append(entry){ if(!match(entry)) return; var tr=rowFor(entry); pending.push(tr); var col=cardFor(entry); pendingCards.push(col); scheduleFlush(); }
-    function connect(){ if(es) try{ es.close(); }catch(e){} es=new EventSource('/logs/stream?kind='+encodeURIComponent(kind)); es.onmessage=function(ev){ reconnectDelayMs=500; if(paused) return; try{ var entry=JSON.parse(ev.data); append(entry);}catch(e){ console.warn('LogsViewer: JSON parse failed', e);} }; es.onerror=function(){ try{ es.close(); }catch(e){} var delay=reconnectDelayMs*(1+Math.random()*0.25); reconnectDelayMs=Math.min(reconnectDelayMs*2, 15000); setTimeout(connect, delay); }; }
-    function reloadHistory(){ tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if(countEl) countEl.textContent='0'; if(statusEl) statusEl.textContent=''; fetch('/logs?kind='+encodeURIComponent(kind)).then(function(r){return r.json();}).then(function(d){ if(!d||d.ok!==true) return; var items=d.items||[]; if(items.length>MAX_ROWS) items=items.slice(items.length-MAX_ROWS); for(var i=0;i<items.length;i++) append(items[i]); flush(); }); }
+    const match=entry=>{ if(filterLevel && String(entry.level).toLowerCase()!==filterLevel) return false; if(filterTxt){ const t=(entry.message||'')+' '+(entry.category||''); if(t.toLowerCase().indexOf(filterTxt)<0) return false; } return true; };
+    function append(entry){ if(!match(entry)) return; const tr=rowFor(entry); pending.push(tr); const col=cardFor(entry); pendingCards.push(col); scheduleFlush(); }
+    function connect(){ if(es) try{ es.close(); }catch(e){ dbg('logs:es-close', e);} es=new EventSource('/logs/stream?kind='+encodeURIComponent(kind)); es.onmessage=function(ev){ reconnectDelayMs=500; if(paused) return; try{ const entry=JSON.parse(ev.data); append(entry);}catch(e){ console.warn('LogsViewer: JSON parse failed', e);} }; es.onerror=function(){ try{ es.close(); }catch(e){ dbg('logs:es-close-err', e);} const delay=reconnectDelayMs*(1+Math.random()*0.25); reconnectDelayMs=Math.min(reconnectDelayMs*2, 15000); setTimeout(connect, delay); }; }
+    function reloadHistory(){ tbody.innerHTML=''; cards.innerHTML=''; visible=[]; if(countEl) countEl.textContent='0'; if(statusEl) statusEl.textContent=''; fetch('/logs?kind='+encodeURIComponent(kind)).then(r=>r.json()).then(d=>{ if(!d||d.ok!==true) return; let items=d.items||[]; if(items.length>MAX_ROWS) items=items.slice(items.length-MAX_ROWS); for(let i=0;i<items.length;i++) append(items[i]); flush(); }).catch(e=>dbg('logs:reloadHistory', e)); }
 
     function setupToolbarRoving(containerSelector){
-      var container = document.querySelector(containerSelector);
+      const container = document.querySelector(containerSelector);
       if (!container) return;
-      var items = Array.prototype.slice.call(container.querySelectorAll('[data-kind], [data-view]'));
-      items.forEach(function(btn, i){ btn.setAttribute('tabindex', i===0 ? '0' : '-1'); btn.setAttribute('role','button'); });
-      container.addEventListener('keydown', function(e){
-        var current = e.target && e.target.closest && e.target.closest('[data-kind], [data-view]');
+      const items = Array.prototype.slice.call(container.querySelectorAll('[data-kind], [data-view]'));
+      items.forEach((btn, i)=>{ btn.setAttribute('tabindex', i===0 ? '0' : '-1'); btn.setAttribute('role','button'); });
+      container.addEventListener('keydown', e => {
+        const current = e.target && e.target.closest && e.target.closest('[data-kind], [data-view]');
         if (!current) return;
-        var idx = items.indexOf(current);
+        const idx = items.indexOf(current);
         if (idx < 0) return;
-        var key = e.key;
+        const key = e.key;
         if (key==='ArrowRight' || key==='ArrowDown'){
-          e.preventDefault(); var n=(idx+1)%items.length; items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[n].setAttribute('tabindex','0'); items[n].focus();
+          e.preventDefault(); const n=(idx+1)%items.length; items.forEach(b=>b.setAttribute('tabindex','-1')); items[n].setAttribute('tabindex','0'); items[n].focus();
         } else if (key==='ArrowLeft' || key==='ArrowUp'){
-          e.preventDefault(); var p=(idx-1+items.length)%items.length; items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[p].setAttribute('tabindex','0'); items[p].focus();
+          e.preventDefault(); const p=(idx-1+items.length)%items.length; items.forEach(b=>b.setAttribute('tabindex','-1')); items[p].setAttribute('tabindex','0'); items[p].focus();
         } else if (key==='Home'){
-          e.preventDefault(); items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[0].setAttribute('tabindex','0'); items[0].focus();
+          e.preventDefault(); items.forEach(b=>b.setAttribute('tabindex','-1')); items[0].setAttribute('tabindex','0'); items[0].focus();
         } else if (key==='End'){
-          e.preventDefault(); items.forEach(function(b){ b.setAttribute('tabindex','-1'); }); items[items.length-1].setAttribute('tabindex','0'); items[items.length-1].focus();
-        } else if (key===' ' || key==='Enter'){
-          // handled by click
+          e.preventDefault(); items.forEach(b=>b.setAttribute('tabindex','-1')); items[items.length-1].setAttribute('tabindex','0'); items[items.length-1].focus();
         }
       });
     }
 
     // Debounced filter input (200ms)
-    var filterDebounceTimer = 0;
-    var FILTER_DEBOUNCE_MS = 200; // within requested 150–250ms window
+    let filterDebounceTimer = 0;
+    const FILTER_DEBOUNCE_MS = 200;
 
-    // Toolbar: filter and level
-    if (filter) filter.addEventListener('input', function(){
+    if (filter) filter.addEventListener('input', () => {
       filterTxt = String(filter.value||'').toLowerCase();
-      if (filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch{} }
-      filterDebounceTimer = setTimeout(function(){ reloadHistory(); }, FILTER_DEBOUNCE_MS);
+      if (filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch(e){ dbg('logs:clearDebounce', e); } }
+      filterDebounceTimer = setTimeout(() => { reloadHistory(); }, FILTER_DEBOUNCE_MS);
     });
-    if (level) level.addEventListener('change', function(){ var v=String(level.value||'').toLowerCase(); filterLevel=v; reloadHistory(); });
+    if (level) level.addEventListener('change', () => { const v=String(level.value||'').toLowerCase(); filterLevel=v; reloadHistory(); });
 
-    // Allow pressing Enter in filter to force immediate apply (no wait)
-    if (filter) filter.addEventListener('keydown', function(e){ if(e.key==='Enter'){ if(filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch{} } reloadHistory(); } });
+    if (filter) filter.addEventListener('keydown', e => { if(e.key==='Enter'){ if(filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch(er){ dbg('logs:enterClearDebounce', er); } } reloadHistory(); } });
 
-    // Toolbar: clear
-    if (clearBtn) clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }).then(function(){ reloadHistory(); }); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { fetch('/logs/clear', { method: 'POST' }).then(()=> reloadHistory()); });
 
-    // Toolbar: pause/resume
-    if (pauseBtn) pauseBtn.addEventListener('click', function(){ paused = !paused; pauseBtn.textContent = paused ? pauseTextResume : pauseTextPause; });
+    if (pauseBtn) pauseBtn.addEventListener('click', () => { paused = !paused; pauseBtn.textContent = paused ? pauseTextResume : pauseTextPause; });
 
-    // Toolbar: download visible as JSON
-    if (downloadBtn) downloadBtn.addEventListener('click', function(){ try{ var blob=new Blob([JSON.stringify(visible||[], null, 2)], {type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='logs_'+(kind||'all')+'_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{ URL.revokeObjectURL(a.href);}catch{}; try{ document.body.removeChild(a);}catch{}; }, 0);}catch(e){ console.warn('LogsViewer: download failed', e); } });
+    if (downloadBtn) downloadBtn.addEventListener('click', () => { try{ const blob=new Blob([JSON.stringify(visible||[], null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='logs_'+(kind||'all')+'_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{ try{ URL.revokeObjectURL(a.href);}catch(e){ dbg('logs:revokeUrl', e);} try{ document.body.removeChild(a);}catch(e){ dbg('logs:removeLink', e);} }, 0);}catch(e){ console.warn('LogsViewer: download failed', e); } });
 
-    // Toolbar: kind/view buttons (event delegation)
-    document.addEventListener('click', function(e){
-      var btnKV = e.target && e.target.closest ? e.target.closest('[data-kind]') : null;
+    document.addEventListener('click', e => {
+      const btnKV = e.target && e.target.closest ? e.target.closest('[data-kind]') : null;
       if (btnKV && btnKV.hasAttribute('data-kind')){
-        var newKind = btnKV.getAttribute('data-kind')||'';
+        const newKind = btnKV.getAttribute('data-kind')||'';
         if (newKind && newKind !== kind){
           kind = newKind;
-          // update active states
-          var kinds = document.querySelectorAll('[data-kind]');
-          for (var i=0;i<kinds.length;i++){ var b=kinds[i]; var is=b.getAttribute('data-kind')===kind; b.classList.toggle('active', is); b.setAttribute('aria-pressed', is ? 'true' : 'false'); }
+          const kinds = document.querySelectorAll('[data-kind]');
+          for (let i=0;i<kinds.length;i++){ const b=kinds[i]; const is=b.getAttribute('data-kind')===kind; b.classList.toggle('active', is); b.setAttribute('aria-pressed', is ? 'true' : 'false'); }
           reloadHistory();
           connect();
         }
         return;
       }
-      var btnV = e.target && e.target.closest ? e.target.closest('[data-view]') : null;
+      const btnV = e.target && e.target.closest ? e.target.closest('[data-view]') : null;
       if (btnV && btnV.hasAttribute('data-view')){
-        var newView = btnV.getAttribute('data-view')||'table';
+        const newView = btnV.getAttribute('data-view')||'table';
         if (newView !== view){
           view = newView;
-          var views = document.querySelectorAll('[data-view]');
-          for (var j=0;j<views.length;j++){ var v=views[j]; var is=v.getAttribute('data-view')===view; v.classList.toggle('active', is); v.setAttribute('aria-pressed', is ? 'true' : 'false'); }
+          const views = document.querySelectorAll('[data-view]');
+            for (let j=0;j<views.length;j++){ const v=views[j]; const is=v.getAttribute('data-view')===view; v.classList.toggle('active', is); v.setAttribute('aria-pressed', is ? 'true' : 'false'); }
           syncViewVisibility();
         }
         return;
       }
-      var copyBtn = e.target && e.target.closest ? e.target.closest('[data-action="copy"]') : null;
+      const copyBtn = e.target && e.target.closest ? e.target.closest('[data-action="copy"]') : null;
       if (copyBtn){
         try{
-          var host = copyBtn.closest('tr') || copyBtn.closest('.col');
-          var entry = host && host.__entry ? host.__entry : null;
-          var text = entry ? (entry.message || JSON.stringify(entry)) : '';
-          navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : null;
+          const host = copyBtn.closest('tr') || copyBtn.closest('.col');
+          const entry = host && host.__entry ? host.__entry : null;
+          const text = entry ? (entry.message || JSON.stringify(entry)) : '';
+          if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text); }
           copyBtn.textContent = (SR.Copied||'Copied');
-          setTimeout(function(){ copyBtn.textContent = (SR.Copy||'Copy'); }, 1200);
-        }catch{}
+          setTimeout(()=>{ copyBtn.textContent = (SR.Copy||'Copy'); }, 1200);
+        }catch(err){ dbg('logs:copy', err); }
       }
     });
 
-    // Set initial view visibility
     syncViewVisibility();
-
-    // Initial load
     reloadHistory();
     connect();
-
-    // Accessibility roving for the two btn groups
     setupToolbarRoving('#logs-section .btn-group[role="group"]');
   }
 

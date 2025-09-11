@@ -1,19 +1,21 @@
 (function(){
-  var form = document.getElementById('gpip-search-form');
+  'use strict';
+  const dbg=(m,e)=>{ try{ if(e&&console&&console.debug) console.debug(m,e);}catch(_){} };
+  const form = document.getElementById('gpip-search-form');
   if (!form) return;
-  form.addEventListener('submit', function(){
+  form.addEventListener('submit', () => {
     try{
-      var sec = document.getElementById('person-details-section');
-      var body = document.getElementById('person-details-body');
-      var err = document.getElementById('person-details-error');
-      var loading = document.getElementById('person-details-loading');
+      const sec = document.getElementById('person-details-section');
+      const body = document.getElementById('person-details-body');
+      const err = document.getElementById('person-details-error');
+      const loading = document.getElementById('person-details-loading');
       if (err) { err.classList.add('d-none'); err.textContent=''; }
       if (loading) loading.classList.remove('d-none');
       if (body) { body.innerHTML=''; }
       if (sec) { sec.classList.remove('d-none'); }
       window.lastPid = null;
       if (window.personCache && window.personCache.clear) window.personCache.clear();
-      try{ var url = new URL(window.location.href); url.searchParams.delete('publicId'); url.searchParams.delete('gpivPublicId'); history.replaceState(null,'',url.toString()); }catch{}
-    }catch{}
+      try{ const url = new URL(window.location.href); url.searchParams.delete('publicId'); url.searchParams.delete('gpivPublicId'); history.replaceState(null,'',url.toString()); }catch(e){ dbg('index-clear:history', e); }
+    }catch(e){ dbg('index-clear:submit', e); }
   });
 })();
