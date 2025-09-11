@@ -7,8 +7,8 @@
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
     var initialPublicId = (string?)(ViewData["InitialPublicId"]) ?? string.Empty;
-    bool showRaw = RespOpts?.ShowRawXml ?? true;
-    bool showPretty = RespOpts?.ShowPrettyXml ?? true;
+    bool showRaw = RespOpts?.ShowRawXml ?? true; // kept for potential future use
+    bool showPretty = RespOpts?.ShowPrettyXml ?? true; // kept for potential future use
 
     var gpivI18n = new {
         Basics = SR["Basics"].Value,
@@ -25,7 +25,10 @@
         NoAddresses = SR["NoAddresses"].Value,
         NoForeignSsns = SR["NoForeignSsns"].Value,
         NoJuridicalParents = SR["NoJuridicalParents"].Value,
-        NoData = SR["NoData"].Value
+        NoData = SR["NoData"].Value,
+        RawXml = SR["RawXml"].Value,
+        PrettyXml = SR["PrettyXml"].Value,
+        Download = SR["Download"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
@@ -59,18 +62,6 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="pd-tab-people-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-people" type="button" role="tab" aria-controls="pd-tab-people" aria-selected="true">@SR["PeopleLabel"]</button>
         </li>
-        @if (showRaw)
-        {
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
-          </li>
-        }
-        @if (showPretty)
-        {
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
-          </li>
-        }
         <li class="nav-item ms-auto d-flex align-items-center">
           <button type="button" id="pd-toggle-details" class="btn btn-sm btn-outline-primary collapsed" data-bs-toggle="collapse" data-bs-target="#pd-details-panel" aria-expanded="false" aria-controls="pd-details-panel" title="@SR["PersonDetails"]" aria-label="@SR["PersonDetails"]">
             <i class="bi bi-card-text me-1" aria-hidden="true"></i><span class="pd-details-label">@SR["Details"]</span>
@@ -91,21 +82,7 @@
           </div>
         </div>
 
-        <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
-          <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
-          </div>
-          <pre class="gpiv-pre" id="gpiv-raw-pre"></pre>
-        </div>
-
-        <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
-          <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-copy-pretty">@SR["Copy"]</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="gpiv-dl-pretty">@SR["Download"]</button>
-          </div>
-          <pre class="gpiv-pre" id="gpiv-pretty-pre"></pre>
-        </div>
+        <!-- Removed top-level Raw/Pretty tabs. Inline viewers are provided next to each person name. -->
 
         <!-- Animated collapse Person Details panel -->
         <div id="pd-details-panel" class="collapse mt-3" aria-labelledby="pd-toggle-details">

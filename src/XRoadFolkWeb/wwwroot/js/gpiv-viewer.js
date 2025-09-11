@@ -173,7 +173,7 @@
     for (var i = 0; i < all.length; i++) if (all[i].localName === 'PersonPublicInfo') nodes.push(all[i]);
     if (nodes.length > 0) return nodes;
     for (var j = 0; j < all.length; j++) if (all[j].localName === 'Person') nodes.push(all[j]);
-    if (nodes.length > 0) return nodes;
+    if (nodes.length > 0, nodes) return nodes;
     for (var k = 0; k < all.length; k++) {
       var e = all[k];
       var ln = e.localName;
@@ -190,48 +190,38 @@
     return nodes;
   }
 
-  function createDetailsButton(publicId){
-    var label = (I18N && (I18N.Details || I18N.PersonDetails)) ? (I18N.Details || I18N.PersonDetails) : 'Details';
-    var btn = document.createElement('button');
-    btn.type='button';
-    btn.className='btn btn-sm btn-outline-primary ms-auto gpiv-more-info-btn';
-    btn.setAttribute('title', (I18N.PersonDetails||label));
-    btn.setAttribute('aria-label', (I18N.PersonDetails||label));
-    btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'+label;
-    btn.addEventListener('click', function(){
-      var panel = document.getElementById('pd-details-panel');
-      var isOpen = panel && panel.classList.contains('show');
-      var currentPid = (typeof window !== 'undefined' && window.lastPid) ? window.lastPid : '';
-      // Toggle behavior: if open and same person -> hide; else show and/or load
-      if(isOpen && currentPid && publicId && currentPid === publicId){
-        try{
-          if(window.bootstrap && window.bootstrap.Collapse){
-            var instHide = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
-            instHide.hide();
-          } else {
-            panel.classList.remove('show');
-          }
-        }catch{}
-        return;
-      }
-      // Show and load selected person
-      try{ window.lastPid = publicId || window.lastPid; }catch{}
-      try{
-        if(panel){
-          if(window.bootstrap && window.bootstrap.Collapse){
-            var instShow = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
-            instShow.show();
-          } else {
-            panel.classList.add('show');
-          }
-        }
-      }catch{}
-      try{
-        var trigger = document.getElementById('gpiv-tab-details-btn');
-        if(trigger){ trigger.click(); }
-      }catch{}
-    });
-    return btn;
+  function createRawPrettyButtons(inlineHost){
+    var wrap=document.createElement('div');
+    wrap.className='btn-group btn-group-sm align-self-center ms-2';
+    function showInline(mode){
+      if(!inlineHost) return;
+      var openMode = inlineHost.getAttribute('data-mode') || '';
+      var visible = !inlineHost.classList.contains('d-none');
+      if(visible && openMode===mode){ inlineHost.classList.add('d-none'); return; }
+      inlineHost.setAttribute('data-mode', mode);
+      inlineHost.classList.remove('d-none');
+      clearChildren(inlineHost);
+
+      var content=(mode==='raw') ? (sourceRaw||'') : ((sourcePretty||sourceRaw||''));
+
+      var card=document.createElement('div'); card.className='p-2 border rounded bg-body-tertiary';
+      var actions=document.createElement('div'); actions.className='d-flex justify-content-end gap-2 mb-2';
+      var copyBtn=document.createElement('button'); copyBtn.type='button'; copyBtn.className='btn btn-sm btn-outline-secondary'; copyBtn.textContent=(I18N.Copy||'Copy');
+      copyBtn.addEventListener('click', function(){ copyToClipboard(content).then(function(){ var prev=copyBtn.textContent; copyBtn.textContent=(I18N.Copied||'Copied'); setTimeout(function(){ copyBtn.textContent=prev; }, 1200); }); });
+      var dlBtn=document.createElement('button'); dlBtn.type='button'; dlBtn.className='btn btn-sm btn-outline-secondary'; dlBtn.textContent=(I18N.Download||'Download');
+      dlBtn.addEventListener('click', function(){ var ts=new Date().toISOString().replace(/[:.]/g,'-'); var fname=(mode==='raw'?'GetPeoplePublicInfo_raw_':'GetPeoplePublicInfo_pretty_')+ts+'.xml'; downloadBlob(fname, content, 'text/xml;charset=utf-8'); });
+      actions.appendChild(copyBtn); actions.appendChild(dlBtn);
+
+      var pre=document.createElement('pre'); pre.className='gpiv-pre mb-0'; pre.style.maxHeight='16rem'; pre.style.overflow='auto';
+      pre.textContent = content;
+
+      card.appendChild(actions);
+      card.appendChild(pre);
+      inlineHost.appendChild(card);
+    }
+    var rawBtn=document.createElement('button'); rawBtn.type='button'; rawBtn.className='btn btn-outline-secondary'; rawBtn.innerHTML='<i class="bi bi-filetype-xml me-1" aria-hidden="true"></i>'+(I18N.RawXml||'Raw XML'); rawBtn.addEventListener('click',function(){ showInline('raw'); }); wrap.appendChild(rawBtn);
+    var prettyBtn=document.createElement('button'); prettyBtn.type='button'; prettyBtn.className='btn btn-outline-secondary'; prettyBtn.innerHTML='<i class="bi bi-braces-asterisk me-1" aria-hidden="true"></i>'+(I18N.PrettyXml||'Pretty XML'); prettyBtn.addEventListener('click',function(){ showInline('pretty'); }); wrap.appendChild(prettyBtn);
+    return wrap;
   }
 
   function buildNodeContent(node) {
@@ -299,6 +289,9 @@
         }
         var nameEl = document.createElement('strong'); nameEl.textContent = fullName || '-'; header.appendChild(nameEl);
 
+        // Inline XML host directly beneath the header
+        var inlineHost=document.createElement('div'); inlineHost.className='gpiv-inline-xml mt-2 d-none';
+
         var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
         var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
 
@@ -309,10 +302,55 @@
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
+        // Add Raw/Pretty inline buttons next to name
+        try{ var rp=createRawPrettyButtons(inlineHost); if(rp) header.appendChild(rp); }catch{}
+
         // Add Details button beside the name
-        try{ header.appendChild(createDetailsButton(publicId)); }catch{}
+        try{ header.appendChild((function(){
+          var label = (I18N && (I18N.Details || I18N.PersonDetails)) ? (I18N.Details || I18N.PersonDetails) : 'Details';
+          var btn = document.createElement('button');
+          btn.type='button'; btn.className='btn btn-sm btn-outline-primary ms-auto gpiv-more-info-btn';
+          btn.setAttribute('title', (I18N.PersonDetails||label)); btn.setAttribute('aria-label', (I18N.PersonDetails||label));
+          btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'+label;
+          btn.addEventListener('click', function(){
+            var panel = document.getElementById('pd-details-panel');
+            var isOpen = panel && panel.classList.contains('show');
+            var currentPid = (typeof window !== 'undefined' && window.lastPid) ? window.lastPid : '';
+            // Toggle behavior: if open and same person -> hide; else show and/or load
+            if(isOpen && currentPid && publicId && currentPid === publicId){
+              try{
+                if(window.bootstrap && window.bootstrap.Collapse){
+                  var instHide = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
+                  instHide.hide();
+                } else {
+                  panel.classList.remove('show');
+                }
+              }catch{}
+              return;
+            }
+            // Show and load selected person
+            try{ window.lastPid = publicId || window.lastPid; }catch{}
+            try{
+              if(panel){
+                if(window.bootstrap && window.bootstrap.Collapse){
+                  var instShow = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
+                  instShow.show();
+                } else {
+                  panel.classList.add('show');
+                }
+              }
+            }catch{}
+            try{
+              var trigger = document.getElementById('gpiv-tab-details-btn');
+              if(trigger){ trigger.click(); }
+            }catch{}
+          });
+          return btn;
+        })()); }catch{}
 
         wrap.appendChild(header);
+        // Insert inline XML host right beneath header so it never hides the header itself
+        wrap.appendChild(inlineHost);
 
         var accId = nextUid('acc');
         var acc = document.createElement('div'); acc.className = 'accordion'; acc.id = accId;
