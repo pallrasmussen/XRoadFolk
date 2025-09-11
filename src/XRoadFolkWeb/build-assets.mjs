@@ -3,8 +3,12 @@
 import { build } from 'esbuild';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const root = path.resolve(process.cwd(), 'wwwroot');
+// Resolve wwwroot relative to this script's directory (not the process CWD)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.join(__dirname, 'wwwroot');
 const outDir = path.join(root, 'dist');
 
 async function rimraf(dir){ try { await fs.rm(dir, { recursive:true, force:true }); } catch {} }
@@ -34,7 +38,7 @@ const cssEntries = [
 async function buildAll(){
   await rimraf(outDir); await ensure(outDir);
 
-  // JS bundle (code splitting) – produces hashed filenames
+  // JS bundle (code splitting)
   await build({
     entryPoints: jsEntries.map(f => path.join(root, f)),
     outdir: outDir,
@@ -47,7 +51,7 @@ async function buildAll(){
     logLevel: 'info'
   });
 
-  // CSS: esbuild can process but keep separate (no inlining) for cache bust
+  // CSS bundle
   await build({
     entryPoints: cssEntries.map(f => path.join(root, f)),
     outdir: outDir,

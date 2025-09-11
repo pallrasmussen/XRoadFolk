@@ -19,8 +19,9 @@
         return false;
     }, function () {
         // Default message; can be localized by overriding window.ValidationMessages.ProvideSsnOrNameDob
-        return (window.ValidationMessages && window.ValidationMessages.ProvideSsnOrNameDob) ||
-               'Provide SSN or First/Last name with DOB.';
+        // Faroese wording changed from 'fyrinavn + eftirnavn + føðingardag' to 'fornavn + eftirnavn + føðingardag'
+        const fallback = 'Provide SSN or fornavn + eftirnavn + føðingardag.';
+        return (window.ValidationMessages && window.ValidationMessages.ProvideSsnOrNameDob) || fallback;
     });
 
     // Attach the rule to all involved fields if present on the page
