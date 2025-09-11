@@ -12,3 +12,10 @@
   .card.shadow-sm { box-shadow: 0 .25rem .5rem rgba(255,255,255,.05) !important; }
   .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255,255,255,.015); }
 }
+
+/* Make toolbar sticky but not overlay top navbar/theme dropdown */
+.logs-toolbar { position: sticky; top: -1px; z-index: 10; background: var(--bs-body-bg); padding-top: .25rem; padding-bottom: .25rem; }
+@media (max-width: 768px){ .logs-toolbar { gap: .25rem; } }
+
+/* Ensure right-side buttons wrap on small widths to avoid overlapping the theme dropdown */
+#logs-section .logs-toolbar > .d-flex:last-child { flex-wrap: wrap; justify-content: flex-end; }
