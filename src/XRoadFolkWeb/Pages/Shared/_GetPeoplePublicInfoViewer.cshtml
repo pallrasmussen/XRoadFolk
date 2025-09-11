@@ -7,28 +7,34 @@
     var raw = (string?)(ViewData["RawXml"]) ?? "";
     var pretty = (string?)(ViewData["PrettyXml"]) ?? "";
     var initialPublicId = (string?)(ViewData["InitialPublicId"]) ?? string.Empty;
-    bool showRaw = RespOpts?.ShowRawXml ?? true; // kept for potential future use
-    bool showPretty = RespOpts?.ShowPrettyXml ?? true; // kept for potential future use
+    bool showRaw = RespOpts?.ShowRawXml ?? true; // reserved
+    bool showPretty = RespOpts?.ShowPrettyXml ?? true; // reserved
 
     var gpivI18n = new {
         Basics = SR["Basics"].Value,
         Names = SR["Names"].Value,
         Name = SR["Name"].Value,
+        Addresses = SR["Addresses"].Value,
         PublicId = SR["PublicId"].Value,
         DOB = SR["DOB"].Value,
         Status = SR["Status"].Value,
         Copy = SR["Copy"].Value,
         Copied = SR["Copied"].Value,
+        Download = SR["Download"].Value,
+        RawXml = SR["RawXml"].Value,
+        PrettyXml = SR["PrettyXml"].Value,
+        Details = SR["Details"].Value,
         PersonDetails = SR["PersonDetails"].Value,
         Loading = SR["Loading"].Value,
         NoBasics = SR["NoBasics"].Value,
+        NoNames = SR["NoNames"].Value,
         NoAddresses = SR["NoAddresses"].Value,
         NoForeignSsns = SR["NoForeignSsns"].Value,
         NoJuridicalParents = SR["NoJuridicalParents"].Value,
         NoData = SR["NoData"].Value,
-        RawXml = SR["RawXml"].Value,
-        PrettyXml = SR["PrettyXml"].Value,
-        Download = SR["Download"].Value
+        NoXmlToDisplay = SR["NoXmlToDisplay"].Value,
+        NoPeopleFound = SR["NoPeopleFound"].Value,
+        FailedToBuildSummaryPrefix = SR["FailedToRenderTreePrefix"].Value
     };
     var nonce = Context?.Items?["CSP_NONCE"] as string;
 
@@ -81,8 +87,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Removed top-level Raw/Pretty tabs. Inline viewers are provided next to each person name. -->
 
         <!-- Animated collapse Person Details panel -->
         <div id="pd-details-panel" class="collapse mt-3" aria-labelledby="pd-toggle-details">

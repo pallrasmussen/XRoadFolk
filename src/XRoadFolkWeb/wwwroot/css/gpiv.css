@@ -31,19 +31,19 @@
 .gpiv-highlight { animation: gpivFlash 1.5s ease-out 1; }
 
 /* SUMMARY: match person-details accordion exactly */
-#gpiv-xml-summary .accordion-button { padding: .5rem .75rem; font-weight: 600; }
+#gpiv-xml-summary .accordion-button { padding: .45rem .6rem; font-weight: 600; }
 #gpiv-xml-summary .accordion-item + .accordion-item { border-top: 1px solid var(--bs-border-color); }
 #gpiv-xml-summary .accordion-body { padding: 0; }
 
 /* Table readability tweaks to match person-details */
 #gpiv-xml-summary .table { margin: 0; }
-#gpiv-xml-summary .table th { width: 35%; background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle)); color: var(--bs-secondary-color); }
+#gpiv-xml-summary .table th { width: 33%; background: var(--bs-tertiary-bg, var(--bs-secondary-bg-subtle)); color: var(--bs-secondary-color); }
 #gpiv-xml-summary .table th, #gpiv-xml-summary .table td { vertical-align: top; word-break: break-word; }
 #gpiv-xml-summary .table tbody tr:hover th, #gpiv-xml-summary .table tbody tr:hover td { background: var(--bs-secondary-bg-subtle); }
 
 /* Person header inside the scrolling summary viewport -> sticky */
 #gpiv-xml-summary .gpiv-person { position: static; }
-#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 1; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem; }
+#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 1; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem; box-shadow: 0 1px 0 0 var(--bs-border-color); }
 
 /* Disable pointer/hover on badge and name to make them non-interactive */
 #gpiv-xml-summary .gpiv-person-header .badge,
@@ -51,12 +51,21 @@
 #gpiv-xml-summary .gpiv-person-header .badge:hover,
 #gpiv-xml-summary .gpiv-person-header strong:hover { text-decoration: none; filter: none; opacity: 1; }
 
+/* Header controls sizing */
+#gpiv-xml-summary .gpiv-person-header .btn-group > .btn,
+#gpiv-xml-summary .gpiv-person-header .gpiv-more-info-btn { padding-block: .125rem .2rem; }
+
 /* Only the "More info" button should look/behave like a link */
 .gpiv-more-info-btn { cursor: pointer; transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out; }
 .gpiv-more-info-btn:hover, .gpiv-more-info-btn:focus-visible { text-decoration: underline; }
 
 /* Add active card state like person details focus */
 #gpiv-xml-summary .gpiv-active-card { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+
+/* Inline XML panel under person header */
+.gpiv-inline-xml { border-left: 2px solid var(--bs-border-color); padding-left: .5rem; }
+.gpiv-inline-xml .gpiv-pre { background: var(--bs-tertiary-bg, #f8f9fa); font-size: .8rem; }
+@media (prefers-color-scheme: dark) { .gpiv-inline-xml .gpiv-pre { background: rgba(255,255,255,.05); } }
 
 /* Tabs */
 .gpiv-tab-actions { gap: .5rem; }
