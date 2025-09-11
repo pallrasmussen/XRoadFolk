@@ -160,9 +160,20 @@
       });
     }
 
+    // Debounced filter input (200ms)
+    var filterDebounceTimer = 0;
+    var FILTER_DEBOUNCE_MS = 200; // within requested 150–250ms window
+
     // Toolbar: filter and level
-    if (filter) filter.addEventListener('input', function(){ filterTxt = String(filter.value||'').toLowerCase(); reloadHistory(); });
+    if (filter) filter.addEventListener('input', function(){
+      filterTxt = String(filter.value||'').toLowerCase();
+      if (filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch{} }
+      filterDebounceTimer = setTimeout(function(){ reloadHistory(); }, FILTER_DEBOUNCE_MS);
+    });
     if (level) level.addEventListener('change', function(){ var v=String(level.value||'').toLowerCase(); filterLevel=v; reloadHistory(); });
+
+    // Allow pressing Enter in filter to force immediate apply (no wait)
+    if (filter) filter.addEventListener('keydown', function(e){ if(e.key==='Enter'){ if(filterDebounceTimer){ try{ clearTimeout(filterDebounceTimer);}catch{} } reloadHistory(); } });
 
     // Toolbar: clear
     if (clearBtn) clearBtn.addEventListener('click', function(){ fetch('/logs/clear', { method: 'POST' }).then(function(){ reloadHistory(); }); });

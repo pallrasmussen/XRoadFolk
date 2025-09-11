@@ -37,7 +37,7 @@
     return doc;
   }
 
-  // Height sync with People Search card
+  // Height sync with People Search card (original)
   function syncViewerHeight() {
     try {
       var search = byId('people-search-card');
@@ -49,6 +49,17 @@
       var h = Math.round(search.getBoundingClientRect().height);
       if (h > 0) card.style.height = h + 'px';
     } catch (e) { console.error('gpiv: syncViewerHeight failed', e); }
+  }
+
+  // Throttled / debounced height sync (75ms debounce + rAF)
+  var heightSyncTimer = 0;
+  var HEIGHT_SYNC_DELAY = 75; // within requested 50–100ms window
+  function scheduleHeightSync(){
+    try{ if(heightSyncTimer){ clearTimeout(heightSyncTimer); } }catch{}
+    heightSyncTimer = setTimeout(function(){
+      heightSyncTimer = 0;
+      try{ (window.requestAnimationFrame||function(fn){ return setTimeout(fn,16); })(function(){ syncViewerHeight(); }); }catch{ syncViewerHeight(); }
+    }, HEIGHT_SYNC_DELAY);
   }
 
   function buildHeaderBtnContent(btn, titleText) {
@@ -276,10 +287,10 @@
     clearChildren(summaryHost);
     try {
       var xmlText = (sourceRaw && sourceRaw.trim()) ? sourceRaw : (sourcePretty || '');
-      if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; syncViewerHeight(); return; }
+      if (!xmlText.trim()) { summaryHost.textContent = I18N.NoXmlToDisplay || 'No XML to display.'; scheduleHeightSync(); return; }
       var xml = parseXml(xmlText);
       var people = findPeopleNodes(xml);
-      if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
+      if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); scheduleHeightSync(); return; }
       var frag=document.createDocumentFragment();
       for (var p = 0; p < people.length; p++) {
         var person = people[p];
@@ -349,11 +360,11 @@
       try { focusFirstAccordionButton(summaryHost); } catch {}
       // Hide old navbar Details button if present
       try{ var navBtn=byId('pd-toggle-details'); if(navBtn){ navBtn.classList.add('d-none'); navBtn.setAttribute('aria-hidden','true'); } }catch{}
-      syncViewerHeight();
+      scheduleHeightSync();
     } catch (e) {
       console.error('gpiv: failed to build summary', e);
       summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to build summary:') + ' ' + (e && e.message ? e.message : e);
-      syncViewerHeight();
+      scheduleHeightSync();
     }
   }
 
@@ -361,7 +372,7 @@
     var combined = (sourceRaw && sourceRaw.trim()) || (sourcePretty && sourcePretty.trim()) || '';
     var hasAny = combined.length > 0;
     if (emptyMsg) emptyMsg.style.display = hasAny ? 'none' : 'block';
-    if (hasAny) { renderSummary(); } else { clearChildren(summaryHost); syncViewerHeight(); }
+    if (hasAny) { renderSummary(); } else { clearChildren(summaryHost); scheduleHeightSync(); }
   }
 
   function setRawPrettyUi(raw, pretty){
@@ -393,11 +404,11 @@
       try { var pdSec = byId('person-details-section'); if (pdSec) pdSec.classList.remove('pd-fullscreen'); } catch (_) {}
       try {
         toggleFullscreenWithCssFallback(card, 'gpiv-fullscreen');
-        if (!document.fullscreenElement && !card.classList.contains('gpiv-fullscreen')) syncViewerHeight();
+        if (!document.fullscreenElement && !card.classList.contains('gpiv-fullscreen')) scheduleHeightSync();
       } catch (err) {
         card.classList.toggle('gpiv-fullscreen');
         card.style.height = '';
-        if (!card.classList.contains('gpiv-fullscreen')) syncViewerHeight();
+        if (!card.classList.contains('gpiv-fullscreen')) scheduleHeightSync();
       }
     });
 
@@ -405,7 +416,7 @@
       if (!card) return;
       var isFs = document.fullscreenElement === card;
       card.classList.toggle('gpiv-fullscreen', isFs);
-      if (!isFs) syncViewerHeight();
+      if (!isFs) scheduleHeightSync();
     });
   }
 
@@ -473,11 +484,11 @@
       try {
         var sc = byId('people-search-card');
         if (window.ResizeObserver && sc) {
-          var ro = new ResizeObserver(function () { syncViewerHeight(); });
+          var ro = new ResizeObserver(function () { scheduleHeightSync(); });
             ro.observe(sc);
         }
       } catch (e) { console.error('gpiv: ResizeObserver failed', e); }
-      window.addEventListener('resize', syncViewerHeight);
+      window.addEventListener('resize', scheduleHeightSync);
       initFullscreen();
       document.addEventListener('keydown', function(e){ handleAccordionKeydown(e, summaryHost); });
       document.addEventListener('click', function(e){
@@ -488,7 +499,7 @@
       });
       loadInitialDataFromJsonTags();
       initPublicIdLink();
-      syncViewerHeight();
+      scheduleHeightSync();
     } catch (e) {
       console.error('gpiv: init failed', e);
       if (summaryHost) { summaryHost.textContent = (I18N.FailedToBuildSummaryPrefix || 'Failed to initialize:') + ' ' + (e && e.message ? e.message : e); }
