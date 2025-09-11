@@ -150,6 +150,23 @@
     return item;
   }
 
+  function makeAccItem(accId, idx, title, open){
+    var item = document.createElement('div'); item.className = 'accordion-item';
+    var hid = accId + '-h-' + idx; var cid = accId + '-c-' + idx;
+    var h2 = document.createElement('h2'); h2.className = 'accordion-header'; h2.id = hid;
+    var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'accordion-button' + (open ? '' : ' collapsed');
+    btn.setAttribute('data-bs-toggle', 'collapse'); btn.setAttribute('data-bs-target', '#' + cid);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.setAttribute('aria-controls', cid);
+    buildHeaderBtnContent(btn, title || '');
+    h2.appendChild(btn);
+    var col = document.createElement('div'); col.id = cid; col.className = 'accordion-collapse collapse' + (open ? ' show' : '');
+    col.setAttribute('aria-labelledby', hid);
+    var body = document.createElement('div'); body.className = 'accordion-body p-0'; body.dataset.rendered='0';
+    col.appendChild(body);
+    item.appendChild(h2); item.appendChild(col);
+    return { item: item, body: body };
+  }
+
   function expandSummaryAll(open) { if (!summaryHost) return; toggleAllAccordions(summaryHost, open); }
 
   function groupChildrenByName(node) {
@@ -268,10 +285,8 @@
         var person = people[p];
         var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
         wrap.setAttribute('data-idx', String(p));
-
         var header = el('div', 'gpiv-person-header d-flex flex-wrap gap-2 align-items-baseline mb-2', null);
         header.appendChild(el('span', 'badge text-bg-secondary', '#' + (p + 1)));
-
         var nameRoot = null;
         for (var nc = 0; nc < person.children.length; nc++) { if (person.children[nc].localName === 'Names') { nameRoot = person.children[nc]; break; } }
         var fullName = '';
@@ -289,126 +304,46 @@
           fullName = (joined.join(' ') + ' ' + last).trim();
         }
         var nameEl = document.createElement('strong'); nameEl.textContent = fullName || '-'; header.appendChild(nameEl);
-
-        // Inline XML host directly beneath the header
         var inlineHost=document.createElement('div'); inlineHost.className='gpiv-inline-xml mt-2 d-none';
-
         var publicId = getTextLocal(person, 'PublicId') || getTextLocal(person, 'PersonId');
         var dob = (getTextLocal(person, 'DateOfBirth') || '').slice(0, 10);
-
         wrap.dataset.name = fullName || '';
         wrap.dataset.publicId = publicId || '';
         wrap.dataset.dob = dob || '';
         if (publicId) { try { wrap.setAttribute('data-public-id', publicId); } catch(e) {} }
-
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
-
-        // Add Raw/Pretty inline buttons next to name
         try{ var rp=createRawPrettyButtons(inlineHost); if(rp) header.appendChild(rp); }catch{}
+        try{ header.appendChild((function(){ var label=(I18N&&(I18N.Details||I18N.PersonDetails))?(I18N.Details||I18N.PersonDetails):'Details'; var btn=document.createElement('button'); btn.type='button'; btn.className='btn btn-sm btn-outline-primary ms-auto gpiv-more-info-btn'; btn.setAttribute('title',(I18N.PersonDetails||label)); btn.setAttribute('aria-label',(I18N.PersonDetails||label)); btn.innerHTML='<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'+label; btn.addEventListener('click', function(){ var panel=document.getElementById('pd-details-panel'); var isOpen=panel && panel.classList.contains('show'); var currentPid=(typeof window!=='undefined' && window.lastPid)?window.lastPid:''; if(isOpen && currentPid && publicId && currentPid===publicId){ try{ if(window.bootstrap&&window.bootstrap.Collapse){ var instHide=window.bootstrap.Collapse.getOrCreateInstance(panel,{toggle:false}); instHide.hide(); } else { panel.classList.remove('show'); } }catch{} return; } try{ window.lastPid=publicId || window.lastPid; }catch{} try{ if(panel){ if(window.bootstrap&&window.bootstrap.Collapse){ var instShow=window.bootstrap.Collapse.getOrCreateInstance(panel,{toggle:false}); instShow.show(); } else { panel.classList.add('show'); } } }catch{} try{ var trigger=document.getElementById('gpiv-tab-details-btn'); if(trigger){ trigger.click(); } }catch{} }); return btn; })()); }catch{}
+        wrap.appendChild(header); wrap.appendChild(inlineHost);
 
-        // Add Details button beside the name
-        try{ header.appendChild((function(){
-          var label = (I18N && (I18N.Details || I18N.PersonDetails)) ? (I18N.Details || I18N.PersonDetails) : 'Details';
-          var btn = document.createElement('button');
-          btn.type='button'; btn.className='btn btn-sm btn-outline-primary ms-auto gpiv-more-info-btn';
-          btn.setAttribute('title', (I18N.PersonDetails||label)); btn.setAttribute('aria-label', (I18N.PersonDetails||label));
-          btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'+label;
-          btn.addEventListener('click', function(){
-            var panel = document.getElementById('pd-details-panel');
-            var isOpen = panel && panel.classList.contains('show');
-            var currentPid = (typeof window !== 'undefined' && window.lastPid) ? window.lastPid : '';
-            // Toggle behavior: if open and same person -> hide; else show and/or load
-            if(isOpen && currentPid && publicId && currentPid === publicId){
-              try{
-                if(window.bootstrap && window.bootstrap.Collapse){
-                  var instHide = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
-                  instHide.hide();
-                } else {
-                  panel.classList.remove('show');
-                }
-              }catch{}
-              return;
-            }
-            // Show and load selected person
-            try{ window.lastPid = publicId || window.lastPid; }catch{}
-            try{
-              if(panel){
-                if(window.bootstrap && window.bootstrap.Collapse){
-                  var instShow = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
-                  instShow.show();
-                } else {
-                  panel.classList.add('show');
-                }
-              }
-            }catch{}
-            try{
-              var trigger = document.getElementById('gpiv-tab-details-btn');
-              if(trigger){ trigger.click(); }
-            }catch{}
-          });
-          return btn;
-        })()); }catch{}
-
-        wrap.appendChild(header);
-        // Insert inline XML host right beneath header so it never hides the header itself
-        wrap.appendChild(inlineHost);
-
-        var accId = nextUid('acc');
-        var acc = document.createElement('div'); acc.className = 'accordion'; acc.id = accId;
+        var accId = nextUid('acc'); var acc = document.createElement('div'); acc.className = 'accordion'; acc.id = accId;
+        // Lazy materialize content on expansion
+        acc.addEventListener('show.bs.collapse', function(e){ try{ var col=e && e.target ? e.target : null; if(!col) return; var body=col.querySelector('.accordion-body'); if(body && body.dataset.rendered!=='1' && typeof body._render==='function'){ body._render(); body.dataset.rendered='1'; } }catch{} });
 
         if (nameRoot) {
-          var list = document.createElement('div'); list.className = 'd-flex flex-column gap-2';
-          var nameItems = [];
-          for (var n2 = 0; n2 < nameRoot.children.length; n2++) {
-            var nItem = nameRoot.children[n2];
-            if (nItem.localName !== 'Name') continue;
-            var ord = parseInt(getTextLocal(nItem, 'Order') || '9999', 10); if (isNaN(ord)) ord = 9999;
-            nameItems.push({ node: nItem, order: ord });
-          }
-          nameItems.sort(function (a, b) { return a.order - b.order; });
-          for (var ix = 0; ix < nameItems.length; ix++) {
-            var nNode = nameItems[ix].node;
-            var card2 = el('div', 'p-2 border rounded', null);
-            var title2 = el('div', 'small text-muted mb-1', (I18N.Name || 'Name') + ' #' + (ix + 1));
-            card2.appendChild(title2);
-            var t2 = buildLeavesTable(nNode); if (t2) card2.appendChild(t2);
-            var nestedUnderName = buildNodeContent(nNode);
-            if (nestedUnderName && nestedUnderName.childElementCount > (t2 ? 1 : 0)) {
-              card2.appendChild(nestedUnderName);
-            }
-            list.appendChild(card2);
-          }
-          acc.appendChild(accItem(accId, acc.childElementCount, I18N.Names || 'Names', list, false));
+          var namesItem = makeAccItem(accId, acc.childElementCount, I18N.Names || 'Names', false);
+          namesItem.body._render = (function(nRoot, host){ return function(){ clearChildren(host); var list=document.createElement('div'); list.className='d-flex flex-column gap-2'; var nameItems=[]; for (var n2 = 0; n2 < nRoot.children.length; n2++){ var nItem=nRoot.children[n2]; if(nItem.localName!== 'Name') continue; var ord=parseInt(getTextLocal(nItem,'Order')||'9999',10); if(isNaN(ord)) ord=9999; nameItems.push({node:nItem,order:ord}); } nameItems.sort(function(a,b){return a.order-b.order;}); for(var ix=0; ix<nameItems.length; ix++){ var nNode=nameItems[ix].node; var card2=el('div','p-2 border rounded',null); var title2=el('div','small text-muted mb-1',(I18N.Name||'Name')+' #'+(ix+1)); card2.appendChild(title2); var t2=buildLeavesTable(nNode); if(t2) card2.appendChild(t2); var nestedUnderName=buildNodeContent(nNode); if(nestedUnderName && nestedUnderName.childElementCount > (t2?1:0)){ card2.appendChild(nestedUnderName);} list.appendChild(card2);} host.appendChild(list); }; })(nameRoot, namesItem.body);
+          acc.appendChild(namesItem.item);
         }
 
         var basicsTable = buildLeavesTable(person);
-        if (basicsTable) acc.appendChild(accItem(accId, acc.childElementCount, I18N.Basics || 'Basics', basicsTable, false));
+        if (basicsTable) {
+          var basicsItem = makeAccItem(accId, acc.childElementCount, I18N.Basics || 'Basics', false);
+          basicsItem.body._render = (function(tbl, host){ return function(){ clearChildren(host); host.appendChild(tbl); }; })(basicsTable, basicsItem.body);
+          acc.appendChild(basicsItem.item);
+        }
 
         var groups = groupChildrenByName(person);
         for (var gName in groups) {
           if (!Object.prototype.hasOwnProperty.call(groups, gName)) continue;
-          var content = document.createElement('div'); content.className = 'd-flex flex-column gap-2';
-          var arr2 = groups[gName];
-          if (arr2.length > 1) {
-            var listWrap = document.createElement('div'); listWrap.className = 'd-flex flex-column gap-2';
-            for (var it = 0; it < arr2.length; it++) {
-              var card3 = el('div', 'p-2 border rounded', null);
-              var title3 = el('div', 'small text-muted mb-1', gName + ' #' + (it + 1));
-              card3.appendChild(title3);
-              var inner3 = buildNodeContent(arr2[it]);
-              if (inner3) card3.appendChild(inner3);
-              listWrap.appendChild(card3);
-            }
-            content.appendChild(listWrap);
-          } else {
-            var inner4 = buildNodeContent(arr2[0]);
-            if (inner4) content.appendChild(inner4);
-          }
-          acc.appendChild(accItem(accId, acc.childElementCount, gName, content, false));
+          (function(g, arr){
+            var gi = makeAccItem(accId, acc.childElementCount, g, false);
+            gi.body._render = function(){ clearChildren(gi.body); var content=document.createElement('div'); content.className='d-flex flex-column gap-2'; if(arr.length>1){ var listWrap=document.createElement('div'); listWrap.className='d-flex flex-column gap-2'; for(var it=0; it<arr.length; it++){ var card3=el('div','p-2 border rounded',null); var title3=el('div','small text-muted mb-1', g + ' #' + (it+1)); card3.appendChild(title3); var inner3=buildNodeContent(arr[it]); if(inner3) card3.appendChild(inner3); listWrap.appendChild(card3);} content.appendChild(listWrap);} else { var inner4=buildNodeContent(arr[0]); if(inner4) content.appendChild(inner4);} gi.body.appendChild(content); };
+            acc.appendChild(gi.item);
+          })(gName, groups[gName]);
         }
 
-        wrap.appendChild(acc);
-        frag.appendChild(wrap);
+        wrap.appendChild(acc); frag.appendChild(wrap);
       }
       summaryHost.appendChild(frag);
       try { focusFirstAccordionButton(summaryHost); } catch {}
