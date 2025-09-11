@@ -1,14 +1,35 @@
 using XRoadFolkRaw.Lib;
 using XRoadFolkRaw.Lib.Options;
 using XRoadFolkWeb.Features.People;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkWeb.Features.Index
 {
-    public sealed class PersonDetailsProvider(PeopleService service, PeopleResponseParser parser, IConfiguration config)
+    public sealed class PersonDetailsProvider(PeopleService service, PeopleResponseParser parser, IConfiguration config, IMemoryCache cache)
     {
         private readonly PeopleService _service = service;
         private readonly PeopleResponseParser _parser = parser;
         private readonly IConfiguration _config = config;
+        private readonly IMemoryCache _cache = cache;
+
+        private sealed class CachedPerson
+        {
+            public required string Xml { get; init; }
+            public required string Pretty { get; init; }
+            public required IReadOnlyList<(string Key, string Value)> Pairs { get; init; }
+        }
+
+        private static string CacheKey(string publicId) => $"pd|{publicId}";
+
+        private int GetTtlSeconds()
+        {
+            try
+            {
+                int ttl = _config.GetValue<int>("Caching:PersonDetailsSeconds", 30);
+                return Math.Max(5, ttl);
+            }
+            catch { return 30; }
+        }
 
         /// <summary>
         /// Cache of allowed include keys for this scoped instance (request)
@@ -38,8 +59,26 @@ namespace XRoadFolkWeb.Features.Index
         {
             ArgumentNullException.ThrowIfNull(loc);
 
-            string xml = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
-            IReadOnlyList<(string Key, string Value)> pairs = _parser.FlattenResponse(xml);
+            // Fetch from cache or materialize
+            CachedPerson? cached = await _cache.GetOrCreateAsync(CacheKey(publicId), async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(GetTtlSeconds());
+                string xmlFresh = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
+                var pairsFresh = _parser.FlattenResponse(xmlFresh);
+                string prettyFresh = _parser.PrettyFormatXml(xmlFresh);
+                return new CachedPerson { Xml = xmlFresh, Pretty = prettyFresh, Pairs = pairsFresh };
+            }).ConfigureAwait(false);
+
+            if (cached is null)
+            {
+                string xmlFresh = await _service.GetPersonAsync(publicId, ct).ConfigureAwait(false);
+                var pairsFresh = _parser.FlattenResponse(xmlFresh);
+                string prettyFresh = _parser.PrettyFormatXml(xmlFresh);
+                cached = new CachedPerson { Xml = xmlFresh, Pretty = prettyFresh, Pairs = pairsFresh };
+                _cache.Set(CacheKey(publicId), cached, TimeSpan.FromSeconds(GetTtlSeconds()));
+            }
+
+            IReadOnlyList<(string Key, string Value)> pairs = cached.Pairs;
 
             List<(string Key, string Value)> filtered = [.. ApplyPrimaryFilter(pairs)];
 
@@ -81,7 +120,7 @@ namespace XRoadFolkWeb.Features.Index
 
             string selectedNameSuffix = ComputeSelectedNameSuffix(filtered, loc);
 
-            return (filtered.AsReadOnly(), _parser.PrettyFormatXml(xml), xml, selectedNameSuffix);
+            return (filtered.AsReadOnly(), cached.Pretty, cached.Xml, selectedNameSuffix);
         }
 
         private static IEnumerable<(string Key, string Value)> ApplyPrimaryFilter(IEnumerable<(string Key, string Value)> pairs)

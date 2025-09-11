@@ -209,7 +209,8 @@ namespace XRoadFolkWeb.Extensions
                     var headers = ctx.Context.Response.Headers;
                     var req = ctx.Context.Request;
                     bool hasVersion = req.Query.ContainsKey("v");
-                    headers.CacheControl = hasVersion ? "public,max-age=31536000,immutable" : "public,max-age=3600";
+                    // Versioned assets (with ?v=): cache for 1 year, immutable
+                    headers.CacheControl = hasVersion ? "public,max-age=31536000,immutable" : "public,max-age=604800"; // 7 days for non-versioned
                     if (hasVersion)
                     {
                         headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
@@ -429,10 +430,9 @@ namespace XRoadFolkWeb.Extensions
                     await next();
                 });
             }
-            else
-            {
-                _ = app.UseResponseCompression();
-            }
+
+            // Always enable compression (Dev and Prod). In Dev, text/html is excluded by configuration.
+            _ = app.UseResponseCompression();
         }
 
         private static void LogLocalization(WebApplication app, ILoggerFactory loggerFactory)
