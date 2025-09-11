@@ -35,43 +35,59 @@
     var pauseTextPause = (pauseBtn && pauseBtn.getAttribute('data-i18n-pause')) || 'Pause';
     var pauseTextResume = (pauseBtn && pauseBtn.getAttribute('data-i18n-resume')) || 'Resume';
 
-    function escapeHtml(s){ return String(s||'').replace(/[&<>]/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]); }); }
-    function lvlBadge(l){ var t=String(l||''); return '<span class="badge lvl-badge badge-'+escapeHtml(t)+'">'+escapeHtml(t)+'</span>'; }
+    function el(tag, cls, text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=String(text); return e; }
+    function lvlBadgeEl(l){ var span=el('span','badge lvl-badge badge-'+String(l||''), String(l||'')); return span; }
     function pad(n,l){ n=String(n); l=l||2; return n.length>=l?n:('0'.repeat(l-n.length)+n); }
     function fmtLocal(ts){ try{ var d=new Date(ts); if(isNaN(d)) return ts; var yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate()), HH=pad(d.getHours()), MM=pad(d.getMinutes()), SS=pad(d.getSeconds()), mmm=pad(d.getMilliseconds(),3); var off=-d.getTimezoneOffset(); var sign=off>=0?'+':'-'; var abs=Math.abs(off); var oh=pad(Math.floor(abs/60)); var om=pad(abs%60); return yyyy+'-'+mm+'-'+dd+' '+HH+':'+MM+':'+SS+'.'+mmm+' '+sign+oh+':'+om; }catch{return ts;} }
 
     function rowFor(entry){
       var tr=document.createElement('tr');
-      tr.innerHTML='<td>'+fmtLocal(entry.timestamp)+'</td>'+
-                   '<td>'+lvlBadge(entry.level)+'</td>'+
-                   '<td>'+escapeHtml(entry.category||'')+'</td>'+
-                   '<td>'+escapeHtml(entry.message||'')+'</td>'+
-                   '<td class="text-end">\
-                      <button class="btn btn-sm btn-outline-dark" data-action="copy" aria-label="Copy">'+escapeHtml(SR.Copy||'Copy')+'</button>\
-                   </td>';
+      var tdTs=el('td', null, fmtLocal(entry.timestamp)); tr.appendChild(tdTs);
+      var tdLvl=el('td'); tdLvl.appendChild(lvlBadgeEl(entry.level)); tr.appendChild(tdLvl);
+      var tdCat=el('td', null, entry.category||''); tr.appendChild(tdCat);
+      var tdMsg=el('td', null, entry.message||''); tr.appendChild(tdMsg);
+      var tdAct=el('td','text-end');
+      var copyBtn=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
+      copyBtn.setAttribute('data-action','copy');
+      copyBtn.setAttribute('aria-label','Copy');
+      tdAct.appendChild(copyBtn);
+      tr.appendChild(tdAct);
       tr.__entry = entry;
       return tr;
     }
 
     function cardFor(entry){
-      var col=document.createElement('div'); col.className='col';
-      col.setAttribute('role','article');
-      col.innerHTML='<div class="card log-card" data-level="'+escapeHtml(entry.level)+'">\
-        <div class="card-body">\
-          <div class="d-flex justify-content-between align-items-start">\
-            <div>\
-              <div class="small text-muted">'+escapeHtml(entry.category||'')+'</div>\
-              <div class="fw-semibold">'+fmtLocal(entry.timestamp)+'</div>\
-            </div>\
-            <span class="badge lvl-badge badge-'+escapeHtml(String(entry.level||''))+'">'+escapeHtml(String(entry.level||''))+'</span>\
-          </div>\
-          <div class="log-message mt-2">'+escapeHtml(entry.message||'')+'</div>\
-          '+(entry.exception?'<details class="mt-2"><summary>Exception</summary><pre class="mb-0">'+escapeHtml(entry.exception)+'</pre></details>':'')+'\
-          <div class="d-flex justify-content-end mt-2">\
-            <button class="btn btn-sm btn-outline-dark" data-action="copy" aria-label="Copy">'+escapeHtml(SR.Copy||'Copy')+'</button>\
-          </div>\
-        </div>\
-      </div>';
+      var col=el('div','col'); col.setAttribute('role','article');
+      var card=el('div','card log-card'); card.setAttribute('data-level', String(entry.level||''));
+      var body=el('div','card-body');
+
+      var top=el('div','d-flex justify-content-between align-items-start');
+      var left=el('div');
+      left.appendChild(el('div','small text-muted', entry.category||''));
+      left.appendChild(el('div','fw-semibold', fmtLocal(entry.timestamp)));
+      top.appendChild(left);
+      top.appendChild(lvlBadgeEl(entry.level));
+      body.appendChild(top);
+
+      body.appendChild(el('div','log-message mt-2', entry.message||''));
+
+      if (entry.exception){
+        var details=el('details','mt-2');
+        details.appendChild(el('summary', null, 'Exception'));
+        var pre=el('pre','mb-0'); pre.textContent = entry.exception;
+        details.appendChild(pre);
+        body.appendChild(details);
+      }
+
+      var actions=el('div','d-flex justify-content-end mt-2');
+      var copyBtn2=el('button','btn btn-sm btn-outline-dark', SR.Copy||'Copy');
+      copyBtn2.setAttribute('data-action','copy');
+      copyBtn2.setAttribute('aria-label','Copy');
+      actions.appendChild(copyBtn2);
+      body.appendChild(actions);
+
+      card.appendChild(body);
+      col.appendChild(card);
       col.__entry = entry;
       return col;
     }
