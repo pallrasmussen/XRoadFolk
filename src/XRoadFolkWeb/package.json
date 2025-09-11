@@ -2,10 +2,18 @@
   "name": "xroadfolkweb-assets",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "devDependencies": {
+    "@eslint/js": "9.11.1",
+    "eslint": "9.11.1",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-jsdoc": "48.11.0",
+    "eslint-plugin-promise": "6.4.0",
     "esbuild": "0.23.0"
   },
   "scripts": {
-    "build:assets": "node build-assets.mjs"
+    "build:assets": "node build-assets.mjs",
+    "lint": "eslint \"wwwroot/**/*.{js,mjs,cjs}\" --max-warnings=0",
+    "lint:fix": "npm run lint -- --fix"
   }
 }

@@ -92,6 +92,40 @@ dotnet_diagnostic.MA0048.severity = none
 .dotnet_diagnostic.MA0006.severity = warning
 .dotnet_diagnostic.MA0040.severity = suggestion
 
+# Naming conventions --------------------------------------------------------
+# Symbols
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.applicable_accessibilities = *
+dotnet_naming_symbols.constants.required_modifiers = const
+
+# Styles
+dotnet_naming_style.interface_prefix.capitalization = pascal_case
+dotnet_naming_style.interface_prefix.required_prefix = I
+
+dotnet_naming_style.private_field_underscore.capitalization = camel_case
+dotnet_naming_style.private_field_underscore.required_prefix = _
+
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# Rules
+dotnet_naming_rule.interface_should_be_prefixed.symbols = interfaces
+dotnet_naming_rule.interface_should_be_prefixed.style = interface_prefix
+dotnet_naming_rule.interface_should_be_prefixed.severity = warning
+
+dotnet_naming_rule.private_fields_should_be_prefixed.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_prefixed.style = private_field_underscore
+dotnet_naming_rule.private_fields_should_be_prefixed.severity = warning
+
+dotnet_naming_rule.constants_should_be_pascal.symbols = constants
+dotnet_naming_rule.constants_should_be_pascal.style = pascal_case
+dotnet_naming_rule.constants_should_be_pascal.severity = warning
+
 # Razor files
 [*.cshtml]
 indent_style = space
@@ -103,6 +137,12 @@ trim_trailing_whitespace = true
 [*.json]
 indent_style = space
 indent_size = 2
+
+# JS / TS files (override indent)
+[*.{js,mjs,cjs,ts,tsx}]
+indent_style = space
+indent_size = 2
+max_line_length = 140
 
 [*.{yml,yaml}]
 indent_style = space

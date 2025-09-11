@@ -1,0 +1,5 @@
+node_modules/
+dist/
+wwwroot/dist/
+**/*.min.js
+wwwroot/tests/
