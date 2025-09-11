@@ -110,4 +110,10 @@
       </Content>
     </ItemGroup>
   </Target>
+
+  <!-- Asset build with esbuild (optional) -->
+  <Target Name="BuildFrontendAssets" BeforeTargets="Build" Condition="Exists('$(ProjectDir)package.json') AND '$(RunFrontendBuild)' == 'true'">
+    <Message Text="Running esbuild asset pipeline" Importance="High" />
+    <Exec Command="node build-assets.mjs" WorkingDirectory="$(ProjectDir)" />
+  </Target>
 </Project>

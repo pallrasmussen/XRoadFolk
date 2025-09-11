@@ -1,0 +1,11 @@
+{
+  "name": "xroadfolkweb-assets",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "esbuild": "0.23.0"
+  },
+  "scripts": {
+    "build:assets": "node build-assets.mjs"
+  }
+}
