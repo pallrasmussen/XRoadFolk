@@ -263,6 +263,7 @@
       var xml = parseXml(xmlText);
       var people = findPeopleNodes(xml);
       if (!people || people.length === 0) { summaryHost.appendChild(el('div', 'text-muted', I18N.NoPeopleFound || 'No people found.')); syncViewerHeight(); return; }
+      var frag=document.createDocumentFragment();
       for (var p = 0; p < people.length; p++) {
         var person = people[p];
         var wrap = document.createElement('div'); wrap.className = 'mb-3 p-2 border rounded gpiv-person';
@@ -407,9 +408,9 @@
         }
 
         wrap.appendChild(acc);
-        summaryHost.appendChild(wrap);
+        frag.appendChild(wrap);
       }
-
+      summaryHost.appendChild(frag);
       try { focusFirstAccordionButton(summaryHost); } catch {}
       // Hide old navbar Details button if present
       try{ var navBtn=byId('pd-toggle-details'); if(navBtn){ navBtn.classList.add('d-none'); navBtn.setAttribute('aria-hidden','true'); } }catch{}
