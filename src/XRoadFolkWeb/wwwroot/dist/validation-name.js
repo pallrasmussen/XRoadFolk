@@ -1,0 +1,1 @@
+(function(t){"use strict";if(!t.validator)return;let e=/^[\p{L}][\p{L}\p{M}\s\-']{1,49}$/u;t.validator.addMethod("name",function(r,n){return r?e.test(r.trim()):!0}),t.validator.unobtrusive.adapters.addBool("name")})(jQuery);

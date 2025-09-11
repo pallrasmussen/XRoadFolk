@@ -14,7 +14,7 @@
         const group = parseInt(digits.slice(3, 5), 10);
         const serial = parseInt(digits.slice(5), 10);
 
-        // 000, 666, 900–999 not allowed; group 00 and serial 0000 invalid
+        // 000, 666, 900â€“999 not allowed; group 00 and serial 0000 invalid
         if (area === 0 || area === 666 || area >= 900) return false;
         if (group === 0) return false;
         if (serial === 0) return false;

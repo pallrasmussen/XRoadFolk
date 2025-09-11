@@ -1,0 +1,1 @@
+(function(){"use strict";let t=(e,c)=>{try{c&&console&&console.debug&&console.debug(e,c)}catch{}};try{document.addEventListener("DOMContentLoaded",()=>{try{let e=document.querySelector('form[action="/set-culture"] select[name="culture"]');e&&e.addEventListener("change",()=>{e.form&&e.form.submit()})}catch(e){t("site:culture-init",e)}})}catch(e){t("site:init-wrapper",e)}})();

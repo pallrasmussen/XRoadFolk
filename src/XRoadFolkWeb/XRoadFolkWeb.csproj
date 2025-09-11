@@ -34,6 +34,11 @@
     <IconSizes>16;32;48;64;128;180;192;256;384;512</IconSizes>
   </PropertyGroup>
 
+  <!-- Automatically run frontend asset build for Release / publish unless explicitly disabled -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release' AND '$(RunFrontendBuild)'==''">
+    <RunFrontendBuild>true</RunFrontendBuild>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
@@ -115,5 +120,10 @@
   <Target Name="BuildFrontendAssets" BeforeTargets="Build" Condition="Exists('$(ProjectDir)package.json') AND '$(RunFrontendBuild)' == 'true'">
     <Message Text="Running esbuild asset pipeline" Importance="High" />
     <Exec Command="node build-assets.mjs" WorkingDirectory="$(ProjectDir)" />
+  </Target>
+
+  <!-- Ensure frontend assets are (re)built for Publish if desired -->
+  <Target Name="BuildFrontendAssetsForPublish" BeforeTargets="Publish" DependsOnTargets="BuildFrontendAssets" Condition="Exists('$(ProjectDir)package.json') AND '$(RunFrontendBuild)' == 'true'">
+    <Message Text="Ensuring frontend assets built before Publish" Importance="High" />
   </Target>
 </Project>
