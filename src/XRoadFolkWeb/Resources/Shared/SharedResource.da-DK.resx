@@ -178,7 +178,7 @@
     <value>Ingen personer fundet.</value>
   </data>
   <data name="PeopleLabel" xml:space="preserve">
-    <value>Personer</value>
+    <value>Offentlige oplysninger</value>
   </data>
   <data name="Basics" xml:space="preserve">
     <value>Basics</value>
@@ -236,6 +236,9 @@
   </data>
   <data name="PersonDetails" xml:space="preserve">
     <value>Persondetaljer</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Detaljer</value>
   </data>
   <data name="Loading" xml:space="preserve">
     <value>Henter...</value>

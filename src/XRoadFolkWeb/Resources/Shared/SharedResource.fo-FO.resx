@@ -178,7 +178,7 @@
     <value>Ongir persónar funnir.</value>
   </data>
   <data name="PeopleLabel" xml:space="preserve">
-    <value>Fólk</value>
+    <value>Alment</value>
   </data>
   <data name="Basics" xml:space="preserve">
     <value>Basics</value>
@@ -235,13 +235,16 @@
     <value>Tak niður</value>
   </data>
   <data name="PersonDetails" xml:space="preserve">
-    <value>Personupplýsingar</value>
+    <value>Persónsupplýsingar</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Útgreina</value>
   </data>
   <data name="Loading" xml:space="preserve">
     <value>Lesi...</value>
   </data>
   <data name="EmptyState" xml:space="preserve">
-    <value>Set inn ella slepp XML her fyri at síggja samandrátt.</value>
+    <value>Set inn ella slepp XML her fyri at sígga samandrátt.</value>
   </data>
   <data name="GetPeoplePublicInfo" xml:space="preserve">
     <value>Persónsupplýsingar</value>

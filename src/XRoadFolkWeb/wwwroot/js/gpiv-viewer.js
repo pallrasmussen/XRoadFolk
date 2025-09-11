@@ -190,25 +190,48 @@
     return nodes;
   }
 
-  function moveDetailsBtnToHeader(){
-    try{
-      var btn = byId('gpiv-tab-details-btn');
-      if (!btn) return;
-      var header = qs('.gpiv-person-header', summaryHost);
-      if (!header) return;
-      try {
-        btn.type = 'button';
-        btn.classList.remove('nav-link');
-        btn.classList.add('btn','btn-sm','btn-outline-primary','ms-auto','gpiv-more-info-btn');
-        var label = (I18N && I18N.PersonDetails) ? I18N.PersonDetails : 'More info';
-        btn.setAttribute('aria-label', label);
-        btn.setAttribute('title', label);
-        btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>' + label;
-      } catch {}
-      var oldParent = btn.parentElement;
-      header.appendChild(btn);
-      try { if (oldParent && oldParent.tagName === 'DIV' && oldParent.classList.contains('d-flex')) { oldParent.remove(); } } catch {}
-    }catch(e){ try{ console.debug('gpiv: moveDetailsBtnToHeader failed', e); }catch{} }
+  function createDetailsButton(publicId){
+    var label = (I18N && (I18N.Details || I18N.PersonDetails)) ? (I18N.Details || I18N.PersonDetails) : 'Details';
+    var btn = document.createElement('button');
+    btn.type='button';
+    btn.className='btn btn-sm btn-outline-primary ms-auto gpiv-more-info-btn';
+    btn.setAttribute('title', (I18N.PersonDetails||label));
+    btn.setAttribute('aria-label', (I18N.PersonDetails||label));
+    btn.innerHTML = '<i class="bi bi-info-circle me-1" aria-hidden="true"></i>'+label;
+    btn.addEventListener('click', function(){
+      var panel = document.getElementById('pd-details-panel');
+      var isOpen = panel && panel.classList.contains('show');
+      var currentPid = (typeof window !== 'undefined' && window.lastPid) ? window.lastPid : '';
+      // Toggle behavior: if open and same person -> hide; else show and/or load
+      if(isOpen && currentPid && publicId && currentPid === publicId){
+        try{
+          if(window.bootstrap && window.bootstrap.Collapse){
+            var instHide = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
+            instHide.hide();
+          } else {
+            panel.classList.remove('show');
+          }
+        }catch{}
+        return;
+      }
+      // Show and load selected person
+      try{ window.lastPid = publicId || window.lastPid; }catch{}
+      try{
+        if(panel){
+          if(window.bootstrap && window.bootstrap.Collapse){
+            var instShow = window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle:false });
+            instShow.show();
+          } else {
+            panel.classList.add('show');
+          }
+        }
+      }catch{}
+      try{
+        var trigger = document.getElementById('gpiv-tab-details-btn');
+        if(trigger){ trigger.click(); }
+      }catch{}
+    });
+    return btn;
   }
 
   function buildNodeContent(node) {
@@ -286,6 +309,9 @@
 
         if (dob) header.appendChild(badge((I18N.DOB || 'DOB') + ': ' + dob));
 
+        // Add Details button beside the name
+        try{ header.appendChild(createDetailsButton(publicId)); }catch{}
+
         wrap.appendChild(header);
 
         var accId = nextUid('acc');
@@ -347,7 +373,8 @@
       }
 
       try { focusFirstAccordionButton(summaryHost); } catch {}
-      moveDetailsBtnToHeader();
+      // Hide old navbar Details button if present
+      try{ var navBtn=byId('pd-toggle-details'); if(navBtn){ navBtn.classList.add('d-none'); navBtn.setAttribute('aria-hidden','true'); } }catch{}
       syncViewerHeight();
     } catch (e) {
       console.error('gpiv: failed to build summary', e);

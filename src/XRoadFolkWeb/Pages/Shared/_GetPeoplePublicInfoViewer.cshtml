@@ -72,8 +72,8 @@
           </li>
         }
         <li class="nav-item ms-auto d-flex align-items-center">
-          <button type="button" id="pd-toggle-details" class="btn btn-sm btn-outline-primary collapsed" data-bs-toggle="collapse" data-bs-target="#pd-details-panel" aria-expanded="false" aria-controls="pd-details-panel">
-            <i class="bi bi-card-text me-1" aria-hidden="true"></i><span class="pd-details-label">Details</span>
+          <button type="button" id="pd-toggle-details" class="btn btn-sm btn-outline-primary collapsed" data-bs-toggle="collapse" data-bs-target="#pd-details-panel" aria-expanded="false" aria-controls="pd-details-panel" title="@SR["PersonDetails"]" aria-label="@SR["PersonDetails"]">
+            <i class="bi bi-card-text me-1" aria-hidden="true"></i><span class="pd-details-label">@SR["Details"]</span>
           </button>
         </li>
       </ul>
@@ -147,6 +147,16 @@
     if(e.target && e.target.id==='pd-details-panel' && !loaded){
       hiddenTrigger && hiddenTrigger.click();
       loaded=true;
+    }
+  });
+  // Always move focus to the Person Details title when the panel is shown
+  document.addEventListener('shown.bs.collapse', e=>{
+    if(e.target && e.target.id==='pd-details-panel'){
+      const title=document.getElementById('pd-title');
+      if(title){ try{ title.setAttribute('tabindex','-1'); title.focus({preventScroll:false}); }catch{ try{ title.focus(); }catch{} } }
+      // Hide any stale error banner when opening
+      const err=document.getElementById('person-details-error');
+      if(err){ try{ err.classList.add('d-none'); err.textContent=''; while(err.firstChild){ err.removeChild(err.firstChild);} }catch{} }
     }
   });
 })();</script>

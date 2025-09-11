@@ -178,7 +178,7 @@
     <value>No persons found.</value>
   </data>
   <data name="PeopleLabel" xml:space="preserve">
-    <value>People</value>
+    <value>Public info</value>
   </data>
   <data name="Basics" xml:space="preserve">
     <value>Basics</value>
@@ -236,6 +236,9 @@
   </data>
   <data name="PersonDetails" xml:space="preserve">
     <value>Person details</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Details</value>
   </data>
   <data name="Loading" xml:space="preserve">
     <value>Loading...</value>
