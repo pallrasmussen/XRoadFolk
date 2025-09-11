@@ -26,17 +26,15 @@ namespace XRoadFolkWeb.Extensions
                 .AddAppOptions(configuration)
                 .AddMvcCustomizations()
                 .AddResponseCompressionDefaults()
-                .AddCookiePolicyDefaults()
+                .AddCookiePolicyDefaults(configuration)
                 .AddDataProtectionDefaults(configuration)
                 .AddSessionServices(configuration);
 
-            // Security: configure HSTS options (header emitted by UseHsts in non-Development)
             services.AddHsts(opts =>
             {
                 opts.Preload = true;
                 opts.IncludeSubDomains = true;
                 opts.MaxAge = TimeSpan.FromDays(365);
-                // Exclude development hosts to avoid browser HSTS caching during local testing
                 opts.ExcludedHosts.Add("localhost");
                 opts.ExcludedHosts.Add("127.0.0.1");
                 opts.ExcludedHosts.Add("[::1]");
@@ -53,18 +51,16 @@ namespace XRoadFolkWeb.Extensions
             return services;
         }
 
-        private static IServiceCollection AddCookiePolicyDefaults(this IServiceCollection services)
+        private static IServiceCollection AddCookiePolicyDefaults(this IServiceCollection services, IConfiguration configuration)
         {
+            bool? forceSecureOverride = configuration.GetValue<bool?>("Cookies:ForceSecure");
             _ = services.AddOptions<CookiePolicyOptions>()
                 .Configure((CookiePolicyOptions opts) =>
                 {
                     bool isDev = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-
-                    // Enforce secure defaults across all cookies
                     opts.HttpOnly = HttpOnlyPolicy.Always;
-                    opts.MinimumSameSitePolicy = SameSiteMode.Lax; // safe default for top-level navigations
-                    // In production, force Secure; in dev/test (HTTP, TestServer) keep SameAsRequest to avoid breaking flows
-                    opts.Secure = isDev ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+                    opts.MinimumSameSitePolicy = SameSiteMode.Lax;
+                    opts.Secure = CookieSecurePolicy.SameAsRequest;
 
                     opts.OnAppendCookie = ctx =>
                     {
@@ -73,7 +69,8 @@ namespace XRoadFolkWeb.Extensions
                         {
                             ctx.CookieOptions.SameSite = SameSiteMode.Lax;
                         }
-                        if (!isDev)
+                        bool shouldSecure = forceSecureOverride ?? (!isDev); // if override set use it; else secure only when not dev
+                        if (shouldSecure && ctx.Context.Request.IsHttps)
                         {
                             ctx.CookieOptions.Secure = true;
                         }
@@ -89,7 +86,8 @@ namespace XRoadFolkWeb.Extensions
                         {
                             ctx.CookieOptions.SameSite = SameSiteMode.Lax;
                         }
-                        if (!isDev)
+                        bool shouldSecure = forceSecureOverride ?? (!isDev);
+                        if (shouldSecure && ctx.Context.Request.IsHttps)
                         {
                             ctx.CookieOptions.Secure = true;
                         }
@@ -99,61 +97,52 @@ namespace XRoadFolkWeb.Extensions
                         }
                     };
                 });
-
             return services;
         }
 
         private static IServiceCollection AddDataProtectionDefaults(this IServiceCollection services, IConfiguration configuration)
         {
             bool isDev = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-
             string appName = configuration["DataProtection:ApplicationName"] ?? "XRoadFolkWeb";
             var dp = services.AddDataProtection().SetApplicationName(appName);
 
-            if (!isDev)
+            string? dir = configuration["DataProtection:KeysDirectory"];
+            if (string.IsNullOrWhiteSpace(dir))
             {
-                string? dir = configuration["DataProtection:KeysDirectory"];
-                if (string.IsNullOrWhiteSpace(dir))
-                {
-                    dir = System.IO.Path.Combine(AppContext.BaseDirectory, "keys");
-                }
-                System.IO.Directory.CreateDirectory(dir);
-                _ = dp.PersistKeysToFileSystem(new System.IO.DirectoryInfo(dir));
+                dir = Path.Combine(AppContext.BaseDirectory, "keys");
+            }
+            Directory.CreateDirectory(dir);
+            _ = dp.PersistKeysToFileSystem(new DirectoryInfo(dir));
 
-                if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows())
+            {
+                _ = dp.ProtectKeysWithDpapi(protectToLocalMachine: true);
+            }
+            else
+            {
+                string? certPath = configuration["DataProtection:Certificate:Path"];
+                string? certPwd = configuration["DataProtection:Certificate:Password"];
+                if (!string.IsNullOrWhiteSpace(certPath) && File.Exists(certPath))
                 {
-                    _ = dp.ProtectKeysWithDpapi(protectToLocalMachine: true);
-                }
-                else
-                {
-                    string? certPath = configuration["DataProtection:Certificate:Path"];
-                    string? certPwd = configuration["DataProtection:Certificate:Password"];
-                    if (!string.IsNullOrWhiteSpace(certPath) && System.IO.File.Exists(certPath))
+                    try
                     {
-                        try
-                        {
-                            // CA2000: The Data Protection system holds the certificate reference for the app lifetime.
-                            // Disposing it here would break encryption at runtime. Suppress and document.
-#pragma warning disable CA2000 // Certificate lifetime managed by DataProtection
-                            _ = dp.ProtectKeysWithCertificate(string.IsNullOrEmpty(certPwd)
-                                ? new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath)
-                                : new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath, certPwd));
+#pragma warning disable CA2000
+                        _ = dp.ProtectKeysWithCertificate(string.IsNullOrEmpty(certPwd)
+                            ? new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath)
+                            : new System.Security.Cryptography.X509Certificates.X509Certificate2(certPath, certPwd));
 #pragma warning restore CA2000
-                        }
-                        catch
-                        {
-                            // ignore and rely on file permissions/ACLs
-                        }
                     }
+                    catch { }
                 }
             }
 
+            if (isDev)
+            {
+                Console.WriteLine($"[DataProtection] Keys persisted to: {dir}");
+            }
             return services;
         }
 
-        /// <summary>
-        /// Configure session with safe defaults. Cookie.IsEssential defaults to false to respect consent requirements.
-        /// </summary>
         private static IServiceCollection AddSessionServices(this IServiceCollection services, IConfiguration configuration)
         {
             ConfigureSessionDistributedCache(services, configuration);
@@ -251,24 +240,17 @@ namespace XRoadFolkWeb.Extensions
             options.IdleTimeout = TimeSpan.FromMinutes(idleMinutes);
         }
 
-        private static string GetCookieName(IConfiguration section)
-        {
-            return section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
-        }
+        private static string GetCookieName(IConfiguration section) => section.GetValue<string>("Cookie:Name") ?? ".XRoadFolk.Session";
 
         private static int ParseIdleMinutes(IConfiguration section, ILogger log)
         {
             int idleMinutes = 30;
             string? idleStr = section["IdleTimeoutMinutes"];
-            if (!string.IsNullOrWhiteSpace(idleStr))
+            if (!string.IsNullOrWhiteSpace(idleStr) && !int.TryParse(idleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out idleMinutes))
             {
-                if (!int.TryParse(idleStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out idleMinutes))
-                {
-                    log.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
-                    idleMinutes = 30;
-                }
+                log.LogWarning("Session: Invalid IdleTimeoutMinutes='{Value}'. Falling back to {Fallback} minutes.", idleStr, 30);
+                idleMinutes = 30;
             }
-
             int origIdle = idleMinutes;
             if (idleMinutes < 1)
             {
@@ -284,13 +266,14 @@ namespace XRoadFolkWeb.Extensions
             SameSiteMode sameSite = SameSiteMode.Lax;
             if (!string.IsNullOrWhiteSpace(sameSiteStr))
             {
-                if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out SameSiteMode parsedSameSite))
+                SameSiteMode parsed;
+                if (!Enum.TryParse(sameSiteStr, ignoreCase: true, out parsed))
                 {
                     log.LogWarning("Session: Invalid Cookie:SameSite='{Value}'. Falling back to {Fallback}.", sameSiteStr, sameSite);
                 }
                 else
                 {
-                    sameSite = parsedSameSite;
+                    sameSite = parsed;
                 }
             }
             return sameSite;
@@ -302,13 +285,14 @@ namespace XRoadFolkWeb.Extensions
             CookieSecurePolicy securePolicy = CookieSecurePolicy.Always;
             if (!string.IsNullOrWhiteSpace(securePolicyStr))
             {
-                if (!Enum.TryParse(securePolicyStr, ignoreCase: true, out CookieSecurePolicy parsedSecure))
+                CookieSecurePolicy parsed;
+                if (!Enum.TryParse(securePolicyStr, ignoreCase: true, out parsed))
                 {
                     log.LogWarning("Session: Invalid Cookie:SecurePolicy='{Value}'. Falling back to ${Fallback}.", securePolicyStr, securePolicy);
                 }
                 else
                 {
-                    securePolicy = parsedSecure;
+                    securePolicy = parsed;
                 }
             }
             return securePolicy;

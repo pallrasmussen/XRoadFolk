@@ -17,9 +17,7 @@
     var descRes = SR["MetaDescription"]; string metaDescription = descRes.ResourceNotFound ? $"{appName}: People lookup and details viewer." : descRes.Value;
     string? currentUrl = null; try { if (Context?.Request is { } req) { currentUrl = $"{req.Scheme}://{req.Host}{req.PathBase}{req.Path}"; } } catch { }
     bool showLogs = Config.GetValue<bool?>("Features:ShowLogs") ?? true;
-    // Robust admin detection: directly check role claims (avoids edge cases where IsInRole fails under IIS Express)
     bool isAdmin = User?.Claims.Any(c => c.Type == System.Security.Claims.ClaimTypes.Role && string.Equals(c.Value, "Admin", StringComparison.OrdinalIgnoreCase)) == true;
-    // Theme selection performed inside partial => compute chosen theme for stylesheet only
     string[] themeOptions = new [] { "flatly", "cerulean", "sandstone", "yeti" };
     string cookieTheme = ViewContext?.HttpContext?.Request?.Cookies["site-theme"] ?? string.Empty;
     string qsTheme = (ViewContext?.HttpContext?.Request?.Query["theme"].ToString() ?? string.Empty).Trim();
@@ -27,7 +25,7 @@
                       ?? themeOptions.FirstOrDefault(t => string.Equals(t, cookieTheme, StringComparison.OrdinalIgnoreCase))
                       ?? "flatly";
     string? bootswatchSri = Config["Cdn:Bootswatch:Sri"]; string? biSri = Config["Cdn:BootstrapIcons:Sri"];    
-    bool showDebugUser = Config.GetValue<bool>("Debug:ShowUser", true); // toggle if needed
+    bool showDebugUser = Config.GetValue<bool>("Debug:ShowUser", true);
 }
 <!DOCTYPE html>
 <html lang="@currentUi">
@@ -90,16 +88,18 @@
                         </admin-only>
                     }
                 </ul>
-                @if (showDebugUser)
-                {
-                    var isAuth = User?.Identity?.IsAuthenticated == true;
-                    var nameDisplay = isAuth ? (User?.Identity?.Name ?? "(no name)") : "(anonymous)";
-                    var roleClaims = User?.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? Array.Empty<string>();
-                    var rolesDisplay = roleClaims.Length > 0 ? " [" + string.Join(',', roleClaims) + "]" : (isAuth ? " [no roles]" : string.Empty);
-                    var authState = isAuth ? "AUTH" : "NO-AUTH";
-                    <span class="navbar-text small text-light me-3" title="Temp debug (remove in production)">@authState: @nameDisplay@rolesDisplay</span>
-                }
-                <theme-culture-switcher />
+                <div class="d-flex align-items-center gap-2">
+                    @if (showDebugUser)
+                    {
+                        var isAuth = User?.Identity?.IsAuthenticated == true;
+                        var nameDisplay = isAuth ? (User?.Identity?.Name ?? "(no name)") : "(anonymous)";
+                        var roleClaims = User?.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? Array.Empty<string>();
+                        var rolesDisplay = roleClaims.Length > 0 ? " [" + string.Join(',', roleClaims) + "]" : (isAuth ? " [no roles]" : string.Empty);
+                        var authState = isAuth ? "AUTH" : "NO-AUTH";
+                        <span class="navbar-text small text-light me-3" title="Debug user info">@authState: @nameDisplay@rolesDisplay</span>
+                    }
+                    <theme-culture-switcher />
+                </div>
             </div>
         </div>
     </nav>
