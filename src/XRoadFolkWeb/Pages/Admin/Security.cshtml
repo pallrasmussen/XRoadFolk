@@ -1,0 +1,88 @@
+@page
+@model XRoadFolkWeb.Pages.Admin.SecurityModel
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy="AdminOnly")]
+@{
+    ViewData["Title"] = "Security Diagnostics";
+}
+<h1 class="h4 mb-3">Security Diagnostics</h1>
+<div class="card mb-4 shadow-sm">
+  <div class="card-header py-2"><strong>User Context</strong></div>
+  <div class="card-body small">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">User</dt><dd class="col-sm-9">@Model.UserName</dd>
+      <dt class="col-sm-3">Auth Type</dt><dd class="col-sm-9">@Model.AuthenticationType</dd>
+      <dt class="col-sm-3">Authenticated</dt><dd class="col-sm-9">@(Model.IsAuthenticated ? "Yes" : "No")</dd>
+      <dt class="col-sm-3">Implicit Windows Admin Enabled</dt><dd class="col-sm-9">@(Model.ImplicitWindowsAdminEnabled ? "Yes" : "No")</dd>
+      <dt class="col-sm-3">Effective Roles</dt><dd class="col-sm-9">@(Model.Roles.Any() ? string.Join(", ", Model.Roles) : "(none)")</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <strong>Group SIDs</strong>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#grpCollapse" aria-expanded="true" aria-controls="grpCollapse">Toggle</button>
+  </div>
+  <div id="grpCollapse" class="collapse show">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th style="width:32%">SID</th><th>Name</th></tr>
+          </thead>
+          <tbody>
+          @if (Model.Groups.Any())
+          {
+              foreach (var g in Model.Groups)
+              {
+                  <tr>
+                    <td class="text-monospace small">@g.Sid</td>
+                    <td>@(string.IsNullOrWhiteSpace(g.Name)?"(unresolved)":g.Name)</td>
+                  </tr>
+              }
+          }
+          else
+          {
+              <tr><td colspan="2" class="text-muted small">No groups / SIDs detected.</td></tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <strong>Claims</strong>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#claimsCollapse" aria-expanded="false" aria-controls="claimsCollapse">Toggle</button>
+  </div>
+  <div id="claimsCollapse" class="collapse">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th style="width:28%">Type</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+          @if (Model.Claims.Any())
+          {
+              foreach (var c in Model.Claims)
+              {
+                  <tr>
+                    <td class="text-break small">@c.Type</td>
+                    <td class="text-break small">@c.Value</td>
+                  </tr>
+              }
+          }
+          else
+          {
+              <tr><td colspan="2" class="text-muted small">No claims.</td></tr>
+          }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="small text-muted">Only visible to Admins. Use to verify AD group → role mapping and claims.</p>

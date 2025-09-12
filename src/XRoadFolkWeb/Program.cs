@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Server.IISIntegration;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Authentication;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +28,7 @@ if (builder.Environment.IsDevelopment())
 builder.Configuration.AddXRoadDefaultSettings();
 builder.Configuration.AddEnvironmentVariables();
 
-// PURE WINDOWS SSO: Only Negotiate. No cookies, no policy schemes, no remember-me.
+// PURE WINDOWS SSO: Only Negotiate.
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = NegotiateDefaults.AuthenticationScheme;
@@ -54,7 +55,17 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+// Core app services (non-role)
 builder.Services.AddApplicationServices(builder.Configuration);
+
+// Register group SID -> role transformer FIRST
+builder.Services.AddMemoryCache();
+builder.Services.AddOptions<RoleMappingOptions>()
+    .Bind(builder.Configuration.GetSection("RoleMapping"))
+    .ValidateOnStart();
+builder.Services.AddTransient<IClaimsTransformation, GroupSidRoleClaimsTransformer>();
+
+// Now add role infrastructure (ClaimsRoleEnricher runs AFTER group SID mapping so it can merge AD roles + overrides)
 builder.Services.AddAppRoleInfrastructure(builder.Configuration);
 
 WebApplication app = builder.Build();

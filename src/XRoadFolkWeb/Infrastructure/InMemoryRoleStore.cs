@@ -43,7 +43,7 @@ internal sealed class DirectoryAccountLookup : IAccountLookup
     private readonly ILogger<DirectoryAccountLookup> _log;
     private readonly DirectoryLookupOptions _opts;
     private readonly IMemoryCache _cache;
-    private static readonly ConcurrentDictionary<string, object> KeyLocks = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, object> _keyLocks = new(StringComparer.OrdinalIgnoreCase);
 
     public DirectoryAccountLookup(ILogger<DirectoryAccountLookup> log, IOptions<DirectoryLookupOptions> opts, IMemoryCache cache)
     { _log = log; _opts = opts.Value; _cache = cache; }
@@ -58,7 +58,7 @@ internal sealed class DirectoryAccountLookup : IAccountLookup
         string key = "diruser:" + samOrUpn.ToLowerInvariant();
         if (_cache.TryGetValue(key, out bool cached)) return cached;
 
-        object gate = KeyLocks.GetOrAdd(key, _ => new object());
+        object gate = _keyLocks.GetOrAdd(key, _ => new object());
         lock (gate)
         {
             if (_cache.TryGetValue(key, out cached)) return cached;
@@ -156,19 +156,122 @@ public sealed class RoleMappingOptions
     public bool AuditEnabled { get; set; } = true;
     public bool EnforceDirectoryUserExists { get; set; }
     public bool ImplicitWindowsAdminEnabled { get; set; } = true; // new flag
+    public string? UserOverridesFile { get; set; } // path to overrides JSON (User, ExtraRoles[], Disabled)
+    public string[] AllowedRoles { get; set; } = new[] { AppRoles.Admin, AppRoles.User }; // least privilege allow-list
 }
 
-public interface IAppRoleStore
+// ================= User Overrides (JSON) =================
+public sealed record UserOverride(string User, IReadOnlyCollection<string> ExtraRoles, bool Disabled, DateTime ModifiedUtc);
+
+public interface IUserOverrideStore
 {
-    IReadOnlyCollection<string> GetRoles(string userPrincipalNameOrSam);
-    void AddToRole(string samAccountName, string role, string? actor = null);
-    bool RemoveFromRole(string samAccountName, string role, string? actor = null);
-    bool RemoveUser(string samAccountName, string? actor = null);
-    IReadOnlyDictionary<string, HashSet<string>> Snapshot();
-    IReadOnlyCollection<string> GetDeletedRoles(string samAccountName);
-    bool RestoreRole(string samAccountName, string role, string? actor = null);
-    int PurgeDeleted(TimeSpan olderThan, string? actor = null);
-    IReadOnlyCollection<string> GetAllUsers();
+    UserOverride? Get(string user);
+    void Upsert(string user, IEnumerable<string> extraRoles, bool disabled, string? actor = null);
+    bool Remove(string user, string? actor = null);
+    IReadOnlyCollection<UserOverride> Snapshot();
+}
+
+internal sealed class JsonUserOverrideStore : IUserOverrideStore
+{
+    private readonly string _file;
+    private readonly object _gate = new();
+    private Dictionary<string, UserOverride> _data = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ILogger<JsonUserOverrideStore> _log;
+
+    public JsonUserOverrideStore(ILogger<JsonUserOverrideStore> log, IOptions<RoleMappingOptions> opts)
+    {
+        _log = log; var cfg = opts.Value;
+        string baseDir = AppContext.BaseDirectory;
+        string defaultDir = Path.Combine(baseDir, "data");
+        Directory.CreateDirectory(defaultDir);
+        _file = string.IsNullOrWhiteSpace(cfg.UserOverridesFile)
+            ? Path.Combine(defaultDir, "user-overrides.json")
+            : Path.GetFullPath(cfg.UserOverridesFile!);
+        Load();
+    }
+
+    private void Load()
+    {
+        try
+        {
+            if (File.Exists(_file))
+            {
+                var json = File.ReadAllText(_file);
+                var doc = JsonSerializer.Deserialize<List<UserOverrideDto>>(json) ?? new();
+                _data = doc.Where(d => !string.IsNullOrWhiteSpace(d.User))
+                    .Select(d => new UserOverride(d.User!, d.ExtraRoles?.Where(r=>!string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>(), d.Disabled, d.ModifiedUtc == default ? DateTime.UtcNow : d.ModifiedUtc))
+                    .ToDictionary(d => d.User, d => d, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Load user overrides failed");
+        }
+    }
+
+    private void PersistUnsafe()
+    {
+        try
+        {
+            var export = _data.Values.OrderBy(v => v.User, StringComparer.OrdinalIgnoreCase)
+                .Select(v => new UserOverrideDto
+                {
+                    User = v.User,
+                    ExtraRoles = v.ExtraRoles.ToArray(),
+                    Disabled = v.Disabled,
+                    ModifiedUtc = v.ModifiedUtc
+                }).ToList();
+            Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
+            File.WriteAllText(_file, JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Persist user overrides failed");
+        }
+    }
+
+    public UserOverride? Get(string user)
+    {
+        if (string.IsNullOrWhiteSpace(user)) return null;
+        lock (_gate) { return _data.TryGetValue(user, out var ov) ? ov : null; }
+    }
+
+    public void Upsert(string user, IEnumerable<string> extraRoles, bool disabled, string? actor = null)
+    {
+        if (string.IsNullOrWhiteSpace(user)) return;
+        string u = user.Trim();
+        string[] roles = extraRoles?.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
+        lock (_gate)
+        {
+            _data[u] = new UserOverride(u, roles, disabled, DateTime.UtcNow);
+            PersistUnsafe();
+        }
+        _log.LogInformation("UserOverride upsert {User} Disabled={Disabled} Roles={Roles}", u, disabled, string.Join(';', roles));
+    }
+
+    public bool Remove(string user, string? actor = null)
+    {
+        if (string.IsNullOrWhiteSpace(user)) return false;
+        lock (_gate)
+        {
+            bool ok = _data.Remove(user);
+            if (ok) PersistUnsafe();
+            return ok;
+        }
+    }
+
+    public IReadOnlyCollection<UserOverride> Snapshot()
+    {
+        lock (_gate) { return _data.Values.ToArray(); }
+    }
+
+    private sealed class UserOverrideDto
+    {
+        public string? User { get; set; }
+        public string[]? ExtraRoles { get; set; }
+        public bool Disabled { get; set; }
+        public DateTime ModifiedUtc { get; set; }
+    }
 }
 
 // ================= DB Role Store =================
@@ -238,8 +341,8 @@ internal sealed class PersistentRoleStore : IAppRoleStore
 
 public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentication.IClaimsTransformation
 {
-    private readonly IAppRoleStore _store; private readonly RoleMappingOptions _opts; private Regex[] _adminRegex = Array.Empty<Regex>(); private Regex[] _userRegex = Array.Empty<Regex>(); private bool _compiled; private readonly ILogger<ClaimsRoleEnricher> _log;
-    public ClaimsRoleEnricher(IAppRoleStore store, IOptions<RoleMappingOptions> opts, ILogger<ClaimsRoleEnricher> log) { _store = store ?? throw new ArgumentNullException(nameof(store)); ArgumentNullException.ThrowIfNull(opts); _opts = opts.Value ?? new RoleMappingOptions(); _log = log; }
+    private readonly IAppRoleStore _store; private readonly RoleMappingOptions _opts; private Regex[] _adminRegex = Array.Empty<Regex>(); private Regex[] _userRegex = Array.Empty<Regex>(); private bool _compiled; private readonly ILogger<ClaimsRoleEnricher> _log; private readonly IUserOverrideStore? _overrides; private readonly IRoleAuditSink? _audit;
+    public ClaimsRoleEnricher(IAppRoleStore store, IOptions<RoleMappingOptions> opts, ILogger<ClaimsRoleEnricher> log, IUserOverrideStore? overrides = null, IRoleAuditSink? audit = null) { _store = store ?? throw new ArgumentNullException(nameof(store)); ArgumentNullException.ThrowIfNull(opts); _opts = opts.Value ?? new RoleMappingOptions(); _log = log; _overrides = overrides; _audit = audit; }
     [LoggerMessage(EventId = 5001, Level = LogLevel.Information, Message = "Implicit Windows admin elevation applied for user {User}")] private static partial void LogImplicitElevation(ILogger logger, string User);
     private static Regex[] CompilePatterns(IEnumerable<string>? patterns) => patterns is null ? Array.Empty<Regex>() : patterns.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => "^" + Regex.Escape(p.Trim()).Replace("\\*", ".*") + "$").Select(pat => new Regex(pat, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)).ToArray();
     private void EnsurePatterns()
@@ -261,8 +364,33 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
         var currentRoles = _store.GetRoles(sam);
         foreach (var r in currentRoles)
         {
-            if (!principal.HasClaim(c => c.Type == ClaimTypes.Role && string.Equals(c.Value, r, StringComparison.OrdinalIgnoreCase))) id!.AddClaim(new Claim(ClaimTypes.Role, r));
+            bool has = principal.HasClaim(c => c.Type == ClaimTypes.Role && string.Equals(c.Value, r, StringComparison.OrdinalIgnoreCase));
+            if (!has)
+            {
+                id!.AddClaim(new Claim(ClaimTypes.Role, r));
+            }
         }
+        // Apply overrides BEFORE implicit pattern / auto roles
+        UserOverride? ov = _overrides?.Get(sam);
+        if (ov is not null)
+        {
+            if (ov.Disabled)
+            {
+                foreach (var rc in id!.Claims.Where(c => c.Type == ClaimTypes.Role).ToList()) id.RemoveClaim(rc);
+                _log.LogInformation("UserOverride disabled access for {User}", sam);
+                _audit?.Record("UserDisabled", sam, "*", null, true, "Override Disabled");
+                return Task.FromResult(principal);
+            }
+            foreach (var extra in ov.ExtraRoles)
+            {
+                if (!id!.Claims.Any(c => c.Type == ClaimTypes.Role && c.Value.Equals(extra, StringComparison.OrdinalIgnoreCase)))
+                {
+                    id.AddClaim(new Claim(ClaimTypes.Role, extra));
+                    _audit?.Record("OverrideAddRole", sam, extra, null, true, "Override ExtraRole");
+                }
+            }
+        }
+        bool hadRoleBeforeImplicit = principal.HasClaim(c => c.Type == ClaimTypes.Role);
         // Implicit Windows admin via groups (feature flag)
         if (_opts.ImplicitWindowsAdminEnabled && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
         {
@@ -286,6 +414,7 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
                 {
                     id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.Admin));
                     LogImplicitElevation(_log, sam);
+                    _audit?.Record("ImplicitAdminGroup", sam, AppRoles.Admin, null, true, "Group SID Elevation");
                 }
             }
             catch { }
@@ -294,18 +423,23 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
         {
             foreach (var rx in _adminRegex)
             {
-                if (rx.IsMatch(raw) || rx.IsMatch(sam)) { id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.Admin)); break; }
+                if (rx.IsMatch(raw) || rx.IsMatch(sam)) { id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.Admin)); _audit?.Record("ImplicitAdminPattern", sam, AppRoles.Admin, null, true, "Pattern Match"); break; }
             }
         }
         bool hasAdmin = principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase));
-        if (!hasAdmin && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.User, StringComparison.OrdinalIgnoreCase)))
+        bool hasUser = principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.User, StringComparison.OrdinalIgnoreCase));
+        if (!hasAdmin && !hasUser)
         {
-            bool matched = false;
-            foreach (var rx in _userRegex)
+            if (_opts.AutoAssignUser)
             {
-                if (rx.IsMatch(raw) || rx.IsMatch(sam)) { id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.User)); matched = true; break; }
+                id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.User));
+                _audit?.Record("AutoAssignUser", sam, AppRoles.User, null, true, hadRoleBeforeImplicit ? "PostImplicit" : "NoRolesBefore");
             }
-            if (!matched && _opts.AutoAssignUser) id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.User));
+            else
+            {
+                // Unresolved user (no roles at all) -> audit
+                _audit?.Record("UnresolvedUser", sam, "none", null, false, "No matching roles");
+            }
         }
         return Task.FromResult(principal);
     }
@@ -351,6 +485,8 @@ public static class RoleServiceCollectionExtensions
         {
             services.AddSingleton<IAppRoleStore, PersistentRoleStore>();
         }
+        services.AddSingleton<IUserOverrideStore, JsonUserOverrideStore>();
+        // Replace registration of ClaimsRoleEnricher to include override dependency
         services.AddSingleton<Microsoft.AspNetCore.Authentication.IClaimsTransformation, ClaimsRoleEnricher>();
         // Directory health check
         services.AddHealthChecks().AddCheck<DirectoryHealthCheck>("directory", tags: new[] { "ready" });
