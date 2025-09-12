@@ -28,7 +28,7 @@
     bool showDebugUser = Config.GetValue<bool>("Debug:ShowUser", true);
 }
 <!DOCTYPE html>
-<html lang="@currentUi">
+<html lang="@currentUi" data-theme="@chosenTheme">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -61,6 +61,7 @@
     @if (string.IsNullOrWhiteSpace(biSri)) { <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"> }
     else { <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="@biSri" crossorigin="anonymous"> }
     <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/dark.css" rel="stylesheet" asp-append-version="true" />
     @RenderSection("Styles", required: false)
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -88,18 +89,20 @@
                         </admin-only>
                     }
                 </ul>
-                <div class="d-flex align-items-center gap-2">
-                    @if (showDebugUser)
-                    {
-                        var isAuth = User?.Identity?.IsAuthenticated == true;
-                        var nameDisplay = isAuth ? (User?.Identity?.Name ?? "(no name)") : "(anonymous)";
-                        var roleClaims = User?.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? Array.Empty<string>();
-                        var rolesDisplay = roleClaims.Length > 0 ? " [" + string.Join(',', roleClaims) + "]" : (isAuth ? " [no roles]" : string.Empty);
-                        var authState = isAuth ? "AUTH" : "NO-AUTH";
-                        <span class="navbar-text small text-light me-3" title="Debug user info">@authState: @nameDisplay@rolesDisplay</span>
-                    }
-                    <theme-culture-switcher />
-                </div>
+                @if (showDebugUser)
+                {
+                    var isAuth = User?.Identity?.IsAuthenticated == true;
+                    var nameDisplay = isAuth ? (User?.Identity?.Name ?? "(no name)") : "(anonymous)";
+                    var roleClaims = User?.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? Array.Empty<string>();
+                    var rolesDisplay = roleClaims.Length > 0 ? " [" + string.Join(',', roleClaims) + "]" : (isAuth ? " [no roles]" : string.Empty);
+                    var authState = isAuth ? "AUTH" : "NO-AUTH";
+                    <span class="navbar-text small text-light me-3" title="Debug user info">@authState: @nameDisplay@rolesDisplay</span>
+                }
+                <!-- Dark mode toggle placed immediately LEFT of theme/culture switcher -->
+                <button id="dark-mode-toggle" type="button" class="btn btn-sm btn-outline-light me-2" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+                    <i id="dark-mode-icon" class="bi bi-moon-stars" aria-hidden="true"></i>
+                </button>
+                <theme-culture-switcher />
             </div>
         </div>
     </nav>
@@ -115,6 +118,7 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true" defer></script>
     <script src="~/js/antiforgery.js" asp-append-version="true" defer></script>
     <script src="~/js/site.js" asp-append-version="true" defer></script>
+    <script src="~/js/dark-mode.js" asp-append-version="true" defer></script>
     <environment include="Development"><script src="/_framework/aspnetcore-browser-refresh.js" defer></script></environment>
     @RenderSection("Scripts", required: false)
 </body>

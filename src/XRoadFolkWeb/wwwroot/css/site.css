@@ -140,7 +140,12 @@ pre { padding: .75rem; border-radius: .5rem; }
   --bs-accordion-bg: var(--bs-body-bg);
 }
 
-/* Logs viewer helpers (replace inline styles) */
+/* Sticky inside internal scroll container */
+.gpiv-card { display:flex; flex-direction:column; }
+.gpiv-scroll-container { position:relative; flex:1 1 auto; overflow-y:auto; max-height:100%; }
+.gpiv-scroll-container .accordion-button.sticky-active:not(.collapsed) { position:sticky; top:0; z-index:5; box-shadow:0 2px 4px rgba(0,0,0,.15); background:var(--bs-body-bg); }
+
+/* Logs viewer helpers */
 .logs-filter-group { max-width: 520px; }
 .logs-table-container { max-height: 60vh; overflow: auto; }
 .thead-sticky { top: 0; z-index: 1; }
