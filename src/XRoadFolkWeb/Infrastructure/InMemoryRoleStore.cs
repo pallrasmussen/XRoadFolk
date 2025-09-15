@@ -326,7 +326,7 @@ internal sealed class PersistentRoleStore : IAppRoleStore
     public bool RestoreRole(string samAccountName, string role, string? actor = null)
     { if (string.IsNullOrWhiteSpace(samAccountName) || string.IsNullOrWhiteSpace(role)) return false; if (_userRoles.TryGetValue(samAccountName, out var list)) { bool changed = false; lock (list) { var existing = list.FirstOrDefault(r => r.Role.Equals(role, StringComparison.OrdinalIgnoreCase) && r.IsDeleted); if (existing is not null) { existing.IsDeleted = false; existing.DeletedBy = null; existing.DeletedUtc = null; changed = true; } } if (changed) { _audit?.Record("RestoreRole", samAccountName, role, actor, _auditEnabled); _ = Task.Run(() => Persist(null)); return true; } } return false; }
     public bool RemoveFromRole(string samAccountName, string role, string? actor = null)
-    { if (string.IsNullOrWhiteSpace(samAccountName) || string.IsNullOrWhiteSpace(role)) return false; if (_userRoles.TryGetValue(samAccountName, out var list)) { bool changed = false; lock (list) { var existing = list.FirstOrDefault(r => r.Role.Equals(role, StringComparison.OrdinalIgnoreCase) && !r.IsDeleted); if (existing is not null) { existing.IsDeleted = true; existing.DeletedBy = actor; existing.DeletedUtc = DateTime.UtcNow; changed = true; } } if (changed) { _audit?.Record("SoftDeleteRole", samAccountName, role, actor, _auditEnabled); _ = Task.Run(() => Persist(null)); return true; } } return false; }
+    { if (string.IsNullOrWhiteSpace(samAccountName) || string.IsNullOrWhiteSpace(role)) return false; if (_userRoles.TryGetValue(samAccountName, out var list)) { bool changed = false; lock (list) { var existing = list.FirstOrDefault(r => r.Role.Equals(role, StringComparison.OrdinalIgnoreCase) && !r.IsDeleted); if (existing is not null) { existing.IsDeleted = true; existing.DeletedBy = actor; existing.DeletedUtc = DateTime.Now; changed = true; } } if (changed) { _audit?.Record("SoftDeleteRole", samAccountName, role, actor, _auditEnabled); _ = Task.Run(() => Persist(null)); return true; } } return false; }
     public bool RemoveUser(string samAccountName, string? actor = null)
     { if (string.IsNullOrWhiteSpace(samAccountName)) return false; if (_userRoles.TryGetValue(samAccountName, out var list)) { bool changed = false; DateTime now = DateTime.UtcNow; lock (list) { foreach (var r in list.Where(r => !r.IsDeleted)) { r.IsDeleted = true; r.DeletedBy = actor; r.DeletedUtc = now; changed = true; } } if (changed) { _audit?.RecordUserRemoval("SoftDeleteUser", samAccountName, actor, _auditEnabled); _ = Task.Run(() => Persist(null)); return true; } } return false; }
     public int PurgeDeleted(TimeSpan olderThan, string? actor = null)
@@ -416,6 +416,43 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
             }
             catch { }
         }
+        // Map configured Windows group names -> roles (Admin/User)
+        try
+        {
+            string[] groupNames = Array.Empty<string>();
+            if (OperatingSystem.IsWindows() && principal.Identity is WindowsIdentity win && win.Groups is not null)
+            {
+                var list = new List<string>();
+                foreach (var sid in win.Groups)
+                {
+                    try
+                    {
+                        var nt = sid.Translate(typeof(NTAccount)) as NTAccount;
+                        if (nt is not null) list.Add(nt.Value);
+                    }
+                    catch { }
+                }
+                groupNames = list.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            }
+            if (groupNames.Length > 0)
+            {
+                if ((_opts.AdminGroupNames?.Count ?? 0) > 0 && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
+                {
+                    foreach (var g in _opts.AdminGroupNames!)
+                    {
+                        if (groupNames.Contains(g, StringComparer.OrdinalIgnoreCase)) { id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.Admin)); break; }
+                    }
+                }
+                if ((_opts.UserGroupNames?.Count ?? 0) > 0 && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.User, StringComparison.OrdinalIgnoreCase)))
+                {
+                    foreach (var g in _opts.UserGroupNames!)
+                    {
+                        if (groupNames.Contains(g, StringComparer.OrdinalIgnoreCase)) { id!.AddClaim(new Claim(ClaimTypes.Role, AppRoles.User)); break; }
+                    }
+                }
+            }
+        }
+        catch { }
         if (_opts.ImplicitWindowsAdminMode != ImplicitAdminMode.None && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
         {
             foreach (var rx in _adminRegex)
@@ -458,6 +495,11 @@ public static class RoleServiceCollectionExtensions
         var adminPatterns = section.GetSection("AdminPatterns").Get<string[]>()?.ToList() ?? new List<string>();
         var userList = section.GetSection("Users").Get<string[]>()?.ToList() ?? new List<string>();
         var userPatterns = section.GetSection("UserPatterns").Get<string[]>()?.ToList() ?? new List<string>();
+        // NEW: bind Windows group name mappings and allowed roles
+        var adminGroupNames = section.GetSection("AdminGroupNames").Get<string[]>()?.ToList() ?? new List<string>();
+        var userGroupNames = section.GetSection("UserGroupNames").Get<string[]>()?.ToList() ?? new List<string>();
+        var allowedRoles = section.GetSection("AllowedRoles").Get<string[]>() ?? new[] { AppRoles.Admin, AppRoles.User };
+
         userList = userList.Where(u => !adminList.Contains(u, StringComparer.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         bool autoUser = section.GetValue<bool?>("AutoAssignUser") ?? true;
         bool auditEnabled = section.GetValue<bool?>("AuditEnabled") ?? true;
@@ -471,7 +513,20 @@ public static class RoleServiceCollectionExtensions
         services.AddSingleton<IRoleAuditSink, RoleAuditSink>();
         services.Configure<RoleMappingOptions>(o =>
         {
-            o.Admins = adminList; o.AdminPatterns = adminPatterns; o.Users = userList; o.UserPatterns = userPatterns; o.AutoAssignUser = autoUser; o.AuditEnabled = auditEnabled; o.EnforceDirectoryUserExists = enforceDir; o.ImplicitWindowsAdminMode = implicitWinAdmin; o.FilePath = filePath; o.Provider = provider; o.ConnectionString = conn;
+            o.Admins = adminList;
+            o.AdminPatterns = adminPatterns;
+            o.Users = userList;
+            o.UserPatterns = userPatterns;
+            o.AutoAssignUser = autoUser;
+            o.AuditEnabled = auditEnabled;
+            o.EnforceDirectoryUserExists = enforceDir;
+            o.ImplicitWindowsAdminMode = implicitWinAdmin;
+            o.FilePath = filePath;
+            o.Provider = provider;
+            o.ConnectionString = conn;
+            o.AdminGroupNames = adminGroupNames;
+            o.UserGroupNames = userGroupNames;
+            o.AllowedRoles = allowedRoles;
         });
         if (string.Equals(provider, "Db", StringComparison.OrdinalIgnoreCase))
         {

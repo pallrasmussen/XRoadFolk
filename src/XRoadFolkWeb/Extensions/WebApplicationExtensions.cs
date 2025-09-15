@@ -34,6 +34,7 @@ namespace XRoadFolkWeb.Extensions
         private static readonly string[] _allowedThemes = new[] { "flatly", "cerulean", "sandstone", "yeti" };
         private const string ThemeCookieName = "site-theme";
         private const string RememberCookieName = ".XRF.Remember"; // legacy / now unused
+        private const string LogoutCookieName = ".XRF.Logout"; // blocks auto re-auth while present
 
         private static readonly HashSet<string> _staticTopLevelFolders = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -60,6 +61,20 @@ namespace XRoadFolkWeb.Extensions
             return false;
         }
 
+        private static bool IsLogoutBypassPath(PathString path)
+        {
+            if (!path.HasValue)
+            {
+                return false;
+            }
+            string p = path.Value ?? string.Empty;
+            return p.Equals("/signed-out", StringComparison.OrdinalIgnoreCase)
+                || p.Equals("/signin", StringComparison.OrdinalIgnoreCase)
+                || p.Equals("/logout", StringComparison.OrdinalIgnoreCase)
+                || p.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                || IsStaticAssetPath(p);
+        }
+
         private static string RedactPath(string? path)
         {
             if (string.IsNullOrWhiteSpace(path)) { return string.Empty; }
@@ -82,6 +97,24 @@ namespace XRoadFolkWeb.Extensions
 
             AddCspAndSecurityHeaders(app);
             AddNoCacheHeaders(app);
+
+            // Logout-block middleware – short-circuit before authentication
+            app.Use(async (ctx, next) =>
+            {
+                if (ctx.Request.Cookies.ContainsKey(LogoutCookieName) && !IsLogoutBypassPath(ctx.Request.Path))
+                {
+                    if (HttpMethods.IsGet(ctx.Request.Method))
+                    {
+                        ctx.Response.Redirect("/signed-out");
+                    }
+                    else
+                    {
+                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    }
+                    return;
+                }
+                await next();
+            });
 
             app.Use(async (ctx, next) =>
             {
@@ -165,6 +198,9 @@ namespace XRoadFolkWeb.Extensions
             AddCorrelationScope(app, loggerFactory);
             MapCultureSwitch(app, cultureLog);
             MapThemeSwitch(app);
+            MapLogout(app);
+            MapSignedOut(app);
+            MapSignIn(app);
             // Remove remember-me endpoint
             app.MapRazorPages();
             app.MapFallbackToPage("/Index");
@@ -450,6 +486,94 @@ namespace XRoadFolkWeb.Extensions
                 if (!string.IsNullOrEmpty(returnUrl)) { try { return Results.LocalRedirect(returnUrl); } catch { } }
                 return Results.LocalRedirect("/");
             });
+        }
+
+        private static void MapLogout(WebApplication app)
+        {
+            // GET: simple confirmation page with antiforgery token that posts to /logout
+            app.MapGet("/logout", async (HttpContext ctx, IAntiforgery af, IOptions<SessionOptions> sessOpts) =>
+            {
+                AntiforgeryTokenSet tokens = af.GetAndStoreTokens(ctx);
+                ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                ctx.Response.Headers.Pragma = "no-cache";
+                ctx.Response.Headers.Expires = "0";
+                ctx.Response.ContentType = "text/html; charset=utf-8";
+                string form = $"<!doctype html><html><head><title>Sign out</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>Sign out</h1><p>This will clear application session and cookies and block automatic Windows SSO for this browser until you sign in again.</p><form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{WebUtility.HtmlEncode(tokens.RequestToken)}\" /><button type=\"submit\">Sign out</button></form><p><a href=\"/\">Cancel</a></p></body></html>";
+                await ctx.Response.WriteAsync(form);
+            });
+
+            // POST: perform sign-out actions and set logout-block cookie
+            app.MapPost("/logout", async (HttpContext ctx, IAntiforgery af, IOptions<SessionOptions> sessOpts) =>
+            {
+                try { await af.ValidateRequestAsync(ctx); } catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+
+                // Clear session
+                try { ctx.Session?.Clear(); } catch { }
+
+                // Delete known cookies (session, theme, culture, legacy remember-me, antiforgery)
+                string sessionCookie = sessOpts.Value.Cookie.Name ?? ".XRoadFolk.Session";
+                DeleteCookie(ctx, sessionCookie);
+                DeleteCookie(ctx, ThemeCookieName);
+                DeleteCookie(ctx, CookieRequestCultureProvider.DefaultCookieName);
+                DeleteCookie(ctx, RememberCookieName);
+                foreach (var c in ctx.Request.Cookies.Keys.Where(k => k.StartsWith(".AspNetCore.Antiforgery", StringComparison.OrdinalIgnoreCase)))
+                {
+                    DeleteCookie(ctx, c);
+                }
+
+                // Set logout-block cookie (short-lived)
+                ctx.Response.Cookies.Append(LogoutCookieName, "1", new CookieOptions
+                {
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(30),
+                    IsEssential = true,
+                    Secure = ctx.Request.IsHttps,
+                    HttpOnly = true,
+                    SameSite = HeaderSameSiteMode.Lax,
+                    Path = "/",
+                });
+
+                return Results.LocalRedirect("/signed-out");
+            });
+        }
+
+        private static void MapSignedOut(WebApplication app)
+        {
+            app.MapGet("/signed-out", async (HttpContext ctx) =>
+            {
+                ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                ctx.Response.Headers.Pragma = "no-cache";
+                ctx.Response.Headers.Expires = "0";
+                ctx.Response.ContentType = "text/html; charset=utf-8";
+                const string html = "<!doctype html><html><head><title>Signed out</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body><h1>Signed out</h1><p>You have been signed out of the application and automatic Windows SSO is temporarily blocked for this browser.</p><p><a href=\"/signin\">Sign in again</a></p></body></html>";
+                await ctx.Response.WriteAsync(html);
+            }).AllowAnonymous();
+        }
+
+        private static void MapSignIn(WebApplication app)
+        {
+            app.MapGet("/signin", async (HttpContext ctx) =>
+            {
+                // If already authenticated (e.g., after Negotiate handshake), redirect to home
+                if (ctx.User?.Identity?.IsAuthenticated == true)
+                {
+                    DeleteCookie(ctx, LogoutCookieName);
+                    return Results.LocalRedirect("/");
+                }
+
+                // Not authenticated yet -> clear logout cookie and trigger Negotiate challenge
+                DeleteCookie(ctx, LogoutCookieName);
+                await ctx.ChallengeAsync("Negotiate");
+                return Results.Empty;
+            }).AllowAnonymous();
+        }
+
+        private static void DeleteCookie(HttpContext ctx, string name)
+        {
+            try
+            {
+                ctx.Response.Cookies.Delete(name, new CookieOptions { Path = "/", Secure = ctx.Request.IsHttps, HttpOnly = true, SameSite = HeaderSameSiteMode.Lax });
+            }
+            catch { }
         }
 
         private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
