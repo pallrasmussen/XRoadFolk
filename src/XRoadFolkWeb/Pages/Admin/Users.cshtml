@@ -6,7 +6,16 @@
     ViewData["Title"] = "User Role Administration";
     string sortUser = Model.Sort == "user_asc" ? "user_desc" : "user_asc";
     string sortRoles = Model.Sort == "roles_desc" ? "roles_asc" : "roles_desc";
+    var nonce = ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string;
 }
+@section Styles {
+<style nonce="@nonce">
+  /* Brighten only admin users table text in dark modes */
+  @@media (prefers-color-scheme: dark) { #admin-users table tbody td { color: rgba(255,255,255,.96); } }
+  html.dark-mode #admin-users table tbody td { color: rgba(255,255,255,.96); }
+</style>
+}
+<div id="admin-users">
 <h1 class="h4 mb-3">User Role Administration</h1>
 @if (Model.Message is not null)
 {
@@ -45,7 +54,7 @@
     </div>
     <div class="col-sm-2 col-md-1 form-check d-flex align-items-center ps-3">
         <input class="form-check-input" type="checkbox" id="showDeleted" name="ShowDeleted" value="true" @(Model.ShowDeleted?"checked":null) />
-        <label class="form-check-label small ms-1" for="showDeleted">Deleted</label>
+        <label class="form-check-label small" for="showDeleted">Deleted</label>
     </div>
     <div class="col-sm-3 col-md-2">
         <select name="Sort" class="form-select form-select-sm">
@@ -68,7 +77,7 @@
     <div>Total Users: @Model.TotalUsers | Page @Model.PageNumber / @Model.TotalPages</div>
 </div>
 <table class="table table-sm table-striped align-middle mb-4">
-    <thead>
+    <thead class="table-light">
         <tr>
             <th>
                 <a asp-page="/Admin/Users" asp-route-sort="@(Model.Sort=="user_asc"?"user_desc":"user_asc")" class="text-decoration-none text-reset">
@@ -162,7 +171,7 @@
         </form>
     </div>
     <table class="table table-sm table-bordered align-middle">
-        <thead><tr><th>User</th><th>Deleted Roles</th><th style="width:220px;">Actions</th></tr></thead>
+        <thead class="table-light"><tr><th>User</th><th>Deleted Roles</th><th style="width:220px;">Actions</th></tr></thead>
         <tbody>
         @foreach (var kv in Model.DeletedRoles.OrderBy(k=>k.Key))
         {
@@ -188,6 +197,7 @@
         </tbody>
     </table>
 }
+</div>
 @section Scripts {
     <script nonce="@(ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string)">
         (function(){

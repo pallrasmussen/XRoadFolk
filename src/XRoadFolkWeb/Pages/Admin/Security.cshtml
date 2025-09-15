@@ -3,7 +3,16 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy="AdminOnly")]
 @{
     ViewData["Title"] = "Security Diagnostics";
+    var nonce = ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string;
 }
+@section Styles {
+<style nonce="@nonce">
+  /* Brighten only admin diagnostics table text in dark modes */
+  @@media (prefers-color-scheme: dark) { #admin-security table tbody td { color: rgba(255,255,255,.96); } }
+  html.dark-mode #admin-security table tbody td { color: rgba(255,255,255,.96); }
+</style>
+}
+<div id="admin-security">
 <h1 class="h4 mb-3">Security Diagnostics</h1>
 <div class="card mb-4 shadow-sm">
   <div class="card-header py-2"><strong>User Context</strong></div>
@@ -87,3 +96,4 @@
   </div>
 </div>
 <p class="small text-muted">Only visible to Admins. Use to verify AD group → role mapping and claims.</p>
+</div>

@@ -12,7 +12,16 @@
         {"FilterAction", Model.FilterAction },
         {"FilterSuccess", Model.FilterSuccess?.ToString()?.ToLowerInvariant() }
     };
+    var nonce = ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string;
 }
+@section Styles {
+<style nonce="@nonce">
+  /* Brighten only audit log table text in dark modes */
+  @@media (prefers-color-scheme: dark) { #audit-logs table tbody td { color: rgba(255,255,255,.96); } }
+  html.dark-mode #audit-logs table tbody td { color: rgba(255,255,255,.96); }
+</style>
+}
+<div id="audit-logs">
 <h1 class="h4 mb-3">Role Audit</h1>
 <form method="get" class="row gy-2 gx-3 align-items-end mb-3">
     <div class="col-6 col-md-2">
@@ -119,6 +128,7 @@
         </li>
     </ul>
 </nav>
+</div>
 @section Scripts {
 <script nonce="@(ViewContext?.HttpContext?.Items?["CSP_NONCE"] as string)">
 (function(){
