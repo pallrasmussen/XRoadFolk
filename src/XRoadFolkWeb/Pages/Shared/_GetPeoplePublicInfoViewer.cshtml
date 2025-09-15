@@ -50,6 +50,8 @@
     string prettyB64 = string.IsNullOrEmpty(pretty) ? string.Empty : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pretty));
 }
 <div id="gpiv-initial-publicid" data-initial-publicid="@initialPublicId" hidden></div>
+<!-- Response viewer flags for JS -->
+<div id="gpiv-opts" data-show-raw="@showRaw.ToString().ToLower()" data-show-pretty="@showPretty.ToString().ToLower()" hidden></div>
 <link rel="stylesheet" href="~/css/gpiv.css" asp-append-version="true" />
 
 <div id="person-details-wrapper" class="mb-4">
@@ -101,12 +103,18 @@
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="pd-tab-details-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-details" type="button" role="tab" aria-controls="pd-tab-details" aria-selected="true">@SR["Details"]</button>
               </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
-              </li>
+              @if (showRaw)
+              {
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="pd-tab-raw-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-raw" type="button" role="tab" aria-controls="pd-tab-raw" aria-selected="false">@SR["RawXml"]</button>
+                </li>
+              }
+              @if (showPretty)
+              {
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="pd-tab-pretty-btn" data-bs-toggle="tab" data-bs-target="#pd-tab-pretty" type="button" role="tab" aria-controls="pd-tab-pretty" aria-selected="false">@SR["PrettyXml"]</button>
+                </li>
+              }
             </ul>
 
             <div class="tab-content" id="pd-subtabs-content">
@@ -119,21 +127,27 @@
                 </div>
               </div>
 
-              <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
-                <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
+              @if (showRaw)
+              {
+                <div class="tab-pane fade" id="pd-tab-raw" role="tabpanel" aria-labelledby="pd-tab-raw-btn" tabindex="0">
+                  <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-raw">@SR["Copy"]</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-raw">@SR["Download"]</button>
+                  </div>
+                  <pre class="gpiv-pre" id="pd-raw-pre"></pre>
                 </div>
-                <pre class="gpiv-pre" id="pd-raw-pre"></pre>
-              </div>
+              }
 
-              <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
-                <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
+              @if (showPretty)
+              {
+                <div class="tab-pane fade" id="pd-tab-pretty" role="tabpanel" aria-labelledby="pd-tab-pretty-btn" tabindex="0">
+                  <div class="d-flex justify-content-end gpiv-tab-actions mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-copy-pretty">@SR["Copy"]</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="pd-dl-pretty">@SR["Download"]</button>
+                  </div>
+                  <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
                 </div>
-                <pre class="gpiv-pre" id="pd-pretty-pre"></pre>
-              </div>
+              }
             </div>
           </div>
         </div>

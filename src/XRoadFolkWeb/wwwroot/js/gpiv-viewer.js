@@ -44,6 +44,18 @@
   let sourcePretty = '';
   let sourceRaw = '';
 
+  // Read per-page options from hidden DOM element
+  function readViewerFlags(){
+    try{
+      const el=byId('gpiv-opts');
+      if(!el) return { showRaw:true, showPretty:true };
+      const raw=(el.getAttribute('data-show-raw')||'true').toLowerCase()==='true';
+      const pretty=(el.getAttribute('data-show-pretty')||'true').toLowerCase()==='true';
+      return { showRaw: raw, showPretty: pretty };
+    }catch(e){ dbg('gpiv:readViewerFlags', e); return { showRaw:true, showPretty:true }; }
+  }
+  let FLAGS = { showRaw:true, showPretty:true };
+
   function parseXml(text) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, 'application/xml');
@@ -218,6 +230,7 @@
   function createRawPrettyButtons(inlineHost){
     const wrap=document.createElement('div');
     wrap.className='btn-group btn-group-sm align-self-center ms-2';
+    const flags = FLAGS || { showRaw:true, showPretty:true };
     function showInline(mode){
       if(!inlineHost) return;
       const openMode = inlineHost.getAttribute('data-mode') || '';
@@ -226,26 +239,28 @@
       inlineHost.setAttribute('data-mode', mode);
       inlineHost.classList.remove('d-none');
       clearChildren(inlineHost);
-
       const content=(mode==='raw') ? (sourceRaw||'') : ((sourcePretty||sourceRaw||''));
-
       const card=document.createElement('div'); card.className='p-2 border rounded bg-body-tertiary';
       const actions=document.createElement('div'); actions.className='d-flex justify-content-end gap-2 mb-2';
-      const copyBtn=document.createElement('button'); copyBtn.type='button'; copyBtn.className='btn btn-sm btn-outline-secondary'; copyBtn.textContent=(I18N.Copy||'Copy');
-      copyBtn.addEventListener('click', function(){ copyToClipboard(content).then(function(){ const prev=copyBtn.textContent; copyBtn.textContent=(I18N.Copied||'Copied'); setTimeout(function(){ copyBtn.textContent=prev; }, 1200); }).catch(function(e){ dbg('gpiv:copy-inline', e); }); });
-      const dlBtn=document.createElement('button'); dlBtn.type='button'; dlBtn.className='btn btn-sm btn-outline-secondary'; dlBtn.textContent=(I18N.Download||'Download');
-      dlBtn.addEventListener('click', function(){ try{ const ts=new Date().toISOString().replace(/[:.]/g,'-'); const fname=(mode==='raw'?'GetPeoplePublicInfo_raw_':'GetPeoplePublicInfo_pretty_')+ts+'.xml'; downloadBlob(fname, content, 'text/xml;charset=utf-8'); }catch(e){ dbg('gpiv:download-inline', e); } });
-      actions.appendChild(copyBtn); actions.appendChild(dlBtn);
-
-      const pre=document.createElement('pre'); pre.className='gpiv-pre mb-0'; pre.style.maxHeight='16rem'; pre.style.overflow='auto';
-      pre.textContent = content;
-
-      card.appendChild(actions);
-      card.appendChild(pre);
-      inlineHost.appendChild(card);
+      if(mode==='raw' && flags.showRaw){
+        const copyBtn=document.createElement('button'); copyBtn.type='button'; copyBtn.className='btn btn-sm btn-outline-secondary'; copyBtn.textContent=(I18N.Copy||'Copy');
+        copyBtn.addEventListener('click', function(){ copyToClipboard(content).then(function(){ const prev=copyBtn.textContent; copyBtn.textContent=(I18N.Copied||'Copied'); setTimeout(function(){ copyBtn.textContent=prev; }, 1200); }).catch(function(e){ dbg('gpiv:copy-inline', e); }); });
+        const dlBtn=document.createElement('button'); dlBtn.type='button'; dlBtn.className='btn btn-sm btn-outline-secondary'; dlBtn.textContent=(I18N.Download||'Download');
+        dlBtn.addEventListener('click', function(){ try{ const ts=new Date().toISOString().replace(/[:.]/g,'-'); const fname='GetPeoplePublicInfo_raw_'+ts+'.xml'; downloadBlob(fname, content, 'text/xml;charset=utf-8'); }catch(e){ dbg('gpiv:download-inline', e); } });
+        actions.appendChild(copyBtn); actions.appendChild(dlBtn);
+      }
+      if(mode==='pretty' && flags.showPretty){
+        const copyBtn2=document.createElement('button'); copyBtn2.type='button'; copyBtn2.className='btn btn-sm btn-outline-secondary'; copyBtn2.textContent=(I18N.Copy||'Copy');
+        copyBtn2.addEventListener('click', function(){ copyToClipboard(content).then(function(){ const prev=copyBtn2.textContent; copyBtn2.textContent=(I18N.Copied||'Copied'); setTimeout(function(){ copyBtn2.textContent=prev; }, 1200); }).catch(function(e){ dbg('gpiv:copy-inline-pretty', e); }); });
+        const dlBtn2=document.createElement('button'); dlBtn2.type='button'; dlBtn2.className='btn btn-sm btn-outline-secondary'; dlBtn2.textContent=(I18N.Download||'Download');
+        dlBtn2.addEventListener('click', function(){ try{ const ts=new Date().toISOString().replace(/[:.]/g,'-'); const fname='GetPeoplePublicInfo_pretty_'+ts+'.xml'; downloadBlob(fname, content, 'text/xml;charset=utf-8'); }catch(e){ dbg('gpiv:download-inline-pretty', e); } });
+        actions.appendChild(copyBtn2); actions.appendChild(dlBtn2);
+      }
+      const pre=document.createElement('pre'); pre.className='gpiv-pre mb-0'; pre.style.maxHeight='16rem'; pre.style.overflow='auto'; pre.textContent = content;
+      card.appendChild(actions); card.appendChild(pre); inlineHost.appendChild(card);
     }
-    const rawBtn=document.createElement('button'); rawBtn.type='button'; rawBtn.className='btn btn-outline-secondary'; rawBtn.innerHTML='<i class="bi bi-filetype-xml me-1" aria-hidden="true"></i>'+(I18N.RawXml||'Raw XML'); rawBtn.addEventListener('click',function(){ showInline('raw'); }); wrap.appendChild(rawBtn);
-    const prettyBtn=document.createElement('button'); prettyBtn.type='button'; prettyBtn.className='btn btn-outline-secondary'; prettyBtn.innerHTML='<i class="bi bi-braces-asterisk me-1" aria-hidden="true"></i>'+(I18N.PrettyXml||'Pretty XML'); prettyBtn.addEventListener('click',function(){ showInline('pretty'); }); wrap.appendChild(prettyBtn);
+    if(flags.showRaw){ const rawBtn=document.createElement('button'); rawBtn.type='button'; rawBtn.className='btn btn-outline-secondary'; rawBtn.innerHTML='<i class="bi bi-filetype-xml me-1" aria-hidden="true"></i>'+(I18N.RawXml||'Raw XML'); rawBtn.addEventListener('click',function(){ showInline('raw'); }); wrap.appendChild(rawBtn); }
+    if(flags.showPretty){ const prettyBtn=document.createElement('button'); prettyBtn.type='button'; prettyBtn.className='btn btn-outline-secondary'; prettyBtn.innerHTML='<i class="bi bi-braces-asterisk me-1" aria-hidden="true"></i>'+(I18N.PrettyXml||'Pretty XML'); prettyBtn.addEventListener('click',function(){ showInline('pretty'); }); wrap.appendChild(prettyBtn); }
     return wrap;
   }
 
@@ -476,6 +491,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     try {
+      FLAGS = readViewerFlags();
       summaryHost = byId('gpiv-xml-summary');
       emptyMsg = byId('gpiv-empty');
       card = qs('.gpiv-card');
