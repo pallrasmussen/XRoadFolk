@@ -43,7 +43,13 @@
 
 /* Person header inside the scrolling summary viewport -> sticky */
 #gpiv-xml-summary .gpiv-person { position: static; }
-#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 1; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem; box-shadow: 0 1px 0 0 var(--bs-border-color); }
+#gpiv-xml-summary .gpiv-person-header { position: sticky; top: 0; z-index: 2; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); padding-block: .25rem; box-shadow: 0 1px 0 0 var(--bs-border-color); }
+
+/* Sticky expanded accordion group headers (below person header). Offset accounts for person header height */
+#gpiv-xml-summary .accordion-button.sticky-active { position: sticky; top: 2.1rem; z-index: 1; background: var(--bs-body-bg); }
+@media (max-width: 575.98px){
+  #gpiv-xml-summary .accordion-button.sticky-active { top: 2.4rem; }
+}
 
 /* Disable pointer/hover on badge and name to make them non-interactive */
 #gpiv-xml-summary .gpiv-person-header .badge,

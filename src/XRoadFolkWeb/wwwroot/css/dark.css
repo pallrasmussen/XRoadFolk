@@ -1,0 +1,85 @@
+/* Dark mode overrides */
+/* Auto: apply when (prefers-color-scheme: dark) and no explicit light preference stored */
+@media (prefers-color-scheme: dark) {
+  html:not(.force-light):not(.dark-mode-disabled) {
+    --bs-body-bg:#0f1419; /* darker overall */
+    --bs-body-color:#e6ebef;
+    --bs-border-color:#35424f;
+    --bs-card-bg:#161e27; /* deeper card surface */
+    --bs-card-border-color:var(--bs-border-color);
+    --bs-link-color:#6ab7ff;
+    --bs-link-hover-color:#9cd2ff;
+    --bs-code-color:#ffb86c;
+    background:var(--bs-body-bg);
+    color:var(--bs-body-color);
+  }
+}
+/* Explicit dark mode class (always overrides) */
+html.dark-mode {
+  --bs-body-bg:#0f1419;
+  --bs-body-color:#e6ebef;
+  --bs-border-color:#35424f;
+  --bs-card-bg:#161e27;
+  --bs-card-border-color:var(--bs-border-color);
+  --bs-link-color:#6ab7ff;
+  --bs-link-hover-color:#9cd2ff;
+  --bs-code-color:#ffb86c;
+  background:var(--bs-body-bg);
+  color:var(--bs-body-color);
+}
+html.dark-mode body { background:var(--bs-body-bg); color:var(--bs-body-color); }
+html.dark-mode .card, html.dark-mode .dropdown-menu, html.dark-mode .modal-content { background:var(--bs-card-bg); }
+html.dark-mode .navbar.bg-primary { background:#0a3d63 !important; }
+html.dark-mode .form-control, html.dark-mode .form-select { background:#1b252f; color:#e6ebef; border-color:#3f4d5a; }
+html.dark-mode .form-control:focus { background:#1b252f; color:#fff; border-color:#5581a7; box-shadow:0 0 0 .2rem rgba(90,150,200,.25); }
+html.dark-mode .table { color:var(--bs-body-color); }
+html.dark-mode .table-striped tbody tr:nth-of-type(odd){ background:#18222c; }
+html.dark-mode .btn-outline-secondary { color:#cfd6dc; border-color:#536170; }
+html.dark-mode .btn-outline-secondary:hover { background:#314253; color:#fff; }
+html.dark-mode .text-muted { color:#9aa4ad !important; }
+html.dark-mode .alert-info { background:#163448; color:#d6ecf7; border-color:#23516d; }
+html.dark-mode hr { border-color:#35424f; }
+/* Accordion dark adjustments (higher contrast) */
+html.dark-mode .accordion-item { background:#161e27; border-color:#35424f; }
+/* Base button (collapsed) uses body color (soft light, not pure white) */
+html.dark-mode .accordion-button { background:#1c2731; color:#d9e2e8; border:none; }
+/* Expanded state: keep background a bit brighter, text still soft (avoid pure white glare) */
+html.dark-mode .accordion-button:not(.collapsed) { background:#22303c; color:#d9e2e8; box-shadow: inset 0 -1px 0 #35424f, 0 0 0 1px #35424f; }
+html.dark-mode .accordion-button.collapsed { box-shadow: none; }
+html.dark-mode .accordion-button:hover { background:#253440; color:#e6ebef; }
+html.dark-mode .accordion-button:focus { box-shadow:0 0 0 .15rem rgba(106,183,255,.35); }
+/* Body text also softened */
+html.dark-mode .accordion-body { background:#18222c; color:#d9e2e8; border-top:1px solid #35424f; }
+html.dark-mode .accordion-item + .accordion-item { border-top:1px solid #35424f; }
+/* Make ALL inner surfaces inside expanded accordion dark */
+/* Unified column backgrounds (both left header/label and right value columns) */
+html.dark-mode .accordion-body .table > :not(caption) > * > * { background:#1d2933 !important; color:#d9e2e8 !important; border-color:#3f4d5a !important; }
+html.dark-mode .accordion-body .table-striped > tbody > tr:nth-of-type(odd) > * { background:#22313c !important; }
+html.dark-mode .accordion-body .table-striped > tbody > tr:nth-of-type(even) > * { background:#1d2933 !important; }
+html.dark-mode .accordion-body .table, 
+html.dark-mode .accordion-body .table thead th,
+html.dark-mode .accordion-body .table tbody th,
+html.dark-mode .accordion-body .table tbody td { background:#1d2933; color:#d9e2e8; }
+html.dark-mode .accordion-body .table tbody tr:nth-of-type(odd) th,
+html.dark-mode .accordion-body .table tbody tr:nth-of-type(odd) td { background:#22313c; }
+html.dark-mode .accordion-body .table th { border-color:#3f4d5a; }
+html.dark-mode .accordion-body .table td { border-color:#3f4d5a; }
+html.dark-mode .accordion-body .badge { background:#2b3a46; color:#d9e2e8; }
+html.dark-mode .accordion-body .bg-body-tertiary { background:#1d2933 !important; color:#d9e2e8; }
+html.dark-mode .bg-body-tertiary { background:#1d2933 !important; color:#d9e2e8; }
+html.dark-mode .border { border-color:#3f4d5a !important; }
+html.dark-mode pre, html.dark-mode code { background:#1d2933; color:#ffb86c; }
+/* GPIV specific */
+html.dark-mode .gpiv-person .badge { background:#2b3a46; color:#d9e2e8; }
+html.dark-mode .gpiv-person-header { background:transparent; color:#d9e2e8; }
+html.dark-mode .accordion-body .p-2.border.rounded { background:#1d2933; border-color:#3f4d5a; }
+html.dark-mode .accordion-body .p-2.border.rounded .small.text-muted { color:#b4bcc3 !important; }
+/* Accessibility: ensure focus outlines visible */
+html.dark-mode :focus-visible { outline:2px solid #6ab7ff; outline-offset:2px; }
+/* Transition (optional, subtle) */
+html.dark-mode body,
+html.dark-mode .card,
+html.dark-mode .navbar,
+html.dark-mode .form-control,
+html.dark-mode .accordion-button,
+html.dark-mode .accordion-body { transition: background .25s ease, color .25s ease, border-color .25s ease; }
