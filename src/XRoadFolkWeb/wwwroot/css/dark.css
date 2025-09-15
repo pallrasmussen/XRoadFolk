@@ -34,8 +34,18 @@ html.dark-mode .form-control, html.dark-mode .form-select { background:#1b252f; 
 html.dark-mode .form-control:focus { background:#1b252f; color:#fff; border-color:#5581a7; box-shadow:0 0 0 .2rem rgba(90,150,200,.25); }
 html.dark-mode .table { color:var(--bs-body-color); }
 html.dark-mode .table-striped tbody tr:nth-of-type(odd){ background:#18222c; }
+/* Outline buttons */
 html.dark-mode .btn-outline-secondary { color:#cfd6dc; border-color:#536170; }
 html.dark-mode .btn-outline-secondary:hover { background:#314253; color:#fff; }
+/* Increase contrast for outline-primary (e.g., Details toggle) */
+html.dark-mode .btn-outline-primary { color:#9cd2ff; border-color:#6ab7ff; }
+html.dark-mode .btn-outline-primary:hover,
+html.dark-mode .btn-outline-primary:focus { background:#1f3a52; color:#ffffff; border-color:#9cd2ff; }
+/* Slightly stronger emphasis for the specific Details toggle button */
+html.dark-mode #pd-toggle-details.btn-outline-primary { color:#aeddff; border-color:#7cc0ff; }
+html.dark-mode #pd-toggle-details.btn-outline-primary:hover,
+html.dark-mode #pd-toggle-details.btn-outline-primary:focus { background:#23435e; color:#ffffff; border-color:#aeddff; }
+
 html.dark-mode .text-muted { color:#9aa4ad !important; }
 html.dark-mode .alert-info { background:#163448; color:#d6ecf7; border-color:#23516d; }
 html.dark-mode hr { border-color:#35424f; }
