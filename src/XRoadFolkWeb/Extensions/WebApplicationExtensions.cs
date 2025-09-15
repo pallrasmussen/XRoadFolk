@@ -588,74 +588,75 @@ namespace XRoadFolkWeb.Extensions
         private static void MapLogsList(WebApplication app)
         {
             app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
-            {
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null)
-                {
-                    return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
-                }
-                IEnumerable<LogEntry> query = store.GetAll();
-                if (!string.IsNullOrWhiteSpace(kind)) { query = query.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase)); }
-                LogEntry[] all = query as LogEntry[] ?? query.ToArray();
-                int pg = Math.Max(1, page ?? 1);
-                int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
-                int total = all.Length;
-                int totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
-                int skip = (pg - 1) * size;
-                LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
-                return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
-            });
+             {
+                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                 if (store is null)
+                 {
+                     return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+                 }
+                 IEnumerable<LogEntry> query = store.GetAll();
+                 if (!string.IsNullOrWhiteSpace(kind)) { query = query.Where(i => string.Equals(i.Kind, kind, StringComparison.OrdinalIgnoreCase)); }
+                 LogEntry[] all = query as LogEntry[] ?? query.ToArray();
+                 int pg = Math.Max(1, page ?? 1);
+                 int size = pageSize.HasValue ? Math.Clamp(pageSize.Value, 1, 1000) : 100;
+                 int total = all.Length;
+                 int totalPages = total == 0 ? 0 : (int)Math.Ceiling(total / (double)size);
+                 int skip = (pg - 1) * size;
+                 LogEntry[] items = (skip >= total) ? Array.Empty<LogEntry>() : all.Skip(skip).Take(size).ToArray();
+                 return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
+             }).RequireAuthorization("AdminOnly");
         }
         private static void MapLogsClear(WebApplication app)
         {
             app.MapPost("/logs/clear", async (HttpContext ctx, IAntiforgery af) =>
-            {
-                try { await af.ValidateRequestAsync(ctx); } catch (AntiforgeryValidationException) { return Results.BadRequest(); }
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null) { return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
-                store.Clear();
-                return Results.Json(new { ok = true });
-            });
+             {
+                 try { await af.ValidateRequestAsync(ctx); } catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                 if (store is null) { return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
+                 store.Clear();
+                 return Results.Json(new { ok = true });
+             }).RequireAuthorization("AdminOnly");
         }
         private static void MapLogsWrite(WebApplication app)
         {
             app.MapPost("/logs/write", async ([FromBody] LogWriteDto dto, HttpContext ctx, IAntiforgery af) =>
-            {
-                try { await af.ValidateRequestAsync(ctx); } catch (AntiforgeryValidationException) { return Results.BadRequest(); }
-                if (dto is null) { return Results.BadRequest(); }
-                IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
-                if (store is null) { return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
-                if (!Enum.TryParse(dto.Level ?? "Information", ignoreCase: true, out LogLevel lvl)) { lvl = LogLevel.Information; }
-                store.Add(new LogEntry { Timestamp = DateTimeOffset.UtcNow, Level = lvl, Category = dto.Category ?? "Manual", EventId = dto.EventId ?? 0, Kind = "app", Message = dto.Message ?? string.Empty });
-                return Results.Json(new { ok = true });
-            });
+             {
+                 try { await af.ValidateRequestAsync(ctx); } catch (AntiforgeryValidationException) { return Results.BadRequest(); }
+                 if (dto is null) { return Results.BadRequest(); }
+                 IHttpLogStore? store = ctx.RequestServices.GetService<IHttpLogStore>();
+                 if (store is null) { return Results.Json(new { ok = false, error = "Log store not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
+                 if (!Enum.TryParse(dto.Level ?? "Information", ignoreCase: true, out LogLevel lvl)) { lvl = LogLevel.Information; }
+                 store.Add(new LogEntry { Timestamp = DateTimeOffset.UtcNow, Level = lvl, Category = dto.Category ?? "Manual", EventId = dto.EventId ?? 0, Kind = "app", Message = dto.Message ?? string.Empty });
+                 return Results.Json(new { ok = true });
+             }).RequireAuthorization("AdminOnly");
         }
         private static void MapLogsStream(WebApplication app)
         {
             app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
-            {
-                ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
-                if (stream is null) { return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
-                ctx.Response.Headers.CacheControl = "no-cache";
-                ctx.Response.Headers.Connection = "keep-alive";
-                ctx.Response.Headers.Append("X-Accel-Buffering", "no");
-                ctx.Response.ContentType = "text/event-stream";
-                (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
-                try
-                {
-                    await foreach (LogEntry entry in reader.ReadAllAsync(ct))
-                    {
-                        if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase)) { continue; }
-                        string json = System.Text.Json.JsonSerializer.Serialize(entry);
-                        await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-                        await ctx.Response.Body.FlushAsync(ct);
-                    }
-                }
-                catch (OperationCanceledException) { }
-                finally { stream.Unsubscribe(id); }
-                return Results.Empty;
-            });
+             {
+                 ILogFeed? stream = ctx.RequestServices.GetService<ILogFeed>();
+                 if (stream is null) { return Results.Json(new { ok = false, error = "Log stream not available" }, statusCode: StatusCodes.Status503ServiceUnavailable); }
+                 ctx.Response.Headers.CacheControl = "no-cache";
+                 ctx.Response.Headers.Connection = "keep-alive";
+                 ctx.Response.Headers.Append("X-Accel-Buffering", "no");
+                 ctx.Response.ContentType = "text/event-stream";
+                 (System.Threading.Channels.ChannelReader<LogEntry> reader, Guid id) = stream.Subscribe();
+                 try
+                 {
+                     await foreach (LogEntry entry in reader.ReadAllAsync(ct))
+                     {
+                         if (!string.IsNullOrWhiteSpace(kind) && !string.Equals(entry.Kind, kind, StringComparison.OrdinalIgnoreCase)) { continue; }
+                         string json = System.Text.Json.JsonSerializer.Serialize(entry);
+                         await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
+                         await ctx.Response.Body.FlushAsync(ct);
+                     }
+                 }
+                 catch (OperationCanceledException) { }
+                 finally { stream.Unsubscribe(id); }
+                 return Results.Empty;
+             }).RequireAuthorization("AdminOnly");
         }
+
         private static void AddCorrelationScope(WebApplication app, ILoggerFactory loggerFactory)
         {
             ILogger scopeLogger = loggerFactory.CreateLogger("App.Correlation");

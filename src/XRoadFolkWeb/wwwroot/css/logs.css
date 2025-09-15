@@ -11,6 +11,29 @@
 @media (prefers-color-scheme: dark) {
   .card.shadow-sm { box-shadow: 0 .25rem .5rem rgba(255,255,255,.05) !important; }
   .table-striped>tbody>tr:nth-of-type(odd)>* { --bs-table-accent-bg: rgba(255,255,255,.015); }
+
+  /* Dark-mode: improve contrast for controls and table */
+  #logs-section { color: rgba(255,255,255,.92); }
+  #logs-section .small { color: rgba(255,255,255,.80); }
+  #logs-section .text-muted { color: rgba(255,255,255,.72) !important; }
+
+  #logs-section .btn-outline-dark { color: rgba(255,255,255,.88); border-color: rgba(255,255,255,.38); }
+  #logs-section .btn-outline-dark:hover, #logs-section .btn-outline-dark:focus { color: #fff; border-color: rgba(255,255,255,.55); background-color: rgba(255,255,255,.12); }
+
+  #logs-section .input-group-text { background-color: rgba(255,255,255,.08); color: rgba(255,255,255,.92); border-color: rgba(255,255,255,.25); }
+  #logs-section .form-control, #logs-section .form-select { background-color: rgba(255,255,255,.06); color: rgba(255,255,255,.92); border-color: rgba(255,255,255,.25); }
+  #logs-section .form-control::placeholder { color: rgba(255,255,255,.65); }
+
+  #logs-section .logs-table-container { background-color: rgba(255,255,255,.03); }
+  #logs-section thead.thead-sticky, #logs-section .table thead { background-color: rgba(255,255,255,.08); backdrop-filter: saturate(140%) blur(2px); }
+  #logs-section .table thead th { color: rgba(255,255,255,.95); }
+  #logs-section .table { color: rgba(255,255,255,.92); }
+  #logs-section .table tbody th, #logs-section .table tbody td { color: rgba(255,255,255,.92); }
+  #logs-section .table tbody tr:hover>* { background-color: rgba(255,255,255,.08); }
+
+  #logs-section .badge.text-bg-secondary { background-color: rgba(255,255,255,.20) !important; color: #fff; }
+  #logs-section .log-card { background-color: rgba(255,255,255,.04); color: rgba(255,255,255,.92); }
+  #logs-section .log-message { color: rgba(255,255,255,.94); }
 }
 
 /* Make toolbar sticky but not overlay top navbar/theme dropdown */
