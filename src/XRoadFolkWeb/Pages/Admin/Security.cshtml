@@ -13,6 +13,7 @@
       <dt class="col-sm-3">Auth Type</dt><dd class="col-sm-9">@Model.AuthenticationType</dd>
       <dt class="col-sm-3">Authenticated</dt><dd class="col-sm-9">@(Model.IsAuthenticated ? "Yes" : "No")</dd>
       <dt class="col-sm-3">Implicit Windows Admin Enabled</dt><dd class="col-sm-9">@(Model.ImplicitWindowsAdminEnabled ? "Yes" : "No")</dd>
+      <dt class="col-sm-3">Implicit Windows Admin Mode</dt><dd class="col-sm-9">@Model.ImplicitWindowsAdminMode</dd>
       <dt class="col-sm-3">Effective Roles</dt><dd class="col-sm-9">@(Model.Roles.Any() ? string.Join(", ", Model.Roles) : "(none)")</dd>
     </dl>
   </div>

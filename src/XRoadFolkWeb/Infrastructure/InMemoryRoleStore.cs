@@ -13,16 +13,11 @@ using System.Security.Principal;
 
 namespace XRoadFolkWeb.Infrastructure;
 
-public interface ICurrentUserAccessor
+public enum ImplicitAdminMode
 {
-    string? Name { get; }
-}
-
-internal sealed class HttpContextCurrentUserAccessor : ICurrentUserAccessor
-{
-    private readonly IHttpContextAccessor _http;
-    public HttpContextCurrentUserAccessor(IHttpContextAccessor http) => _http = http;
-    public string? Name => _http.HttpContext?.User?.Identity?.IsAuthenticated == true ? _http.HttpContext?.User?.Identity?.Name : null;
+    None = 0,
+    BuiltinOnly = 1,
+    BuiltinAndDomain = 2
 }
 
 // Directory lookup options
@@ -155,9 +150,11 @@ public sealed class RoleMappingOptions
     public string? ConnectionString { get; set; }
     public bool AuditEnabled { get; set; } = true;
     public bool EnforceDirectoryUserExists { get; set; }
-    public bool ImplicitWindowsAdminEnabled { get; set; } = true; // new flag
-    public string? UserOverridesFile { get; set; } // path to overrides JSON (User, ExtraRoles[], Disabled)
-    public string[] AllowedRoles { get; set; } = new[] { AppRoles.Admin, AppRoles.User }; // least privilege allow-list
+    public ImplicitAdminMode ImplicitWindowsAdminMode { get; set; } = ImplicitAdminMode.BuiltinOnly;
+    public string? UserOverridesFile { get; set; }
+    public string[] AllowedRoles { get; set; } = new[] { AppRoles.Admin, AppRoles.User };
+    public List<string> AdminGroupNames { get; set; } = new();
+    public List<string> UserGroupNames { get; set; } = new();
 }
 
 // ================= User Overrides (JSON) =================
@@ -392,7 +389,7 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
         }
         bool hadRoleBeforeImplicit = principal.HasClaim(c => c.Type == ClaimTypes.Role);
         // Implicit Windows admin via groups (feature flag)
-        if (_opts.ImplicitWindowsAdminEnabled && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
+        if (_opts.ImplicitWindowsAdminMode != ImplicitAdminMode.None && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
         {
             try
             {
@@ -419,7 +416,7 @@ public sealed partial class ClaimsRoleEnricher : Microsoft.AspNetCore.Authentica
             }
             catch { }
         }
-        if (_opts.ImplicitWindowsAdminEnabled && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
+        if (_opts.ImplicitWindowsAdminMode != ImplicitAdminMode.None && !principal.HasClaim(c => c.Type == ClaimTypes.Role && c.Value.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)))
         {
             foreach (var rx in _adminRegex)
             {
@@ -465,7 +462,8 @@ public static class RoleServiceCollectionExtensions
         bool autoUser = section.GetValue<bool?>("AutoAssignUser") ?? true;
         bool auditEnabled = section.GetValue<bool?>("AuditEnabled") ?? true;
         bool enforceDir = section.GetValue<bool?>("EnforceDirectoryUserExists") ?? false;
-        bool implicitWinAdmin = section.GetValue<bool?>("ImplicitWindowsAdminEnabled") ?? true;
+        // Simplified to single enum value
+        var implicitWinAdmin = section.GetValue<ImplicitAdminMode?>("ImplicitWindowsAdminMode") ?? ImplicitAdminMode.BuiltinOnly;
         if (!string.IsNullOrWhiteSpace(seedSam) && !adminList.Contains(seedSam, StringComparer.OrdinalIgnoreCase)) adminList.Add(seedSam);
         string provider = section.GetValue<string>("Provider") ?? "Json";
         string? conn = section.GetValue<string>("ConnectionString");
@@ -473,7 +471,7 @@ public static class RoleServiceCollectionExtensions
         services.AddSingleton<IRoleAuditSink, RoleAuditSink>();
         services.Configure<RoleMappingOptions>(o =>
         {
-            o.Admins = adminList; o.AdminPatterns = adminPatterns; o.Users = userList; o.UserPatterns = userPatterns; o.AutoAssignUser = autoUser; o.AuditEnabled = auditEnabled; o.EnforceDirectoryUserExists = enforceDir; o.ImplicitWindowsAdminEnabled = implicitWinAdmin; o.FilePath = filePath; o.Provider = provider; o.ConnectionString = conn;
+            o.Admins = adminList; o.AdminPatterns = adminPatterns; o.Users = userList; o.UserPatterns = userPatterns; o.AutoAssignUser = autoUser; o.AuditEnabled = auditEnabled; o.EnforceDirectoryUserExists = enforceDir; o.ImplicitWindowsAdminMode = implicitWinAdmin; o.FilePath = filePath; o.Provider = provider; o.ConnectionString = conn;
         });
         if (string.Equals(provider, "Db", StringComparison.OrdinalIgnoreCase))
         {

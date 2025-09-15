@@ -67,7 +67,7 @@ public static partial class ServiceCollectionExtensions
             .Validate(o => o.RefreshSkewSeconds >= 0, "TokenCache: RefreshSkewSeconds must be >= 0.")
             .Validate(o => o.DefaultTtlSeconds >= 1, "TokenCache: DefaultTtlSeconds must be >= 1.");
 
-        // Response viewer options: bind + validate + fail fast; then apply Production overrides
+        // Response viewer options
         AddResponseViewerOptions(services, configuration);
 
         return services;
@@ -85,7 +85,6 @@ public static partial class ServiceCollectionExtensions
             var opts = sp.GetRequiredService<IOptions<ResponseViewerOptions>>().Value;
             if (env.IsProduction())
             {
-                // Force off in production regardless of config
                 opts.ShowRawXml = false;
                 opts.ShowPrettyXml = false;
             }

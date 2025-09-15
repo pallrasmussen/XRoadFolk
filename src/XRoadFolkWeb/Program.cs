@@ -61,7 +61,7 @@ builder.Services.AddApplicationServices(builder.Configuration);
 // Register group SID -> role transformer FIRST
 builder.Services.AddMemoryCache();
 builder.Services.AddOptions<RoleMappingOptions>()
-    .Bind(builder.Configuration.GetSection("RoleMapping"))
+    .Bind(builder.Configuration.GetSection("AppRoles"))
     .ValidateOnStart();
 builder.Services.AddTransient<IClaimsTransformation, GroupSidRoleClaimsTransformer>();
 

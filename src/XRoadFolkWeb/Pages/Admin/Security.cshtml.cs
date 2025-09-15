@@ -17,6 +17,7 @@ public class SecurityModel : PageModel
     public IReadOnlyList<(string Sid, string? Name)> Groups { get; private set; } = Array.Empty<(string, string?)>();
     public IReadOnlyList<string> Roles { get; private set; } = Array.Empty<string>();
     public bool ImplicitWindowsAdminEnabled { get; private set; }
+    public string ImplicitWindowsAdminMode { get; private set; } = string.Empty;
 
     private readonly RoleMappingOptions _roleOpts;
     public SecurityModel(IOptions<RoleMappingOptions> roleOpts)
@@ -33,7 +34,8 @@ public class SecurityModel : PageModel
         IsAuthenticated = principal?.Identity?.IsAuthenticated == true;
         Claims = principal?.Claims?.OrderBy(c => c.Type, StringComparer.OrdinalIgnoreCase).ThenBy(c => c.Value, StringComparer.OrdinalIgnoreCase).ToList() ?? new List<Claim>();
         Roles = Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r).ToList();
-        ImplicitWindowsAdminEnabled = _roleOpts.ImplicitWindowsAdminEnabled;
+        ImplicitWindowsAdminEnabled = _roleOpts.ImplicitWindowsAdminMode != ImplicitAdminMode.None;
+        ImplicitWindowsAdminMode = _roleOpts.ImplicitWindowsAdminMode.ToString();
 
         var groups = new List<(string Sid, string? Name)>();
         // Windows-specific enumeration guarded to avoid CA1416 warnings
@@ -77,7 +79,7 @@ public class SecurityModel : PageModel
                 {
                     try
                     {
-                        var si = new SecurityIdentifier(sidValue);
+                        var si = new System.Security.Principal.SecurityIdentifier(sidValue);
                         try { name = si.Translate(typeof(NTAccount)).Value; } catch { }
                     }
                     catch { }
