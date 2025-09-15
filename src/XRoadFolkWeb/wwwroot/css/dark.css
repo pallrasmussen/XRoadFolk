@@ -13,6 +13,10 @@
     background:var(--bs-body-bg);
     color:var(--bs-body-color);
   }
+  /* Brighten DateOfBirth placeholder in auto-dark */
+  html:not(.force-light):not(.dark-mode-disabled) #DateOfBirth::placeholder { color:#cfe7ff; opacity:.95; }
+  html:not(.force-light):not(.dark-mode-disabled) #DateOfBirth::-webkit-input-placeholder { color:#cfe7ff; opacity:.95; }
+  html:not(.force-light):not(.dark-mode-disabled) #DateOfBirth::-moz-placeholder { color:#cfe7ff; opacity:.95; }
 }
 /* Explicit dark mode class (always overrides) */
 html.dark-mode {
@@ -27,6 +31,11 @@ html.dark-mode {
   background:var(--bs-body-bg);
   color:var(--bs-body-color);
 }
+/* Brighten DateOfBirth placeholder in forced dark */
+html.dark-mode #DateOfBirth::placeholder { color:#cfe7ff; opacity:.95; }
+html.dark-mode #DateOfBirth::-webkit-input-placeholder { color:#cfe7ff; opacity:.95; }
+html.dark-mode #DateOfBirth::-moz-placeholder { color:#cfe7ff; opacity:.95; }
+
 html.dark-mode body { background:var(--bs-body-bg); color:var(--bs-body-color); }
 html.dark-mode .card, html.dark-mode .dropdown-menu, html.dark-mode .modal-content { background:var(--bs-card-bg); }
 html.dark-mode .navbar.bg-primary { background:#0a3d63 !important; }
