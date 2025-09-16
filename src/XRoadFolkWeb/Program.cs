@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Server.IISIntegration;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.Authentication;
 
 // Create and configure the WebApplication host
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -63,15 +62,7 @@ builder.Services.AddAuthorization(options =>
 // Core application services and logging, health, HTTP logs, OpenTelemetry, etc.
 builder.Services.AddApplicationServices(builder.Configuration);
 
-// Role mapping from AD group SIDs -> application roles
-builder.Services.AddMemoryCache();
-builder.Services.AddOptions<RoleMappingOptions>()
-    .Bind(builder.Configuration.GetSection("AppRoles"))
-    .ValidateOnStart();
-// Enrich claims with roles mapped from Windows group SIDs
-builder.Services.AddTransient<IClaimsTransformation, GroupSidRoleClaimsTransformer>();
-
-// App role infrastructure (store, admin pages, audit) registered after SID mapping
+// App role infrastructure (store, admin pages, audit, claims enrichment, health) 
 builder.Services.AddAppRoleInfrastructure(builder.Configuration);
 
 // Build and configure the HTTP request pipeline
