@@ -115,6 +115,9 @@ namespace XRoadFolkWeb.Extensions
             ILogger cultureLog = loggerFactory.CreateLogger("App.Culture");
             bool showDetailedErrors = configuration.GetBoolOrDefault("Features:DetailedErrors", env.IsDevelopment(), featureLog);
 
+            // Ensure the global exception handler wraps the entire pipeline as early as possible
+            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
+
             AddCspAndSecurityHeaders(app);
             AddNoCacheHeaders(app);
 
@@ -148,8 +151,6 @@ namespace XRoadFolkWeb.Extensions
                 });
                 await next();
             });
-
-            ConfigureExceptionHandling(app, loggerFactory, showDetailedErrors);
 
             app.UseStatusCodePages(context =>
             {
