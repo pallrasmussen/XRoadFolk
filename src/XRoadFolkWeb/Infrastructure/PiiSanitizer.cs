@@ -4,6 +4,11 @@ using XRoadFolkRaw.Lib.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Sanitizes PII and secret-like patterns in log messages and exceptions.
+    /// Uses regexes for GUIDs, long digit sequences, emails, bearer tokens, API keys, and SSNs.
+    /// Delegates to SafeSoapLogger for XML/SOAP payloads.
+    /// </summary>
     internal static partial class PiiSanitizer
     {
         [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
@@ -26,10 +31,13 @@ namespace XRoadFolkWeb.Infrastructure
         private static partial Regex HyphenatedSsnRegex();
 
         // JSON or text key-value for SSN and ForeignSSN (case-insensitive key match)
-        private static readonly Regex s_keyValueSsnRegex = new(
+        private static readonly Regex _keyValueSsnRegex = new(
             pattern: @"(?i)(\b(?:SSN|ForeignSSN)\b\s*[:=]\s*""?)([^""\s,}]+)",
             options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
+        /// <summary>
+        /// Sanitizes known PII and secret patterns. When maskTokens is true, token-like values retain last few chars for debugging.
+        /// </summary>
         public static string Sanitize(string? input, bool maskTokens)
         {
             if (string.IsNullOrEmpty(input))
@@ -45,7 +53,7 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             // First, aggressively mask explicit SSN key/value fields and common free-text formats
-            s = s_keyValueSsnRegex.Replace(s, m => m.Groups[1].Value + LoggingHelper.Mask(m.Groups[2].Value, 0));
+            s = _keyValueSsnRegex.Replace(s, m => m.Groups[1].Value + LoggingHelper.Mask(m.Groups[2].Value, 0));
             s = HyphenatedSsnRegex().Replace(s, m => LoggingHelper.Mask(m.Value, 0));
 
             // Generic masking

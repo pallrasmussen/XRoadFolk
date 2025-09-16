@@ -4,6 +4,9 @@ using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Interface for an in-process log feed supporting publish/subscribe with bounded per-subscriber queues.
+    /// </summary>
     public interface ILogFeed
     {
         (ChannelReader<LogEntry> Reader, Guid SubscriptionId) Subscribe();
@@ -11,6 +14,9 @@ namespace XRoadFolkWeb.Infrastructure
         void Publish(LogEntry entry);
     }
 
+    /// <summary>
+    /// Broadcasts <see cref="LogEntry"/> items to subscribers via bounded channels with DropOldest backpressure.
+    /// </summary>
     public sealed partial class LogStreamBroadcaster(ILogger<LogStreamBroadcaster> logger) : ILogFeed
     {
         private readonly ILogger<LogStreamBroadcaster> _log = logger;

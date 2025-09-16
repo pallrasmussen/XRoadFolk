@@ -5,6 +5,10 @@ using System.Runtime.Versioning;
 
 namespace XRoadFolkWeb.Infrastructure;
 
+/// <summary>
+/// Health check that validates connectivity to a directory (Active Directory) using configured credentials.
+/// Skips on non-Windows platforms.
+/// </summary>
 public sealed class DirectoryHealthCheck : IHealthCheck
 {
     private readonly DirectoryLookupOptions _opts;
@@ -15,6 +19,12 @@ public sealed class DirectoryHealthCheck : IHealthCheck
         ArgumentNullException.ThrowIfNull(log);
         _opts = opts.Value; _log = log; }
 
+    /// <summary>
+    /// Checks the health of the directory by validating credentials and directory accessibility.
+    /// </summary>
+    /// <param name="context">Health check context.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Health check result indicating whether the directory is healthy, unhealthy, or skipped.</returns>
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_opts.Domain))

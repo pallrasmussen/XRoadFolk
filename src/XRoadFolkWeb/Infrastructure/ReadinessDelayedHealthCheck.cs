@@ -9,7 +9,7 @@ namespace XRoadFolkWeb.Infrastructure
     /// </summary>
     public sealed class ReadinessDelayedHealthCheck : IHealthCheck
     {
-        private static readonly DateTimeOffset ProcessStartUtc = DateTimeOffset.UtcNow;
+        private static readonly DateTimeOffset _processStartUtc = DateTimeOffset.UtcNow;
         private readonly HealthOptions _opts;
 
         public ReadinessDelayedHealthCheck(IOptions<HealthOptions> opts)
@@ -25,7 +25,7 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 return Task.FromResult(HealthCheckResult.Healthy("No readiness delay configured"));
             }
-            double elapsed = (DateTimeOffset.UtcNow - ProcessStartUtc).TotalSeconds;
+            double elapsed = (DateTimeOffset.UtcNow - _processStartUtc).TotalSeconds;
             if (elapsed < delay)
             {
                 return Task.FromResult(HealthCheckResult.Unhealthy($"Readiness delay not elapsed ({elapsed:F1}s < {delay}s)"));

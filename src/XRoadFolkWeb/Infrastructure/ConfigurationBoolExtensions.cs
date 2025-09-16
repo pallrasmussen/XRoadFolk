@@ -3,6 +3,9 @@ using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Extensions for reading boolean values from configuration with flexible parsing and defaults.
+    /// </summary>
     public static class ConfigurationBoolExtensions
     {
         /// <summary>

@@ -2,6 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Feature toggles for the web application. Bind from the "Features" configuration section.
+    /// </summary>
     public sealed class FeaturesOptions
     {
         /// <summary>
@@ -22,6 +25,9 @@ namespace XRoadFolkWeb.Infrastructure
         [Required]
         public LogsOptions Logs { get; set; } = new();
 
+        /// <summary>
+        /// Options for the Logs feature endpoints.
+        /// </summary>
         public sealed class LogsOptions
         {
             /// <summary>

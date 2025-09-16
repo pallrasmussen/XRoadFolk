@@ -6,8 +6,8 @@ using Microsoft.Net.Http.Headers;
 namespace XRoadFolkWeb.Infrastructure
 {
     /// <summary>
+    /// Determines the best matching culture from cookie or Accept-Language headers.
     /// Tries: exact match -> explicit map -> parent cultures -> same language in supported list.
-    /// Uses typed headers for Accept-Language parsing to reduce complexity.
     /// </summary>
     public sealed class BestMatchRequestCultureProvider(IEnumerable<CultureInfo> supportedCultures,
                                            IReadOnlyDictionary<string, string>? map = null,
@@ -17,6 +17,9 @@ namespace XRoadFolkWeb.Infrastructure
         private readonly IReadOnlyDictionary<string, string> _map = map ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly ILogger? _log = logger;
 
+        /// <summary>
+        /// Returns culture from cookie (if valid), otherwise selects the best Accept-Language match.
+        /// </summary>
         public override Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext);

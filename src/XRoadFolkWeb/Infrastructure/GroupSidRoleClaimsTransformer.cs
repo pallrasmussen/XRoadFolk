@@ -7,6 +7,10 @@ using System.Security.Principal;
 
 namespace XRoadFolkWeb.Infrastructure;
 
+/// <summary>
+/// Populates role claims based on Windows group SIDs and optional configured group names.
+/// Supports implicit admin mapping via Builtin/Domain Administrators when enabled in options.
+/// </summary>
 public sealed class GroupSidRoleClaimsTransformer : IClaimsTransformation
 {
     private readonly IMemoryCache _cache;
@@ -19,6 +23,11 @@ public sealed class GroupSidRoleClaimsTransformer : IClaimsTransformation
     public GroupSidRoleClaimsTransformer(IMemoryCache cache, IOptions<RoleMappingOptions> opts, ILogger<GroupSidRoleClaimsTransformer>? log = null)
     { _cache = cache ?? throw new ArgumentNullException(nameof(cache)); _opts = (opts ?? throw new ArgumentNullException(nameof(opts))).Value; _log = log; }
 
+    /// <summary>
+    /// Transforms the claims principal by adding role claims based on group SIDs and names.
+    /// </summary>
+    /// <param name="principal">The claims principal to transform.</param>
+    /// <returns>The task object representing the asynchronous operation, with the transformed claims principal.</returns>
     public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
         if (principal?.Identity?.IsAuthenticated != true)

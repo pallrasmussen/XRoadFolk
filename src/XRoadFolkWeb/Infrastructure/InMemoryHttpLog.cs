@@ -16,7 +16,7 @@ namespace XRoadFolkWeb.Infrastructure
         public static readonly Counter<long> LogDropsByReason = Meter.CreateCounter<long>("logs.dropped.reason", unit: "count", description: "Log drops by reason (tags: reason, store)");
         public static readonly Counter<long> LogDropsByLevel = Meter.CreateCounter<long>("logs.dropped.level", unit: "count", description: "Log drops by level (tags: level, store)");
 
-        private static readonly ConcurrentDictionary<Guid, Func<int>> Providers = new();
+        private static readonly ConcurrentDictionary<Guid, Func<int>> _providers = new();
         public static readonly ObservableGauge<int> QueueLength = Meter.CreateObservableGauge<int>(
             "logs.queue.length",
             ObserveQueueLengths,
@@ -25,7 +25,7 @@ namespace XRoadFolkWeb.Infrastructure
 
         private static IEnumerable<Measurement<int>> ObserveQueueLengths()
         {
-            foreach (KeyValuePair<Guid, Func<int>> kv in Providers)
+            foreach (KeyValuePair<Guid, Func<int>> kv in _providers)
             {
                 int size = 0;
                 try { size = kv.Value(); }
@@ -39,16 +39,19 @@ namespace XRoadFolkWeb.Infrastructure
         public static Guid RegisterProvider(Func<int> provider)
         {
             Guid id = Guid.NewGuid();
-            Providers[id] = provider ?? (() => 0);
+            _providers[id] = provider ?? (() => 0);
             return id;
         }
 
         public static void UnregisterProvider(Guid id)
         {
-            _ = Providers.TryRemove(id, out _);
+            _ = _providers.TryRemove(id, out _);
         }
     }
 
+    /// <summary>
+    /// Immutable log entry DTO used by in-memory UI, file persistence, and SSE streaming.
+    /// </summary>
     public sealed record LogEntry
     {
         public DateTimeOffset Timestamp { get; init; }
@@ -73,6 +76,10 @@ namespace XRoadFolkWeb.Infrastructure
         IReadOnlyList<LogEntry> GetAll();
     }
 
+    /// <summary>
+    /// In-memory log store with optional file persistence and live streaming via ILogFeed.
+    /// Applies backpressure and metrics to avoid unbounded memory use.
+    /// </summary>
     public sealed class InMemoryHttpLog : IHttpLogStore, IAsyncDisposable, IDisposable
     {
         private readonly ConcurrentQueue<LogEntry> _queue = new();
@@ -400,6 +407,9 @@ namespace XRoadFolkWeb.Infrastructure
         }
     }
 
+    /// <summary>
+    /// Logger provider that forwards Microsoft.Extensions.Logging events to the in-memory log store and SSE feed.
+    /// </summary>
     public sealed class InMemoryHttpLogLoggerProvider(IHttpLogStore store, ILogFeed feed) : ILoggerProvider, ISupportExternalScope
     {
         private readonly IHttpLogStore _store = store ?? throw new ArgumentNullException(nameof(store));

@@ -3,6 +3,9 @@ using Microsoft.Extensions.Options;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Health check that verifies the configured HttpLogs file is writable (if persistence is enabled).
+    /// </summary>
     public sealed class HttpLogsWritableHealthCheck : IHealthCheck
     {
         private readonly HttpLogOptions _opts;
@@ -13,6 +16,12 @@ namespace XRoadFolkWeb.Infrastructure
             _opts = opts.Value;
         }
 
+        /// <summary>
+        /// Checks the health of the HttpLogs file configuration.
+        /// </summary>
+        /// <param name="context">The health check context.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>A task that represents the asynchronous health check operation. The task result contains the health check result.</returns>
         public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
             if (!_opts.PersistToFile || string.IsNullOrWhiteSpace(_opts.FilePath))

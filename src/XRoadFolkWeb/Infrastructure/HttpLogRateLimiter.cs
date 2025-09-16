@@ -14,6 +14,14 @@ namespace XRoadFolkWeb.Infrastructure
         private int _rateCount;
         private readonly object _gate = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HttpLogRateLimiter"/> class.
+        /// </summary>
+        /// <param name="maxWritesPerSecond">The maximum number of writes allowed per second.</param>
+        /// <param name="alwaysAllowWarnError">
+        /// A value indicating whether warnings and errors should always be allowed,
+        /// bypassing the rate limit.
+        /// </param>
         public HttpLogRateLimiter(int maxWritesPerSecond, bool alwaysAllowWarnError)
         {
             _maxWritesPerSecond = Math.Max(0, maxWritesPerSecond);
@@ -58,6 +66,10 @@ namespace XRoadFolkWeb.Infrastructure
             return count > _maxWritesPerSecond;
         }
 
+        /// <summary>
+        /// Gets a value indicating whether warnings and errors are always allowed,
+        /// bypassing the rate limit.
+        /// </summary>
         public bool AlwaysAllowWarnError => _alwaysAllowWarnError;
     }
 }

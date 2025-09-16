@@ -1,5 +1,8 @@
 namespace XRoadFolkWeb.Infrastructure;
 
+/// <summary>
+/// Provides access to the current user's identity name in web contexts.
+/// </summary>
 public interface ICurrentUserAccessor
 {
     string? Name { get; }

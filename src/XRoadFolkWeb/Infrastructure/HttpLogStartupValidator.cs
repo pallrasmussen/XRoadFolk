@@ -24,6 +24,9 @@ namespace XRoadFolkWeb.Infrastructure
             _log = log;
         }
 
+        /// <summary>
+        /// Ensures the logs directory exists and performs a test open/flush on the configured file path.
+        /// </summary>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             if (!_opts.PersistToFile || string.IsNullOrWhiteSpace(_opts.FilePath))
@@ -56,6 +59,9 @@ namespace XRoadFolkWeb.Infrastructure
             }
         }
 
+        /// <summary>
+        /// No-op on shutdown.
+        /// </summary>
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

@@ -3,18 +3,28 @@ using System.Globalization;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Helpers to read localization settings from configuration and build supported cultures.
+    /// Provides safe fallbacks and logs invalid culture names.
+    /// </summary>
     internal static partial class AppLocalization
     {
         /// <summary>
-        /// Config section name
+        /// Config section name.
         /// </summary>
         public const string SectionName = "Localization";
 
         /// <summary>
-        /// Safe defaults if config is missing or incomplete
+        /// Safe defaults if config is missing or incomplete.
         /// </summary>
-        private static readonly string[] FallbackCultureNames = ["fo-FO", "da-DK", "en-US"];
+        private static readonly string[] _fallbackCultureNames = ["fo-FO", "da-DK", "en-US"];
 
+        /// <summary>
+        /// Reads localization configuration and returns the default culture and the list of supported cultures.
+        /// Falls back to a small set if configuration is missing or invalid.
+        /// </summary>
+        /// <param name="configuration">Application configuration root.</param>
+        /// <param name="logger">Optional logger for warnings about invalid cultures.</param>
         public static (string DefaultCulture, IReadOnlyList<CultureInfo> Cultures) FromConfiguration(IConfiguration configuration, ILogger? logger = null)
         {
             IConfigurationSection section = configuration.GetSection(SectionName);
@@ -22,14 +32,14 @@ namespace XRoadFolkWeb.Infrastructure
             // Read supported cultures; handle null or empty by falling back
             string[]? configured = section.GetSection("SupportedCultures").Get<string[]>();
             string[] names = (configured is null || configured.Length == 0)
-                ? FallbackCultureNames
+                ? _fallbackCultureNames
                 : [.. configured
                     .Where(s => !string.IsNullOrWhiteSpace(s))
                     .Select(s => s.Trim()),];
 
             if (names.Length == 0)
             {
-                names = FallbackCultureNames;
+                names = _fallbackCultureNames;
             }
 
             // Deduplicate in a case-insensitive, order-preserving manner
@@ -65,10 +75,10 @@ namespace XRoadFolkWeb.Infrastructure
             if (cultures.Count == 0)
             {
                 // As a last resort, use fallbacks
-                if (logger is not null) { LogFallback(logger, string.Join(", ", FallbackCultureNames)); }
-                else { Trace.TraceWarning("No valid cultures configured. Falling back to defaults: {0}", string.Join(", ", FallbackCultureNames)); }
-                cultures = [.. FallbackCultureNames.Select(CultureInfo.GetCultureInfo)];
-                defaultName = FallbackCultureNames[0];
+                if (logger is not null) { LogFallback(logger, string.Join(", ", _fallbackCultureNames)); }
+                else { Trace.TraceWarning("No valid cultures configured. Falling back to defaults: {0}", string.Join(", ", _fallbackCultureNames)); }
+                cultures = [.. _fallbackCultureNames.Select(CultureInfo.GetCultureInfo)];
+                defaultName = _fallbackCultureNames[0];
             }
 
             return (defaultName, cultures);

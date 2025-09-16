@@ -1,5 +1,8 @@
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Health check related options.
+    /// </summary>
     public sealed class HealthOptions
     {
         /// <summary>

@@ -3,6 +3,10 @@ using Microsoft.Extensions.Options;
 
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Validates <see cref="ResponseViewerOptions"/> based on environment.
+    /// Requires at least one XML tab be visible in non-Production environments.
+    /// </summary>
     public sealed class ResponseViewerOptionsValidator : IValidateOptions<ResponseViewerOptions>
     {
         private readonly IHostEnvironment _env;
