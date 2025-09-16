@@ -39,6 +39,11 @@
     <RunFrontendBuild>true</RunFrontendBuild>
   </PropertyGroup>
 
+  <!-- Skip frontend build on CI agents (GitHub Actions sets CI=true) -->
+  <PropertyGroup Condition="'$(CI)'=='true'">
+    <RunFrontendBuild>false</RunFrontendBuild>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\XRoadFolkRaw.Lib\XRoadFolkRaw.Lib.csproj" />
   </ItemGroup>
