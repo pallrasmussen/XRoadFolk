@@ -8,6 +8,10 @@ using Microsoft.Extensions.Options;
 
 namespace XRoadFolkWeb.Pages.Admin;
 
+/// <summary>
+/// Admin page for managing application users and role assignments.
+/// Provides add/remove/restore/purge operations and export to CSV/JSON.
+/// </summary>
 [ValidateAntiForgeryToken]
 [Authorize(Policy = "AdminOnly")]
 public class UsersModel : PageModel
@@ -18,8 +22,10 @@ public class UsersModel : PageModel
     public UsersModel(IAppRoleStore store, IAccountLookup acct, IOptions<RoleMappingOptions> opts)
     { ArgumentNullException.ThrowIfNull(store); ArgumentNullException.ThrowIfNull(acct); ArgumentNullException.ThrowIfNull(opts); _store = store; _acct = acct; _opts = opts.Value; }
 
+    /// <summary>Account name to add or modify.</summary>
     [BindProperty]
     public string Sam { get; set; } = string.Empty;
+    /// <summary>Role to assign to the account.</summary>
     [BindProperty]
     public string Role { get; set; } = AppRoles.User; // default to User
 
@@ -33,8 +39,11 @@ public class UsersModel : PageModel
     public int TotalUsers { get; private set; }
     public int TotalPages { get; private set; }
 
+    /// <summary>Page of users and their active roles.</summary>
     public IReadOnlyDictionary<string, HashSet<string>> Users { get; private set; } = new Dictionary<string, HashSet<string>>();
+    /// <summary>Deleted roles for visible users when requested.</summary>
     public Dictionary<string, IReadOnlyCollection<string>> DeletedRoles { get; private set; } = new();
+    /// <summary>Operation result message.</summary>
     public string? Message { get; private set; }
 
     private IEnumerable<KeyValuePair<string, HashSet<string>>> ApplyFilters(IEnumerable<KeyValuePair<string, HashSet<string>>> data)
@@ -90,8 +99,10 @@ public class UsersModel : PageModel
         }
     }
 
+    /// <summary>Loads initial page of users.</summary>
     public void OnGet() => Load();
 
+    /// <summary>Adds a user to a role, optionally skipping directory check based on settings.</summary>
     public IActionResult OnPostAdd()
     {
         if (!string.IsNullOrWhiteSpace(Sam) && !string.IsNullOrWhiteSpace(Role))
@@ -117,6 +128,7 @@ public class UsersModel : PageModel
         return Page();
     }
 
+    /// <summary>Removes a role from a user.</summary>
     public IActionResult OnPostRemoveRole([FromForm] string sam, [FromForm] string role, [FromForm] bool? showDeleted)
     {
         ShowDeleted = showDeleted ?? ShowDeleted;
@@ -129,6 +141,7 @@ public class UsersModel : PageModel
         return Page();
     }
 
+    /// <summary>Removes a user and all of their roles.</summary>
     public IActionResult OnPostRemoveUser([FromForm] string sam, [FromForm] bool? showDeleted)
     {
         ShowDeleted = showDeleted ?? ShowDeleted;
@@ -141,6 +154,7 @@ public class UsersModel : PageModel
         return Page();
     }
 
+    /// <summary>Restores a previously deleted role for a user.</summary>
     public IActionResult OnPostRestoreRole([FromForm] string sam, [FromForm] string role)
     {
         ShowDeleted = true; // ensure remains visible after restore
@@ -153,6 +167,7 @@ public class UsersModel : PageModel
         return Page();
     }
 
+    /// <summary>Permanently purges deleted role assignments older than the given age.</summary>
     public IActionResult OnPostPurge([FromForm] int days)
     {
         ShowDeleted = true;
@@ -164,6 +179,7 @@ public class UsersModel : PageModel
         return Page();
     }
 
+    /// <summary>Exports users and roles to CSV or JSON.</summary>
     public IActionResult OnGetExport(string format = "csv")
     {
         format ??= "csv";

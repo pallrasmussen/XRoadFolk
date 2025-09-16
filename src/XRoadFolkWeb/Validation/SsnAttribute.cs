@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 namespace XRoadFolkWeb.Validation
 {
     /// <summary>
-    /// Validates SSN format only; the field is optional and cross-field validators enforce presence.
+    /// Validates SSN format only; field is optional and cross-field validator enforces presence when needed.
     /// Client-side adapter emits data-val-ssn with localized message from Resources.ValidationMessages.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]

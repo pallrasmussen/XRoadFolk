@@ -3,11 +3,15 @@ using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Validation
 {
+    /// <summary>
+    /// Validates <see cref="HttpOptions"/> at startup. Prevents insecure settings outside Development.
+    /// </summary>
     public sealed class HttpOptionsValidator : IValidateOptions<HttpOptions>
     {
         private readonly IHostEnvironment _env;
         public HttpOptionsValidator(IHostEnvironment env) => _env = env;
 
+        /// <inheritdoc />
         public ValidateOptionsResult Validate(string? name, HttpOptions options)
         {
             if (options is null)

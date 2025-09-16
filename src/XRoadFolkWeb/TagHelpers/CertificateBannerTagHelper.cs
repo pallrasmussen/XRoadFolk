@@ -6,6 +6,10 @@ using XRoadFolkRaw.Lib.Extensions;
 
 namespace XRoadFolkWeb.TagHelpers
 {
+    /// <summary>
+    /// Renders a top-of-page bootstrap alert about the client certificate state (missing/expired/expiring soon).
+    /// Text is localized via <see cref="IStringLocalizer{SharedResource}"/>.
+    /// </summary>
     [HtmlTargetElement("certificate-banner", TagStructure = TagStructure.NormalOrSelfClosing)]
     public sealed class CertificateBannerTagHelper : TagHelper
     {
@@ -18,6 +22,10 @@ namespace XRoadFolkWeb.TagHelpers
             _info = info;
         }
 
+        /// <summary>
+        /// Emits a bootstrap alert when the certificate is expired, expiring soon, or missing.
+        /// Suppresses output when the certificate is healthy.
+        /// </summary>
         public override void Process(TagHelperContext context, TagHelperOutput output)
         {
             if (context is null)

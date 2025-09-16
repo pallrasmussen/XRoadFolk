@@ -12,6 +12,12 @@ using XRoadFolkWeb.Shared;
 
 namespace XRoadFolkWeb.TagHelpers
 {
+    /// <summary>
+    /// Renders a combined theme and culture switcher UI in the navbar.
+    /// - Theme picker writes a persistent cookie via <c>/set-theme</c>.
+    /// - Culture picker posts to <c>/set-culture</c> with antiforgery validation.
+    /// Strings are localized via <see cref="IStringLocalizer{SharedResource}"/>.
+    /// </summary>
     [HtmlTargetElement("theme-culture-switcher", TagStructure = TagStructure.NormalOrSelfClosing)]
     public sealed class ThemeCultureSwitcherTagHelper : TagHelper
     {
@@ -34,6 +40,9 @@ namespace XRoadFolkWeb.TagHelpers
             _af = af;
         }
 
+        /// <summary>
+        /// Builds and emits the theme dropdown and culture form controls.
+        /// </summary>
         public override void Process(TagHelperContext context, TagHelperOutput output)
         {
             if (context is null)

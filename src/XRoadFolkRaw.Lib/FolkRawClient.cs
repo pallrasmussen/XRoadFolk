@@ -12,6 +12,11 @@ using XRoadFolkRaw.Lib.Metrics;
 
 namespace XRoadFolkRaw.Lib
 {
+    /// <summary>
+    /// Thin SOAP client for X-Road Folk operations. Supports template-based XML generation,
+    /// optional retries, and verbose logging with safe SOAP logging.
+    /// Prefer the IHttpClientFactory constructor in ASP.NET Core.
+    /// </summary>
     public sealed partial class FolkRawClient : IDisposable
     {
         private readonly HttpClient _http;
@@ -22,13 +27,13 @@ namespace XRoadFolkRaw.Lib
         private readonly int _retryBaseDelayMs;
         private readonly int _retryJitterMs;
         private readonly Polly.Retry.AsyncRetryPolicy _retryPolicy;
-        private static readonly Random JitterRandom = Random.Shared;
-        private static readonly HashSet<string> SourceHeaders =
+        private static readonly Random _jitterRandom = Random.Shared;
+        private static readonly HashSet<string> _sourceHeaders =
             new(["service", "client", "id", "protocolVersion", "userId"], StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, XDocument> _templateCache = new(StringComparer.OrdinalIgnoreCase);
         // Missing template negative cache with TTL to allow later detection of newly added files/resources
         private readonly ConcurrentDictionary<string, DateTimeOffset> _missingTemplates = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly TimeSpan MissingTemplateTtl = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan _missingTemplateTtl = TimeSpan.FromSeconds(30);
 
         private FolkRawClient(
             HttpClient httpClient,
@@ -133,7 +138,7 @@ namespace XRoadFolkRaw.Lib
                          // Intentionally do NOT retry on TaskCanceledException; outer pipeline controls timeouts
                          .WaitAndRetryAsync(
                              _retryAttempts,
-                             attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + JitterRandom.Next(0, _retryJitterMs)),
+                             attempt => TimeSpan.FromMilliseconds((_retryBaseDelayMs * (1 << (attempt - 1))) + _jitterRandom.Next(0, _retryJitterMs)),
                              (ex, ts, attempt, ctx) =>
                              {
                                  if (_log is not null)
@@ -145,6 +150,10 @@ namespace XRoadFolkRaw.Lib
                              });
         }
 
+        /// <summary>
+        /// Preloads and caches XML templates from file paths to reduce I/O during requests.
+        /// Missing paths are negatively cached for a short TTL to avoid repeated probes.
+        /// </summary>
         public void PreloadTemplates(IEnumerable<string> paths)
         {
             ArgumentNullException.ThrowIfNull(paths);
@@ -236,7 +245,7 @@ namespace XRoadFolkRaw.Lib
             }
             catch (Exception ex)
             {
-                DateTimeOffset next = DateTimeOffset.UtcNow + MissingTemplateTtl;
+                DateTimeOffset next = DateTimeOffset.UtcNow + _missingTemplateTtl;
                 if (_missingTemplates.TryAdd(path, next) && _log != null)
                 {
                     LogTemplatePreloadFailed(_log, ex, path);
@@ -268,13 +277,16 @@ namespace XRoadFolkRaw.Lib
 
         private void MarkMissing(string path)
         {
-            DateTimeOffset untilNext = DateTimeOffset.UtcNow + MissingTemplateTtl;
+            DateTimeOffset untilNext = DateTimeOffset.UtcNow + _missingTemplateTtl;
             if (_missingTemplates.TryAdd(path, untilNext) && _log != null)
             {
                 LogTemplatePreloadMissing(_log, path);
             }
         }
 
+        /// <summary>
+        /// Sends the Login SOAP request using the provided credentials.
+        /// </summary>
         public async Task<string> LoginAsync(
             string loginXmlPath,
             string xId,
@@ -325,9 +337,12 @@ namespace XRoadFolkRaw.Lib
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
-            return await SendAsync(xmlString, "Login", ct).ConfigureAwait(false);
+            return await SendAsync(xmlString, opName: "Login", ct: ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Calls GetPeoplePublicInfo with optional criteria (SSN/name/DOB) and returns the raw SOAP response.
+        /// </summary>
         public async Task<string> GetPeoplePublicInfoAsync(
             string xmlPath,
             string xId,
@@ -395,7 +410,155 @@ namespace XRoadFolkRaw.Lib
                 ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
                 : doc.ToString(SaveOptions.DisableFormatting);
 
-            return await SendAsync(xmlString, "GetPeoplePublicInfo", ct).ConfigureAwait(false);
+            return await SendAsync(xmlString, opName: "GetPeoplePublicInfo", ct: ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Calls GetPerson using either PublicId or SSN and returns the raw SOAP response.
+        /// Use the overload with <see cref="GetPersonRequestOptions"/> for extended include flags.
+        /// </summary>
+        public async Task<string> GetPersonAsync(
+            string xmlPath,
+            string xId,
+            string userId,
+            string token,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            string? publicId = null,
+            string? ssnForPerson = null,
+            bool? includeAddress = null,
+            bool? includeContact = null,
+            bool? includeBirthDate = null,
+            bool? includeDeathDate = null,
+            bool? includeGender = null,
+            bool? includeMaritalStatus = null,
+            bool? includeCitizenship = null,
+            bool? includeSsnHistory = null,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(xmlPath);
+            ArgumentNullException.ThrowIfNull(xId);
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(token);
+            ArgumentNullException.ThrowIfNull(protocolVersion);
+            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+            ArgumentNullException.ThrowIfNull(clientMemberClass);
+            ArgumentNullException.ThrowIfNull(clientMemberCode);
+            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+            ArgumentNullException.ThrowIfNull(serviceMemberClass);
+            ArgumentNullException.ThrowIfNull(serviceMemberCode);
+            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceCode);
+            ArgumentNullException.ThrowIfNull(serviceVersion);
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+            XElement requestBodyEl = PrepareGetPersonRequestBody(
+                doc,
+                xId,
+                userId,
+                protocolVersion,
+                clientXRoadInstance,
+                clientMemberClass,
+                clientMemberCode,
+                clientSubsystemCode,
+                serviceXRoadInstance,
+                serviceMemberClass,
+                serviceMemberCode,
+                serviceSubsystemCode,
+                serviceCode,
+                serviceVersion,
+                token);
+
+            ApplyGetPersonIdentifiers(requestBodyEl, id: null, publicId: publicId, ssn: ssnForPerson, externalId: null);
+            ApplyIncludeBooleans(requestBodyEl, includeAddress, includeContact, includeBirthDate, includeDeathDate, includeGender, includeMaritalStatus, includeCitizenship, includeSsnHistory);
+
+            string xmlString = doc.Declaration != null
+                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
+                : doc.ToString(SaveOptions.DisableFormatting);
+
+            return await SendAsync(xmlString, opName: "GetPerson", ct: ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Calls GetPerson with a structured <see cref="GetPersonRequestOptions"/> payload and returns the raw SOAP response.
+        /// </summary>
+        public async Task<string> GetPersonAsync(
+            string xmlPath,
+            string xId,
+            string userId,
+            string token,
+            string protocolVersion,
+            string clientXRoadInstance,
+            string clientMemberClass,
+            string clientMemberCode,
+            string clientSubsystemCode,
+            string serviceXRoadInstance,
+            string serviceMemberClass,
+            string serviceMemberCode,
+            string serviceSubsystemCode,
+            string serviceCode,
+            string serviceVersion,
+            GetPersonRequestOptions? options,
+            CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(xmlPath);
+            ArgumentNullException.ThrowIfNull(xId);
+            ArgumentNullException.ThrowIfNull(userId);
+            ArgumentNullException.ThrowIfNull(token);
+            ArgumentNullException.ThrowIfNull(protocolVersion);
+            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
+            ArgumentNullException.ThrowIfNull(clientMemberClass);
+            ArgumentNullException.ThrowIfNull(clientMemberCode);
+            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
+            ArgumentNullException.ThrowIfNull(serviceMemberClass);
+            ArgumentNullException.ThrowIfNull(serviceMemberCode);
+            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
+            ArgumentNullException.ThrowIfNull(serviceCode);
+            ArgumentNullException.ThrowIfNull(serviceVersion);
+
+            XDocument doc = new(LoadTemplate(xmlPath));
+            XElement requestBodyEl = PrepareGetPersonRequestBody(
+                doc,
+                xId,
+                userId,
+                protocolVersion,
+                clientXRoadInstance,
+                clientMemberClass,
+                clientMemberCode,
+                clientSubsystemCode,
+                serviceXRoadInstance,
+                serviceMemberClass,
+                serviceMemberCode,
+                serviceSubsystemCode,
+                serviceCode,
+                serviceVersion,
+                token);
+
+            if (options is not null)
+            {
+                ApplyGetPersonIdentifiers(requestBodyEl, options.Id, options.PublicId, options.Ssn, options.ExternalId);
+                if (options.Include != GetPersonInclude.None)
+                {
+                    ApplyIncludeFlags(requestBodyEl, options.Include);
+                }
+            }
+
+            string xmlString = doc.Declaration != null
+                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
+                : doc.ToString(SaveOptions.DisableFormatting);
+
+            return await SendAsync(xmlString, opName: "GetPerson", ct: ct).ConfigureAwait(false);
         }
 
         private static (XElement Header, XElement Body) RequireHeaderAndBody(XDocument doc)
@@ -411,7 +574,7 @@ namespace XRoadFolkRaw.Lib
             XNamespace xro = "http://x-road.eu/xsd/xroad.xsd";
             XNamespace x = "http://x-road.eu/xsd/x-road.xsd";
             header.Elements().Where(e => e.Name.Namespace == x).Remove();
-            header.Elements().Where(e => e.Name.Namespace == xro && SourceHeaders.Contains(e.Name.LocalName)).Remove();
+            header.Elements().Where(e => e.Name.Namespace == xro && _sourceHeaders.Contains(e.Name.LocalName)).Remove();
         }
 
         private static void SetCoreHeaderFields(XElement header, string xId, string protocolVersion, string userId)
@@ -669,147 +832,6 @@ namespace XRoadFolkRaw.Lib
             SetIf(GetPersonInclude.SsnHistory, "IncludeSsnHistory");
         }
 
-        public async Task<string> GetPersonAsync(
-            string xmlPath,
-            string xId,
-            string userId,
-            string token,
-            string protocolVersion,
-            string clientXRoadInstance,
-            string clientMemberClass,
-            string clientMemberCode,
-            string clientSubsystemCode,
-            string serviceXRoadInstance,
-            string serviceMemberClass,
-            string serviceMemberCode,
-            string serviceSubsystemCode,
-            string serviceCode,
-            string serviceVersion,
-            string? publicId = null,
-            string? ssnForPerson = null,
-            bool? includeAddress = null,
-            bool? includeContact = null,
-            bool? includeBirthDate = null,
-            bool? includeDeathDate = null,
-            bool? includeGender = null,
-            bool? includeMaritalStatus = null,
-            bool? includeCitizenship = null,
-            bool? includeSsnHistory = null,
-            CancellationToken ct = default)
-        {
-            ArgumentNullException.ThrowIfNull(xmlPath);
-            ArgumentNullException.ThrowIfNull(xId);
-            ArgumentNullException.ThrowIfNull(userId);
-            ArgumentNullException.ThrowIfNull(token);
-            ArgumentNullException.ThrowIfNull(protocolVersion);
-            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
-            ArgumentNullException.ThrowIfNull(clientMemberClass);
-            ArgumentNullException.ThrowIfNull(clientMemberCode);
-            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
-            ArgumentNullException.ThrowIfNull(serviceMemberClass);
-            ArgumentNullException.ThrowIfNull(serviceMemberCode);
-            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceCode);
-            ArgumentNullException.ThrowIfNull(serviceVersion);
-
-            XDocument doc = new(LoadTemplate(xmlPath));
-            XElement requestBodyEl = PrepareGetPersonRequestBody(
-                doc,
-                xId,
-                userId,
-                protocolVersion,
-                clientXRoadInstance,
-                clientMemberClass,
-                clientMemberCode,
-                clientSubsystemCode,
-                serviceXRoadInstance,
-                serviceMemberClass,
-                serviceMemberCode,
-                serviceSubsystemCode,
-                serviceCode,
-                serviceVersion,
-                token);
-
-            ApplyGetPersonIdentifiers(requestBodyEl, id: null, publicId: publicId, ssn: ssnForPerson, externalId: null);
-            ApplyIncludeBooleans(requestBodyEl, includeAddress, includeContact, includeBirthDate, includeDeathDate, includeGender, includeMaritalStatus, includeCitizenship, includeSsnHistory);
-
-            string xmlString = doc.Declaration != null
-                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
-                : doc.ToString(SaveOptions.DisableFormatting);
-
-            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
-        }
-
-        public async Task<string> GetPersonAsync(
-            string xmlPath,
-            string xId,
-            string userId,
-            string token,
-            string protocolVersion,
-            string clientXRoadInstance,
-            string clientMemberClass,
-            string clientMemberCode,
-            string clientSubsystemCode,
-            string serviceXRoadInstance,
-            string serviceMemberClass,
-            string serviceMemberCode,
-            string serviceSubsystemCode,
-            string serviceCode,
-            string serviceVersion,
-            GetPersonRequestOptions? options,
-            CancellationToken ct = default)
-        {
-            ArgumentNullException.ThrowIfNull(xmlPath);
-            ArgumentNullException.ThrowIfNull(xId);
-            ArgumentNullException.ThrowIfNull(userId);
-            ArgumentNullException.ThrowIfNull(token);
-            ArgumentNullException.ThrowIfNull(protocolVersion);
-            ArgumentNullException.ThrowIfNull(clientXRoadInstance);
-            ArgumentNullException.ThrowIfNull(clientMemberClass);
-            ArgumentNullException.ThrowIfNull(clientMemberCode);
-            ArgumentNullException.ThrowIfNull(clientSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceXRoadInstance);
-            ArgumentNullException.ThrowIfNull(serviceMemberClass);
-            ArgumentNullException.ThrowIfNull(serviceMemberCode);
-            ArgumentNullException.ThrowIfNull(serviceSubsystemCode);
-            ArgumentNullException.ThrowIfNull(serviceCode);
-            ArgumentNullException.ThrowIfNull(serviceVersion);
-
-            XDocument doc = new(LoadTemplate(xmlPath));
-            XElement requestBodyEl = PrepareGetPersonRequestBody(
-                doc,
-                xId,
-                userId,
-                protocolVersion,
-                clientXRoadInstance,
-                clientMemberClass,
-                clientMemberCode,
-                clientSubsystemCode,
-                serviceXRoadInstance,
-                serviceMemberClass,
-                serviceMemberCode,
-                serviceSubsystemCode,
-                serviceCode,
-                serviceVersion,
-                token);
-
-            if (options is not null)
-            {
-                ApplyGetPersonIdentifiers(requestBodyEl, options.Id, options.PublicId, options.Ssn, options.ExternalId);
-                if (options.Include != GetPersonInclude.None)
-                {
-                    ApplyIncludeFlags(requestBodyEl, options.Include);
-                }
-            }
-
-            string xmlString = doc.Declaration != null
-                ? doc.Declaration + Environment.NewLine + doc.ToString(SaveOptions.DisableFormatting)
-                : doc.ToString(SaveOptions.DisableFormatting);
-
-            return await SendAsync(xmlString, "GetPerson", ct).ConfigureAwait(false);
-        }
-
         private async Task<string> SendAsync(string xmlString, string opName, CancellationToken ct)
         {
             if (_verbose && _log is not null)
@@ -930,6 +952,9 @@ namespace XRoadFolkRaw.Lib
             return (doc, body);
         }
 
+        /// <summary>
+        /// High-level wrapper for GetPeoplePublicInfo using a structured request object.
+        /// </summary>
         public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
@@ -963,6 +988,9 @@ namespace XRoadFolkRaw.Lib
                 ct: ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// High-level wrapper for GetPerson using a structured request object.
+        /// </summary>
         public async Task<string> GetPersonAsync(GetPersonRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
@@ -1002,6 +1030,9 @@ namespace XRoadFolkRaw.Lib
                 ct: ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Disposes the underlying HttpClient if owned by this instance.
+        /// </summary>
         public void Dispose()
         {
             if (_disposeHttpClient)

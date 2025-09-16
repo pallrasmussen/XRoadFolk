@@ -13,9 +13,17 @@ namespace XRoadFolkWeb.TagHelpers;
 public class AuthorizeRoleTagHelper : TagHelper
 {
     private const string RoleAttributeName = "role";
+
+    /// <summary>Required role name (defaults to Admin for the <admin-only> tag).</summary>
     public string? Role { get; set; }
+
     private readonly IHttpContextAccessor _http;
     public AuthorizeRoleTagHelper(IHttpContextAccessor http) => _http = http;
+
+    /// <summary>
+    /// Suppresses output when the current user does not have the required role.
+    /// Removes the wrapper tag when authorized so children render without an extra element.
+    /// </summary>
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         ArgumentNullException.ThrowIfNull(context);

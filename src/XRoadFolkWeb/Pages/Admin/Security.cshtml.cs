@@ -7,16 +7,27 @@ using XRoadFolkWeb.Infrastructure;
 
 namespace XRoadFolkWeb.Pages.Admin;
 
+/// <summary>
+/// Admin page that displays current user identity, claims, Windows groups, and resolved roles.
+/// </summary>
 [Authorize(Policy = "AdminOnly")]
 public class SecurityModel : PageModel
 {
+    /// <summary>Display name of the authenticated user.</summary>
     public string? UserName { get; private set; }
+    /// <summary>Authentication type for the current identity.</summary>
     public string AuthenticationType { get; private set; } = string.Empty;
+    /// <summary>True if the current request is authenticated.</summary>
     public bool IsAuthenticated { get; private set; }
+    /// <summary>Claims of the current user.</summary>
     public IReadOnlyList<Claim> Claims { get; private set; } = Array.Empty<Claim>();
+    /// <summary>Windows groups (SIDs and resolved names) for the current user.</summary>
     public IReadOnlyList<(string Sid, string? Name)> Groups { get; private set; } = Array.Empty<(string, string?)>();
+    /// <summary>Effective application roles mapped for the current user.</summary>
     public IReadOnlyList<string> Roles { get; private set; } = Array.Empty<string>();
+    /// <summary>True if implicit Windows admin role mapping is enabled.</summary>
     public bool ImplicitWindowsAdminEnabled { get; private set; }
+    /// <summary>Implicit admin mode configured in <see cref="RoleMappingOptions"/>.</summary>
     public string ImplicitWindowsAdminMode { get; private set; } = string.Empty;
 
     private readonly RoleMappingOptions _roleOpts;
@@ -26,6 +37,9 @@ public class SecurityModel : PageModel
         _roleOpts = roleOpts.Value;
     }
 
+    /// <summary>
+    /// Populates the view model with identity, claims, groups, and role mappings for display.
+    /// </summary>
     public void OnGet()
     {
         var principal = User;

@@ -16,6 +16,10 @@ using Polly.Timeout;
 
 namespace XRoadFolkWeb.Pages
 {
+    /// <summary>
+    /// Search page for looking up people by SSN or name+date of birth and viewing person details.
+    /// Handles query prefill, validation, search execution, and JSON endpoint for person details.
+    /// </summary>
     [RequireSsnOrNameDob(nameof(Ssn), nameof(FirstName), nameof(LastName), nameof(DateOfBirth))]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public sealed partial class IndexModel(
@@ -39,10 +43,12 @@ namespace XRoadFolkWeb.Pages
         private readonly IHostEnvironment _env = env;
         private readonly ILogger _featureLog = featureLogger;
 
+        /// <summary>SSN input (digits only validator applied).</summary>
         [BindProperty, Ssn, TrimDigits]
         [Display(Name = "SSN", ResourceType = typeof(Resources.Labels))]
         public string? Ssn { get; set; }
 
+        /// <summary>First name input (validated with `Name` attribute).</summary>
         [BindProperty]
         [Display(Name = "FirstName", ResourceType = typeof(Resources.Labels))]
         [Name(MessageKey = "FirstName_Invalid")]
@@ -51,6 +57,7 @@ namespace XRoadFolkWeb.Pages
             ErrorMessageResourceName = "FirstName_MaxLength")]
         public string? FirstName { get; set; }
 
+        /// <summary>Last name input (validated with `Name` attribute).</summary>
         [BindProperty]
         [Display(Name = "LastName", ResourceType = typeof(Resources.Labels))]
         [Name(MessageKey = "LastName_Invalid")]
@@ -59,44 +66,40 @@ namespace XRoadFolkWeb.Pages
             ErrorMessageResourceName = "LastName_MaxLength")]
         public string? LastName { get; set; }
 
+        /// <summary>Date of birth input in yyyy-MM-dd format.</summary>
         [BindProperty]
         [Display(Name = "DateOfBirth", ResourceType = typeof(Resources.Labels))]
         [Dob]
         public string? DateOfBirth { get; set; }
 
+        /// <summary>Search results produced by GetPeoplePublicInfo.</summary>
         public IReadOnlyList<PersonRow> Results { get; private set; } = [];
+        /// <summary>Flattened person detail pairs when details are requested.</summary>
         public IReadOnlyList<(string Key, string Value)>? PersonDetails { get; private set; }
+        /// <summary>Short name suffix for the selected person (shown in UI).</summary>
         public string SelectedNameSuffix { get; private set; } = string.Empty;
 
         private List<string> _errors = [];
+        /// <summary>Validation and processing errors for display.</summary>
         public IReadOnlyList<string> Errors => _errors;
 
-        /// <summary>
-        /// Holds full GetPeoplePublicInfo response (raw + pretty)
-        /// </summary>
+        /// <summary>Full GetPeoplePublicInfo response (raw).</summary>
         public string? PeoplePublicInfoResponseXml { get; private set; }
+        /// <summary>Pretty-printed GetPeoplePublicInfo response.</summary>
         public string? PeoplePublicInfoResponseXmlPretty { get; private set; }
 
-        /// <summary>
-        /// Holds full GetPerson response (raw + pretty) for Person Details
-        /// </summary>
+        /// <summary>Full GetPerson response (raw) for person details.</summary>
         public string? PersonDetailsResponseXml { get; private set; }
+        /// <summary>Pretty-printed GetPerson response for person details.</summary>
         public string? PersonDetailsResponseXmlPretty { get; private set; }
 
-        /// <summary>
-        /// Indicates that a search request was successfully executed this request.
-        /// Used by the view to show an empty-state message when no results are returned.
-        /// </summary>
+        /// <summary>True when a search was attempted during this request.</summary>
         public bool HasSearched { get; private set; }
 
-        /// <summary>
-        /// True when a search completed and returned zero people.
-        /// </summary>
+        /// <summary>True when search completed but returned no people.</summary>
         public bool NoPeopleFound { get; private set; }
 
-        /// <summary>
-        /// Expose enabled include keys to the view (lazy-loaded once per request) as read-only
-        /// </summary>
+        /// <summary>Expose enabled include keys to the view (lazy-loaded once per request).</summary>
         private IReadOnlyList<string>? _enabledPersonIncludeKeys;
         public IReadOnlyList<string> EnabledPersonIncludeKeys => _enabledPersonIncludeKeys ??= BuildEnabledIncludeKeys();
 
@@ -133,6 +136,10 @@ namespace XRoadFolkWeb.Pages
             return l.ResourceNotFound ? "An unexpected error occurred." : l.Value;
         }
 
+        /// <summary>
+        /// Handles initial GET requests, optionally pre-filling inputs from query string and
+        /// executing a search and/or loading person details when requested.
+        /// </summary>
         public async Task OnGetAsync(
             string? publicId = null,
             string? ssn = null,
@@ -259,6 +266,9 @@ namespace XRoadFolkWeb.Pages
             NoPeopleFound = Results is null || Results.Count == 0;
         }
 
+        /// <summary>
+        /// Handles search form POST: validates inputs, performs search, and re-renders the page.
+        /// </summary>
         public async Task<IActionResult> OnPostAsync()
         {
             ResetPersonDetails();
@@ -355,6 +365,7 @@ namespace XRoadFolkWeb.Pages
             return Page();
         }
 
+        /// <summary>Clears form inputs and results and redirects to an empty page state.</summary>
         public IActionResult OnPostClear()
         {
             Ssn = FirstName = LastName = DateOfBirth = null;
@@ -371,11 +382,15 @@ namespace XRoadFolkWeb.Pages
             return RedirectToPage();
         }
 
+        /// <summary>GET redirect endpoint that resets the page.</summary>
         public IActionResult OnGetClear()
         {
             return RedirectToPage();
         }
 
+        /// <summary>
+        /// AJAX endpoint that returns flattened person details and pretty/raw XML for a given public id.
+        /// </summary>
         public async Task<IActionResult> OnGetPersonDetailsAsync(string? publicId)
         {
             if (string.IsNullOrWhiteSpace(publicId))

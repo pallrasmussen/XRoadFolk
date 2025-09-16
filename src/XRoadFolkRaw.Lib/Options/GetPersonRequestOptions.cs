@@ -1,5 +1,8 @@
 namespace XRoadFolkRaw.Lib.Options
 {
+    /// <summary>
+    /// Flags for selectively including sections in GetPerson responses.
+    /// </summary>
     [Flags]
     public enum GetPersonInclude
     {
@@ -33,10 +36,14 @@ namespace XRoadFolkRaw.Lib.Options
         SsnHistory = 1 << 26,
     }
 
+    /// <summary>
+    /// Strongly typed options for building a GetPerson SOAP request.
+    /// Provide exactly one identifier and optional include flags.
+    /// </summary>
     public sealed class GetPersonRequestOptions
     {
         /// <summary>
-        /// Optional identifiers
+        /// Optional identifiers (exactly one should be set).
         /// </summary>
         public string? Id { get; set; }
         public string? PublicId { get; set; }

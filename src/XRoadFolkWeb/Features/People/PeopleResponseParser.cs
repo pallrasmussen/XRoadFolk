@@ -5,6 +5,11 @@ using System.Xml.Linq;
 
 namespace XRoadFolkWeb.Features.People
 {
+    /// <summary>
+    /// Parses SOAP XML responses for Folk people operations. Provides safe XML reader setup
+    /// with depth limit and entity expansion disabled, plus convenience methods to flatten
+    /// responses for UI consumption.
+    /// </summary>
     public sealed partial class PeopleResponseParser(ILogger<PeopleResponseParser> logger)
     {
         private readonly ILogger<PeopleResponseParser> _logger = logger;
@@ -15,7 +20,7 @@ namespace XRoadFolkWeb.Features.People
         private static IEnumerable<XElement> ElementsBy(XElement e, string local) => e.Elements().Where(x => IsName(x, local));
 
         /// <summary>
-        /// Wrapper that enforces a maximum element depth while delegating to the inner reader
+        /// Wrapper that enforces a maximum element depth while delegating to the inner reader.
         /// </summary>
         private sealed class DepthLimitingXmlReader(XmlReader inner, int maxDepth) : XmlReader
         {
@@ -94,8 +99,8 @@ namespace XRoadFolkWeb.Features.People
                 CloseInput = true, // dispose underlying StringReader when reader is disposed
             };
 
-            // CA2000: Ownership of both XmlReader and StringReader is transferred to the returned DepthLimitingXmlReader,
-            // which disposes the inner reader; CloseInput=true disposes the StringReader as well.
+            // CA2000: Ownership of both XmlReader and StringReader is transferred to the returned DepthLimitingXmlReader
+            // via CloseInput=true and Dispose override.
 #pragma warning disable CA2000
             var stringReader = new StringReader(xml);
             var inner = XmlReader.Create(stringReader, settings);
@@ -103,6 +108,9 @@ namespace XRoadFolkWeb.Features.People
             return new DepthLimitingXmlReader(inner, MaxElementDepth);
         }
 
+        /// <summary>
+        /// Parse a GetPeoplePublicInfo response into simple rows to drive UI tables.
+        /// </summary>
         public IReadOnlyList<PersonRow> ParsePeopleList(string? xml)
         {
             List<PersonRow> rows = [];
@@ -249,6 +257,9 @@ namespace XRoadFolkWeb.Features.People
             };
         }
 
+        /// <summary>
+        /// Flatten an XML response to key/value pairs (path=value) for display/debugging.
+        /// </summary>
         public IReadOnlyList<(string Key, string Value)> FlattenResponse(string? xml)
         {
             List<(string, string)> pairs = [];
@@ -281,6 +292,29 @@ namespace XRoadFolkWeb.Features.People
                 // malformed/unsafe XML -> return empty
             }
             return pairs;
+        }
+
+        /// <summary>
+        /// Pretty-prints XML while preserving content (safe reader and no indentation issues).
+        /// </summary>
+        public string PrettyFormatXml(string? xml)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(xml))
+                {
+                    return string.Empty;
+                }
+
+                using XmlReader reader = CreateSafeReader(xml);
+                XDocument doc = XDocument.Load(reader, LoadOptions.None);
+                return doc.ToString(SaveOptions.None);
+            }
+            catch (Exception ex)
+            {
+                LogPrettyFormatFailed(_logger, ex, xml?.Length ?? 0);
+                return xml ?? string.Empty;
+            }
         }
 
         private static void FlattenElements(XElement el, string path, List<(string, string)> pairs)
@@ -346,26 +380,6 @@ namespace XRoadFolkWeb.Features.People
             int idx = indexes.TryGetValue(name, out int cur) ? cur : 0;
             indexes[name] = idx + 1;
             return string.IsNullOrEmpty(path) ? $"{name}[{idx}]" : $"{path}.{name}[{idx}]";
-        }
-
-        public string PrettyFormatXml(string? xml)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(xml))
-                {
-                    return string.Empty;
-                }
-
-                using XmlReader reader = CreateSafeReader(xml);
-                XDocument doc = XDocument.Load(reader, LoadOptions.None);
-                return doc.ToString(SaveOptions.None);
-            }
-            catch (Exception ex)
-            {
-                LogPrettyFormatFailed(_logger, ex, xml?.Length ?? 0);
-                return xml ?? string.Empty;
-            }
         }
 
         [LoggerMessage(EventId = 5001, Level = LogLevel.Error, Message = "PeopleResponseParser: ParsePeopleList failed (xmlLength={Length})")]

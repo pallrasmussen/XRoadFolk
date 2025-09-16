@@ -5,6 +5,11 @@ using System.Collections.Generic;
 
 namespace XRoadFolkRaw.Lib
 {
+    /// <summary>
+    /// Helpers for structured logging scopes and masking sensitive values.
+    /// Use <see cref="BeginCorrelationScope"/> to attach a correlation id to logs, and <see cref="Mask"/>
+    /// to obfuscate secrets while preserving length. These helpers never throw.
+    /// </summary>
     public static class LoggingHelper
     {
         private sealed class NoopDisposable : IDisposable
@@ -13,7 +18,9 @@ namespace XRoadFolkRaw.Lib
             public void Dispose() { }
         }
 
-        // Single-item, allocation-free scope state
+        /// <summary>
+        /// Minimal allocation list that carries a single key/value for a logging scope.
+        /// </summary>
         private readonly struct OnePropertyList : IReadOnlyList<KeyValuePair<string, object?>>
         {
             private readonly string _key;
@@ -35,12 +42,28 @@ namespace XRoadFolkRaw.Lib
                 public Enumerator(string key, object? value) { _key = key; _value = value; _moved = false; }
                 public KeyValuePair<string, object?> Current => new(_key, _value);
                 object IEnumerator.Current => Current;
-                public bool MoveNext() { if (_moved) return false; _moved = true; return true; }
+                public bool MoveNext()
+                {
+                    if (_moved)
+                    {
+                        return false;
+                    }
+                    _moved = true;
+                    return true;
+                }
                 public void Reset() { _moved = false; }
                 public void Dispose() { }
             }
         }
 
+        /// <summary>
+        /// Creates a logging scope that carries a correlation identifier. If no
+        /// identifier is supplied, the current Activity Id or a random value is used.
+        /// This method never throws; if the provider doesn't support BeginScope, it returns a no-op disposable.
+        /// </summary>
+        /// <param name="logger">The logger to create a scope from.</param>
+        /// <param name="correlationId">Optional correlation id to propagate.</param>
+        /// <returns>An <see cref="IDisposable"/> scope that should be disposed to end the scope.</returns>
         public static IDisposable BeginCorrelationScope(ILogger logger, string? correlationId = null)
         {
             ArgumentNullException.ThrowIfNull(logger);
@@ -61,6 +84,14 @@ namespace XRoadFolkRaw.Lib
             }
         }
 
+        /// <summary>
+        /// Masks a value by replacing leading characters with '*'. The last
+        /// <paramref name="visible"/> characters remain visible. If visible is 0 or less,
+        /// the entire value is masked. Returns empty string for null/empty inputs.
+        /// </summary>
+        /// <param name="value">The value to mask.</param>
+        /// <param name="visible">Number of trailing characters to keep.</param>
+        /// <returns>A masked string with the same length as the input.</returns>
         public static string Mask(string? value, int visible = 4)
         {
             if (string.IsNullOrEmpty(value))

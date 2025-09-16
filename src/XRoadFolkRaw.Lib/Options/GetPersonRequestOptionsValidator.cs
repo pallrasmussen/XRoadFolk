@@ -2,10 +2,14 @@ using Microsoft.Extensions.Options;
 
 namespace XRoadFolkRaw.Lib.Options
 {
+    /// <summary>
+    /// Validates <see cref="GetPersonRequestOptions"/> ensuring exactly one identifier is
+    /// provided and include flags only contain defined values.
+    /// </summary>
     public sealed class GetPersonRequestOptionsValidator : IValidateOptions<GetPersonRequestOptions>
     {
         // Compute once per type initialization to avoid per-call allocations
-        private static readonly GetPersonInclude KnownMask = BuildKnownMask();
+        private static readonly GetPersonInclude _knownMask = BuildKnownMask();
 
         private static GetPersonInclude BuildKnownMask()
         {
@@ -17,6 +21,7 @@ namespace XRoadFolkRaw.Lib.Options
             return mask;
         }
 
+        /// <inheritdoc />
         public ValidateOptionsResult Validate(string? name, GetPersonRequestOptions options)
         {
             if (options is null)
@@ -56,7 +61,7 @@ namespace XRoadFolkRaw.Lib.Options
             }
 
             // Validate Include contains only known flags using cached mask
-            GetPersonInclude unknown = options.Include & ~KnownMask;
+            GetPersonInclude unknown = options.Include & ~_knownMask;
             return unknown != GetPersonInclude.None
                 ? ValidateOptionsResult.Fail($"Include contains undefined flag(s): {(int)unknown}.")
                 : ValidateOptionsResult.Success;

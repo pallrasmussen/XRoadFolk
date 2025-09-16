@@ -5,6 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace XRoadFolkRaw.Lib.Options
 {
+    /// <summary>
+    /// Utility to read enabled include keys for GetPerson from configuration.
+    /// Caches results per <see cref="IConfiguration"/> instance and invalidates on reload.
+    /// </summary>
     public static class IncludeConfigHelper
     {
         private sealed class CacheState(HashSet<string> baseKeys, IDisposable? registration)
@@ -19,7 +23,7 @@ namespace XRoadFolkRaw.Lib.Options
             public ILogger? Logger { get; } = logger;
         }
 
-        private static readonly ConditionalWeakTable<IConfiguration, CacheState> Cache = [];
+        private static readonly ConditionalWeakTable<IConfiguration, CacheState> _cache = [];
 
         /// <summary>
         /// Returns the enabled include keys based on configuration:
@@ -32,10 +36,10 @@ namespace XRoadFolkRaw.Lib.Options
             ArgumentNullException.ThrowIfNull(config);
 
             CacheState state;
-            if (!Cache.TryGetValue(config, out state!))
+            if (!_cache.TryGetValue(config, out state!))
             {
                 state = BuildState(config, logger);
-                Cache.Add(config, state);
+                _cache.Add(config, state);
             }
 
             // Return a copy so callers cannot mutate cached set
@@ -59,11 +63,11 @@ namespace XRoadFolkRaw.Lib.Options
                 try
                 {
                     CallbackState st = (CallbackState)stateObj!;
-                    if (Cache.TryGetValue(st.Config, out CacheState? cs))
+                    if (_cache.TryGetValue(st.Config, out CacheState? cs))
                     {
                         cs.Registration?.Dispose();
                     }
-                    _ = Cache.Remove(st.Config);
+                    _ = _cache.Remove(st.Config);
                 }
                 catch (Exception ex)
                 {

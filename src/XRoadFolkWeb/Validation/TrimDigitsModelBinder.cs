@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 namespace XRoadFolkWeb.Validation
 {
     /// <summary>
-    /// Normalizes SSN by stripping non-ASCII digits before validation
+    /// Normalizes SSN (or similar) inputs by stripping non-ASCII digits before validation.
+    /// Applied via the accompanying <see cref="TrimDigitsAttribute"/> marker.
     /// </summary>
     public sealed class TrimDigitsModelBinder : IModelBinder
     {
@@ -54,7 +55,7 @@ namespace XRoadFolkWeb.Validation
     }
 
     /// <summary>
-    /// Marker attribute to request TrimDigitsModelBinder for a property
+    /// Marker attribute to request <see cref="TrimDigitsModelBinder"/> for a property.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class TrimDigitsAttribute : Attribute, IBinderTypeProviderMetadata, IBindingSourceMetadata
@@ -63,9 +64,12 @@ namespace XRoadFolkWeb.Validation
         public BindingSource BindingSource => BindingSource.ModelBinding;
     }
 
+    /// <summary>
+    /// Model binder provider that detects the <see cref="TrimDigitsAttribute"/> and supplies a cached binder instance.
+    /// </summary>
     public sealed class TrimDigitsModelBinderProvider : IModelBinderProvider
     {
-        private static readonly IModelBinder CachedBinder = new TrimDigitsModelBinder();
+        private static IModelBinder CachedBinder { get; } = new TrimDigitsModelBinder();
 
         public IModelBinder? GetBinder(ModelBinderProviderContext context)
         {

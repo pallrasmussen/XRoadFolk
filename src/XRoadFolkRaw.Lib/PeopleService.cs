@@ -10,6 +10,11 @@ using Polly.Timeout;
 
 namespace XRoadFolkRaw.Lib
 {
+    /// <summary>
+    /// High-level service that authenticates against X-Road and executes Folk operations
+    /// (GetPeoplePublicInfo, GetPerson). Handles token acquisition and caching, request validation,
+    /// and error handling with localized messages.
+    /// </summary>
     public sealed partial class PeopleService : IDisposable
     {
         private static string EscapePart(string? s)
@@ -46,7 +51,8 @@ namespace XRoadFolkRaw.Lib
                     {
                         dest[j++] = '\\';
                     }
-                    dest[j++] = c;
+                    j++;
+                    dest[j - 1] = c;
                 }
             });
         }
@@ -90,6 +96,17 @@ namespace XRoadFolkRaw.Lib
         private readonly TokenCacheOptions _cacheOptions;
         private readonly SemaphoreSlim _tokenGate = new(1, 1);
 
+        /// <summary>
+        /// Creates a new PeopleService.
+        /// </summary>
+        /// <param name="client">Low-level SOAP client.</param>
+        /// <param name="config">App configuration source.</param>
+        /// <param name="settings">Strongly typed X-Road settings (auth, client, service, headers).</param>
+        /// <param name="log">Logger instance.</param>
+        /// <param name="localizer">Localizer for user-facing error messages.</param>
+        /// <param name="requestValidator">Validator for <see cref="GetPersonRequestOptions"/>.</param>
+        /// <param name="cache">In-memory cache for token storage.</param>
+        /// <param name="cacheOptions">Optional token cache options.</param>
         public PeopleService(
             FolkRawClient client,
             IConfiguration config,
@@ -277,6 +294,9 @@ namespace XRoadFolkRaw.Lib
             DateOfBirth = dateOfBirth,
         };
 
+        /// <summary>
+        /// Calls the GetPeoplePublicInfo operation with optional criteria and returns the raw SOAP response XML.
+        /// </summary>
         public async Task<string> GetPeoplePublicInfoAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
@@ -301,6 +321,9 @@ namespace XRoadFolkRaw.Lib
             }
         }
 
+        /// <summary>
+        /// Calls the GetPerson operation using configuration/defaults and an optional public identifier.
+        /// </summary>
         public async Task<string> GetPersonAsync(string? publicId, CancellationToken ct = default)
         {
             string token = await GetTokenAsync(ct).ConfigureAwait(false);
@@ -375,6 +398,9 @@ namespace XRoadFolkRaw.Lib
         [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Token reused")]
         static partial void LogTokenReused(ILogger logger);
 
+        /// <summary>
+        /// Disposes underlying token provider and synchronization primitives.
+        /// </summary>
         public void Dispose()
         {
             _tokenProvider.Dispose();

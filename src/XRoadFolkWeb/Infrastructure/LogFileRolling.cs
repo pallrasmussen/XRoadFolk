@@ -4,10 +4,18 @@ using Microsoft.Extensions.Logging;
 namespace XRoadFolkWeb.Infrastructure
 {
     /// <summary>
-    /// Shared helper to perform size-based log file rolling.
+    /// Helper to perform size-based log file rolling.
+    /// Renames <c>path</c> to <c>path.1</c>, shifting existing suffixes up to <paramref name="maxRolls"/>.
     /// </summary>
     internal static class LogFileRolling
     {
+        /// <summary>
+        /// Rolls the file at <paramref name="path"/> when its size exceeds <paramref name="maxBytes"/>.
+        /// </summary>
+        /// <param name="path">Full path to the active log file.</param>
+        /// <param name="maxBytes">Maximum allowed size in bytes before rolling.</param>
+        /// <param name="maxRolls">How many rolled files to keep.</param>
+        /// <param name="log">Optional logger for error reporting.</param>
         public static void RollIfNeeded(string path, long maxBytes, int maxRolls, ILogger? log = null)
         {
             if (string.IsNullOrWhiteSpace(path))

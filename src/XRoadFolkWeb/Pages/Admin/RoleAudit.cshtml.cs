@@ -6,6 +6,9 @@ using System.Text;
 
 namespace XRoadFolkWeb.Pages.Admin;
 
+/// <summary>
+/// Admin page that displays a paged, filterable audit log of role changes and supports export.
+/// </summary>
 [Authorize(Policy = "AdminOnly")]
 public class RoleAuditModel : PageModel
 {
@@ -13,18 +16,29 @@ public class RoleAuditModel : PageModel
 
     public RoleAuditModel(IRoleAuditSink audit) => _audit = audit;
 
+    /// <summary>Maximum number of entries to load from the audit sink.</summary>
     [BindProperty(SupportsGet = true)] public int Max { get; set; } = 200;
+    /// <summary>Current page number (1-based).</summary>
     [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
+    /// <summary>Page size for pagination.</summary>
     [BindProperty(SupportsGet = true)] public int PageSize { get; set; } = 50;
+    /// <summary>Filter by user name.</summary>
     [BindProperty(SupportsGet = true)] public string? FilterUser { get; set; }
+    /// <summary>Filter by role name.</summary>
     [BindProperty(SupportsGet = true)] public string? FilterRole { get; set; }
+    /// <summary>Filter by action name.</summary>
     [BindProperty(SupportsGet = true)] public string? FilterAction { get; set; }
+    /// <summary>Filter by success flag.</summary>
     [BindProperty(SupportsGet = true)] public bool? FilterSuccess { get; set; }
 
+    /// <summary>Paged audit entries for display.</summary>
     public IReadOnlyList<RoleAuditEntry> Entries { get; private set; } = Array.Empty<RoleAuditEntry>();
+    /// <summary>Total entries after filtering.</summary>
     public int Total { get; private set; }
+    /// <summary>Total pages after filtering.</summary>
     public int TotalPages { get; private set; }
 
+    /// <summary>Loads and displays the current page of audit entries.</summary>
     public void OnGet() => Load();
 
     private IEnumerable<RoleAuditEntry> ApplyFilters(IEnumerable<RoleAuditEntry> src)
@@ -53,6 +67,9 @@ public class RoleAuditModel : PageModel
         Entries = (skip >= Total ? Array.Empty<RoleAuditEntry>() : filtered.Skip(skip).Take(PageSize).ToList());
     }
 
+    /// <summary>
+    /// Downloads filtered audit entries as CSV or JSON.
+    /// </summary>
     public IActionResult OnGetDownload(int? max, string? format, string? filterUser, string? filterRole, string? filterAction, bool? filterSuccess)
     {
         Max = Math.Clamp(max ?? Max, 1, 5000);

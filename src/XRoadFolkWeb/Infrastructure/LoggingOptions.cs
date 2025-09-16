@@ -1,8 +1,13 @@
 namespace XRoadFolkWeb.Infrastructure
 {
+    /// <summary>
+    /// Application-level logging options that tweak masking and sinks.
+    /// </summary>
     public sealed class LoggingOptions
     {
-        // When true, mask tokens/identifiers in application and HTTP log sinks
+        /// <summary>
+        /// When true, mask tokens/identifiers in application and HTTP log sinks.
+        /// </summary>
         public bool MaskTokens { get; set; } = true;
     }
 }

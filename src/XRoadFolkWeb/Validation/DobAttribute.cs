@@ -3,6 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Validation
 {
+    /// <summary>
+    /// Validates date of birth in yyyy-MM-dd format (server-side) and provides a client adapter.
+    /// Not [Required]; only validates format when supplied.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class DobAttribute : ValidationAttribute, IClientModelValidator
     {

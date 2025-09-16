@@ -5,6 +5,10 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace XRoadFolkWeb.Features.Index
 {
+    /// <summary>
+    /// Provides person details by calling GetPerson and caching the flattened response per PublicId.
+    /// Also filters noisy keys and enforces an include allow-list derived from configuration.
+    /// </summary>
     public sealed class PersonDetailsProvider(PeopleService service, PeopleResponseParser parser, IConfiguration config, IMemoryCache cache)
     {
         private readonly PeopleService _service = service;
@@ -51,6 +55,9 @@ namespace XRoadFolkWeb.Features.Index
             return _allowedIncludeKeysCache;
         }
 
+        /// <summary>
+        /// Gets person details for a given public id; returns filtered key/value pairs and raw/pretty XML.
+        /// </summary>
         public async Task<(IReadOnlyList<(string Key, string Value)> Details, string Pretty, string Raw, string SelectedNameSuffix)> GetAsync(
             string publicId,
             Microsoft.Extensions.Localization.IStringLocalizer loc,

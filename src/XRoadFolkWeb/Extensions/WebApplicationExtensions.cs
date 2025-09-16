@@ -22,6 +22,11 @@ using HeaderSameSiteMode = Microsoft.AspNetCore.Http.SameSiteMode;
 
 namespace XRoadFolkWeb.Extensions
 {
+    /// <summary>
+    /// Composes the web application's middleware pipeline and maps endpoints.
+    /// Also provides helpers for security headers, localization, diagnostics,
+    /// theming, and authentication-related endpoints.
+    /// </summary>
     public static partial class WebApplicationExtensions
     {
         private const string CorrelationHeader = "X-Correlation-Id";
@@ -46,6 +51,9 @@ namespace XRoadFolkWeb.Extensions
             ".woff", ".woff2", ".ttf", ".eot", ".txt", ".json",
         };
 
+        /// <summary>
+        /// Returns true if the given request path targets a static asset.
+        /// </summary>
         private static bool IsStaticAssetPath(string? path)
         {
             if (string.IsNullOrEmpty(path)) { return false; }
@@ -61,6 +69,9 @@ namespace XRoadFolkWeb.Extensions
             return false;
         }
 
+        /// <summary>
+        /// Returns true if the given path should bypass the logout block.
+        /// </summary>
         private static bool IsLogoutBypassPath(PathString path)
         {
             if (!path.HasValue)
@@ -75,6 +86,9 @@ namespace XRoadFolkWeb.Extensions
                 || IsStaticAssetPath(p);
         }
 
+        /// <summary>
+        /// Redacts long digit sequences and GUIDs from paths for log safety.
+        /// </summary>
         private static string RedactPath(string? path)
         {
             if (string.IsNullOrWhiteSpace(path)) { return string.Empty; }
@@ -84,6 +98,12 @@ namespace XRoadFolkWeb.Extensions
             return p;
         }
 
+        /// <summary>
+        /// Configures the application's middleware pipeline and endpoint routing
+        /// for the current <paramref name="app"/> instance.
+        /// </summary>
+        /// <param name="app">The web application to configure.</param>
+        /// <returns>The configured <see cref="WebApplication"/> instance.</returns>
         public static WebApplication ConfigureRequestPipeline(this WebApplication app)
         {
             ArgumentNullException.ThrowIfNull(app);
@@ -215,6 +235,9 @@ namespace XRoadFolkWeb.Extensions
             return app;
         }
 
+        /// <summary>
+        /// Adds strict security headers and a CSP policy with a per-request nonce.
+        /// </summary>
         private static void AddCspAndSecurityHeaders(WebApplication app)
         {
             app.Use(async (ctx, next) =>
@@ -232,6 +255,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Sets common security headers for clickjacking, referrer, COOP/CORP, and content sniffing.
+        /// </summary>
         private static void AddStandardSecurityHeaders(IHeaderDictionary headers)
         {
             if (!headers.ContainsKey("X-Content-Type-Options")) { headers.XContentTypeOptions = "nosniff"; }
@@ -242,6 +268,11 @@ namespace XRoadFolkWeb.Extensions
             if (!headers.ContainsKey("Cross-Origin-Resource-Policy")) { headers["Cross-Origin-Resource-Policy"] = "same-origin"; }
         }
 
+        /// <summary>
+        /// Builds the Content Security Policy string using the provided nonce for inline scripts/styles.
+        /// </summary>
+        /// <param name="nonce">The per-request nonce value.</param>
+        /// <returns>A CSP header value.</returns>
         private static string BuildCsp(string nonce)
         {
             const string JsDelivr = "https://cdn.jsdelivr.net";
@@ -254,6 +285,9 @@ namespace XRoadFolkWeb.Extensions
                    "style-src-attr 'none'; connect-src 'self'; form-action 'self'; upgrade-insecure-requests";
         }
 
+        /// <summary>
+        /// Adds no-cache headers for selected dynamic pages to avoid stale UI.
+        /// </summary>
         private static void AddNoCacheHeaders(WebApplication app)
         {
             app.Use(async (ctx, next) =>
@@ -269,6 +303,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Configures exception handling middleware and formats responses depending on Accept header.
+        /// </summary>
         private static void ConfigureExceptionHandling(WebApplication app, ILoggerFactory loggerFactory, bool showDetailedErrors)
         {
             ILogger errorLogger = loggerFactory.CreateLogger("App.Error");
@@ -328,6 +365,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Enforces HSTS/HTTPS redirection when not in development.
+        /// </summary>
         private static void ConfigureTransport(WebApplication app, IHostEnvironment env)
         {
             if (!env.IsDevelopment())
@@ -337,12 +377,18 @@ namespace XRoadFolkWeb.Extensions
             }
         }
 
+        /// <summary>
+        /// Applies request localization using configured cultures.
+        /// </summary>
         private static void ConfigureLocalization(WebApplication app)
         {
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
             _ = app.UseRequestLocalization(locOpts);
         }
 
+        /// <summary>
+        /// Adds lightweight development request logging or response compression depending on environment.
+        /// </summary>
         private static void ConfigureRequestLoggingOrCompression(WebApplication app, IHostEnvironment env, ILoggerFactory loggerFactory)
         {
             if (env.IsDevelopment())
@@ -366,6 +412,9 @@ namespace XRoadFolkWeb.Extensions
             _ = app.UseResponseCompression();
         }
 
+        /// <summary>
+        /// Logs the localization configuration at startup for diagnostics.
+        /// </summary>
         private static void LogLocalization(WebApplication app, ILoggerFactory loggerFactory)
         {
             ILogger locLogger = loggerFactory.CreateLogger("Localization");
@@ -376,6 +425,9 @@ namespace XRoadFolkWeb.Extensions
             _logLocalizationConfig(locLogger, defaultCulture, supported, arg4: null);
         }
 
+        /// <summary>
+        /// Maps development-only diagnostics endpoints for inspecting culture settings.
+        /// </summary>
         private static void MapDiagnostics(WebApplication app, IHostEnvironment env)
         {
             if (!env.IsDevelopment()) { return; }
@@ -403,6 +455,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Maps culture switching endpoint and writes culture cookie after antiforgery validation.
+        /// </summary>
         private static void MapCultureSwitch(WebApplication app, ILogger cultureLog)
         {
             RequestLocalizationOptions locOpts = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
@@ -463,7 +518,9 @@ namespace XRoadFolkWeb.Extensions
             }).DisableAntiforgery();
         }
 
-        // MapThemeSwitch using _allowedThemes
+        /// <summary>
+        /// Maps theme switching endpoint and sets a persistent theme cookie.
+        /// </summary>
         private static void MapThemeSwitch(WebApplication app)
         {
             app.MapGet("/set-theme", ([FromQuery] string theme, [FromQuery] string? returnUrl, HttpContext ctx) =>
@@ -488,6 +545,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Maps logout confirmation and POST endpoints. Clears relevant cookies and sets a short-lived logout-block cookie.
+        /// </summary>
         private static void MapLogout(WebApplication app)
         {
             // GET: simple confirmation page with antiforgery token that posts to /logout
@@ -536,6 +596,9 @@ namespace XRoadFolkWeb.Extensions
             });
         }
 
+        /// <summary>
+        /// Maps a simple signed-out page that also allows re-authentication.
+        /// </summary>
         private static void MapSignedOut(WebApplication app)
         {
             app.MapGet("/signed-out", async (HttpContext ctx) =>
@@ -549,6 +612,9 @@ namespace XRoadFolkWeb.Extensions
             }).AllowAnonymous();
         }
 
+        /// <summary>
+        /// Maps sign-in endpoint that challenges Negotiate (Windows SSO) and clears logout cookie if authenticated.
+        /// </summary>
         private static void MapSignIn(WebApplication app)
         {
             app.MapGet("/signin", async (HttpContext ctx) =>
@@ -567,6 +633,9 @@ namespace XRoadFolkWeb.Extensions
             }).AllowAnonymous();
         }
 
+        /// <summary>
+        /// Deletes a cookie with common settings and error suppression.
+        /// </summary>
         private static void DeleteCookie(HttpContext ctx, string name)
         {
             try
@@ -576,6 +645,9 @@ namespace XRoadFolkWeb.Extensions
             catch { }
         }
 
+        /// <summary>
+        /// Maps the logs API endpoints (list, clear, write, stream) when the feature is enabled.
+        /// </summary>
         private static void MapLogsEndpoints(WebApplication app, IConfiguration configuration, IHostEnvironment env, ILogger featureLog)
         {
             bool logsEnabled = configuration.GetBoolOrDefault("Features:Logs:Enabled", env.IsDevelopment(), featureLog);
@@ -585,6 +657,10 @@ namespace XRoadFolkWeb.Extensions
             MapLogsWrite(app);
             MapLogsStream(app);
         }
+        
+        /// <summary>
+        /// Lists recent logs with simple paging and filtering by kind.
+        /// </summary>
         private static void MapLogsList(WebApplication app)
         {
             app.MapGet("/logs", (HttpContext ctx, [FromQuery] string? kind, [FromQuery] int? page, [FromQuery] int? pageSize) =>
@@ -606,6 +682,10 @@ namespace XRoadFolkWeb.Extensions
                  return Results.Json(new { ok = true, page = pg, pageSize = size, total, totalPages, items });
              }).RequireAuthorization("AdminOnly");
         }
+
+        /// <summary>
+        /// Clears the in-memory logs store.
+        /// </summary>
         private static void MapLogsClear(WebApplication app)
         {
             app.MapPost("/logs/clear", async (HttpContext ctx, IAntiforgery af) =>
@@ -617,6 +697,10 @@ namespace XRoadFolkWeb.Extensions
                  return Results.Json(new { ok = true });
              }).RequireAuthorization("AdminOnly");
         }
+
+        /// <summary>
+        /// Writes a single log entry provided by clients.
+        /// </summary>
         private static void MapLogsWrite(WebApplication app)
         {
             app.MapPost("/logs/write", async ([FromBody] LogWriteDto dto, HttpContext ctx, IAntiforgery af) =>
@@ -630,6 +714,10 @@ namespace XRoadFolkWeb.Extensions
                  return Results.Json(new { ok = true });
              }).RequireAuthorization("AdminOnly");
         }
+
+        /// <summary>
+        /// Streams logs as Server-Sent Events (SSE) for live updates.
+        /// </summary>
         private static void MapLogsStream(WebApplication app)
         {
             app.MapGet("/logs/stream", async (HttpContext ctx, [FromQuery] string? kind, CancellationToken ct) =>
@@ -657,6 +745,9 @@ namespace XRoadFolkWeb.Extensions
              }).RequireAuthorization("AdminOnly");
         }
 
+        /// <summary>
+        /// Adds a logging scope with correlation identifiers (trace, span, user, session).
+        /// </summary>
         private static void AddCorrelationScope(WebApplication app, ILoggerFactory loggerFactory)
         {
             ILogger scopeLogger = loggerFactory.CreateLogger("App.Correlation");
@@ -677,7 +768,7 @@ namespace XRoadFolkWeb.Extensions
         }
 
         /// <summary>
-        /// LoggerMessage delegates for performance
+        /// LoggerMessage delegates for performance.
         /// </summary>
         private static readonly Action<ILogger, DateTimeOffset, Exception?> _logAppStarted =
             LoggerMessage.Define<DateTimeOffset>(
@@ -706,8 +797,14 @@ namespace XRoadFolkWeb.Extensions
         [LoggerMessage(EventId = 1100, Level = LogLevel.Warning, Message = "Access denied for user {User} Path={Path} TraceId={TraceId}")]
         private static partial void LogAccessDenied(ILogger logger, string? User, string Path, string TraceId);
 
+        /// <summary>
+        /// Matches long digit sequences suitable for redaction in paths.
+        /// </summary>
         [GeneratedRegex(@"\b\d{6,}\b")]
         private static partial Regex LongDigitsRegex();
+        /// <summary>
+        /// Matches GUID values suitable for redaction in paths.
+        /// </summary>
         [GeneratedRegex(@"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\b")]
         private static partial Regex GuidRegex();
     }

@@ -6,6 +6,10 @@ using System.Collections.Concurrent;
 
 namespace XRoadFolkWeb.Validation
 {
+    /// <summary>
+    /// Cross-field validator that enforces either a non-empty SSN or the tuple FirstName+LastName+DateOfBirth.
+    /// Uses compiled accessors cached per model type for performance. Supports localization via IStringLocalizer.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
     public sealed class RequireSsnOrNameDobAttribute : ValidationAttribute
     {
@@ -29,6 +33,9 @@ namespace XRoadFolkWeb.Validation
             public Func<object, string?> Dob { get; }
         }
 
+        /// <summary>
+        /// Construct the attribute with property names to bind to on the target model.
+        /// </summary>
         public RequireSsnOrNameDobAttribute(string ssnProperty, string firstNameProperty, string lastNameProperty, string dobProperty)
         {
             _ssn = ssnProperty ?? throw new ArgumentNullException(nameof(ssnProperty));

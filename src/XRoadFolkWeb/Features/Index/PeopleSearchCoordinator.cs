@@ -3,11 +3,19 @@ using XRoadFolkWeb.Features.People;
 
 namespace XRoadFolkWeb.Features.Index
 {
+    /// <summary>
+    /// Orchestrates a GetPeoplePublicInfo call and parses results for UI consumption.
+    /// Returns raw XML, pretty-printed XML, and simplified rows.
+    /// </summary>
     public sealed class PeopleSearchCoordinator(PeopleService service, PeopleResponseParser parser)
     {
         private readonly PeopleService _service = service;
         private readonly PeopleResponseParser _parser = parser;
 
+        /// <summary>
+        /// Executes the search via <see cref="PeopleService"/> and parses the response.
+        /// </summary>
+        /// <returns>Tuple of (Xml, Pretty, Results).</returns>
         public async Task<(string Xml, string Pretty, IReadOnlyList<PersonRow> Results)> SearchAsync(string? ssn, string? firstName, string? lastName, DateTimeOffset? dateOfBirth, CancellationToken ct = default)
         {
             string xml = await _service.GetPeoplePublicInfoAsync(ssn, firstName, lastName, dateOfBirth, ct).ConfigureAwait(false);

@@ -3,13 +3,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace XRoadFolkWeb.Validation
 {
+    /// <summary>
+    /// Validates a human name string using server-side rules and emits a client-side adapter.
+    /// Not [Required]; use with specific resource keys per property for localized messages.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class NameAttribute : ValidationAttribute, IClientModelValidator
     {
         private string? _messageKey;
 
         /// <summary>
-        /// Set a specific resource key per usage, e.g., "FirstName_Invalid" or "LastName_Invalid"
+        /// Optional resource key to override the default validation message.
+        /// Example: "FirstName_Invalid" or "LastName_Invalid".
         /// </summary>
         public string? MessageKey
         {
