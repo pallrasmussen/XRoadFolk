@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Server.IISIntegration;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Authentication;
 
 // Create and configure the WebApplication host
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -61,6 +62,13 @@ builder.Services.AddAuthorization(options =>
 
 // Core application services and logging, health, HTTP logs, OpenTelemetry, etc.
 builder.Services.AddApplicationServices(builder.Configuration);
+
+// Restore SID-based role mapping for tests that rely on ClaimTypes.GroupSid -> roles
+builder.Services.AddMemoryCache();
+builder.Services.AddOptions<RoleMappingOptions>()
+    .Bind(builder.Configuration.GetSection("AppRoles"))
+    .ValidateOnStart();
+builder.Services.AddTransient<IClaimsTransformation, GroupSidRoleClaimsTransformer>();
 
 // App role infrastructure (store, admin pages, audit, claims enrichment, health) 
 builder.Services.AddAppRoleInfrastructure(builder.Configuration);
