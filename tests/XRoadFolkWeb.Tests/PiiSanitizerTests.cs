@@ -51,5 +51,27 @@ namespace XRoadFolkWeb.Tests
             var s = PiiSanitizer.Sanitize(xml, true);
             s.Should().Contain("<username>***").And.Contain("<password>***");
         }
+
+        [Theory]
+        [InlineData("SSN=123456789")]
+        [InlineData("ForeignSSN=998877665")]
+        [InlineData("{\"SSN\":\"123456789\"}")]
+        [InlineData("{foreignSsn: '112233445'}")]
+        [InlineData("The SSN is 123-45-6789")] 
+        public void Masks_Ssn_And_ForeignSsn_In_Text(string input)
+        {
+            var s = PiiSanitizer.Sanitize(input, true);
+            s.Should().NotContain("123456789").And.NotContain("998877665").And.NotContain("112233445").And.NotContain("123-45-6789");
+        }
+
+        [Fact]
+        public void Masks_Ssn_And_ForeignSsn_In_Soap()
+        {
+            var xml = "<Envelope><Body><SSN>123456789</SSN><ForeignSSN>AA123456BB</ForeignSSN></Body></Envelope>";
+            var s = PiiSanitizer.Sanitize(xml, true);
+            s.Should().Contain("<SSN>***");
+            s.Should().Contain("<ForeignSSN>***");
+            s.Should().NotContain("123456789").And.NotContain("AA123456BB");
+        }
     }
 }

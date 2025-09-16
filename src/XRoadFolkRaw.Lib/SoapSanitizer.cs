@@ -17,6 +17,13 @@ namespace XRoadFolkRaw.Lib
         [GeneratedRegex("<(?<tag>(?:\\w+:)?userId)>(?<v>.*?)</(?:\\w+:)?userId>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex NsUserIdRegex();
 
+        // SSN and ForeignSSN elements (mask fully)
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?SSN)>(?<v>.*?)</(?:\\w+:)?SSN>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+        private static partial Regex NsSsnRegex();
+
+        [GeneratedRegex("<(?<tag>(?:\\w+:)?ForeignSSN)>(?<v>.*?)</(?:\\w+:)?ForeignSSN>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+        private static partial Regex NsForeignSsnRegex();
+
         // Common token aliases in payloads and WS-Security (avoid backreference)
         [GeneratedRegex("<(?<tag>(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken))>(?<v>.*?)</(?:\\w+:)?(?:sessionId|sessionToken|authToken|accessToken|BinarySecurityToken)>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
         private static partial Regex TokenAliasesRegex();
@@ -38,6 +45,9 @@ namespace XRoadFolkRaw.Lib
             xml = NsUserRegex().Replace(xml, m => $"<username>{LoggingHelper.Mask(m.Groups[1].Value)}</username>");
             xml = NsPassRegex().Replace(xml, m => $"<password>{LoggingHelper.Mask(m.Groups[1].Value)}</password>");
             xml = NsUserIdRegex().Replace(xml, m => $"<{m.Groups["tag"].Value}>{LoggingHelper.Mask(m.Groups["v"].Value)}</{m.Groups["tag"].Value}>");
+            // Mask SSN and ForeignSSN completely
+            xml = NsSsnRegex().Replace(xml, m => $"<{m.Groups["tag"].Value}>{LoggingHelper.Mask(m.Groups["v"].Value, 0)}</{m.Groups["tag"].Value}>");
+            xml = NsForeignSsnRegex().Replace(xml, m => $"<{m.Groups["tag"].Value}>{LoggingHelper.Mask(m.Groups["v"].Value, 0)}</{m.Groups["tag"].Value}>");
             xml = NsTokenRegex().Replace(xml, m => maskTokens ? $"<token>{MaskToken(m.Groups[1].Value)}</token>" : $"<token>{m.Groups[1].Value}</token>");
             xml = TokenAliasesRegex().Replace(xml, m => $"<{m.Groups["tag"].Value}>{MaskToken(m.Groups["v"].Value)}</{m.Groups["tag"].Value}>");
 

@@ -21,6 +21,15 @@ namespace XRoadFolkWeb.Infrastructure
         [GeneratedRegex(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
         private static partial Regex EmailRegex();
 
+        // Plain-text SSN patterns: 9 consecutive digits or common hyphenated 123-45-6789
+        [GeneratedRegex(@"\b\d{3}-\d{2}-\d{4}\b", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+        private static partial Regex HyphenatedSsnRegex();
+
+        // JSON or text key-value for SSN and ForeignSSN (case-insensitive key match)
+        private static readonly Regex KeyValueSsnRegex = new(
+            pattern: @"(?i)(\b(?:SSN|ForeignSSN)\b\s*[:=]\s*""?)([^""\s,}]+)",
+            options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
+
         public static string Sanitize(string? input, bool maskTokens)
         {
             if (string.IsNullOrEmpty(input))
@@ -34,6 +43,10 @@ namespace XRoadFolkWeb.Infrastructure
             {
                 try { return SafeSoapLogger.Sanitize(s); } catch { return s; }
             }
+
+            // First, aggressively mask explicit SSN key/value fields and common free-text formats
+            s = KeyValueSsnRegex.Replace(s, m => m.Groups[1].Value + LoggingHelper.Mask(m.Groups[2].Value, 0));
+            s = HyphenatedSsnRegex().Replace(s, m => LoggingHelper.Mask(m.Value, 0));
 
             // Generic masking
             s = GuidRegex().Replace(s, m => LoggingHelper.Mask(m.Value));
