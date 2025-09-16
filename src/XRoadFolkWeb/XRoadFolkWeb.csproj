@@ -117,13 +117,13 @@
   </Target>
 
   <!-- Asset build with esbuild (optional) -->
-  <Target Name="BuildFrontendAssets" BeforeTargets="Build" Condition="Exists('$(ProjectDir)package.json') AND '$(RunFrontendBuild)' == 'true'">
+  <Target Name="BuildFrontendAssets" BeforeTargets="Build" Condition="Exists('$(ProjectDir)package.json') AND Exists('$(ProjectDir)node_modules') AND '$(RunFrontendBuild)' == 'true'">
     <Message Text="Running esbuild asset pipeline" Importance="High" />
     <Exec Command="node build-assets.mjs" WorkingDirectory="$(ProjectDir)" />
   </Target>
 
   <!-- Ensure frontend assets are (re)built for Publish if desired -->
-  <Target Name="BuildFrontendAssetsForPublish" BeforeTargets="Publish" DependsOnTargets="BuildFrontendAssets" Condition="Exists('$(ProjectDir)package.json') AND '$(RunFrontendBuild)' == 'true'">
+  <Target Name="BuildFrontendAssetsForPublish" BeforeTargets="Publish" DependsOnTargets="BuildFrontendAssets" Condition="Exists('$(ProjectDir)package.json') AND Exists('$(ProjectDir)node_modules') AND '$(RunFrontendBuild)' == 'true'">
     <Message Text="Ensuring frontend assets built before Publish" Importance="High" />
   </Target>
 </Project>
