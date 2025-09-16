@@ -26,7 +26,7 @@ namespace XRoadFolkWeb.Infrastructure
         private static partial Regex HyphenatedSsnRegex();
 
         // JSON or text key-value for SSN and ForeignSSN (case-insensitive key match)
-        private static readonly Regex KeyValueSsnRegex = new(
+        private static readonly Regex s_keyValueSsnRegex = new(
             pattern: @"(?i)(\b(?:SSN|ForeignSSN)\b\s*[:=]\s*""?)([^""\s,}]+)",
             options: RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
@@ -45,7 +45,7 @@ namespace XRoadFolkWeb.Infrastructure
             }
 
             // First, aggressively mask explicit SSN key/value fields and common free-text formats
-            s = KeyValueSsnRegex.Replace(s, m => m.Groups[1].Value + LoggingHelper.Mask(m.Groups[2].Value, 0));
+            s = s_keyValueSsnRegex.Replace(s, m => m.Groups[1].Value + LoggingHelper.Mask(m.Groups[2].Value, 0));
             s = HyphenatedSsnRegex().Replace(s, m => LoggingHelper.Mask(m.Value, 0));
 
             // Generic masking
