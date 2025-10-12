@@ -53,7 +53,8 @@ Kinds: soap (SOAP EventIds), http (HttpClient/System.Net.Http or message starts 
 ## Certificate Expiry Banner
 Displays warning when missing, expired, or within XRoad:Certificate:WarnIfExpiresInDays (default 30 days).
 
-## Configuration & Logging Docs
+## Documentation
+- WSDL & Service Analysis: [docs/wsdl-analysis.md](docs/wsdl-analysis.md)
 - Detailed configuration: [docs/configuration.md](docs/configuration.md)
 - Logging architecture & tuning: [docs/logging.md](docs/logging.md)
 
