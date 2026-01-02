@@ -958,7 +958,10 @@ namespace XRoadFolkRaw.Lib
         public async Task<string> GetPeoplePublicInfoAsync(GetPeoplePublicInfoRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
-            ArgumentNullException.ThrowIfNull(req.Header);
+            if (req.Header is null)
+            {
+                throw new ArgumentException("Header is required", nameof(req));
+            }
             string xmlPath = req.XmlPath;
             XRoadHeaderOptions h = req.Header;
             string xId = h.XId; string userId = h.UserId; string protocolVersion = h.ProtocolVersion;
@@ -994,7 +997,10 @@ namespace XRoadFolkRaw.Lib
         public async Task<string> GetPersonAsync(GetPersonRequest req, CancellationToken ct = default)
         {
             ArgumentNullException.ThrowIfNull(req);
-            ArgumentNullException.ThrowIfNull(req.Header);
+            if (req.Header is null)
+            {
+                throw new ArgumentException("Header is required", nameof(req));
+            }
             string xmlPath = req.XmlPath;
             XRoadHeaderOptions h = req.Header;
             string xId = h.XId; string userId = h.UserId; string protocolVersion = h.ProtocolVersion;
